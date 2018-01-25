@@ -1,10 +1,10 @@
 # XGPC
-Code Repository for paper : "Extrememely Fast Gaussian Process Classification via Polya-Gamma Data Augmentation"
+<!--Code Repository for paper : "Extrememely Fast Gaussian Process Classification via Polya-Gamma Data Augmentation"
 
 You will find here the code for the Polya-Gamma Augmented Gaussian Process Classification in Julia as well as some light datasets.
 This folder contains the algorithm, the code that produced the experiments showed in the submitted paper to AIStats 2018 and some datasets light enough for GitHub.
 It is planned to be transformed as a Julia package in the near future for public use.
-The framework may look weird at first but it is because it has been designed to handle other data augmented models.
+The framework may look weird at first but it is because it has been designed to handle other data augmented models.-->
 
 # Tips for code exploration :
 
