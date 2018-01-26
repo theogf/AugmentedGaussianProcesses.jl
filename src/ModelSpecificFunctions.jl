@@ -213,13 +213,14 @@ end
 
 # Apply the gradients of the hyperparameters following Nesterov Accelerated Gradient Method and clipping method
 function applyHyperParametersGradients!(model::AugmentedModel,gradients)
+    #Gradients contain the : kernel param gradients, kernel coeffs gradients and eventually the inducing points gradients
     for i in 1:model.nKernels
         model.Kernels[i].param += GradDescent.update(model.optimizers[i],gradients[1][i])
         model.Kernels[i].coeff += GradDescent.update(model.optimizers[i+model.nKernels],gradients[2][i])
         model.Kernels[i].coeff = model.Kernels[i].coeff > 0 ? model.Kernels[i].coeff : 0;
     end
     if length(gradients)==3
-        # model.inducingPoints += GradDescent.update(model.optimizers[2*model.nKernels+1],gradients[3])
+         model.inducingPoints += GradDescent.update(model.optimizers[2*model.nKernels+1],gradients[3])
     end
 end
 

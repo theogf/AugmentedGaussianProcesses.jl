@@ -8,9 +8,10 @@ mutable struct SparseXGPC <: SparseModel
     @kernelfields
     @sparsefields
     @gaussianparametersfields
-    
 
-    function SparseXGPC(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,Autotuning::Bool=false,optimizer::Optimizer=Adam(),
+
+    function SparseXGPC(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
+                                    Autotuning::Bool=false,optimizer::Optimizer=Adam(),OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,BatchSize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
                                     Kernels=0,γ::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=10,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
@@ -26,7 +27,7 @@ mutable struct SparseXGPC <: SparseModel
                 this.MBIndices = 1:this.nSamples; this.nSamplesUsed = this.nSamples; this.StochCoeff=1.0;
             end
             initKernel!(this,Kernels);
-            initSparse!(this,m);
+            initSparse!(this,m,OptimizeIndPoints);
             initGaussian!(this,μ_init);
             initLatentVariables!(this);
             return this;

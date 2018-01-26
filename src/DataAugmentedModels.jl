@@ -167,12 +167,13 @@ end
     #fields necessary for the sparse inducing points method
     m::Int64 #Number of inducing points
     inducingPoints::Array{Float64,2} #Inducing points coordinates for the Big Data GP
+    OptimizeInducingPoints::Bool #Flag for optimizing the points during training
     invKmm::Array{Float64,2} #Inverse Kernel matrix of inducing points
     Ktilde::Array{Float64,1} #Diagonal of the covariance matrix between inducing points and generative points
     κ::Array{Float64,2} #Kmn*invKmm
 end
 
-function initSparse!(model::AugmentedModel,m)
+function initSparse!(model::AugmentedModel,m,optimizeIndPoints)
     #Initialize parameters for the sparse model and check consistency
     minpoints = 50;
     if m > model.nSamples
@@ -183,6 +184,7 @@ function initSparse!(model::AugmentedModel,m)
         m = min(minpoints,model.nSamples÷10)
     end
     model.m = m; model.nFeatures = model.m;
+    model.OptimizeInducingPoints = optimizeIndPoints
     push!(model.optimizers,model.opt_type);
     model.optimizers[end].α *= 0.001;
     model.inducingPoints = KMeansInducingPoints(model.X,model.m,10)
@@ -197,7 +199,7 @@ end
 end
 function initGaussian!(model::AugmentedModel,μ_init)
     #Initialize gaussian parameters and check for consistency
-    if µ_init[1] == 0 || length(µ_init) != nFeatures
+    if µ_init == [0.0] || length(µ_init) != model.nFeatures
       if model.VerboseLevel > 2
         warn("Initial mean of the variational distribution is sampled from a multinormal distribution")
       end

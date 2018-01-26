@@ -56,7 +56,7 @@ end
 # end
 function ELBO(model::BatchXGPC)
     ELBO_v = model.nSamples*(0.5-log.(2.0)) #Constant
-    θ = 1./(2*model.α).*tanh.(model.α/2.0) #Reparametrisation of c
+    θ = 1./(2*model.α).*tanh.(model.α/2.0) #Reparametrization of c
     ELBO_v += 0.5*(logdet(model.ζ)+logdet(model.invK)) #Logdet computations
     ELBO_v += -0.5*sum((model.invK+Diagonal(θ)).*transpose(model.ζ+model.μ*transpose(model.μ))) #Computation of the trace
     ELBO_v += 0.5*dot(model.y,model.μ)
@@ -100,7 +100,6 @@ function computeHyperParametersGradients(model::SparseXGPC,iter::Integer)
     #Update of both the coefficients and hyperparameters of the kernels
     gradients_kernel_param = zeros(model.nKernels)
     gradients_kernel_coeff = zeros(model.nKernels)
-    gradients_inducing_points = zeros(model.m,dim)
     for i in 1:model.nKernels
         #Compute the derivative of the kernel matrices against the kernel hyperparameter
         Jnm_param,Jnn_param,Jmm_param = model.Kernels[i].coeff.*computeJ(model,model.Kernels[i].compute_deriv)
@@ -116,17 +115,22 @@ function computeHyperParametersGradients(model::SparseXGPC,iter::Integer)
         gradients_kernel_coeff[i] = 0.5*(sum(( V_coeff*model.invKmm - model.StochCoeff*(ι_coeff'*Θ*model.κ+model.κ'*Θ*ι_coeff)) .* transpose(B)) -trace(V_coeff)-model.StochCoeff*sum(Θ.*Jtilde_coeff))
          + model.StochCoeff*0.5*dot(model.y[model.MBIndices],ι_coeff*model.μ)
     end
-    for i in 1:model.m #Iterate over the points
-        Jnm,Jmm = computeIndPointsJ(model,i)
-        for j in 1:dim #iterate over the dimensions
-            ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
-            Jtilde = -sum(ι.*(Kmn.'),2)-sum(model.κ.*Jnm[j,:,:],2)
-            V = model.invKmm*Jmm[j,:,:]
-            gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff*(ι'*Θ*model.κ+model.κ'*Θ*ι)).*transpose(B))-trace(V)-model.StochCoeff*sum(Θ.*Jtilde))
-             + model.StochCoeff*0.5*dot(model.y[model.MBIndices],ι*model.μ)
+    if model.OptimizeInducingPoints
+        gradients_inducing_points = zeros(model.m,dim)
+        for i in 1:model.m #Iterate over the points
+            Jnm,Jmm = computeIndPointsJ(model,i)
+            for j in 1:dim #iterate over the dimensions
+                ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
+                Jtilde = -sum(ι.*(Kmn.'),2)-sum(model.κ.*Jnm[j,:,:],2)
+                V = model.invKmm*Jmm[j,:,:]
+                gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff*(ι'*Θ*model.κ+model.κ'*Θ*ι)).*transpose(B))-trace(V)-model.StochCoeff*sum(Θ.*Jtilde))
+                 + model.StochCoeff*0.5*dot(model.y[model.MBIndices],ι*model.μ)
+            end
         end
+        return gradients_kernel_param,gradients_kernel_coeff,gradients_inducing_points
+    else
+        return gradients_kernel_param,gradients_kernel_coeff
     end
-    return gradients_kernel_param,gradients_kernel_coeff,gradients_inducing_points
 end
 
 
@@ -147,17 +151,17 @@ function computefstar(model::FullBatchModel,X_test)
     return meanfstar,covfstar
 end
 
-function computefstar(model::GibbsSamplerGPC,X_test)
-    n = size(X_test,1)
-    ksize = model.nSamples
-    kstar = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
-    A = kstar*model.invK
-    kstarstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
-    meanfstar = A*model.μ
-    covfstar = kstarstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(kstar))# + mean(broadcast(x->(meanfstar-A*x).^2,model.estimate))[1]
-    # covfstar = kstarstar - diag(kstar*model.invK*transpose(kstar))
-    return meanfstar,covfstar
-end
+# function computefstar(model::GibbsSamplerGPC,X_test)
+#     n = size(X_test,1)
+#     ksize = model.nSamples
+#     kstar = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
+#     A = kstar*model.invK
+#     kstarstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
+#     meanfstar = A*model.μ
+#     covfstar = kstarstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(kstar))# + mean(broadcast(x->(meanfstar-A*x).^2,model.estimate))[1]
+#     # covfstar = kstarstar - diag(kstar*model.invK*transpose(kstar))
+#     return meanfstar,covfstar
+# end
 
 
 

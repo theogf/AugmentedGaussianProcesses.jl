@@ -4,19 +4,21 @@
 
 push!(LOAD_PATH,"/home/theo/XGPC/src/")
 # if !isdefined(:DataAccess); include("DataAccess.jl"); end;
-if !isdefined(:TestFunctions); include("paper_experiment_functions.jl");end;
+include("functions_paper_experiment.jl")
 using PyPlot
 using DataAccess
 #Compare XGPC, BSVM, SVGPC and Logistic Regression
 
 #Methods and scores to test
-doBXGPC = false #Batch XGPC (no sparsity)
+doBXGPC = true #Batch XGPC (no sparsity)
 doSXGPC = true #Sparse XGPC (sparsity)
 doLBSVM = false #Linear BSVM
 doBBSVM = false #Batch BSVM
 doSBSVM = false #Sparse BSVM
 doSVGPC = false #Sparse Variational GPC (Hensmann)
 doLogReg = false #Logistic Regression
+doAutotuning = true
+doPointOptimization = false
 ExperimentName = "Prediction"
 # ExperimentName = "ConvergenceExperiment"
 @enum ExperimentType PredictionExp=0 AccuracyExp=1 ConvergenceExp=2
@@ -43,6 +45,8 @@ MaxIter = 10 #Maximum number of iterations for every algorithm
 nFold = 10; #Chose the number of folds
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
 
+println("Dataset $dataset loaded")
+
 #Main Parameters
 main_param = DefaultParameters()
 main_param["nFeatures"] = nFeatures
@@ -50,13 +54,15 @@ main_param["nSamples"] = nSamples
 main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["M"] = min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "rbf"
-main_param["Θ"] = 6.0 #Hyperparameter of the kernel
+main_param["Θ"] = 5.0 #Hyperparameter of the kernel
 main_param["BatchSize"] = 100
 main_param["Verbose"] = 0
 main_param["Window"] = 10
+main_param["Autotuning"] = doAutotuning
+main_param["PointOptimization"] = doPointOptimization
 #BSVM and SVGPC Parameters
-BXGPCParam = XGPCParameters(Stochastic=false,Sparse=false,ALR=true,main_param=main_param)
-SXGPCParam = XGPCParameters(Stochastic=true,Sparse=true,Autotuning=true,ALR=true,main_param=main_param)
+BXGPCParam = XGPCParameters(main_param=main_param)
+SXGPCParam = XGPCParameters(Stochastic=true,Sparse=true,ALR=true,main_param=main_param)
 LBSVMParam = BSVMParameters(Stochastic=false,NonLinear=true)
 BBSVMParam = BSVMParameters(Stochastic=false,Sparse=false,ALR=false,main_param=main_param)
 SBSVMParam = BSVMParameters(Stochastic=true,Sparse=true,ALR=true,main_param=main_param)
