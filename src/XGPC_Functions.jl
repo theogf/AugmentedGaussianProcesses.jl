@@ -130,6 +130,39 @@ function computeHyperParametersGradients(model::SparseXGPC,iter::Integer)
 end
 
 
+function computefstar(model::FullBatchModel,X_test)
+    n = size(X_test,1)
+    ksize = model.nSamples
+    if model.DownMatrixForPrediction == 0
+        if model.TopMatrixForPrediction == 0
+            model.TopMatrixForPrediction = model.invK*model.μ
+        end
+      model.DownMatrixForPrediction = -(model.invK*(eye(ksize)-model.ζ*model.invK))
+    end
+    kstar = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
+    A = kstar*model.invK
+    kstarstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
+    meanfstar = kstar*model.TopMatrixForPrediction
+    covfstar = kstarstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(kstar))
+    return meanfstar,covfstar
+end
+
+function computefstar(model::GibbsSamplerGPC,X_test)
+    n = size(X_test,1)
+    ksize = model.nSamples
+    kstar = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
+    A = kstar*model.invK
+    kstarstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
+    meanfstar = A*model.μ
+    covfstar = kstarstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(kstar))# + mean(broadcast(x->(meanfstar-A*x).^2,model.estimate))[1]
+    # covfstar = kstarstar - diag(kstar*model.invK*transpose(kstar))
+    return meanfstar,covfstar
+end
+
+
+
+
+
 
 # function computeHyperParametersGradients(model::SparseXGPC,iter::Integer)
 #     gradients = zeros(model.nKernels)

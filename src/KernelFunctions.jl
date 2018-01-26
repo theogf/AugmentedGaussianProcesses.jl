@@ -149,6 +149,8 @@ function deriv_laplace(X1::Array{Float64,1},X2::Array{Float64,1},Θ)
   return -a*exp(-Θ*a)
 end
 
+# Exponential kernel
+
 #Abel Kernel
 function abel(X1::Array{Float64,1},X2::Array{Float64,1},Θ)
   if X1==X2

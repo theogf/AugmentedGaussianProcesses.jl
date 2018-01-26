@@ -36,17 +36,13 @@ function train!(model::AugmentedModel;iterations::Integer=0,callback=0,Convergen
     model.Trained = true
     iter::Int64 = 1; conv = Inf;
     while true #do while loop
-
-        updateParameters!(model,iter) #Update all the variational parameters
         if callback != 0
                 callback(model,iter) #Use a callback method if put by user
         end
-        # model.Trained = true #Confirm model has been initialized (and can make prediction)
-
+        updateParameters!(model,iter) #Update all the variational parameters
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
             updateHyperParameters!(model,iter) #Do the hyper-parameter optimization
             computeMatrices!(model)
-            # callback(model,iter;hyper=true)
         end
         conv = Convergence(model,iter) #Check for convergence
         ### Print out informations about the convergence
