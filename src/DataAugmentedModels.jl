@@ -14,8 +14,6 @@ using StatsBase
 using Plots
 using QuadGK
 using GradDescent
-# using ReverseDiff
-# using Optim
 using ValueHistories
 
 export LinearBSVM, BatchBSVM, SparseBSVM

@@ -9,6 +9,7 @@ Set of datatype and functions for efficient testing.
 # module TestFunctions
 
 include("../src/DataAugmentedModels.jl")
+include("../src/ECM.jl")
 import DAM
 using KMeansModule
 using ScikitLearn
@@ -307,8 +308,8 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
                   loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
                   a[3] = TestMeanHoldOutLikelihood(loglike)
                   a[4] = TestMedianHoldOutLikelihood(loglike)
-                  a[5] = -tm.Model[i][:_objective](x)[1]
-        #          println("Iteration $(self[:i]) : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) mean(θ) is $(mean(tm.Model[i][:kern][:rbf][:lengthscales][:value]))")
+                  a[5] = tm.Model[i][:_objective](x)[1]
+                  println("Iteration $(self[:i]) : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) mean(θ) is $(mean(tm.Model[i][:kern][:rbf][:lengthscales][:value]))")
                   a[6] = time_ns()
                   push!(LogArrays,a)
                   # println((a[1]-LogArrays[1][1])*1e-9)
@@ -409,16 +410,16 @@ function ProcessResults(tm::TestingModel,writing_order)
   end
 end
 
-function ProcessResultsConvergence(tm::TestingModel)
+function ProcessResultsConvergence(tm::TestingModel,iFold)
     #Find maximum length
-    NMax = maximum(length.(tm.Results["Time"]))
-    NFolds = length(tm.Results["Time"])
+    NMax = maximum(length.(tm.Results["Time"][1:iFold]))
+    NFolds = length(tm.Results["Time"][1:iFold])
     Mtime = zeros(NMax); time= []
     Macc = zeros(NMax); acc= []
     Mmeanl = zeros(NMax); meanl= []
     Mmedianl = zeros(NMax); medianl= []
     Melbo = zeros(NMax); elbo = []
-    for i in 1:NFolds
+    for i in 1:iFold
         DiffN = NMax - length(tm.Results["Time"][i])
         if DiffN != 0
             time = [tm.Results["Time"][i];tm.Results["Time"][i][end]*ones(DiffN)]

@@ -9,57 +9,33 @@ using ValueHistories
 using Distributions
 using PGSampler
 import DAM
-doPlot = false
-N_data = 100
-N_test = 100
-noise = 0.01
-function latent(x)
-    return sin.(2*x)
-end
-# X_data = sort(rand(N_data))*10.0
-X_data = rand(Normal(2.5,0.5),Int64(N_data/2))
-X_data = sort(vcat(X_data,rand(Normal(7.5,0.5),Int64(N_data/2))))
-X_test = collect(linspace(0,10.0,N_test))
-y_data = sign.(1.0./(1.0+exp.(-latent(X_data)+rand(Normal(0,noise),length(X_data))))-0.5)
-y_test = sign.(1.0./(1.0+exp.(-latent(X_test)+rand(Normal(0,noise),length(X_test))))-0.5)
-X=  X_data; y=y_data
-iter_points = collect(1:1:1000)
 
-MaxIter = 10000#Maximum number of iterations for every algorithm
-metrics = MVHistory()
-Parameters = MVHistory()
-function StoreIt(model::DAM.AugmentedModel,iter)#;iter_points=[],LogArrays=[],X_test=0,y_test=0)
-    if in(iter,iter_points)
-        push!(metrics,:time_init,iter,time_ns()*1e-9)
-        y_p = model.PredictProba(X_test)
-        loglike = zeros(y_p)
-        loglike[y_test.==1] = log.(y_p[y_test.==1])
-        loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
-        push!(metrics,:accuracy,iter,1-sum(1-y_test.*sign.(y_p-0.5))/(2*length(y_test)))
-        push!(metrics,:meanloglikelihood,iter,mean(loglike))
-        push!(metrics,:medianloglikelihood,iter,median(loglike))
-        push!(metrics,:ELBO,iter,DAM.ELBO(model))
-        push!(metrics,:end_time,iter,time_ns()*1e-9)
-        # println("Iteration $iter : Accuracy is $(1-sum(1-y_test.*sign.(y_p-0.5))/(2*length(y_test))), ELBO is $(DAM.ELBO(model)), θ is $(model.Kernels[1].param)")
-        push!(Parameters,:μ,iter,model.μ)
-        push!(Parameters,:diag_ζ,iter,diag(model.ζ))
-        push!(Parameters,:kernel_params,iter,getfield.(model.Kernels,:param))
-        push!(Parameters,:kernel_coeffs,iter,getfield.(model.Kernels,:coeff))
-    end
-end
-θ=1; ϵ=1e-10; γ=0.1
+(X_data,y_data,DatasetName) = get_Dataset("German")
+(nSamples,nFeatures) = size(X_data);
+
+nFold = 10; #Chose the number of folds
+fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
+#Global variables for debugging
+X = []; y = []; X_test = []; y_test = [];i=4
+X_test = X_data[fold_separation[i]:(fold_separation[i+1])-1,:]
+y_test = y_data[fold_separation[i]:(fold_separation[i+1])-1]
+X = X_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples)),:]
+y = y_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples))]
+
+iter_points = collect(1:1:1000)
+θ=1.0; ϵ=1e-10; γ=0.001
 nBurnin = 100; nSamples = 100000+nBurnin;
 kerns = [Kernel("rbf",1.0;params=θ)]
 model = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=false,VerboseLevel=0,ϵ=1e-10,nEpochs=100)
 gmodel = DAM.GibbsSamplerGPC(X,y;burninsamples=nBurnin,samplefrequency=1,Kernels=kerns,VerboseLevel=0,ϵ=1e-10,nEpochs=nSamples)
 
+MaxIter = 10000 #Maximum number of iterations for every algorithm
+
 gmodel.train()
-model.train(callback=StoreIt)
- # model.train(callback=StoreIt,convergence=function (model::AugmentedClassifier,iter)  return LogLikeConvergence(model,iter,X_test,y_test);end)
+model.train()
+
 y_predic_log = gmodel.Predict(X_test)
 plot(X_data,y_data,t=:scatter,xlim=(0,10),ylim=(-3,3),lab="Training")
-# plot!(X_test, y_test,t=:scatter,xlim=(0,10),ylim=(-1.5,1.5),lab="Testing")
-X_range = collect(0:00.1:10)
 fstar_vi,covfstar_vi = DAM.computefstar(model,X_range)
 fstar_gibbs,covfstar_gibbs = DAM.computefstar(gmodel,X_range)
 plot!(X_range,latent,lab="latent f")

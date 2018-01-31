@@ -1,9 +1,8 @@
 #### Paper_Experiments ####
 # Run on a file and compute accuracy on a nFold cross validation
 # Compute also the brier score and the logscore
-
-push!(LOAD_PATH,"/home/theo/XGPC/src/")
-# if !isdefined(:DataAccess); include("DataAccess.jl"); end;
+SRC_PATH=  pwd()*"/../src/"
+if !in(LOAD_PATH,SRC_PATH); push!(LOAD_PATH,SRC_PATH); end;
 include("functions_paper_experiment.jl")
 using PyPlot
 using DataAccess
@@ -11,7 +10,7 @@ using DataAccess
 
 #Methods and scores to test
 doBXGPC = false #Batch XGPC (no sparsity)
-doSXGPC = true #Sparse XGPC (sparsity)
+doSXGPC = false #Sparse XGPC (sparsity)
 doLBSVM = false #Linear BSVM
 doBBSVM = false #Batch BSVM
 doSBSVM = false #Sparse BSVM
@@ -31,10 +30,11 @@ doLogScore = true #Return LogScore
 doAUCScore = true
 doLikelihoodScore = true
 doSaveLastState = true
-doPlot = false
+doPlot = true
 doWrite = false #Write results in approprate folder
 ShowIntResults = true #Show intermediate time, and results for each fold
 
+iFold = 2
 #Testing Parameters
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
@@ -106,7 +106,7 @@ for (name,testmodel) in TestModels
       if doLikelihoodScore;  testmodel.Results["medianlikelihoodscore"] = Array{Float64,1}(nFold);
                         testmodel.Results["meanlikelihoodscore"] = Array{Float64,1}(nFold);end;
   end
- for i in 1:nFold #Run over all folds of the data
+ for i in 1:iFold #Run over all folds of the data
     if ShowIntResults
       println("#### Fold number $i/$nFold###")
     end
@@ -145,7 +145,7 @@ for (name,testmodel) in TestModels
       ProcessResults(testmodel,writing_order) #Compute mean and std deviation
       PrintResults(testmodel.Results["allresults"],testmodel.MethodName,writing_order) #Print the Results in the end
   else
-      ProcessResultsConvergence(testmodel)
+      ProcessResultsConvergence(testmodel,iFold)
       println(size(testmodel.Results["Processed"]))
   end
   if doWrite
