@@ -9,7 +9,7 @@ export get_Dataset
 
 
 function get_Dataset(datasetname::String)
-    data = readdlm("../data/"*datasetname)
+    data = readdlm("/home/theo/XGPC/data/"*datasetname)
     X = data[:,1:end-1]; y = data[:,end];
     return (X,y,datasetname)
 end

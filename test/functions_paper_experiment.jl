@@ -287,7 +287,7 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
                 a[2] = TestAccuracy(y_test,sign.(y_p-0.5))
                 a[3] = TestMeanHoldOutLikelihood(loglike)
                 a[4] = TestMedianHoldOutLikelihood(loglike)
-                a[5] = ELBO(model)
+                a[5] = DAM.ELBO(model)
     #            println("Iteration $iter : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) θ is $(model.Kernels[1].param)")
                 a[6] = time_ns()
                 push!(LogArrays,a)
@@ -311,7 +311,7 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
         #          println("Iteration $(self[:i]) : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) mean(θ) is $(mean(tm.Model[i][:kern][:rbf][:lengthscales][:value]))")
                   a[6] = time_ns()
                   push!(LogArrays,a)
-                  println((a[1]-LogArrays[1][1])*1e-9)
+                  # println((a[1]-LogArrays[1][1])*1e-9)
                   if (a[1]-LogArrays[1][1])*1e-9 > 4000
                       return false
                   end
@@ -557,6 +557,25 @@ function TestAUCScore(ROC)
     h = specificity[1:end-1]-specificity[2:end]
     AUC = sum(sensibility[1:end-1].*h)
     return AUC
+end
+
+function WriteLastStateParameters(testmodel,X_test,y_test,i)
+    if isa(testmodel.Model[i],DAM.AugmentedModel)
+        top_fold = "../data";
+        if !isdir(top_fold); mkdir(top_fold); end;
+        top_fold = top_fold*"/"*testmodel.DatasetName*"_SavedParams"
+        if !isdir(top_fold); mkdir(top_fold); end;
+        top_fold = top_fold*"/"*testmodel.MethodName
+        if !isdir(top_fold); mkdir(top_fold); end;
+        writedlm(top_fold*"/mu"*"_$i",testmodel.Model[i].μ)
+        writedlm(top_fold*"/sigma"*"_$i",testmodel.Model[i].ζ)
+        writedlm(top_fold*"/c"*"_$i",testmodel.Model[i].α)
+        writedlm(top_fold*"/X_test"*"_$i",X_test)
+        writedlm(top_fold*"/y_test"*"_$i",y_test)
+        if isa(testmodel.Model[i],DAM.SparseModel)
+            writedlm(top_fold*"/ind_points"*"_$i",testmodel.Model[i].inducingPoints)
+        end
+    end
 end
 
 function PlotResults(TestModels,tests)

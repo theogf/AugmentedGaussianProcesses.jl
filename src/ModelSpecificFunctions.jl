@@ -2,19 +2,6 @@
 
 #### Computations of the kernel matrices ####
 
-# function computeMatrices!(model::SparseModel)
-#     if model.HyperParametersUpdated
-#         model.invKmm = Matrix(Symmetric(inv(CreateKernelMatrix(model.inducingPoints,model.Kernel_function)+model.γ*eye(model.nFeatures))))
-#     end
-#     #If change of hyperparameters or if stochatic
-#     if model.HyperParametersUpdated || model.Stochastic
-#         Knm = CreateKernelMatrix(model.X[model.MBIndices,:],model.Kernel_function,X2=model.inducingPoints)
-#         model.κ = Knm*model.invKmm
-#         model.Ktilde = CreateDiagonalKernelMatrix(model.X[model.MBIndices,:],model.Kernel_function) + model.γ*ones(length(model.MBIndices)) - squeeze(sum(model.κ.*Knm,2),2)
-#     end
-#     model.HyperParametersUpdated=false
-# end
-
 function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated
         model.invKmm = Matrix(Symmetric(inv(CreateKernelMatrix(model.inducingPoints,model.Kernel_function)+model.γ*eye(model.nFeatures))))
@@ -205,7 +192,9 @@ end
 function updateHyperParameters!(model::NonLinearModel,iter::Integer)
     # PlotHyperParametersSpace(model;npoints=20)
     gradients = computeHyperParametersGradients(model,iter)
-    print("Pre-Parameters  (param,coeff) $((getfield.(model.Kernels,:param),getfield.(model.Kernels,:coeff))) with gradients $(gradients[1:2]) \n")
+    if model.VerboseLevel > 1
+        print("Hyperparameters  (param,coeff) $((getfield.(model.Kernels,:param),getfield.(model.Kernels,:coeff))) with gradients $(gradients[1:2]) \n")
+    end
     applyHyperParametersGradients!(model,gradients)
     model.HyperParametersUpdated = true;
 end

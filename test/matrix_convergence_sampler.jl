@@ -10,7 +10,7 @@ using Distributions
 using PGSampler
 import DAM
 doPlot = false
-N_data = 50
+N_data = 100
 N_test = 100
 noise = 0.01
 function latent(x)
@@ -20,8 +20,7 @@ end
 X_data = rand(Normal(2.5,0.5),Int64(N_data/2))
 X_data = sort(vcat(X_data,rand(Normal(7.5,0.5),Int64(N_data/2))))
 X_test = collect(linspace(0,10.0,N_test))
-y_data = sign.(1.0./(1.0+exp.(-latent(X_data)))-0.5)
-# y_data = sign.(1.0./(1.0+exp.(-latent(X_data)+rand(Normal(0,noise),length(X_data))))-0.5)
+y_data = sign.(1.0./(1.0+exp.(-latent(X_data)+rand(Normal(0,noise),length(X_data))))-0.5)
 y_test = sign.(1.0./(1.0+exp.(-latent(X_test)+rand(Normal(0,noise),length(X_test))))-0.5)
 X=  X_data; y=y_data
 iter_points = collect(1:1:1000)
@@ -49,41 +48,37 @@ function StoreIt(model::DAM.AugmentedModel,iter)#;iter_points=[],LogArrays=[],X_
     end
 end
 θ=1; ϵ=1e-10; γ=0.1
-nBurnin = 100; nSamples = 10000+nBurnin;
-kerns = [Kernel("rbf",10.0;params=θ)]
-model = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=true,VerboseLevel=0,ϵ=1e-10,nEpochs=100)
+nBurnin = 100; nSamples = 100000+nBurnin;
+kerns = [Kernel("rbf",1.0;params=θ)]
+model = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=false,VerboseLevel=0,ϵ=1e-10,nEpochs=100)
 gmodel = DAM.GibbsSamplerGPC(X,y;burninsamples=nBurnin,samplefrequency=1,Kernels=kerns,VerboseLevel=0,ϵ=1e-10,nEpochs=nSamples)
-println("Training with Gibbs Sampler")
+
 gmodel.train()
-println("Training with VI")
-model.train()
-# model.train(callback=StoreIt,convergence=function (model::AugmentedClassifier,iter)  return LogLikeConvergence(model,iter,X_test,y_test);end)
-X_range = collect(0:0.001:10)
-plot(X_data,y_data,t=:scatter,xlim=(0,10),ylim=(-10,10),lab="Training")
-plot!(X_range,latent,lab="latent f")
-if gmodel.Trained
- println("Accuracy Gibbs: $(1-sum(1-y_test.*gmodel.Predict(X_test))/(2*length(y_test)))")
- fstar_gibbs,covfstar_gibbs = DAM.computefstar(gmodel,X_range)
- plot!(X_range,fstar_gibbs,lab="latent f gibbs",color=:red)
- plot!(X_range,fstar_gibbs+2*sqrt.(covfstar_gibbs),linewidth=1,lab="",color=:red,fillalpha=0.1,fillrange=fstar_gibbs-2*sqrt.(covfstar_gibbs))
- display(plot!(X_range,fstar_gibbs-2*sqrt.(covfstar_gibbs),linewidth=1,lab="",color=:red))
-end
-if model.Trained
-    println("Accuracy VI: $(1-sum(1-y_test.*model.Predict(X_test))/(2*length(y_test)))")
-    fstar_vi,covfstar_vi = DAM.computefstar(model,X_range)
-    plot!(X_range,fstar_vi,lab="latent f vi",color=:blue)
-    plot!(X_range,fstar_vi-2*sqrt.(covfstar_vi),l=1,lab="",color=:blue)
-    display(plot!(X_range,fstar_vi+2*sqrt.(covfstar_vi),l=1,lab="",color=:blue,fillalpha=0.1,fillrange=fstar_vi-2*sqrt.(covfstar_vi)))
-end
+model.train(callback=StoreIt)
+ # model.train(callback=StoreIt,convergence=function (model::AugmentedClassifier,iter)  return LogLikeConvergence(model,iter,X_test,y_test);end)
+y_predic_log = gmodel.Predict(X_test)
+plot(X_data,y_data,t=:scatter,xlim=(0,10),ylim=(-3,3),lab="Training")
 # plot!(X_test, y_test,t=:scatter,xlim=(0,10),ylim=(-1.5,1.5),lab="Testing")
+X_range = collect(0:00.1:10)
+fstar_vi,covfstar_vi = DAM.computefstar(model,X_range)
+fstar_gibbs,covfstar_gibbs = DAM.computefstar(gmodel,X_range)
+plot!(X_range,latent,lab="latent f")
 # plot!(X_data,gmodel.μ,lab="latent f gibbs",color=:red)
 # plot!(X_data,gmodel.μ+2*sqrt.(diag(gmodel.ζ)),l=1,lab="",color=:red,fillalpha=0.1,fillrange=gmodel.μ-2*sqrt.(diag(gmodel.ζ)))
 # plot!(X_data,gmodel.μ-2*sqrt.(diag(gmodel.ζ)),l=1,lab="",color=:red)
 # plot!(X_data,model.μ,lab="latent f vi",color=:blue)
 # plot!(X_data,model.μ-2*sqrt.(diag(model.ζ)),l=1,lab="",color=:blue)
 # display(plot!(X_data,model.μ+2*sqrt.(diag(model.ζ)),l=1,lab="",color=:blue,fillalpha=0.1,fillrange=model.μ-2*sqrt.(diag(model.ζ))))
+plot!(X_range,fstar_gibbs,lab="latent f gibbs",color=:red)
+plot!(X_range,fstar_gibbs+2*sqrt.(covfstar_gibbs),l=1,lab="",color=:red,fillalpha=0.1,fillrange=fstar_gibbs-2*sqrt.(covfstar_gibbs))
+plot!(X_range,fstar_gibbs-2*sqrt.(covfstar_gibbs),l=1,lab="",color=:red)
+plot!(X_range,fstar_vi,lab="latent f vi",color=:blue)
+plot!(X_range,fstar_vi-2*sqrt.(covfstar_vi),l=1,lab="",color=:blue)
+display(plot!(X_range,fstar_vi+2*sqrt.(covfstar_vi),l=1,lab="",color=:blue,fillalpha=0.1,fillrange=fstar_vi-2*sqrt.(covfstar_vi)))
+sleep(5)
+println("Accuracy : $(1-sum(1-y_test.*y_predic_log)/(2*length(y_test)))")
 
-# evol_f = hcat(gmodel.samplehistory[:f].values...)
+evol_f = hcat(gmodel.samplehistory[:f].values...)
 function compute_on_window(fs,window)
     means = zeros(size(fs,2)-window,size(fs,1))
     covs = zeros(size(fs,2)-window,size(fs,1),size(fs,1))

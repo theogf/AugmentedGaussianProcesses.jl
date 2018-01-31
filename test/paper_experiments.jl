@@ -10,17 +10,17 @@ using DataAccess
 #Compare XGPC, BSVM, SVGPC and Logistic Regression
 
 #Methods and scores to test
-doBXGPC = true #Batch XGPC (no sparsity)
+doBXGPC = false #Batch XGPC (no sparsity)
 doSXGPC = true #Sparse XGPC (sparsity)
 doLBSVM = false #Linear BSVM
 doBBSVM = false #Batch BSVM
 doSBSVM = false #Sparse BSVM
-doSVGPC = false #Sparse Variational GPC (Hensmann)
+doSVGPC = true #Sparse Variational GPC (Hensmann)
 doLogReg = false #Logistic Regression
 doAutotuning = true
 doPointOptimization = false
-ExperimentName = "Prediction"
-# ExperimentName = "ConvergenceExperiment"
+# ExperimentName = "Prediction"
+ExperimentName = "ConvergenceExperiment"
 @enum ExperimentType PredictionExp=0 AccuracyExp=1 ConvergenceExp=2
 ExperimentTypes = Dict("Prediction"=>PredictionExp, "ConvergenceExperiment"=>ConvergenceExp,"Accuracy"=>AccuracyExp)
 Experiment = ExperimentTypes[ExperimentName]
@@ -30,6 +30,7 @@ doBrierScore = true # Return BrierScore
 doLogScore = true #Return LogScore
 doAUCScore = true
 doLikelihoodScore = true
+doSaveLastState = true
 doPlot = false
 doWrite = false #Write results in approprate folder
 ShowIntResults = true #Show intermediate time, and results for each fold
@@ -40,7 +41,8 @@ aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, S
 =#
 dataset = "Diabetis"
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
-MaxIter = 10 #Maximum number of iterations for every algorithm
+MaxIter = 200 #Maximum number of iterations for every algorithm
+iter_points= vcat(1:99,100:10:999,1000:1000:9999)
 (nSamples,nFeatures) = size(X_data);
 nFold = 10; #Chose the number of folds
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
@@ -104,7 +106,7 @@ for (name,testmodel) in TestModels
       if doLikelihoodScore;  testmodel.Results["medianlikelihoodscore"] = Array{Float64,1}(nFold);
                         testmodel.Results["meanlikelihoodscore"] = Array{Float64,1}(nFold);end;
   end
- for i = 1:nFold #Run over all folds of the data
+ for i in 1:nFold #Run over all folds of the data
     if ShowIntResults
       println("#### Fold number $i/$nFold###")
     end
@@ -134,6 +136,9 @@ for (name,testmodel) in TestModels
     end
     if ShowIntResults
         println("$(testmodel.MethodName) : Time  = $((time_ns()-init_t)*1e-9)s")
+    end
+    if doSaveLastState
+        WriteLastStateParameters(testmodel,X_test,y_test,i)
     end
   end
   if Experiment != ConvergenceExp

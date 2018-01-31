@@ -20,7 +20,8 @@ using ValueHistories
 
 export LinearBSVM, BatchBSVM, SparseBSVM
 export BatchXGPC, SparseXGPC, GibbsSamplerGPC
-export AugmentedModel, ELBO
+export AugmentedModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
+export ELBO
 
 #Simple tool to define macros
 macro def(name, definition)
@@ -245,7 +246,7 @@ function initFunctions!(model::AugmentedModel)
     end
     model.Predict = function(X_test)
         if !model.Trained
-            error("Model has not been trained! Please run .train() before hand")
+            error("Model has not been trained! Please run .train() beforehand")
             return
         end
         if model.ModelType == BSVM

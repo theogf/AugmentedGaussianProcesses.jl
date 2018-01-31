@@ -14,8 +14,8 @@ using DataAccess
 using KernelFunctions
 using Distributions
 using ValueHistories
-include("PGSampler.jl")
-include("DataAugmentedModels.jl")
+include("../src/PGSampler.jl")
+include("../src/DataAugmentedModels.jl")
 import DAM
 doPlot = false
 use_dataset = true
@@ -49,18 +49,18 @@ else
 end
 
 MaxIter = 500#Maximum number of iterations for every algorithm
-M=100; θ=5.0; ϵ=1e-10; γ=1e-3
-# kerns = [Kernel("rbf",1.0;params=θ)]
-kerns = [Kernel("rbf",1.0;params=θ);Kernel("linear",1.0)]
+M=100; θ=5.0; ϵ=1e-4; γ=1e-3
+kerns = [Kernel("rbf",1.0;params=θ)]
+# kerns = [Kernel("rbf",1.0;params=θ);Kernel("linear",1.0)]
  # kerns = [Kernel("linear",1.0)]
 BatchSize = 30
 Ninducingpoints = 20
 
  # toc()
  tic()
-model = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=true,optimizer=StandardGD(α=0.1),AutotuningFrequency=1,VerboseLevel=2,ϵ=1e-4,nEpochs=100)
-# model = DAM.SparseXGPC(X,y;optimizer=Adam(α=0.5),Stochastic=true,ϵ=1e-4,nEpochs=MaxIter,SmoothingWindow=10,Kernels=kerns,Autotuning=true,AutotuningFrequency=2,VerboseLevel=2,AdaptiveLearningRate=true,BatchSize=BatchSize,m=Ninducingpoints)
-
+# model = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=true,optimizer=StandardGD(α=0.1),AutotuningFrequency=1,VerboseLevel=2,ϵ=1e-4,nEpochs=100)
+model = DAM.SparseXGPC(X,y;optimizer=Adam(α=0.5),OptimizeIndPoints=true,Stochastic=true,ϵ=1e-4,nEpochs=MaxIter,SmoothingWindow=10,Kernels=kerns,Autotuning=true,AutotuningFrequency=2,VerboseLevel=2,AdaptiveLearningRate=true,BatchSize=BatchSize,m=Ninducingpoints)
+initPoints = copy(model.inducingPoints)
 # iter_points = vcat(collect(1:1:9),collect(10:10:99))
 iter_points = collect(1:1:1000)
 metrics = MVHistory()
@@ -69,16 +69,16 @@ function StoreIt(model::DAM.AugmentedModel,iter;hyper=false)#;iter_points=[],Log
     if in(iter,iter_points)
         if !hyper
             push!(metrics,:time_init,iter,time_ns()*1e-9)
-            # y_p = model.PredictProba(X_test)
-            # loglike = zeros(y_p)
-            # loglike[y_test.==1] = log.(y_p[y_test.==1])
-            # loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
-            # push!(metrics,:accuracy,iter,1-sum(1-y_test.*sign.(y_p-0.5))/(2*length(y_test)))
-            # push!(metrics,:meanloglikelihood,iter,mean(loglike))
-            # push!(metrics,:medianloglikelihood,iter,median(loglike))
+            y_p = model.PredictProba(X_test)
+            loglike = zeros(y_p)
+            loglike[y_test.==1] = log.(y_p[y_test.==1])
+            loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
+            push!(metrics,:accuracy,iter,1-sum(1-y_test.*sign.(y_p-0.5))/(2*length(y_test)))
+            push!(metrics,:meanloglikelihood,iter,mean(loglike))
+            push!(metrics,:medianloglikelihood,iter,median(loglike))
             push!(metrics,:ELBO,iter,DAM.ELBO(model))
             push!(metrics,:end_time,iter,time_ns()*1e-9)
-            # println("Iteration $iter : Accuracy is $(1-sum(1-y_test.*sign.(y_p-0.5))/(2*length(y_test))), ELBO is $(DAM.ELBO(model)), θ is $(model.Kernels[1].param)")
+            println("Iteration $iter : Accuracy is $(1-sum(1-y_test.*sign.(y_p-0.5))/(2*length(y_test))), ELBO is $(DAM.ELBO(model)), θ is $(model.Kernels[1].param)")
             push!(Parameters,:μ,iter,model.μ)
             push!(Parameters,:diag_ζ,iter,diag(model.ζ))
             push!(Parameters,:kernel_params,iter,getfield.(model.Kernels,:param))
@@ -124,7 +124,7 @@ end
 # model = SparseBSVM(X,y;Stochastic=true,Kernels=kerns,Autotuning=true,SmoothingWindow=50,AutotuningFrequency=1,VerboseLevel=3,ρ_AT=0.2,AdaptiveLearningRate=true,BatchSize=50,m=50)
 # model = BatchBSVM(X,y;Kernels=kerns,Autotuning=false,AutotuningFrequency=2,VerboseLevel=1)
  # model = LinearBSVM(X,y;Intercept=true,Stochastic=false,BatchSize=30,AdaptiveLearningRate=true,VerboseLevel=3,Autotuning=true,AutotuningFrequency=5)
-model.train()
+model.train(callback=StoreIt)
  # model.train(callback=StoreIt,convergence=function (model::AugmentedClassifier,iter)  return LogLikeConvergence(model,iter,X_test,y_test);end)
  y_predic_log = model.Predict(X_test)
 println(1-sum(1-y_test.*y_predic_log)/(2*length(y_test)))

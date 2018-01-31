@@ -2,3 +2,4 @@ src/*_full.jl
 src/BSVM_Functions.jl
 *.png
 *.result
+data/*
