@@ -10,7 +10,7 @@ using DataAccess
 
 #Methods and scores to test
 doBXGPC = false #Batch XGPC (no sparsity)
-doSXGPC = false #Sparse XGPC (sparsity)
+doSXGPC = true #Sparse XGPC (sparsity)
 doLBSVM = false #Linear BSVM
 doBBSVM = false #Batch BSVM
 doSBSVM = false #Sparse BSVM
@@ -34,14 +34,14 @@ doPlot = true
 doWrite = false #Write results in approprate folder
 ShowIntResults = true #Show intermediate time, and results for each fold
 
-iFold = 2
+iFold = 4
 #Testing Parameters
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
 dataset = "Diabetis"
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
-MaxIter = 200 #Maximum number of iterations for every algorithm
+MaxIter = 300 #Maximum number of iterations for every algorithm
 iter_points= vcat(1:99,100:10:999,1000:1000:9999)
 (nSamples,nFeatures) = size(X_data);
 nFold = 10; #Chose the number of folds

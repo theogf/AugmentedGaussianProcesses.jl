@@ -113,7 +113,8 @@ function SVGPCParameters(;Sparse=true,Stochastic=false,main_param=DefaultParamet
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
   param["ϵ"] = main_param["ϵ"]
-  param["Kernel"] = gpflow.kernels[:Add]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"]*ones(main_param["nFeatures"])),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+  param["Kernel"] = gpflow.kernels[:Add]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+  # param["Kernel"] = gpflow.kernels[:Add]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"]*ones(main_param["nFeatures"])),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
   param["BatchSize"] = main_param["BatchSize"]
   param["M"] = main_param["M"]
   param["SmoothingWindow"] = main_param["Window"]
@@ -135,47 +136,41 @@ end
 function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
     if tm.MethodType == "BXGPC"
         tm.Model[i] = DAM.BatchXGPC(X,y;Kernels=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
-            VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? ones(y) : [0.0])
+            VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(y) : [0.0])
     elseif tm.MethodType == "SXGPC"
         tm.Model[i] = DAM.SparseXGPC(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],m=tm.Param["M"],
             Kernels=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
-            SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? ones(tm.Param["M"]) : [0.0])
+            SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0])
     elseif tm.MethodType == "LBSVM"
         tm.Model[i] = DAM.LinearBSVM(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],
             Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
-            SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? ones(y) : [0.0])
+            SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(y) : [0.0])
     elseif tm.MethodType == "BBSVM"
         tm.Model[i] = DAM.BatchBSVM(X,y;Kernels=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
-            VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? ones(y) : [0.0])
+            VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(y) : [0.0])
     elseif tm.MethodType == "SBSVM"
         tm.Model[i] = DAM.SparseBSVM(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],m=tm.Param["M"],
             Kernels=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],AutotuningFrequency=tm.Param["ATFrequency"],
             AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
-            SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? ones(tm.Param["M"]) : [0.0])
+            SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0])
     elseif tm.MethodType == "SVGPC"
         if tm.Param["Sparse"]
             if tm.Param["Stochastic"]
                 #Stochastic Sparse SVGPC model
-                tm.Model[i] = gpflow.svgp[:SVGP](X, reshape((y+1)./2,(length(y),1)),kern=tm.Param["Kernel"], likelihood=gpflow.likelihoods[:Bernoulli](), Z=KMeansInducingPoints(X,tm.Param["M"],10), minibatch_size=tm.Param["BatchSize"])
-                if !tm.Param["PointOptimization"]
-                    tm.Model[i][:Z][:fixed]=true;
-                end
-                if !tm.Param["Autotuning"]
-                    tm.Model[i][:kern][:fixed]=true;
-                end
+                tm.Model[i] = gpflow.svgp[:SVGP](X, reshape((y+1)./2,(length(y),1)),kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:Bernoulli](), Z=KMeansInducingPoints(X,tm.Param["M"],10), minibatch_size=tm.Param["BatchSize"])
             else
                 #Sparse SVGPC model
-                tm.Model[i] = gpflow.svgp[:SVGP](X, reshape((y+1)./2,(size(y,1),1)),kern=tm.Param["Kernel"],likelihood=gpflow.likelihoods[:Bernoulli](), Z=KMeansInducingPoints(X,tm.Param["M"],10))
-                if !tm.Param["PointOptimization"]
-                    tm.Model[i][:Z][:fixed]=true;
-                end
-                if !tm.Param["Autotuning"]
-                    tm.Model[i][:kern][:fixed]=true;
-                end
+                tm.Model[i] = gpflow.svgp[:SVGP](X, reshape((y+1)./2,(size(y,1),1)),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:Bernoulli](), Z=KMeansInducingPoints(X,tm.Param["M"],10))
+            end
+            if !tm.Param["PointOptimization"]
+                tm.Model[i][:Z][:fixed]=true;
+            end
+            if !tm.Param["Autotuning"]
+                tm.Model[i][:kern][:fixed]=true;
             end
         else
             #Basic SVGPC model
-            tm.Model[i] = gpflow.vgp[:VGP](X, reshape((y+1)./2,(size(y,1),1)),kern=tm.Param["Kernel"],likelihood=gpflow.likelihoods[:Bernoulli]())
+            tm.Model[i] = gpflow.vgp[:VGP](X, reshape((y+1)./2,(size(y,1),1)),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:Bernoulli]())
             if !tm.Param["Autotuning"]
                 tm.Model[i][:kern][:fixed]=true;
             end
@@ -194,7 +189,7 @@ function LogLikeConvergence(model::DAM.AugmentedModel,iter::Integer,X_test,y_tes
         loglike = zeros(y_p)
         loglike[y_test.==1] = log.(y_p[y_test.==1])
         loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
-        new_params = mean(loglike)
+        new_params = mea2n(loglike)
         model.prev_params = new_params
         return Inf
     end
@@ -306,10 +301,11 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
                   loglike = zeros(y_p)
                   loglike[y_test.==1] = log.(y_p[y_test.==1])
                   loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
+                  a[2] = TestAccuracy(y_test,sign.(y_p-0.5))
                   a[3] = TestMeanHoldOutLikelihood(loglike)
                   a[4] = TestMedianHoldOutLikelihood(loglike)
                   a[5] = tm.Model[i][:_objective](x)[1]
-                  println("Iteration $(self[:i]) : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) mean(θ) is $(mean(tm.Model[i][:kern][:rbf][:lengthscales][:value]))")
+                  # println("Iteration $(self[:i]) : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) mean(θ) is $(mean(tm.Model[i][:kern][:rbf][:lengthscales][:value]))")
                   a[6] = time_ns()
                   push!(LogArrays,a)
                   # println((a[1]-LogArrays[1][1])*1e-9)
@@ -575,6 +571,10 @@ function WriteLastStateParameters(testmodel,X_test,y_test,i)
         writedlm(top_fold*"/y_test"*"_$i",y_test)
         if isa(testmodel.Model[i],DAM.SparseModel)
             writedlm(top_fold*"/ind_points"*"_$i",testmodel.Model[i].inducingPoints)
+        end
+        if isa(testmodel.Model[i],DAM.NonLinearModel)
+            writedlm(top_fold*"/kernel_param"*"_$i",broadcast(getfield,testmodel.Model[i].Kernels,:param))
+            writedlm(top_fold*"/kernel_coeff"*"_$i",broadcast(getfield,testmodel.Model[i].Kernels,:coeff))
         end
     end
 end

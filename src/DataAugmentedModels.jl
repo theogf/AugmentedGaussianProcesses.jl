@@ -141,7 +141,7 @@ function initKernel!(model::AugmentedModel,Kernels)
       warn("No kernel indicated, a rbf kernel function with lengthscale 1 is used")
       Kernels = [Kernel("rbf",1.0,params=1.0)]
     end
-    model.Kernels = Kernels
+    model.Kernels = deepcopy(Kernels)
     model.nKernels = length(Kernels)
     model.kernel_functions = Array{Function,1}(model.nKernels)
     model.hyperparameters = Array{Float64,2}(model.nKernels,2)
