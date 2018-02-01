@@ -101,19 +101,20 @@ function computeHyperParametersGradients(model::SparseXGPC,iter::Integer)
     gradients_kernel_param = zeros(model.nKernels)
     gradients_kernel_coeff = zeros(model.nKernels)
     for i in 1:model.nKernels
-        #Compute the derivative of the kernel matrices against the kernel hyperparameter
+        #Compute the derivative of the kernel matrices given the kernel hyperparameter
         Jnm_param,Jnn_param,Jmm_param = model.Kernels[i].coeff.*computeJ(model,model.Kernels[i].compute_deriv)
         ι_param = (Jnm_param-model.κ*Jmm_param)*model.invKmm
-        Jtilde_param = Jnn_param - sum(ι_param.*(Kmn.'),2)-sum(model.κ.*Jnm_param,2)
+        Jtilde_param = Jnn_param - sum(ι_param.*(Kmn.'),2) - sum(model.κ.*Jnm_param,2)
         V_param = model.invKmm*Jmm_param
-        gradients_kernel_param[i] = 0.5*(sum( (V_param*model.invKmm - model.StochCoeff*(ι_param'*Θ*model.κ + model.κ'*Θ*ι_param)).*transpose(B)) - trace(V_param)-model.StochCoeff*dot(diag(Θ),Jtilde_param)
+        gradients_kernel_param[i] = 0.5*(sum( (V_param*model.invKmm - model.StochCoeff*(ι_param'*Θ*model.κ + model.κ'*Θ*ι_param)) .* transpose(B)) - trace(V_param) - model.StochCoeff*dot(diag(Θ),Jtilde_param)
          + model.StochCoeff*dot(model.y[model.MBIndices],ι_param*model.μ))
+
         Jnm_coeff,Jnn_coeff,Jmm_coeff = computeJ(model,model.Kernels[i].compute)
         ι_coeff = (Jnm_coeff-model.κ*Jmm_coeff)*model.invKmm
         Jtilde_coeff = Jnn_coeff - sum(ι_coeff.*(Kmn.'),2) - sum(model.κ.*Jnm_coeff,2)
         V_coeff = model.invKmm*Jmm_coeff
-        gradients_kernel_coeff[i] = 0.5*(sum(( V_coeff*model.invKmm - model.StochCoeff*(ι_coeff'*Θ*model.κ+model.κ'*Θ*ι_coeff)) .* transpose(B)) -trace(V_coeff)-model.StochCoeff*sum(Θ.*Jtilde_coeff))
-         + model.StochCoeff*0.5*dot(model.y[model.MBIndices],ι_coeff*model.μ)
+        gradients_kernel_coeff[i] = 0.5*(sum(( V_coeff*model.invKmm - model.StochCoeff*(ι_coeff'*Θ*model.κ + model.κ'*Θ*ι_coeff)) .* transpose(B)) -trace(V_coeff) - model.StochCoeff*dot(diag(Θ),Jtilde_coeff)
+         + model.StochCoeff*dot(model.y[model.MBIndices],ι_coeff*model.μ))
     end
     if model.OptimizeInducingPoints
         gradients_inducing_points = zeros(model.m,dim)

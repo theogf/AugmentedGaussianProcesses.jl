@@ -4,16 +4,18 @@ pyplot()
 #unicodeplots()
 include("/home/theo/XGPC/src/DataAugmentedModels.jl")
 using DataAccess
+using PyCall
 using KernelFunctions
 using ValueHistories
 using Distributions
 using PGSampler
 import DAM
 
+@pyimport gpflow
 (X_data,y_data,DatasetName) = get_Dataset("German")
 (nSamples,nFeatures) = size(X_data);
 
-nFold = 10; #Chose the number of folds
+nFold = 3; #Chose the number of folds
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
 #Global variables for debugging
 X = []; y = []; X_test = []; y_test = [];i=4
@@ -23,28 +25,28 @@ X = X_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSa
 y = y_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples))]
 
 iter_points = collect(1:1:1000)
-θ=1.0; ϵ=1e-10; γ=0.001
+var=1.0; θ=1.0; ϵ=1e-10; γ=0.001
 nBurnin = 100; nSamples = 100000+nBurnin;
-kerns = [Kernel("rbf",1.0;params=θ)]
-model = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=false,VerboseLevel=0,ϵ=1e-10,nEpochs=100)
-gmodel = DAM.GibbsSamplerGPC(X,y;burninsamples=nBurnin,samplefrequency=1,Kernels=kerns,VerboseLevel=0,ϵ=1e-10,nEpochs=nSamples)
+kerns = [Kernel("rbf",var;params=θ)]
+vimodel = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=false,VerboseLevel=0,ϵ=1e-10,nEpochs=100)
+hensmodel = gpflow.vgp[:VGP](X, reshape((y+1)./2,(size(y,1),1)),kern=gpflow.kernels[:Add]([gpflow.kernels[:RBF](nFeatures,variance=var,lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=nFeatures,variance=γ)]), likelihood=gpflow.likelihoods[:Bernoulli](invlink=gpflow.likelihoods[:logit]))
+gibbsmodel = DAM.GibbsSamplerGPC(X,y;burninsamples=nBurnin,samplefrequency=1,Kernels=kerns,VerboseLevel=0,ϵ=1e-10,nEpochs=nSamples)
 
-MaxIter = 10000 #Maximum number of iterations for every algorithm
+MaxIter = 100 #Maximum number of iterations for every algorithm
 
-gmodel.train()
-model.train()
+gibbsmodel.train()
+vimodel.train(iterations=MaxIter)
+hensmodel[:optimize](maxiter=MaxIter)
 
-y_predic_log = gmodel.Predict(X_test)
+y_gibbs = gibbsmodel.Predict(X_test)
+y_hens = sign.(hensmodel[:predict](X_test))
+y_vi = vimodel.Predict()
 plot(X_data,y_data,t=:scatter,xlim=(0,10),ylim=(-3,3),lab="Training")
 fstar_vi,covfstar_vi = DAM.computefstar(model,X_range)
 fstar_gibbs,covfstar_gibbs = DAM.computefstar(gmodel,X_range)
+fstar_hens,covf_hens = hensmodel[:predict_f](X_range)
+
 plot!(X_range,latent,lab="latent f")
-# plot!(X_data,gmodel.μ,lab="latent f gibbs",color=:red)
-# plot!(X_data,gmodel.μ+2*sqrt.(diag(gmodel.ζ)),l=1,lab="",color=:red,fillalpha=0.1,fillrange=gmodel.μ-2*sqrt.(diag(gmodel.ζ)))
-# plot!(X_data,gmodel.μ-2*sqrt.(diag(gmodel.ζ)),l=1,lab="",color=:red)
-# plot!(X_data,model.μ,lab="latent f vi",color=:blue)
-# plot!(X_data,model.μ-2*sqrt.(diag(model.ζ)),l=1,lab="",color=:blue)
-# display(plot!(X_data,model.μ+2*sqrt.(diag(model.ζ)),l=1,lab="",color=:blue,fillalpha=0.1,fillrange=model.μ-2*sqrt.(diag(model.ζ))))
 plot!(X_range,fstar_gibbs,lab="latent f gibbs",color=:red)
 plot!(X_range,fstar_gibbs+2*sqrt.(covfstar_gibbs),l=1,lab="",color=:red,fillalpha=0.1,fillrange=fstar_gibbs-2*sqrt.(covfstar_gibbs))
 plot!(X_range,fstar_gibbs-2*sqrt.(covfstar_gibbs),l=1,lab="",color=:red)
@@ -64,6 +66,20 @@ function compute_on_window(fs,window)
     end
     return means,covs
 end
+
+
+function save_values()
+
+
+
+
+function truth_comparison(dataset)
+    truth = readdlm(dataset*"/MCMC")
+    xgpc = readdlm(dataset*"/XGPC")
+    svgpc = readdlm(dataset*"/SVPGPC")
+
+
+
 # means,covs = compute_on_window(evol_f,1000)
 # plot(mean(means,2))
 # plot(covs[:,1,:],lab="")

@@ -10,6 +10,7 @@ export delta_kroenecker
 
 
 type Kernel
+    name::String #Type of function
     kernel_function::Function # Kernel function
     coeff::Float64 #Weight for the kernel
     derivative_kernel::Function # Derivative of the kernel function (used for hyperparameter optimization)
@@ -21,7 +22,7 @@ type Kernel
     compute_point_deriv::Function #Derivative function for inducing points
     #Constructor
     function Kernel(kernel, coeff::Float64; params=0)
-      this = new()
+      this = new(kernel)
       this.coeff = coeff
       this.Nparams = 1
       if kernel=="rbf"

@@ -3,7 +3,7 @@ using Plots
 pyplot()
 #unicodeplots()
 include("/home/theo/XGPC/src/DataAugmentedModels.jl")
-using DataAccess
+
 using KernelFunctions
 using ValueHistories
 using Distributions
@@ -26,7 +26,7 @@ y_test = sign.(1.0./(1.0+exp.(-latent(X_test)+rand(Normal(0,noise),length(X_test
 X=  X_data; y=y_data
 iter_points = collect(1:1:1000)
 
-MaxIter = 10000#Maximum number of iterations for every algorithm
+MaxIter = 100#Maximum number of iterations for every algorithm
 metrics = MVHistory()
 Parameters = MVHistory()
 function StoreIt(model::DAM.AugmentedModel,iter)#;iter_points=[],LogArrays=[],X_test=0,y_test=0)

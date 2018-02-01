@@ -121,7 +121,7 @@ function logitPredictProba(model::FullBatchModel,X_test)
     K_starN = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
     K_starstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
     m = K_starN*model.invK*model.μ;
-    cov = K_starstar-sum(K_starN.*(model.invK*(eye(model.nFeatures)-model.ζ*model.invK)*transpose(K_starN)).',2)
+    cov = K_starstar+sum((K_starN*model.invK).*transpose((model.ζ*model.invK-eye(model.nFeatures))*transpose(K_starN)),2)
     predic = zeros(nPoints)
     for i in 1:nPoints
         d= Normal(m[i],cov[i])
@@ -137,10 +137,12 @@ function logitPredictProba(model::SparseModel,X_test)
     nPoints = size(X_test,1)
     ksize = model.m
     K_starM = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.inducingPoints)
-
     K_starstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
     m = K_starM*model.invKmm*model.μ;
-    cov = K_starstar-sum(K_starM.*(model.invKmm*(eye(model.nFeatures)-model.ζ*model.invKmm)*transpose(K_starM)).',2)
+    cov = K_starstar+sum((K_starM*model.invKmm).*transpose((model.ζ*model.invKmm-eye(model.nFeatures))*transpose(K_starM)),2)
+    if count(cov.<=0)>0
+        error("Covariance under 0, params are $(broadcast(getfield,model.Kernels,:param)) and coeffs $(broadcast(getfield,model.Kernels,:coeff))")
+    end
     predic = zeros(nPoints)
     for i in 1:nPoints
         d= Normal(m[i],cov[i])
@@ -207,6 +209,10 @@ function applyHyperParametersGradients!(model::AugmentedModel,gradients)
         model.Kernels[i].param += GradDescent.update(model.optimizers[i],gradients[1][i])
         model.Kernels[i].coeff += GradDescent.update(model.optimizers[i+model.nKernels],gradients[2][i])
         model.Kernels[i].coeff = model.Kernels[i].coeff > 0 ? model.Kernels[i].coeff : 0;
+    end
+    #Avoid the case where the coeff of a kernel overshoot to 0
+    if model.nKernels == 1 && model.Kernels[1].coeff < 1e-14
+        model.Kernels[1].coeff = 1e-12
     end
     if length(gradients)==3
          model.inducingPoints += GradDescent.update(model.optimizers[2*model.nKernels+1],gradients[3])

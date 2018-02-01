@@ -34,14 +34,14 @@ doPlot = true
 doWrite = false #Write results in approprate folder
 ShowIntResults = true #Show intermediate time, and results for each fold
 
-iFold = 4
+iFold = 1
 #Testing Parameters
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
 dataset = "Diabetis"
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
-MaxIter = 300 #Maximum number of iterations for every algorithm
+MaxIter = 10 #Maximum number of iterations for every algorithm
 iter_points= vcat(1:99,100:10:999,1000:1000:9999)
 (nSamples,nFeatures) = size(X_data);
 nFold = 10; #Chose the number of folds
@@ -97,6 +97,8 @@ for (name,testmodel) in TestModels
       testmodel.Results["MeanL"] = Array{Any}(nFold);
       testmodel.Results["MedianL"] = Array{Any}(nFold);
       testmodel.Results["ELBO"] = Array{Any}(nFold);
+      testmodel.Results["Param"] = Array{Any}(nFold);
+      testmodel.Results["Coeff"] = Array{Any}(nFold);
   else
       if doTime;        testmodel.Results["time"]       = Array{Float64,1}(nFold);end;
       if doAccuracy;    testmodel.Results["accuracy"]   = Array{Float64,1}(nFold);end;
@@ -133,12 +135,22 @@ for (name,testmodel) in TestModels
         testmodel.Results["MeanL"][i] = LogArrays[3,:]
         testmodel.Results["MedianL"][i] = LogArrays[4,:]
         testmodel.Results["ELBO"][i] = LogArrays[5,:]
+        testmodel.Results["Param"][i] = LogArrays[7,:]
+        testmodel.Results["Coeff"][i] = LogArrays[8,:]
     end
     if ShowIntResults
         println("$(testmodel.MethodName) : Time  = $((time_ns()-init_t)*1e-9)s")
     end
     if doSaveLastState
         WriteLastStateParameters(testmodel,X_test,y_test,i)
+    end
+    #Reset the kernel
+    if testmodel.MethodName == "SVGPC"
+        rbf = testmodel.Model[i][:kern][:rbf]
+        println("SVGPC : params : $(rbf[:lengthscales][:value]) and coeffs : $(rbf[:variance][:value])")
+        testmodel.Param["Kernel"] = gpflow.kernels[:Add]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+    elseif testmodel.MethodName == "SXGPC"
+        println("SXGPC : params : $(broadcast(getfield,testmodel.Model[i].Kernels,:param)), and coeffs $(broadcast(getfield,testmodel.Model[i].Kernels,:coeff))")
     end
   end
   if Experiment != ConvergenceExp

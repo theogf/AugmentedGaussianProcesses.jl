@@ -157,10 +157,10 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
         if tm.Param["Sparse"]
             if tm.Param["Stochastic"]
                 #Stochastic Sparse SVGPC model
-                tm.Model[i] = gpflow.svgp[:SVGP](X, reshape((y+1)./2,(length(y),1)),kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:Bernoulli](), Z=KMeansInducingPoints(X,tm.Param["M"],10), minibatch_size=tm.Param["BatchSize"])
+                tm.Model[i] = gpflow.svgp[:SVGP](X, reshape((y+1)./2,(length(y),1)),kern=gpflow.kernels[:Add]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])]), likelihood=gpflow.likelihoods[:Bernoulli](), Z=KMeansInducingPoints(X,tm.Param["M"],10), minibatch_size=tm.Param["BatchSize"])
             else
                 #Sparse SVGPC model
-                tm.Model[i] = gpflow.svgp[:SVGP](X, reshape((y+1)./2,(size(y,1),1)),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:Bernoulli](), Z=KMeansInducingPoints(X,tm.Param["M"],10))
+                tm.Model[i] = gpflow.svgp[:SVGP](X, reshape((y+1)./2,(size(y,1),1)),kern=gpflow.kernels[:Add]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])]), likelihood=gpflow.likelihoods[:Bernoulli](), Z=KMeansInducingPoints(X,tm.Param["M"],10))
             end
             if !tm.Param["PointOptimization"]
                 tm.Model[i][:Z][:fixed]=true;
@@ -267,7 +267,7 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
     if typeof(tm.Model[i]) <: DAM.AugmentedModel
         function LogIt(model::DAM.AugmentedModel,iter)
             if in(iter,iter_points)
-                a = zeros(6)
+                a = zeros(8)
                 a[1] = time_ns()
                 y_p = model.PredictProba(X_test)
                 loglike = zeros(y_p)
@@ -286,6 +286,8 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
                 a[5] = DAM.ELBO(model)
     #            println("Iteration $iter : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) θ is $(model.Kernels[1].param)")
                 a[6] = time_ns()
+                a[7] = model.Kernels[1].param
+                a[8] = model.Kernels[1].coeff
                 push!(LogArrays,a)
             end
         end
@@ -295,7 +297,7 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
           __init__(self) = (self[:i] = 1)
           getlog(self,x) =  begin
               if in(self[:i],iter_points)
-                  a = zeros(6)
+                  a = zeros(8)
                   a[1] = time_ns()
                   y_p = tm.Model[i][:predict_y](X_test)[1]
                   loglike = zeros(y_p)
@@ -307,6 +309,8 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
                   a[5] = tm.Model[i][:_objective](x)[1]
                   # println("Iteration $(self[:i]) : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) mean(θ) is $(mean(tm.Model[i][:kern][:rbf][:lengthscales][:value]))")
                   a[6] = time_ns()
+                  a[7] = tm.Model[i][:kern][:rbf][:lengthscales][:value][1]
+                  a[8] = tm.Model[i][:kern][:rbf][:variance][:value][1]
                   push!(LogArrays,a)
                   # println((a[1]-LogArrays[1][1])*1e-9)
                   if (a[1]-LogArrays[1][1])*1e-9 > 4000
@@ -415,6 +419,8 @@ function ProcessResultsConvergence(tm::TestingModel,iFold)
     Mmeanl = zeros(NMax); meanl= []
     Mmedianl = zeros(NMax); medianl= []
     Melbo = zeros(NMax); elbo = []
+    Mparam = zeros(NMax); param = []
+    Mcoeff = zeros(NMax); coeff = []
     for i in 1:iFold
         DiffN = NMax - length(tm.Results["Time"][i])
         if DiffN != 0
@@ -423,28 +429,37 @@ function ProcessResultsConvergence(tm::TestingModel,iFold)
             meanl = [tm.Results["MeanL"][i];tm.Results["MeanL"][i][end]*ones(DiffN)]
             medianl = [tm.Results["MedianL"][i];tm.Results["MedianL"][i][end]*ones(DiffN)]
             elbo = [tm.Results["ELBO"][i];tm.Results["ELBO"][i][end]*ones(DiffN)]
+            param = [tm.Results["Param"][i];tm.Results["Param"][i][end]*ones(DiffN)]
+            coeff = [tm.Results["Coeff"][i];tm.Results["Coeff"][i][end]*ones(DiffN)]
         else
             time = tm.Results["Time"][i];
             acc = tm.Results["Accuracy"][i];
             meanl = tm.Results["MeanL"][i];
             medianl = tm.Results["MedianL"][i];
             elbo = tm.Results["ELBO"][i];
+            param = tm.Results["Param"][i];
+            coeff = tm.Results["Coeff"][i];
         end
         Mtime = hcat(Mtime,time)
         Macc = hcat(Macc,acc)
         Mmeanl = hcat(Mmeanl,meanl)
         Mmedianl = hcat(Mmedianl,medianl)
         Melbo = hcat(Melbo,elbo)
+        Mparam = hcat(Mparam,param)
+        Mcoeff = hcat(Mcoeff,coeff)
     end
     Mtime = Mtime[:,2:end]; Macc = Macc[:,2:end]
     Mmeanl = Mmeanl[:,2:end]; Mmedianl = Mmedianl[:,2:end]
     Melbo = Melbo[:,2:end];
+    Mparam = Mparam[:,2:end]; Mcoeff = Mcoeff[:,2:end]
     tm.Results["Time"] = Mtime;
     tm.Results["Accuracy"] = Macc;
     tm.Results["MeanL"] = Mmeanl
     tm.Results["MedianL"] = Mmedianl
     tm.Results["ELBO"] = Melbo
-    tm.Results["Processed"]= [vec(mean(Mtime,2)) vec(std(Mtime,2)) vec(mean(Macc,2)) vec(std(Macc,2)) vec(mean(Mmeanl,2)) vec(std(Mmeanl,2))  vec(mean(Mmedianl,2)) vec(std(Mmedianl,2))  vec(mean(Melbo,2)) vec(std(Melbo,2))]
+    tm.Results["Param"] = Mparam
+    tm.Results["Coeff"] = Mcoeff
+    tm.Results["Processed"]= [vec(mean(Mtime,2)) vec(std(Mtime,2)) vec(mean(Macc,2)) vec(std(Macc,2)) vec(mean(Mmeanl,2)) vec(std(Mmeanl,2)) vec(mean(Mmedianl,2)) vec(std(Mmedianl,2)) vec(mean(Melbo,2)) vec(std(Melbo,2)) vec(mean(Mparam,2)) vec(std(Mparam,2)) vec(mean(Mcoeff,2)) vec(std(Mcoeff,2))]
 end
 
 function PrintResults(results,method_name,writing_order)
@@ -575,6 +590,7 @@ function WriteLastStateParameters(testmodel,X_test,y_test,i)
         if isa(testmodel.Model[i],DAM.NonLinearModel)
             writedlm(top_fold*"/kernel_param"*"_$i",broadcast(getfield,testmodel.Model[i].Kernels,:param))
             writedlm(top_fold*"/kernel_coeff"*"_$i",broadcast(getfield,testmodel.Model[i].Kernels,:coeff))
+            writedlm(top_fold*"/kernel_name"*"_$i",broadcast(getfield,testmodel.Model[i].Kernels,:name))
         end
     end
 end
@@ -603,7 +619,7 @@ function PlotResultsConvergence(TestModels)
     if nModels == 0; return; end;
     figure("Convergence Results");clf();
     colors=["b", "r"]
-    subplot(2,2,1); #Accuracy
+    subplot(3,2,1); #Accuracy
         iter=1
         step =1
         for (name,testmodel) in TestModels
@@ -615,7 +631,7 @@ function PlotResultsConvergence(TestModels)
     legend()
     xlabel("Time [s]")
     ylabel("Accuracy")
-    subplot(2,2,2); #Accuracy
+    subplot(3,2,2); #Accuracy
         iter=1
         step =1
         for (name,testmodel) in TestModels
@@ -624,10 +640,10 @@ function PlotResultsConvergence(TestModels)
             fill_between(results[1:step:end,1],results[1:step:end,5]-results[1:step:end,6]/sqrt(10),results[1:step:end,5]+results[1:step:end,6]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
-    # legend()
+    legend()
     xlabel("Time [s]")
     ylabel("Mean Log L")
-    subplot(2,2,3); #Accuracy
+    subplot(3,2,3); #Accuracy
         iter=1
         step =1
         for (name,testmodel) in TestModels
@@ -637,9 +653,9 @@ function PlotResultsConvergence(TestModels)
             iter+=1
         end
     legend()
-    # xlabel("Time [s]")
+    xlabel("Time [s]")
     ylabel("Median Log L")
-    subplot(2,2,4); #Accuracy
+    subplot(3,2,4); #Accuracy
         iter=1
         step =1
         for (name,testmodel) in TestModels
@@ -648,9 +664,33 @@ function PlotResultsConvergence(TestModels)
             fill_between(results[1:step:end,1],results[1:step:end,9]-results[1:step:end,10]/sqrt(10),results[1:step:end,9]+results[1:step:end,10]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
+    legend()
+    xlabel("Time [s]")
+    ylabel("neg. ELBO")
+    subplot(3,2,5); #Accuracy
+        iter=1
+        step =1
+        for (name,testmodel) in TestModels
+            results = testmodel.Results["Processed"]
+            plot(results[1:step:end,1],results[1:step:end,11],color=colors[iter],label=name)
+            fill_between(results[1:step:end,1],results[1:step:end,11]-results[1:step:end,12]/sqrt(10),results[1:step:end,11]+results[1:step:end,12]/sqrt(10),alpha=0.2,facecolor=colors[iter])
+            iter+=1
+        end
+    legend()
+    xlabel("Time [s]")
+    ylabel("Param")
+    subplot(3,2,6); #Accuracy
+        iter=1
+        step =1
+        for (name,testmodel) in TestModels
+            results = testmodel.Results["Processed"]
+            plot(results[1:step:end,1],results[1:step:end,13],color=colors[iter],label=name)
+            fill_between(results[1:step:end,1],results[1:step:end,13]-results[1:step:end,14]/sqrt(10),results[1:step:end,13]+results[1:step:end,14]/sqrt(10),alpha=0.2,facecolor=colors[iter])
+            iter+=1
+        end
     # legend()
     xlabel("Time [s]")
-    ylabel("ELBO")
+    ylabel("Coeff")
 end
 
 
