@@ -214,8 +214,8 @@ end
 @def functionfields begin
     #Functions
     train::Function #Model train for a certain number of iterations
-    Predict::Function
-    PredictProba::Function
+    predict::Function
+    predictproba::Function
     Plotting::Function
 end
 
@@ -242,7 +242,7 @@ function initFunctions!(model::AugmentedModel)
     model.train = function(;iterations::Integer=0,callback=0,convergence=DefaultConvergence)
         train!(model;iterations=iterations,callback=callback,Convergence=convergence)
     end
-    model.Predict = function(X_test)
+    model.predict = function(X_test)
         if !model.Trained
             error("Model has not been trained! Please run .train() beforehand")
             return
@@ -253,7 +253,7 @@ function initFunctions!(model::AugmentedModel)
             logitPredict(model,X_test)
         end
     end
-    model.PredictProba = function(X_test)
+    model.predictproba = function(X_test)
         if !model.Trained
             error("Model has not been trained! Please run .train() before hand")
             return

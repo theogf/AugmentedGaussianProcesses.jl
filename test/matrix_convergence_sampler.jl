@@ -18,103 +18,86 @@ import DAM
 nFold = 3; #Chose the number of folds
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
 #Global variables for debugging
-X = []; y = []; X_test = []; y_test = [];i=4
+X = []; y = []; X_test = []; y_test = [];i=1
 X_test = X_data[fold_separation[i]:(fold_separation[i+1])-1,:]
 y_test = y_data[fold_separation[i]:(fold_separation[i+1])-1]
 X = X_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples)),:]
 y = y_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples))]
 
-iter_points = collect(1:1:1000)
-var=1.0; θ=1.0; ϵ=1e-10; γ=0.001
-nBurnin = 100; nSamples = 100000+nBurnin;
-kerns = [Kernel("rbf",var;params=θ)]
-vimodel = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=false,VerboseLevel=0,ϵ=1e-10,nEpochs=100)
-hensmodel = gpflow.vgp[:VGP](X, reshape((y+1)./2,(size(y,1),1)),kern=gpflow.kernels[:Add]([gpflow.kernels[:RBF](nFeatures,variance=var,lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=nFeatures,variance=γ)]), likelihood=gpflow.likelihoods[:Bernoulli](invlink=gpflow.likelihoods[:logit]))
-gibbsmodel = DAM.GibbsSamplerGPC(X,y;burninsamples=nBurnin,samplefrequency=1,Kernels=kerns,VerboseLevel=0,ϵ=1e-10,nEpochs=nSamples)
+var=100.0; θ=5.0; ϵ=1e-10; γ=0.001
+nBurnin = 100; nSamples = 10000+nBurnin;
+MaxIter = 5000 #Maximum number of iterations for every algorithm
 
-MaxIter = 100 #Maximum number of iterations for every algorithm
+kerns = [Kernel("rbf",var;params=θ)]
+vimodel = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=false,VerboseLevel=1,ϵ=1e-10,nEpochs=100)
+vgpcmodel = gpflow.vgp[:VGP](X, reshape((y+1)./2,(size(y,1),1)),kern=gpflow.kernels[:Add]([gpflow.kernels[:RBF](nFeatures,variance=var,lengthscales=θ,ARD=false),gpflow.kernels[:White](input_dim=nFeatures,variance=γ)]), likelihood=gpflow.likelihoods[:Bernoulli](invlink=gpflow.likelihoods[:logit]))
+vgpcmodel[:kern][:fixed] = true
+gibbsmodel = DAM.GibbsSamplerGPC(X,y;burninsamples=nBurnin,samplefrequency=1,Kernels=kerns,VerboseLevel=1,ϵ=1e-10,nEpochs=nSamples)
+
 
 gibbsmodel.train()
+y_gibbs = gibbsmodel.predict(X_test)
+
 vimodel.train(iterations=MaxIter)
-hensmodel[:optimize](maxiter=MaxIter)
+y_vi = vimodel.predict(X_test)
 
-y_gibbs = gibbsmodel.Predict(X_test)
-y_hens = sign.(hensmodel[:predict](X_test))
-y_vi = vimodel.Predict()
-plot(X_data,y_data,t=:scatter,xlim=(0,10),ylim=(-3,3),lab="Training")
-fstar_vi,covfstar_vi = DAM.computefstar(model,X_range)
-fstar_gibbs,covfstar_gibbs = DAM.computefstar(gmodel,X_range)
-fstar_hens,covf_hens = hensmodel[:predict_f](X_range)
+vgpcmodel[:optimize](maxiter=MaxIter)
+y_vgpc = sign.(vgpcmodel[:predict_y](X_test)[1][:]*2-1)
 
-plot!(X_range,latent,lab="latent f")
-plot!(X_range,fstar_gibbs,lab="latent f gibbs",color=:red)
-plot!(X_range,fstar_gibbs+2*sqrt.(covfstar_gibbs),l=1,lab="",color=:red,fillalpha=0.1,fillrange=fstar_gibbs-2*sqrt.(covfstar_gibbs))
-plot!(X_range,fstar_gibbs-2*sqrt.(covfstar_gibbs),l=1,lab="",color=:red)
-plot!(X_range,fstar_vi,lab="latent f vi",color=:blue)
-plot!(X_range,fstar_vi-2*sqrt.(covfstar_vi),l=1,lab="",color=:blue)
-display(plot!(X_range,fstar_vi+2*sqrt.(covfstar_vi),l=1,lab="",color=:blue,fillalpha=0.1,fillrange=fstar_vi-2*sqrt.(covfstar_vi)))
-sleep(5)
-println("Accuracy : $(1-sum(1-y_test.*y_predic_log)/(2*length(y_test)))")
+println("Accuracy : Gibbs $(1-sum(1-y_test.*y_gibbs)/(2*length(y_test)))
+                    VGPC  $(1-sum(1-y_test.*y_vgpc)/(2*length(y_test)))
+                    XGPC  $(1-sum(1-y_test.*y_vi)/(2*length(y_test)))")
 
-evol_f = hcat(gmodel.samplehistory[:f].values...)
-function compute_on_window(fs,window)
-    means = zeros(size(fs,2)-window,size(fs,1))
-    covs = zeros(size(fs,2)-window,size(fs,1),size(fs,1))
-    for i in 1:(size(fs,2)-window)
-        means[i,:] = squeeze(mean(fs[:,i:i+(window-1)],2),2)
-        covs[i,:,:] = cov(fs[:,i:i+(window-1)],2)
-    end
-    return means,covs
+
+# evol_f = hcat(gmodel.samplehistory[:f].values...)
+# function compute_on_window(fs,window)
+#     means = zeros(size(fs,2)-window,size(fs,1))
+#     covs = zeros(size(fs,2)-window,size(fs,1),size(fs,1))
+#     for i in 1:(size(fs,2)-window)
+#         means[i,:] = squeeze(mean(fs[:,i:i+(window-1)],2),2)
+#         covs[i,:,:] = cov(fs[:,i:i+(window-1)],2)
+#     end
+#     return means,covs
+# end
+
+
+function save_values(dataset,gibbs_m,vgpc_m,vi_m,X_test,y_test)
+    p_gibbs = gibbs_m.predictproba(X_test)
+    f_gibbs,covf_gibbs = DAM.computefstar(gibbs_m,X_test)
+    p_vgpc, = vgpc_m[:predict_y](X_test)
+    f_vgpc, covf_vgpc = vgpc_m[:predict_f](X_test)
+    p_vi = vi_m.predictproba(X_test)
+    f_vi, covf_vi = DAM.computefstar(vi_m,X_test)
+    top_fold = "/home/theo/XGPC/results/"*dataset
+    if !isdir(top_fold); mkdir(top_fold); end;
+    data_gibbs = hcat(p_gibbs,f_gibbs,covf_gibbs)
+    writedlm(top_fold*"/Gibbs",data_gibbs)
+    data_vgpc = hcat(p_vgpc,f_vgpc,covf_vgpc)
+    writedlm(top_fold*"/VGPC",data_vgpc)
+    data_vi = hcat(p_vi,f_vi,covf_vi)
+    writedlm(top_fold*"/XGPC",data_vi)
 end
 
-
-function save_values()
-
+save_values(DatasetName,gibbsmodel,vgpcmodel,vimodel,X_test,y_test)
 
 
 
 function truth_comparison(dataset)
-    truth = readdlm(dataset*"/MCMC")
-    xgpc = readdlm(dataset*"/XGPC")
-    svgpc = readdlm(dataset*"/SVPGPC")
+    truth = readdlm("/home/theo/XGPC/results/"*dataset*"/Gibbs")
+    p_truth = truth[:,1]; f_truth = truth[:,2]; covf_truth = truth[:,3]
+    xgpc = readdlm("/home/theo/XGPC/results/"*dataset*"/XGPC")
+    p_xgpc = xgpc[:,1]; f_xgpc = xgpc[:,2]; covf_xgpc = xgpc[:,3]
+    vgpc = readdlm("/home/theo/XGPC/results/"*dataset*"/VGPC")
+    p_vgpc = vgpc[:,1]; f_vgpc = vgpc[:,2]; covf_vgpc = vgpc[:,3]
+    p1 = plot(p_truth,p_xgpc,t=:scatter, lab="p XGPC", xlim=(0,1),ylim=(0,1))
+    p2 = plot(f_truth,f_xgpc,t=:scatter, lab="μ XGPC",title="θ=$(θ), var=$(var)")
+    p3 = plot(covf_truth,covf_xgpc,t=:scatter, lab="σ XGPC")
+    p4 = plot(p_truth,p_vgpc,t=:scatter,lab="p VGPC", xlim=(0,1),ylim=(0,1))
+    p5 = plot(p_truth,f_vgpc,t=:scatter,lab="μ VGPC")
+    p6 = plot(p_truth,covf_vgpc,t=:scatter,lab="σ VGPC")
+    plot(p1,p2,p3,p4,p5,p6,layout=(2,3))
+end
 
-
-
-# means,covs = compute_on_window(evol_f,1000)
-# plot(mean(means,2))
-# plot(covs[:,1,:],lab="")
-# evol_ω = hcat(gmodel.samplehistory[:ω].values...)
-# p1 = plot(abs.(model.ζ-gmodel.ζ),t=:heatmap,yaxis=(:flip))
-# p2 = plot(gmodel.ζ,t=:heatmap,yaxis=(:flip))
-# p3 = plot(model.ζ,t=:heatmap,yaxis=(:flip))
-# plot(p1,p2,p3,layout=3)
-# if doPlot
-#     p1 = plot(mean(evol_f,1)',lab="Mean f")
-#     p2 = plot(var(evol_f,1)',lab="Var f")
-#     p3 = plot(mean(evol_ω,1)',lab="Mean ω")
-#     p4 = plot(var(evol_ω,1)',lab="Var ω")
-#     display(plot(p1,p2,p3,p4,layout=(2,2)))
-#     savefig("../plots/VariablesEvolution.png")
-#     p1 = plot([model.μ gmodel.μ],lab=["VI" "Gibbs"],xlabel="dim",ylabel="f_i",grid=:off)
-#     p2 = plot(abs.(model.μ-gmodel.μ),lab="|f_VI-f_Gibbs|",xlabel="dim",grid=:off)
-#     display(plot(p1,p2,layout=2))
-#     savefig("../plots/Error_f.png")
-# end
-#
-# niter = length(Parameters[:μ].values)
-# mus = Parameters[:μ].values
-# zetas = Parameters[:diag_ζ].values
-#
-# anim = @animate for i in 1:niter
-#     plot(X_data,y_data,t=:scatter,xlim=(0,10),ylim=(-2.5,2.5),lab="Training")
-#     plot!(X_test, y_test,t=:scatter,xlim=(0,10),ylim=(-2.5,2.5),lab="Testing")
-#     plot!(0:0.001:10,latent,lab="latent f")
-#     plot!(X_data,gmodel.μ,lab="latent f gibbs",color=:red)
-#     plot!(X_data,gmodel.μ+2*sqrt.(diag(gmodel.ζ)),l=1,lab="",color=:red,fillalpha=0.1,fillrange=gmodel.μ-2*sqrt.(diag(gmodel.ζ)))
-#     plot!(X_data,gmodel.μ-2*sqrt.(diag(gmodel.ζ)),l=1,lab="",color=:red)
-#     plot!(X_data,mus[i],lab="latent f vi",color=:blue)
-#     plot!(X_data,mus[i]-2*sqrt.(zetas[i]),l=1,lab="",color=:blue)
-#     plot!(X_data,mus[i]+2*sqrt.(zetas[i]),l=1,lab="",color=:blue,fillalpha=0.1,fillrange=mus[i]-2*sqrt.(zetas[i]))
-# end every 1
-#
-# gif(anim,"convergence.gif")
+p = truth_comparison("German")
+display(p)
+savefig(p,"/home/theo/XGPC/plots/ModelApproximation/"*DatasetName*"/theta_$(θ)_var_$(var).png")

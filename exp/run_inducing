@@ -1,0 +1,5 @@
+#!/bin/bash
+
+screen -S "Ind${1}${2}" -d -m
+screen -r "Ind${1}${2}" -p 0 -X stuff "~/Julia/bin/julia -p 1 paper_experiments.jl ${1} ${2} ^M"
+echo "Created screen Ind${1}${2} and ran experiment"

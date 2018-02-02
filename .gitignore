@@ -3,3 +3,5 @@ src/BSVM_Functions.jl
 *.png
 *.result
 data/*
+results/*
+cluster_results/*

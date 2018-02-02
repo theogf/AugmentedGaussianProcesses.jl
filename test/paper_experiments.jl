@@ -1,11 +1,47 @@
 #### Paper_Experiments ####
 # Run on a file and compute accuracy on a nFold cross validation
 # Compute also the brier score and the logscore
-SRC_PATH=  pwd()*"/../src/"
+PWD = pwd()
+if isdir(PWD*"/src")
+    SRC_PATH = pwd()*"/src"
+else
+    SRC_PATH = pwd()*"/../src"
+end
 if !in(LOAD_PATH,SRC_PATH); push!(LOAD_PATH,SRC_PATH); end;
 include("functions_paper_experiment.jl")
 using PyPlot
 using DataAccess
+using ArgParse
+function parse_commandline()
+    s = ArgParseSettings(exc_handler=ArgParse.debug_handler)
+    @add_arg_table s begin
+        "dataset"
+            help = "Dataset to train on"
+            required = true
+        "-M", "--IndPoints"
+            help = "Number of inducing points"
+            arg_type = Int
+            default = 0
+        "--autotuning", "-A"
+            help = "Autotuning activated or not"
+            action = :store_true
+        "--maxiter", "-I"
+            help = "Maximum number of iterations"
+            arg_type = Int
+            default = 1000
+        "--noXGPC"
+            help = "Run XGPC"
+            action = :store_false
+        "--SVGPC"
+            help = "Run SVGPC"
+            action = :store_true
+    end
+
+    return parse_args(s)
+end
+
+parsed_args = parse_commandline()
+
 #Compare XGPC, BSVM, SVGPC and Logistic Regression
 
 #Methods and scores to test
@@ -39,9 +75,9 @@ iFold = 1
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
-dataset = "Diabetis"
+dataset = length(ARGS)>0 ? String(ARGS[1]) : "Diabetis"
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
-MaxIter = 10 #Maximum number of iterations for every algorithm
+MaxIter = length(ARGS)>2 > Int64(ARGS[3]) : 10 #Maximum number of iterations for every algorithm
 iter_points= vcat(1:99,100:10:999,1000:1000:9999)
 (nSamples,nFeatures) = size(X_data);
 nFold = 10; #Chose the number of folds
@@ -54,13 +90,13 @@ main_param = DefaultParameters()
 main_param["nFeatures"] = nFeatures
 main_param["nSamples"] = nSamples
 main_param["ϵ"] = 1e-10 #Convergence criterium
-main_param["M"] = min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
+main_param["M"] = length(ARGS)>3 ? Int64(ARGS[4]) : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "rbf"
 main_param["Θ"] = 5.0 #Hyperparameter of the kernel
 main_param["BatchSize"] = 100
 main_param["Verbose"] = 0
 main_param["Window"] = 10
-main_param["Autotuning"] = doAutotuning
+main_param["Autotuning"] = length(ARGS)>1 ? Bool(ARGS[2]) : doAutotuning
 main_param["PointOptimization"] = doPointOptimization
 #BSVM and SVGPC Parameters
 BXGPCParam = XGPCParameters(main_param=main_param)

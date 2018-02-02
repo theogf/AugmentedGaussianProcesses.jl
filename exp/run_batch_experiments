@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [ $1 -eq 1 ]
+then
+	files=(`cat ${2}`)
+else
+	files="$2"
+fi
+prefix="LR"
+echo $files
+for i in "${files[@]}"
+do
+	screen -S "${prefix}${i}" -d -m
+	screen -r "${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 paper_experiments.jl $i ^M"
+	echo "Created screen ${prefix}${i} and ran experiment"
+done

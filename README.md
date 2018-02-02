@@ -14,22 +14,16 @@ The Updates function of the XGPC are found in **XGPC_Functions.jl**
 
 The methods for matrix computations, stochastic methods and prediction methods are in **ModelSpecificFunctions.jl**
 
-It is relatively complex to link the GPFlow library to Julia, I would suggest to run the experiments with only the XGPC with the flags at the beginning of **paper_experiments.jl**
 
 # Run the package
 
-Get Julia 0.6.0, install packages (`Pkg.add('X')`) : Distributions, StatsBase, PyPlot, QuadGK.
-Open **paper_experiments.jl** and set the flags for the methods you want to use :
+Get Julia > 0.6.0, install packages (`Pkg.add('X')`) : Distributions, StatsBase, PyPlot, QuadGK, Clustering.
 
-    XGPC, SVGPC or Logistic Regression
-
-SVGPC requires to install Tensorflow and  GPFlow on Python and PyCall on Julia.
-Logistic Regression requires to install ScikitLearn on Julia
-
-If you want to simply use XGPC you can also do:
 ```
-include(DataAugmentedModels.jl)
+include("DataAugmentedModels.jl")
+using DAM
 model = SparseXGPC(X_train,Y_train;Stochastic=?,BatchSize=?,m=?,Kernels=?) #Parameters after ; are optional
-model.train!(iterations=100)
-Y_predic = model.predict(X_test)
+model.train(iterations=100)
+Y_predic = model.predict(X_test) #For getting the label directly
+Y_predic_prob = model.predictproba(X_test) #For getting the likelihood of predicting class 1
 ```

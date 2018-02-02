@@ -185,7 +185,7 @@ end
 function LogLikeConvergence(model::DAM.AugmentedModel,iter::Integer,X_test,y_test)
     if iter==1
         push!(model.evol_conv,Inf)
-        y_p = model.PredictProba(X_test)
+        y_p = model.predictproba(X_test)
         loglike = zeros(y_p)
         loglike[y_test.==1] = log.(y_p[y_test.==1])
         loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
@@ -194,7 +194,7 @@ function LogLikeConvergence(model::DAM.AugmentedModel,iter::Integer,X_test,y_tes
         return Inf
     end
     if !model.Stochastic || iter%10 == 0
-        y_p = model.PredictProba(X_test)
+        y_p = model.predictproba(X_test)
         loglike = zeros(y_p)
         loglike[y_test.==1] = log.(y_p[y_test.==1])
         loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
@@ -224,7 +224,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations)
           convcriter(self,x) =  begin
               if self[:i]%convfrequency == 0
                   if tm.Param["ConvCriter"] == "HOML"
-                    y_p = tm.Model[i].PredictProba(X_test)
+                    y_p = tm.Model[i].predictproba(X_test)
                     loglike = zeros(y_p)
                     loglike[y_test.==1] = log.(y_p[y_test.==1])
                     loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
@@ -269,7 +269,7 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
             if in(iter,iter_points)
                 a = zeros(8)
                 a[1] = time_ns()
-                y_p = model.PredictProba(X_test)
+                y_p = model.predictproba(X_test)
                 loglike = zeros(y_p)
                 for i in 1:length(y_p)
                     if y_test[i] == 1
@@ -488,7 +488,7 @@ end
 function ComputePrediction(tm::TestingModel, i,X, X_test)
   y_predic = []
   if typeof(tm.Model[i]) <: DAM.AugmentedModel
-    y_predic = sign.(tm.Model[i].Predict(X_test))
+    y_predic = sign.(tm.Model[i].predict(X_test))
   elseif tm.MethodType == "SVGPC"
     y_predic = sign.(tm.Model[i][:predict_y](X_test)[1]*2-1)
   elseif tm.MethodType == "LogReg"
@@ -505,7 +505,7 @@ end
 function ComputePredictionAccuracy(tm::TestingModel,i, X, X_test)
   y_predic = []
   if typeof(tm.Model[i]) <: DAM.AugmentedModel
-    y_predic = tm.Model[i].PredictProba(X_test)
+    y_predic = tm.Model[i].predictproba(X_test)
   elseif tm.MethodType == "SVGPC"
     y_predic = tm.Model[i][:predict_y](X_test)[1]
   elseif tm.MethodType == "LogReg"
