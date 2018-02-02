@@ -12,20 +12,21 @@ include("../src/DataAugmentedModels.jl")
 include("../src/ECM.jl")
 import DAM
 using KMeansModule
-using ScikitLearn
+using ScikitLearn;
+if !isdefined(:SGDClassifier); @sk_import linear_model: SGDClassifier; end;
 using PyCall
+@pyimport gpflow as gpflow
+@pyimport tensorflow
 using Distributions
 using KernelFunctions
 using ECM
 
 
-if !isdefined(:SGDClassifier); @sk_import linear_model: SGDClassifier; end;
-@pyimport gpflow as gpflow
-@pyimport tensorflow
-export TestingModel
-export DefaultParameters, XGPCParameters, BSVMParameters, SVGPCParameters, LogRegParameters, ECMParameters, SVMParameters
-export CreateModel, TrainModel, TrainModelwithTime, RunTests, ProcessResults, PrintResults, WriteResults
-export ComputePrediction, ComputePredictionAccuracy
+
+# export TestingModel
+# export DefaultParameters, XGPCParameters, BSVMParameters, SVGPCParameters, LogRegParameters, ECMParameters, SVMParameters
+# export CreateModel, TrainModel, TrainModelwithTime, RunTests, ProcessResults, PrintResults, WriteResults
+# export ComputePrediction, ComputePredictionAccuracy
 
 #Datatype for containing the model, its results and its parameters
 type TestingModel
@@ -176,9 +177,11 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
             end
         end
     elseif tm.MethodType == "LogReg"
+        tm.Results["Time"][i]=[time_ns()]
         tm.Model[i] = SGDClassifier(loss="log", penalty="l2", alpha=tm.Param["γ"],
          fit_intercept=true, tol=tm.Param["ϵ"], shuffle=true,
           n_jobs=1, learning_rate="optimal" ,warm_start=false)
+        push!(tm.Results["Time"][i],time_ns())
     end
 end
 
@@ -210,6 +213,8 @@ function LogLikeConvergence(model::DAM.AugmentedModel,iter::Integer,X_test,y_tes
         return model.evol_conv[end]
     end
 end
+
+
 #train the model on trainin set (X,y) for #iterations
 function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations)
   if typeof(tm.Model[i]) <: DAM.AugmentedModel
@@ -260,7 +265,33 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations)
   end
 end
 
+function InitConvergence(tm,i)
+    tm.Results["Accuracy"][i] = Array{Float64,1}()
+    tm.Results["MeanL"][i] = Array{Float64,1}()
+    tm.Results["MedianL"][i] = Array{Float64,1}()
+    tm.Results["ELBO"][i] = Array{Float64,1}()
+    tm.Results["Param"][i] = Array{Float64,1}()
+    tm.Results["Coeff"][i] = Array{Float64,1}()
+end
 
+#Compute interesting value for non GP models
+function ConvergenceTest(tm,i,X_test,y_test;X=0)
+    y_p = ComputePredictionAccuracy(tm,i,X,X_test)
+    loglike = zeros(y_p)
+    for i in 1:length(y_p)
+        if y_test[i] == 1
+            loglike[i] = y_p[i] <= 0 ? -Inf : log.(y_p[i])
+        elseif y_test[i] == -1
+            loglike[i] = y_p[i] >= 1 ? -Inf : log.(1-y_p[i])
+        end
+    end
+    push!(tm.Results["Accuracy"][i],TestAccuracy(y_test,sign.(y_p-0.5)))
+    push!(tm.Results["MeanL"][i],TestMeanHoldOutLikelihood(loglike))
+    push!(tm.Results["MedianL"][i],TestMedianHoldOutLikelihood(loglike))
+    push!(tm.Results["ELBO"][i],1.0)
+    push!(tm.Results["Param"][i],1.0)
+    push!(tm.Results["Coeff"][i],1.0)
+end
 
 function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points)
     LogArrays = Array{Any,1}()
@@ -341,9 +372,15 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
     #   tm.Model[i][:optimize](maxiter=iterations,callback=loggerobject[:gethyper],method=tensorflow.train[:AdamOptimizer]())
       tm.Model[i][:optimize](maxiter=iterations,callback=loggerobject[:getlog],method=tensorflow.train[:AdamOptimizer]())
     elseif tm.MethodType == "LogReg"
-      warn("Not available for Logistic Regression")
+        InitConvergence(tm,i)
+        ConvergenceTest(tm,i,X_test,y_test)
+        tm.Model[i][:max_iter] = iterations
+        tm.Model[i][:fit](X,y)
+        push!(tm.Results["Time"][i],time_ns())
+        ConvergenceTest(tm,i,X_test,y_test)
+        tm.Results["Time"][i] = (tm.Results["Time"][i][2:3]-tm.Results["Time"][i][1])*1e-9
     elseif tm.MethodType == "SVM"
-      warn("Not available for libSVM")
+        warn("Not available for libSVM")
     elseif tm.MethodType == "ECM"
         warn("Not available for ECM")
     end
@@ -362,18 +399,18 @@ end
 #Run tests accordingly to the arguments and save them
 function RunTests(tm::TestingModel,i,X,X_test,y_test;accuracy::Bool=true,brierscore::Bool=true,logscore::Bool=true,AUCscore::Bool=true,likelihoodscore::Bool=true,npoints::Integer=500)
   if accuracy
-    tm.Results["accuracy"][i]=TestAccuracy(y_test,ComputePrediction(tm,i,X,X_test))
+    tm.Results["Accuracy"][i]=TestAccuracy(y_test,ComputePrediction(tm,i,X,X_test))
   end
   y_predic_acc = 0
   if brierscore
     y_predic_acc = ComputePredictionAccuracy(tm,i, X, X_test)
-    tm.Results["brierscore"][i] = TestBrierScore(y_test,y_predic_acc)
+    tm.Results["Brierscore"][i] = TestBrierScore(y_test,y_predic_acc)
   end
   if logscore
     if y_predic_acc == 0
       y_predic_acc = ComputePredictionAccuracy(tm,i, X, X_test)
     end
-    tm.Results["-logscore"][i]=TestLogScore(y_test,y_predic_acc)
+    tm.Results["-Logscore"][i]=TestLogScore(y_test,y_predic_acc)
   end
   if AUCscore
     if y_predic_acc == 0
@@ -385,8 +422,8 @@ function RunTests(tm::TestingModel,i,X,X_test,y_test;accuracy::Bool=true,briersc
       if y_predic_acc == 0
           y_predic_acc = ComputePredictionAccuracy(tm,i,X,X_test)
       end
-      tm.Results["medianlikelihoodscore"][i] = -TestMedianHoldOutLikelihood(HoldOutLikelihood(y_test,y_predic_acc))
-      tm.Results["meanlikelihoodscore"][i] = -TestMeanHoldOutLikelihood(HoldOutLikelihood(y_test,y_predic_acc))
+      tm.Results["-MedianL"][i] = -TestMedianHoldOutLikelihood(HoldOutLikelihood(y_test,y_predic_acc))
+      tm.Results["-MeanL"][i] = -TestMeanHoldOutLikelihood(HoldOutLikelihood(y_test,y_predic_acc))
   end
 end
 
@@ -472,13 +509,19 @@ function PrintResults(results,method_name,writing_order)
 end
 
 function WriteResults(tm::TestingModel,location,writing_order)
-  fold = String(location*"/"*tm.ExperimentType*"Experiment_"*(Experiment==PredictionExp ?"eps$(tm.Param["ϵ"])":"")*tm.DatasetName*"Dataset")
+  fold = String(location*"/"*tm.ExperimentType*"Experiment"*(Experiment==AccuracyExp ?"eps$(tm.Param["ϵ"])":""))
+  if !isdir(fold); mkdir(fold); end;
+  fold = fold*"/"*tm.DatasetName*"Dataset"
   labels=Array{String,1}(length(writing_order)*2)
   labels[1:2:end-1,:] = writing_order.*"_mean"
   labels[2:2:end,:] =  writing_order.*"_std"
   if !isdir(fold); mkdir(fold); end;
-  if Experiment != ConvergenceExp
+  if Experiment == AccuracyExp
       writedlm(String(fold*"/Results_"*tm.MethodName*".txt"),tm.Results["allresults"])
+  elseif Experiment == IndPointsExp
+      fold = fold*"/$(tm.Param["M"])Points"
+      if !isdir(fold); mkdir(fold);end;
+      writedlm(String(fold*"/Results_"*tm.MethodName*".txt"),tm.Results["Processed"])
   else
       writedlm(String(fold*"/Results_"*tm.MethodName*".txt"),tm.Results["Processed"])
   end
@@ -571,9 +614,8 @@ function TestAUCScore(ROC)
     return AUC
 end
 
-function WriteLastStateParameters(testmodel,X_test,y_test,i)
+function WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
     if isa(testmodel.Model[i],DAM.AugmentedModel)
-        top_fold = "../data";
         if !isdir(top_fold); mkdir(top_fold); end;
         top_fold = top_fold*"/"*testmodel.DatasetName*"_SavedParams"
         if !isdir(top_fold); mkdir(top_fold); end;
@@ -688,9 +730,9 @@ function PlotResultsConvergence(TestModels)
             fill_between(results[1:step:end,1],results[1:step:end,13]-results[1:step:end,14]/sqrt(10),results[1:step:end,13]+results[1:step:end,14]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
-    # legend()
+    legend()
     xlabel("Time [s]")
-    ylabel("Coeff")
+    display(ylabel("Coeff"))
 end
 
 

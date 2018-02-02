@@ -68,7 +68,7 @@ function save_values(dataset,gibbs_m,vgpc_m,vi_m,X_test,y_test)
     f_vgpc, covf_vgpc = vgpc_m[:predict_f](X_test)
     p_vi = vi_m.predictproba(X_test)
     f_vi, covf_vi = DAM.computefstar(vi_m,X_test)
-    top_fold = "/home/theo/XGPC/results/"*dataset
+    top_fold = "/home/theo/XGPC/results/ComparisonExp"*dataset
     if !isdir(top_fold); mkdir(top_fold); end;
     data_gibbs = hcat(p_gibbs,f_gibbs,covf_gibbs)
     writedlm(top_fold*"/Gibbs",data_gibbs)
@@ -83,11 +83,11 @@ save_values(DatasetName,gibbsmodel,vgpcmodel,vimodel,X_test,y_test)
 
 
 function truth_comparison(dataset)
-    truth = readdlm("/home/theo/XGPC/results/"*dataset*"/Gibbs")
+    truth = readdlm("/home/theo/XGPC/results/ComparisonExp"*dataset*"/Gibbs")
     p_truth = truth[:,1]; f_truth = truth[:,2]; covf_truth = truth[:,3]
-    xgpc = readdlm("/home/theo/XGPC/results/"*dataset*"/XGPC")
+    xgpc = readdlm("/home/theo/XGPC/results/ComparisonExp"*dataset*"/XGPC")
     p_xgpc = xgpc[:,1]; f_xgpc = xgpc[:,2]; covf_xgpc = xgpc[:,3]
-    vgpc = readdlm("/home/theo/XGPC/results/"*dataset*"/VGPC")
+    vgpc = readdlm("/home/theo/XGPC/results/ComparisonExp"*dataset*"/VGPC")
     p_vgpc = vgpc[:,1]; f_vgpc = vgpc[:,2]; covf_vgpc = vgpc[:,3]
     p1 = plot(p_truth,p_xgpc,t=:scatter, lab="p XGPC", xlim=(0,1),ylim=(0,1))
     p2 = plot(f_truth,f_xgpc,t=:scatter, lab="μ XGPC",title="θ=$(θ), var=$(var)")
