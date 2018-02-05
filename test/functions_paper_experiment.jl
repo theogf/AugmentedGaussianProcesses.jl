@@ -509,7 +509,7 @@ function PrintResults(results,method_name,writing_order)
 end
 
 function WriteResults(tm::TestingModel,location,writing_order)
-  fold = String(location*"/"*tm.ExperimentType*"Experiment"*(Experiment==AccuracyExp ?"eps$(tm.Param["ϵ"])":""))
+  fold = String(location*"/"*tm.ExperimentType*"Experiment"*(doAutotuning ? "_AT":"")*(Experiment==AccuracyExp ?"eps$(tm.Param["ϵ"])":""))
   if !isdir(fold); mkdir(fold); end;
   fold = fold*"/"*tm.DatasetName*"Dataset"
   labels=Array{String,1}(length(writing_order)*2)
