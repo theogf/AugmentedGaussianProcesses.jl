@@ -634,6 +634,7 @@ function WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
             writedlm(top_fold*"/kernel_coeff"*"_$i",broadcast(getfield,testmodel.Model[i].Kernels,:coeff))
             writedlm(top_fold*"/kernel_name"*"_$i",broadcast(getfield,testmodel.Model[i].Kernels,:name))
         end
+	println("Last state saved in $top_fold")
     end
 end
 

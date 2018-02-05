@@ -16,7 +16,7 @@ for m in "${ms[@]}"
     for i in "${files[@]}"
       do
 	       screen -S "${prefix}${i}" -d -m
-         screen -r "${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 paper_experiments.jl $i --SVGPC -A -I 20000 --last-state -M $m ^M"
+         screen -r "${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 ../test/paper_experiments.jl $i --SVGPC -A -I 20000 --last-state -M $m ^M"
 	       echo "Created screen ${prefix}${i} and ran experiment"
        done
   done

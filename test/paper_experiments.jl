@@ -19,12 +19,12 @@ using DataAccess
 
 #Methods and scores to test
 doBXGPC = false #Batch XGPC (no sparsity)
-doSXGPC = false#!args["noXGPC"] #Sparse XGPC (sparsity)
+doSXGPC = !args["noXGPC"] #Sparse XGPC (sparsity)
 doLBSVM = false #Linear BSVM
 doBBSVM = false #Batch BSVM
 doSBSVM = false #Sparse BSVM
-doSVGPC = false#args["SVGPC"] #Sparse Variational GPC (Hensmann)
-doLogReg = true#args["logreg"] #Logistic Regression
+doSVGPC = args["SVGPC"] #Sparse Variational GPC (Hensmann)
+doLogReg = args["logreg"] #Logistic Regression
 doAutotuning = args["autotuning"]
 doPointOptimization = args["point-optimization"]
 
@@ -52,11 +52,11 @@ aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, S
 =#
 dataset = args["dataset"]
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
-MaxIter = 10#args["maxiter"] #Maximum number of iterations for every algorithm
+MaxIter = args["maxiter"] #Maximum number of iterations for every algorithm
 iter_points= vcat(1:99,100:10:999,1000:1000:9999)
 (nSamples,nFeatures) = size(X_data);
 nFold = args["nFold"]; #Choose the number of folds
-iFold = 1#args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
+iFold = args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
 
 #Main Parameters
