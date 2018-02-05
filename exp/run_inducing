@@ -1,13 +1,8 @@
 #!/bin/bash
 #!/bin/bash
 
-if [ $1 -eq l ]
-then
-	files=(`cat ${2}`)
-else
-	files="$2"
-fi
-ms=(`cat ${3}`)
+files=(`cat ${1}`)
+ms=(`cat ${2}`)
 prefix="IndPoints"
 echo $files
 echo $ms
@@ -15,8 +10,8 @@ for m in "${ms[@]}"
   do
     for i in "${files[@]}"
       do
-	       screen -S "${prefix}${i}" -d -m
-         screen -r "${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 ../test/paper_experiments.jl $i --SVGPC -A -I 20000 --last-state -M $m ^M"
-	       echo "Created screen ${prefix}${i} and ran experiment"
+	       screen -S "${m}${prefix}${i}" -d -m
+         screen -r "${m}${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 ../test/paper_experiments.jl $i --SVGPC -A -I 20000 -M $m ^M"
+	       echo "Created screen ${m}${prefix}${i} and ran experiment"
        done
   done
