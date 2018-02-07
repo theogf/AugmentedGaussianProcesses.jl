@@ -3,6 +3,7 @@ using Plots
 pyplot()
 #unicodeplots()
 include("/home/theo/XGPC/src/DataAugmentedModels.jl")
+include("/home/theo/XGPC/src/correction.jl")
 using DataAccess
 using PyCall
 using KernelFunctions
@@ -10,6 +11,7 @@ using ValueHistories
 using Distributions
 using PGSampler
 import DAM
+import LinResp
 
 @pyimport gpflow
 (X_data,y_data,DatasetName) = get_Dataset("German")
@@ -34,13 +36,15 @@ vgpcmodel = gpflow.vgp[:VGP](X, reshape((y+1)./2,(size(y,1),1)),kern=gpflow.kern
 vgpcmodel[:kern][:fixed] = true
 gibbsmodel = DAM.GibbsSamplerGPC(X,y;burninsamples=nBurnin,samplefrequency=1,Kernels=kerns,VerboseLevel=1,ϵ=1e-10,nEpochs=nSamples)
 
-
+println("Started sampling")
 gibbsmodel.train()
 y_gibbs = gibbsmodel.predict(X_test)
 
+println("Started XGPC")
 vimodel.train(iterations=MaxIter)
 y_vi = vimodel.predict(X_test)
 
+println("Started VGPC")
 vgpcmodel[:optimize](maxiter=MaxIter)
 y_vgpc = sign.(vgpcmodel[:predict_y](X_test)[1][:]*2-1)
 
@@ -49,16 +53,6 @@ println("Accuracy : Gibbs $(1-sum(1-y_test.*y_gibbs)/(2*length(y_test)))
                     XGPC  $(1-sum(1-y_test.*y_vi)/(2*length(y_test)))")
 
 
-# evol_f = hcat(gmodel.samplehistory[:f].values...)
-# function compute_on_window(fs,window)
-#     means = zeros(size(fs,2)-window,size(fs,1))
-#     covs = zeros(size(fs,2)-window,size(fs,1),size(fs,1))
-#     for i in 1:(size(fs,2)-window)
-#         means[i,:] = squeeze(mean(fs[:,i:i+(window-1)],2),2)
-#         covs[i,:,:] = cov(fs[:,i:i+(window-1)],2)
-#     end
-#     return means,covs
-# end
 
 
 function save_values(dataset,gibbs_m,vgpc_m,vi_m,X_test,y_test)
@@ -68,6 +62,7 @@ function save_values(dataset,gibbs_m,vgpc_m,vi_m,X_test,y_test)
     f_vgpc, covf_vgpc = vgpc_m[:predict_f](X_test)
     p_vi = vi_m.predictproba(X_test)
     f_vi, covf_vi = DAM.computefstar(vi_m,X_test)
+    p_vi_corr, f_vi_corr, covf_vi_corr = LinResp.correctedpredict(vi_m,X_test)
     top_fold = "/home/theo/XGPC/results/ComparisonExp"*dataset
     if !isdir(top_fold); mkdir(top_fold); end;
     data_gibbs = hcat(p_gibbs,f_gibbs,covf_gibbs)
