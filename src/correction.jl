@@ -3,6 +3,8 @@ module LinResp
 using DAM
 using DataAccess
 using Distributions
+using KernelFunctions
+using Plots
 export GetLastState
 export correctedpredict
 export meancorrection
@@ -36,6 +38,10 @@ function GetLastState(dataset;cluster=false)
 end
 
 
+function logit(x)
+    return 1./(1+exp.(-x))
+end
+
 function correctedpredict(model,X_test)
     n = size(X_test,1)
     ksize = model.nSamples
@@ -49,18 +55,28 @@ function correctedpredict(model,X_test)
     A = kstar*model.invK
     kstarstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
     meanfstar = kstar*model.TopMatrixForPrediction
-    meanfstar_corr = meanfstar + meancorrection(meanfstar,kstar,model.invK,model.μ,model.Σ,model.α)
+    meanfstar_corr = meanfstar + meancorrection(meanfstar,kstar,model.invK,model.μ,model.ζ,model.α)
     covfstar = kstarstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(kstar))
-    covfstar_corr = covfstar + varcorrection(meanfstar,kstar,model.invK,model.μ,model.Σ,model.α)
-    predic = zeros(nPoints)
-    for i in 1:nPoints
-        d= Normal(m[i],cov[i])
+    covfstar_corr = covfstar + varcorrection(meanfstar,covfstar,kstar,model.invK,model.μ,model.ζ,model.α;fstar_corr=meanfstar_corr)
+    predic = zeros(n)
+    for i in 1:n
+        d= Normal(meanfstar_corr[i],covfstar_corr[i])
         f=function(x)
             return logit(x)*pdf(d,x)
         end
-        predic[i] = quadgk(f,m[i]-10*cov[i],m[i]+10*cov[i])[1]
+        predic[i] = quadgk(f,meanfstar_corr[i]-10*covfstar_corr[i],meanfstar_corr[i]+10*covfstar_corr[i])[1]
     end
     return predic,meanfstar_corr,covfstar_corr
+end
+
+function correctedlatent(model)
+    var_c = (tanh.(model.α.*0.5).^2-1.0)./(4.*model.α.^2)+(tanh.(model.α.*0.5))./(2.*model.α.^3)
+    mean_corr = model.μ .+ model.ζ*(diag(model.ζ).*model.μ.*var_c)
+    var_corr = diag(model.ζ)
+    correction = model.μ.^2 - mean_corr.^2
+    correction += 0.5*(model.ζ).^2*((model.μ.^2-diag(model.ζ)).*var_c)
+    var_corr += correction
+    return mean_corr,var_corr
 end
 
 function meancorrection(fstar,kstar,invK,μ,Σ,c)
@@ -69,7 +85,19 @@ function meancorrection(fstar,kstar,invK,μ,Σ,c)
     return correction
 end
 
-function varcorrection(fstar,kstar,invK,μ,Σ,c)
-    return 0
+function varcorrection(fstar,covfstar,kstar,invK,μ,Σ,c;fstar_corr=0)
+    var_c = (tanh.(c.*0.5).^2-1.0)./(4.*c.^2)+(tanh.(c.*0.5))./(2.*c.^3)
+    if fstar_corr ==0
+        fstar_corr = fstar + meancorrection(fstar,kstar,invK,μ,Σ,c)
+    end
+    corr_mean = fstar_corr - fstar
+    correction = fstar.^2 - fstar_corr.^2
+    correction += 0.5*((kstar*invK*Σ).^2*((μ.^2+diag(Σ)).*var_c))
+    # println(0.5*((kstar*invK*Σ).^2*((μ.^2-diag(Σ)).*var_c)))
+    display(Plots.plot(covfstar,correction,t=:scatter))
+
+    println(correction)
+    return correction
 end
+
 end
