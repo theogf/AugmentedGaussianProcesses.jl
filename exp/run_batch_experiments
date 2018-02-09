@@ -6,11 +6,11 @@ then
 else
 	files="$2"
 fi
-prefix="ConvExp"
+prefix="ConvExpnoAT"
 echo $files
 for i in "${files[@]}"
 do
 	screen -S "${prefix}${i}" -d -m
-	screen -r "${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 ../test/paper_experiments.jl $i --SVGPC -A -I 20000 --last-state ^M"
+	screen -r "${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 ../test/paper_experiments.jl $i --SVGPC  -I 20000 --last-state ^M"
 	echo "Created screen ${prefix}${i} and ran experiment"
 done
