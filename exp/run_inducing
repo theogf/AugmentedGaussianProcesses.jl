@@ -1,5 +1,4 @@
 #!/bin/bash
-#!/bin/bash
 
 files=(`cat ${1}`)
 ms=(`cat ${2}`)
@@ -11,7 +10,7 @@ for m in "${ms[@]}"
     for i in "${files[@]}"
       do
 	       screen -S "${m}${prefix}${i}" -d -m
-         screen -r "${m}${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 ../test/paper_experiments.jl $i --SVGPC -A -I 20000 -M $m ^M"
+         screen -r "${m}${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 ../test/paper_experiments.jl $i -I 10000 -M $m ^M"
 	       echo "Created screen ${m}${prefix}${i} and ran experiment"
        done
   done
