@@ -29,7 +29,6 @@ function ELBO(model::BatchXGPC)
     return -ELBO_v
 end
 
-
 function ELBO(model::SparseXGPC)
     model.StochCoeff = model.nSamples/model.nSamplesUsed
     ELBO_v = -model.nSamples*log(2)+model.m/2.0
@@ -66,14 +65,14 @@ function computeHyperParametersGradients(model::SparseXGPC,iter::Integer)
     gradients_kernel_param = zeros(model.nKernels)
     gradients_kernel_coeff = zeros(model.nKernels)
     for i in 1:model.nKernels
-        #Compute the derivative of the kernel matrices given the kernel hyperparameter
+        #Compute the derivative of the kernel matrices given the kernel lengthscale
         Jnm_param,Jnn_param,Jmm_param = model.Kernels[i].coeff.*computeJ(model,model.Kernels[i].compute_deriv)
         ι_param = (Jnm_param-model.κ*Jmm_param)*model.invKmm
         Jtilde_param = Jnn_param - sum(ι_param.*(Kmn.'),2) - sum(model.κ.*Jnm_param,2)
         V_param = model.invKmm*Jmm_param
         gradients_kernel_param[i] = 0.5*(sum( (V_param*model.invKmm - model.StochCoeff*(ι_param'*Θ*model.κ + model.κ'*Θ*ι_param)) .* transpose(B)) - trace(V_param) - model.StochCoeff*dot(diag(Θ),Jtilde_param)
          + model.StochCoeff*dot(model.y[model.MBIndices],ι_param*model.μ))
-
+        #Compute the derivative of the kernel matrices given the kernel weight
         Jnm_coeff,Jnn_coeff,Jmm_coeff = computeJ(model,model.Kernels[i].compute)
         ι_coeff = (Jnm_coeff-model.κ*Jmm_coeff)*model.invKmm
         Jtilde_coeff = Jnn_coeff - sum(ι_coeff.*(Kmn.'),2) - sum(model.κ.*Jnm_coeff,2)
@@ -99,7 +98,7 @@ function computeHyperParametersGradients(model::SparseXGPC,iter::Integer)
     end
 end
 
-
+#Return the mean and variance of the predictive distribution of f*
 function computefstar(model::FullBatchModel,X_test)
     n = size(X_test,1)
     ksize = model.nSamples
