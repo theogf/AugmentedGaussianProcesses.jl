@@ -1,5 +1,7 @@
+
+#Linear Bayesian Support Vector Machines
+
 mutable struct LinearBSVM <: LinearModel
-    #Linear Bayesian Support Vector Machines
     @commonfields
     @functionfields
     @linearfields

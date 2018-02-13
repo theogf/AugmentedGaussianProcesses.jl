@@ -1,6 +1,7 @@
 
+#Sparse Bayesian Support Vector Machines (with inducing points)
+
 mutable struct SparseBSVM <: SparseModel
-    #Sparse Bayesian Support Vector Machines (with inducing points)
     @commonfields
     @functionfields
     @latentfields

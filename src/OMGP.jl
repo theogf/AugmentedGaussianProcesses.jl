@@ -1,23 +1,24 @@
 ###########################
 
-#General Framework for the data augmented models (optimized for GPs at the moment)
+#General Framework for the data augmented Gaussian Processes
 
 ###########################
-module DAM
-#Homemade modules
+module OMGP
+#Custom modules
 using KernelFunctions
 using KMeansModule
 using PGSampler
 #General modules
 using Distributions
 using StatsBase
-using Plots
 using QuadGK
 using GradDescent
 using ValueHistories
 
+#Exported models
 export LinearBSVM, BatchBSVM, SparseBSVM
 export BatchXGPC, SparseXGPC, GibbsSamplerGPC
+#General class definitions
 export AugmentedModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 export ELBO
 
@@ -31,6 +32,8 @@ macro def(name, definition)
 end
 
 @enum ClassifierType Undefined=0 BSVM=1 XGPC=2
+
+#Class arborescence
 
 abstract type AugmentedModel end
 
@@ -65,7 +68,8 @@ abstract type FullBatchModel <: NonLinearModel end
     Trained::Bool #Verify the algorithm has been trained before making predictions
     #Parameters learned with training
     TopMatrixForPrediction #Storing matrices for repeated predictions (top and down are numerator and discriminator)
-    DownMatrixForPrediction
+    DownMatrixForPredict	src/XGPC_Functions.jl
+ion
     MatricesPrecomputed::Bool #Flag to know if matrices needed for predictions are already computed or not
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
 end
@@ -96,9 +100,8 @@ function initCommon!(model::AugmentedModel,X,y,γ,ϵ,nEpochs,VerboseLevel,Autotu
 end
 
 
-
+#Parameters for stochastic optimization
 @def stochasticfields begin
-    #Stochastic parameters
     nSamplesUsed::Int64 #Size of the minibatch used
     StochCoeff::Float64 #Stochastic Coefficient
     MBIndices #MiniBatch Indices
@@ -112,6 +115,8 @@ end
     τ::Float64
     SmoothingWindow::Int64
 end
+
+#Function initializing the stochasticfields parameters
 function initStochastic!(model::AugmentedModel,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow)
     #Initialize parameters specific to models using SVI and check for consistency
     model.Stochastic = true; model.nSamplesUsed = BatchSize; model.AdaptiveLearningRate = AdaptiveLearningRate;
@@ -125,8 +130,8 @@ function initStochastic!(model::AugmentedModel,AdaptiveLearningRate,BatchSize,κ
     model.τ = 50;
 end
 
+#Parameters for the kernel parameters, including the covariance matrix of the prior
 @def kernelfields begin
-    #Non linear parameters
     Kernels::Array{Kernel,1} #Kernels function used
     hyperparameters::Array{Float64,2} #Hyperparameters of the kernel functions
     Kernel_function::Function #kernel function associated with the model
@@ -134,9 +139,10 @@ end
     nKernels::Int64 #Number of kernels used
     invK::Array{Float64,2} #Inverse Kernel Matrix for the nonlinear case
 end
+
+#Function initializing the kernelfields
 function initKernel!(model::AugmentedModel,Kernels)
     #Initialize parameters common to all models containing kernels and check for consistency
-
     if Kernels == 0
       warn("No kernel indicated, a rbf kernel function with lengthscale 1 is used")
       Kernels = [Kernel("rbf",1.0,params=1.0)]
@@ -161,9 +167,8 @@ function initKernel!(model::AugmentedModel,Kernels)
     model.nFeatures = model.nSamples
 end
 
-
+#Parameters necessary for the sparse inducing points method
 @def sparsefields begin
-    #fields necessary for the sparse inducing points method
     m::Int64 #Number of inducing points
     inducingPoints::Array{Float64,2} #Inducing points coordinates for the Big Data GP
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
@@ -172,9 +177,10 @@ end
     κ::Array{Float64,2} #Kmn*invKmm
 end
 
+#Function initializing the sparsefields parameters
 function initSparse!(model::AugmentedModel,m,optimizeIndPoints)
     #Initialize parameters for the sparse model and check consistency
-    minpoints = 50;
+    minpoints = 56;
     if m > model.nSamples
         warn("There are more inducing points than actual points, setting it to 10%")
         m = min(minpoints,model.nSamples÷10)
@@ -189,13 +195,15 @@ function initSparse!(model::AugmentedModel,m,optimizeIndPoints)
     model.inducingPoints = KMeansInducingPoints(model.X,model.m,10)
 end
 
-
+#Parameters for the variational multivariate gaussian distribution
 @def gaussianparametersfields begin
     μ::Array{Float64,1} # Mean for variational distribution
     η_1::Array{Float64,1} #Natural Parameter #1
     ζ::Array{Float64,2} # Covariance matrix of variational distribution
     η_2::Array{Float64,2} #Natural Parameter #2
 end
+
+#Function for initialisation of the variational multivariate parameters
 function initGaussian!(model::AugmentedModel,μ_init)
     #Initialize gaussian parameters and check for consistency
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
@@ -211,6 +219,7 @@ function initGaussian!(model::AugmentedModel,μ_init)
     model.η_1 = 2*model.η_2*model.μ
 end
 
+#Parameters defining the available function of the model
 @def functionfields begin
     #Functions
     train::Function #Model train for a certain number of iterations
@@ -219,6 +228,8 @@ end
     Plotting::Function
 end
 
+#Default function to estimate convergence, based on a window on the variational
+#parameters
 function DefaultConvergence(model::AugmentedModel,iter::Integer)
     #Default convergence function
     if iter == 1
@@ -236,7 +247,7 @@ function DefaultConvergence(model::AugmentedModel,iter::Integer)
     end
 end
 
-
+#Appropriately assign the functions
 function initFunctions!(model::AugmentedModel)
     #Initialize all functions according to the type of models
     model.train = function(;iterations::Integer=0,callback=0,convergence=DefaultConvergence)
@@ -269,11 +280,13 @@ function initFunctions!(model::AugmentedModel)
     end
 end
 
+#Parameters for the linear GPs
 @def linearfields begin
     Intercept::Bool
     invΣ::Array{Float64,2} #Inverse Prior Matrix
 end
 
+#Correct initialization of the model
 function initLinear!(model::AugmentedModel,Intercept)
     model.Intercept = Intercept;
     model.nFeatures = size(model.X,2);
@@ -284,6 +297,7 @@ function initLinear!(model::AugmentedModel,Intercept)
     end
 end
 
+#Parameters of the variational distribution of the augmented variable
 @def latentfields begin
     α::Array{Float64,1}
 end
@@ -293,6 +307,7 @@ function initLatentVariables!(model)
     model.α = abs.(rand(model.nSamples))*2;
 end
 
+#Paramters for the sampling method
 @def samplingfields begin
     burninsamples::Integer
     samplefrequency::Integer
@@ -316,8 +331,8 @@ include("BatchXGPC.jl")
 include("SparseXGPC.jl")
 include("GibbsSamplerGPC.jl")
 #Functions
-include("DataAugmentedModelFunctions.jl")
-include("ModelSpecificFunctions.jl")
+include("ModelFunctions.jl")
+include("GPFunctions.jl")
 #include("BSVM_Functions.jl")
 include("XGPC_Functions.jl")
 

@@ -1,5 +1,5 @@
 #=
-    Module for the kernel type
+    Module for the kernel functions, also create kernel matrices
 =#
 
 module KernelFunctions

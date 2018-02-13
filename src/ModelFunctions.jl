@@ -1,4 +1,7 @@
- # include("../src/DataAugmentedModels.jl")
+
+#Train function used to update the variational parameters given the training data X and y
+#Possibility to put a callback function, taking the model and the iteration number as an argument
+#Also one can change the convergence function
 
 function train!(model::AugmentedModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
     if model.VerboseLevel > 0
@@ -10,7 +13,8 @@ function train!(model::AugmentedModel;iterations::Integer=0,callback=0,Convergen
     end
     model.evol_conv = []
     if model.Stochastic
-        if model.AdaptiveLearningRate #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC
+        if model.AdaptiveLearningRate
+            #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC
             model.g = zeros(model.m*(model.m+1));
             model.h = 0;
             for i in 1:model.τ
@@ -28,8 +32,6 @@ function train!(model::AugmentedModel;iterations::Integer=0,callback=0,Convergen
                 model.g = model.g + 1/model.τ*vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
                 model.h = model.h + 1/model.τ*norm(vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2)))^2
             end
-
-
         end
     end
     computeMatrices!(model)
@@ -70,7 +72,7 @@ function updateParameters!(model::AugmentedModel,iter::Integer)
         model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
         #No replacement means one points cannot be twice in the same minibatch
     end
-    computeMatrices!(model); #Compute the matrices if necessary
+    computeMatrices!(model); #Compute the matrices if necessary (always for the stochastic case)
     if model.ModelType == BSVM
         variablesUpdate_BSVM!(model,iter)
     elseif model.ModelType == XGPC
@@ -108,13 +110,5 @@ function computeLearningRate_Stochastic!(model::AugmentedModel,iter::Integer,gra
     else
       #Non-Stochastic case
       model.ρ_s = 1.0
-    end
-end
-
-function computeLearningRate_Hyperparameter!(model::AugmentedModel,iter::Integer,gradients)
-    nHyperParameters = length(model.ρ_AT);
-    for i in 1:nHyperParameters
-        #model.ρ_AT[i] = (iter+model.τ_AT)^(-model.κ_AT);
-        model.ρ_AT[i] = model.ρ_AT[i]; #no dependency in time
     end
 end

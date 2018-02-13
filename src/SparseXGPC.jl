@@ -1,6 +1,7 @@
 
+#Sparse Xtreme Gaussian Process Classifier
+
 mutable struct SparseXGPC <: SparseModel
-    #Sparse Xtreme Gaussian Process Classifier
     @commonfields
     @functionfields
     @latentfields

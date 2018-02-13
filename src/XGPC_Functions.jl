@@ -1,5 +1,5 @@
 # Functions related to the Extreme Gaussian Process Classifier (XGPC)
-# (paper currently being reviewed for AIStats 2018)
+# (paper currently being reviewed for ICML 2018)
 
 function variablesUpdate_XGPC!(model::BatchXGPC,iter)
     model.α = sqrt.(diag(model.ζ)+model.μ.^2) #Cf derivation of updates
@@ -19,41 +19,6 @@ function variablesUpdate_XGPC!(model::SparseXGPC,iter)
     model.ζ = -0.5*inv(model.η_2); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
-#Return the value of the ELBO
-# function ELBO(model)
-#     if isa(model,SparseXGPC)
-#         hyperparameters=model.hyperparameters
-#         inducingPoints = model.inducingPoints
-#         return function (inducingPoints,γ,hyperparameters)
-#                     ELBO_v = -model.nSamples*log(2.0)+model.m/2.0
-#                     invKmm = Matrix(Symmetric(inv(CreateKernelMatrix(inducingPoints,model.kernel_functions,hyperparameters)+γ[1]*eye(model.nFeatures))))
-#                     Knm = CreateKernelMatrix(model.X[model.MBIndices,:],model.kernel_functions,hyperparameters,X2=inducingPoints)
-#                     κ = Knm*invKmm
-#                     Ktilde = CreateDiagonalKernelMatrix(model.X[model.MBIndices,:],model.kernel_functions,hyperparameters) + model.γ[1]*ones(length(model.MBIndices)) - squeeze(sum(κ.*Knm,2),2) #diag(model.κ*transpose(Knm))
-#                     model.StochCoeff = model.nSamples/model.nSamplesUsed
-#                     θ = 1./(2*model.α[model.MBIndices]).*tanh.(model.α[model.MBIndices]/2.0)
-#                     ELBO_v += 0.5*(logdet(model.ζ)+logdet(invKmm))
-#                     ELBO_v += -0.5*(trace((invKmm+model.StochCoeff*κ'*Diagonal(θ)*κ)*(model.ζ+model.μ*transpose(model.μ))))
-#                     ELBO_v += model.StochCoeff*0.5*dot(model.y[model.MBIndices],κ*model.μ)
-#                     ELBO_v += -0.5*model.StochCoeff*sum(θ.*Ktilde)
-#                     ELBO_v += model.StochCoeff*sum(0.5*(model.α[model.MBIndices].^2).*θ-log.(cosh.(0.5*model.α[model.MBIndices])))
-#                     return -ELBO_v
-#         end
-#     elseif isa(model,BatchXGPC)
-#         hyperparameters = model.hyperparameters
-#         return function (γ,hyperparameters)
-#                     ELBO_v = -model.nSamples*log(2)
-#                     invK = inv(CreateKernelMatrix(model.X,model.kernel_functions,hyperparameters)+γ[1]*eye(model.nFeatures))
-#                     θ = 1./(2*model.α).*tanh.(model.α/2.0)
-#                     ELBO_v += 0.5*(logdet(model.ζ)+logdet(invK)-trace((invK+Diagonal(θ))*(model.ζ+model.μ*transpose(model.μ))))
-#                     ELBO_v += 0.5*dot(model.y,model.μ)
-#                     ELBO_v += sum(0.5*(model.α.^2).*θ-log.(cosh.(0.5*model.α)))
-#                     return -ELBO_v
-#         end
-#     else
-#         err("Error")
-#     end
-# end
 function ELBO(model::BatchXGPC)
     ELBO_v = model.nSamples*(0.5-log.(2.0)) #Constant
     θ = 1./(2*model.α).*tanh.(model.α/2.0) #Reparametrization of c
@@ -150,68 +115,4 @@ function computefstar(model::FullBatchModel,X_test)
     meanfstar = kstar*model.TopMatrixForPrediction
     covfstar = kstarstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(kstar))
     return meanfstar,covfstar
-end
-
-# function computefstar(model::GibbsSamplerGPC,X_test)
-#     n = size(X_test,1)
-#     ksize = model.nSamples
-#     kstar = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
-#     A = kstar*model.invK
-#     kstarstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
-#     meanfstar = A*model.μ
-#     covfstar = kstarstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(kstar))# + mean(broadcast(x->(meanfstar-A*x).^2,model.estimate))[1]
-#     # covfstar = kstarstar - diag(kstar*model.invK*transpose(kstar))
-#     return meanfstar,covfstar
-# end
-
-
-
-
-
-
-# function computeHyperParametersGradients(model::SparseXGPC,iter::Integer)
-#     gradients = zeros(model.nKernels)
-#     #Compute general values necessary for all gradients (avoid code repetition)
-#     B = model.μ*transpose(model.μ) + model.ζ
-#     Kmn = CreateKernelMatrix(model.inducingPoints,model.Kernel_function;X2=model.X[model.MBIndices,:])
-#     Θ = Diagonal(0.25./model.α[model.MBIndices].*tanh.(0.5*model.α[model.MBIndices]))
-#     #If multikernels only update the weight of the kernels, else update the kernel lengthscale
-#   for i in 1:model.nKernels
-#
-#     #ι is the derivative of κ
-#     ι = (Jnm-model.κ*Jmm)*model.invKmm
-#     Jtilde = Jnn + sum(ι.*(Kmn.'),2)+ sum(model.κ.*Jnm,2)
-#     V = model.invKmm*Jmm
-#     gradients[i] = 0.5*(sum((V*model.invKmm-model.StochCoeff*(ι'*Θ*model.κ+model.κ'*Θ*ι)).*B)-trace(V)-model.StochCoeff*sum(Θ.*Jtilde))
-#      + model.StochCoeff*0.5*dot(model.y[model.MBIndices],ι*model.μ)
-#   end
-#     elseif model.Kernels[1].Nparams > 0 #Update of the hyperparameters of the KernelMatrix
-#         #Compute the derivative of the kernel matrices against the kernel hyperparameter
-#       Jnm = model.Kernels[1].coeff*CreateKernelMatrix(model.X[model.MBIndices,:],model.Kernels[1].compute_deriv,X2=model.inducingPoints)
-#       Jnn = model.Kernels[1].coeff*CreateDiagonalKernelMatrix(model.X[model.MBIndices,:],model.Kernels[1].compute_deriv)
-#       Jmm = model.Kernels[1].coeff*CreateKernelMatrix(model.inducingPoints,model.Kernels[1].compute_deriv)
-#       #ι is the derivative of κ
-#       ι = (Jnm-model.κ*Jmm)*model.invKmm
-#       Jtilde = Jnn + sum(ι.*(Kmn.'),2)+ sum(model.κ.*Jnm,2)
-#       V = model.invKmm*Jmm
-#       gradients[1] = 0.5*(sum((V*model.invKmm-model.StochCoeff*(ι'*Θ*model.κ+model.κ'*Θ*ι)).*B)-trace(V)-model.StochCoeff*sum(Θ.*Jtilde)+ model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
-#       if model.VerboseLevel > 2
-#         println("Grad kernel: $(gradients[1]), new param is $(model.Kernels[1].param)")
-#       end
-#     end
-#     return gradients
-# end
-
-
-#### Extra tools for debugging, yet to implement ####
-
-
-####### TODO #########
-function derivativesELBO(model::BatchXGPC)
-    return [0,0,0,0]
-end
-
-####### TODO #########
-function derivativesELBO(model::SparseXGPC)
-    return [0,0,0,0]
 end

@@ -1,10 +1,11 @@
+
+#Batch Xtreme Gaussian Process Classifier (no inducing points)
+
 mutable struct BatchXGPC <: FullBatchModel
-    #Batch Xtreme Gaussian Process Classifier (no inducing points)
     @commonfields
     @functionfields
     @latentfields
     @gaussianparametersfields
-    
     @kernelfields
     function BatchXGPC(X::AbstractArray,y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 200,
                                     Kernels=0,γ::Float64=1e-3,AutotuningFrequency::Integer=10,

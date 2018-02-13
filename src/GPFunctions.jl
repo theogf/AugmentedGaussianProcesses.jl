@@ -1,6 +1,4 @@
-######################################
-
-#### Computations of the kernel matrices ####
+#### Computations of the kernel matrices for the different type of models ####
 
 function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated
@@ -30,13 +28,13 @@ function computeMatrices!(model::LinearModel)
 end
 
 
-#### Computation of predictions for the probit and logit link ####
+#### Computation of predictions with and without variance using the probit and logit link ####
 
-function probitPredict(model::LinearModel,X_test)
+function probitpredict(model::LinearModel,X_test)
     return model.Intercept ? [ones(Float64,size(X_test,1)) X_test]*model.μ : X_test*model.μ
 end
 
-function probitPredict(model::FullBatchModel,X_test)
+function probitpredict(model::FullBatchModel,X_test)
     n = size(X_test,1)
     if model.TopMatrixForPrediction == 0
       model.TopMatrixForPrediction = model.invK*model.μ
@@ -45,7 +43,7 @@ function probitPredict(model::FullBatchModel,X_test)
     return k_star*model.TopMatrixForPrediction
 end
 
-function probitPredict(model::SparseModel,X_test)
+function probitpredict(model::SparseModel,X_test)
     n = size(X_test,1)
     if model.TopMatrixForPrediction == 0
       model.TopMatrixForPrediction = model.invKmm*model.μ
@@ -54,7 +52,7 @@ function probitPredict(model::SparseModel,X_test)
     return k_star*model.TopMatrixForPrediction
 end
 
-function probitPredictProba(model::LinearModel,X_test)
+function probitpredictproba(model::LinearModel,X_test)
     if model.Intercept
       X_test = [ones(Float64,size(X_test,1)) X_test]
     end
@@ -66,7 +64,7 @@ function probitPredictProba(model::LinearModel,X_test)
     return predic
 end
 
-function probitPredictProba(model::FullBatchModel,X_test)
+function probitpredictproba(model::FullBatchModel,X_test)
     n = size(X_test,1)
     ksize = model.nSamples
     if model.DownMatrixForPrediction == 0
@@ -88,7 +86,7 @@ function probitPredictProba(model::FullBatchModel,X_test)
     return predic
 end
 
-function probitPredictProba(model::SparseModel,X_test)
+function probitpredictproba(model::SparseModel,X_test)
     n = size(X_test,1)
     ksize = model.m
     if model.DownMatrixForPrediction == 0
@@ -110,13 +108,17 @@ function probitPredictProba(model::SparseModel,X_test)
     return predic
 end
 
-function logitPredict(model::AugmentedModel,X_test)
+function logit(x)
+    return 1./(1+exp.(-x))
+end
+
+function logitpredict(model::AugmentedModel,X_test)
     y_predic = logitPredictProba(model,X_test)
     y_predic[y_predic.>0.5] = 1; y_predic[y_predic.<=0.5] = -1
     return y_predic
 end
 
-function logitPredictProba(model::FullBatchModel,X_test)
+function logitpredictproba(model::FullBatchModel,X_test)
     nPoints = size(X_test,1)
     K_starN = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
     K_starstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
@@ -133,7 +135,7 @@ function logitPredictProba(model::FullBatchModel,X_test)
     return predic
 end
 
-function logitPredictProba(model::SparseModel,X_test)
+function logitpredictproba(model::SparseModel,X_test)
     nPoints = size(X_test,1)
     ksize = model.m
     K_starM = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.inducingPoints)
@@ -154,12 +156,7 @@ function logitPredictProba(model::SparseModel,X_test)
     return predic
 end
 
-function logit(x)
-    return 1./(1+exp.(-x))
-end
-
 #### Get Functions ####
-
 
 function getInversePrior(model::LinearModel)
     return model.invΣ
@@ -176,23 +173,15 @@ end
 
 #### Optimization of the hyperparameters #### #TODO
 function updateHyperParameters!(model::LinearModel,iter::Integer)
-    # grad_γ = 0.5*((trace(model.ζ)+norm(model.μ))/(model.γ^2.0)-model.nFeatures/model.γ);
-    # gradients_γ = (abs.(grad_γ)>model.MaxGradient) ? sign.(gradients[i])*model.MaxGradient : gradients[i]
-    # if model.VerboseLevel > 2
-    #     println("Grad γ : $(grad_γ)")
-    # end
-    # computeLearningRate_Hyperparameter!(model,iter,grad_γ)
-    # model.v_AT[end] = model.γ_AT*model.v_AT[end]+model.ρ_AT[end]*grad_γ*(model.γ-model.γ_AT*model.v_AT[end])
-    # if model.γ < model.v_AT[end]
-    #     model.ρ_AT[end] = model.ρ_AT[end]/2
-    # else
-    #     model.γ = model.γ - model.v_AT[end]
-    # end
+    grad_γ = 0.5*((trace(model.ζ)+norm(model.μ))/(model.γ^2.0)-model.nFeatures/model.γ);
+    if model.VerboseLevel > 2
+        println("Grad γ : $(grad_γ)")
+    end
+    model.γ += GradDescent.update(model.optimizers[1],grad_γ)
     model.HyperParametersUpdated = true
 end
 
 function updateHyperParameters!(model::NonLinearModel,iter::Integer)
-    # PlotHyperParametersSpace(model;npoints=20)
     gradients = computeHyperParametersGradients(model,iter)
     if model.VerboseLevel > 1
         print("Hyperparameters  (param,coeff) $((getfield.(model.Kernels,:param),getfield.(model.Kernels,:coeff))) with gradients $(gradients[1:2]) \n")
@@ -208,6 +197,7 @@ function applyHyperParametersGradients!(model::AugmentedModel,gradients)
     for i in 1:model.nKernels
         model.Kernels[i].param += GradDescent.update(model.optimizers[i],gradients[1][i])
         model.Kernels[i].coeff += GradDescent.update(model.optimizers[i+model.nKernels],gradients[2][i])
+        #Put a limit on the kernel coefficient value
         model.Kernels[i].coeff = model.Kernels[i].coeff > 0 ? model.Kernels[i].coeff : 0;
     end
     #Avoid the case where the coeff of a kernel overshoot to 0
@@ -219,10 +209,10 @@ function applyHyperParametersGradients!(model::AugmentedModel,gradients)
     end
 end
 
+#Compute a the derivative of the covariance matrix
 function computeJ(model::FullBatchModel,derivative::Function)
     return CreateKernelMatrix(model.X,derivative)
 end
-
 
 function computeJ(model::SparseModel,derivative::Function)
     Jnm = CreateKernelMatrix(model.X[model.MBIndices,:],derivative,X2=model.inducingPoints)
@@ -242,6 +232,8 @@ function CreateColumnMatrix(n,m,iter,gradient)
     K[:,iter] = gradient;
     return K
 end
+
+#Compute the gradients given the inducing point locations
 function computeIndPointsJ(model::SparseModel,iter)
     dim = size(model.X,2)
     Dnm = zeros(model.nSamplesUsed,dim)
@@ -288,55 +280,14 @@ end
 
 #Printing Functions
 
-function printAutotuningInformations(model::LinearModel)
-#Print the updated values of the noise and the learning rate
+function printautotuninginformations(model::LinearModel)
+#Print the updated values of the noise
     println("Gamma : $(model.γ)")
-    # println("rho autotuning : $(model.ρ_AT)")
 end
 
-function printAutotuningInformations(model::NonLinearModel)
-#Print the updated values of the kernel hyperparameters and the learning rate
+function printautotuninginformations(model::NonLinearModel)
+#Print the updated values of the kernel hyperparameters
     for i in 1:model.nKernels
-        println("(Coeff,Parameter) for kernel $i : $((model.Kernels[i].coeff,(model.Kernels[i].Nparams > 0)? model.Kernels[i].param : 0))")
+        print("Hyperparameters  (param,coeff) $((getfield.(model.Kernels,:param),getfield.(model.Kernels,:coeff))) with gradients $(gradients[1:2]) \n");
     end
-    println("rho autotuning : $(model.ρ_AT)")
-end
-
-#Outdated debugging Functions
-function PlotHyperParametersSpace(model::LinearModel;npoints=200)
-    figure("ELBO vs γ");clf();
-    init_param = model.γ
-    var_ELBO = zeros(npoints)
-    var_hyper = logspace(-5,3,npoints)
-    for j in 1:npoints
-        init_param = model.γ
-        model.γ = var_hyper[j]
-        computeMatrices!(model)
-        var_ELBO[j] = ELBO(model)
-    end
-    model.γ= init_param
-    computeMatrices!(model)
-    plot(var_hyper,var_ELBO,color="blue")
-    plot(init_param,ELBO(model),color="red",marker="o")
-end
-
-
-function PlotHyperParametersSpace(model::NonLinearModel;npoints=10)
-    init_param = 0;
-    var_ELBO = zeros(npoints)
-    var_hyper = logspace(0,1,npoints)
-    for j in 1:npoints
-        init_param = model.Kernels[1].param
-        model.Kernels[1].param = var_hyper[j]
-        model.HyperParametersUpdated = true
-        computeMatrices!(model)
-        var_ELBO[j] = ELBO(model)
-        println(var_ELBO[j])
-        model.Kernels[1].param = init_param
-    end
-    plot(var_hyper,var_ELBO,color="blue",xaxis=(:log),ylim=(100,10000),yaxis=(:log))
-    model.HyperParametersUpdated= true
-    computeMatrices!(model)
-    display(plot!([init_param],[ELBO(model)],color="red",t=:scatter))
-    println("Hyperparameter 1 estimated")
 end

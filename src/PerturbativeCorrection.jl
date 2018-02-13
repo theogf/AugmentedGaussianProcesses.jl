@@ -1,10 +1,9 @@
 module LinResp
 
-using DAM
+using OMGP
 using DataAccess
 using Distributions
 using KernelFunctions
-using Plots
 export GetLastState
 export correctedpredict
 export meancorrection
