@@ -73,8 +73,8 @@ function correctedlatent(model)
     var_c = (tanh.(model.α.*0.5).^2-1.0)./(4.*model.α.^2)+(tanh.(model.α.*0.5))./(2.*model.α.^3)
     mean_corr = model.μ .+ model.ζ*(diag(model.ζ).*model.μ.*var_c)
     var_corr = diag(model.ζ)
-    correction = model.μ.^2 - mean_corr.^2
-    correction += 0.5*(model.ζ).^2*((model.μ.^2-diag(model.ζ)).*var_c)
+    # correction = model.μ.^2 - mean_corr.^2
+    correction = 0.5*(model.ζ).^2*((model.μ.^2+diag(model.ζ)).^2.*var_c)
     var_corr += correction
     return mean_corr,var_corr
 end
@@ -92,7 +92,7 @@ function varcorrection(fstar,covfstar,kstar,invK,μ,Σ,c;fstar_corr=0)
     end
     corr_mean = fstar_corr - fstar
     correction = fstar.^2 - fstar_corr.^2
-    correction += 0.5*((kstar*invK*Σ).^2*((μ.^2+diag(Σ)).*var_c))
+    correction = 0.5*((kstar*invK*Σ).^2*((μ.^2-diag(Σ)).*var_c))
     # println(0.5*((kstar*invK*Σ).^2*((μ.^2-diag(Σ)).*var_c)))
     display(Plots.plot(covfstar,correction,t=:scatter))
 

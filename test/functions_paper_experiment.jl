@@ -10,7 +10,7 @@ Set of datatype and functions for efficient testing.
 
 include("../src/DataAugmentedModels.jl")
 include("../src/ECM.jl")
-import DAM
+using DAM
 using KMeansModule
 using ScikitLearn;
 if !isdefined(:SGDClassifier); @sk_import linear_model: SGDClassifier; end;
@@ -553,7 +553,8 @@ function ComputePredictionAccuracy(tm::TestingModel,i, X, X_test)
     y_predic = tm.Model[i][:predict_y](X_test)[1]
   elseif tm.MethodType == "LogReg"
     y_predic = tm.Model[i][:predict_proba](X_test)[:,2]
-  elseif tm.MethodType == "SVM"
+elseif tm.MethodType == "SVM"p_gibbs = gibbs_m.predictproba(X_test)
+        f_gibbs,covf_gibbs = DAM.computefstar(gibbs_m,X_test)
     y_predic = tm.Model[i][:predict_proba](X_test)[:,2]
   elseif tm.MethodType == "ECM"
     y_predic = PredictProbaECM(X,tm.Model[i][4],X_test,tm.Model[i][1],tm.Model[i][2],tm.Param["γ"],tm.Model[i][3])
