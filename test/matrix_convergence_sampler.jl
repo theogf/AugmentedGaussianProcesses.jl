@@ -9,7 +9,7 @@ using KernelFunctions
 using ValueHistories
 using Distributions
 using PGSampler
-import DAM
+import OMGP
 import LinResp
 
 @pyimport gpflow

@@ -68,8 +68,7 @@ abstract type FullBatchModel <: NonLinearModel end
     Trained::Bool #Verify the algorithm has been trained before making predictions
     #Parameters learned with training
     TopMatrixForPrediction #Storing matrices for repeated predictions (top and down are numerator and discriminator)
-    DownMatrixForPredict	src/XGPC_Functions.jl
-ion
+    DownMatrixForPrediction
     MatricesPrecomputed::Bool #Flag to know if matrices needed for predictions are already computed or not
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
 end
@@ -259,9 +258,9 @@ function initFunctions!(model::AugmentedModel)
             return
         end
         if model.ModelType == BSVM
-            probitPredict(model,X_test)
+            probitpredict(model,X_test)
         elseif model.ModelType == XGPC
-            logitPredict(model,X_test)
+            logitpredict(model,X_test)
         end
     end
     model.predictproba = function(X_test)
@@ -270,9 +269,9 @@ function initFunctions!(model::AugmentedModel)
             return
         end
         if model.ModelType == BSVM
-            probitPredictProba(model,X_test)
+            probitpredictproba(model,X_test)
         elseif model.ModelType == XGPC
-            logitPredictProba(model,X_test)
+            logitpredictproba(model,X_test)
         end
     end
     model.Plotting = function(;option::String="All")

@@ -66,7 +66,7 @@ main_param["nSamples"] = nSamples
 main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "rbf"
-main_param["Θ"] = 5.0 #Hyperparameter of the kernel
+main_param["Θ"] = 5.0 #initial Hyperparameter of the kernel
 main_param["BatchSize"] = 100
 main_param["Verbose"] = 0
 main_param["Window"] = 10

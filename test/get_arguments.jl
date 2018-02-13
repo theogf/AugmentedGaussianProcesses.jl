@@ -1,6 +1,6 @@
 using ArgParse
 if length(ARGS) ==0
-    ARGS = ["German"]
+    ARGS = ["BreastCancer"]
 end
 
 function parse_commandline()

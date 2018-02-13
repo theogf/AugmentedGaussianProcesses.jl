@@ -1,5 +1,4 @@
-using Plots
-pyplot()
+
 upscale = 1.0 #8x upscaling in resolution
 fntsm = Plots.font("sans-serif", 10.0*upscale)
 fntlg = Plots.font("sans-serif", 14.0*upscale)

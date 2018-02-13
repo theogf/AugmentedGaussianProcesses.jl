@@ -8,9 +8,7 @@ Set of datatype and functions for efficient testing.
 
 # module TestFunctions
 
-include("../src/DataAugmentedModels.jl")
-include("../src/ECM.jl")
-using DAM
+include("../src/OMGP.jl")
 using KMeansModule
 using ScikitLearn;
 if !isdefined(:SGDClassifier); @sk_import linear_model: SGDClassifier; end;
@@ -19,12 +17,12 @@ using PyCall
 @pyimport tensorflow
 using Distributions
 using KernelFunctions
-using ECM
+import OMGP
 
 
 
 # export TestingModel
-# export DefaultParameters, XGPCParameters, BSVMParameters, SVGPCParameters, LogRegParameters, ECMParameters, SVMParameters
+# export DefaultParameters, XGPCParameters, BSVMParameters, SVGPCParameters, LogRegParameters, OMGPParameters, SVMParameters
 # export CreateModel, TrainModel, TrainModelwithTime, RunTests, ProcessResults, PrintResults, WriteResults
 # export ComputePrediction, ComputePredictionAccuracy
 
@@ -33,7 +31,7 @@ type TestingModel
   MethodName::String #Name of the method
   DatasetName::String #Name of the dataset
   ExperimentType::String #Type of experiment
-  MethodType::String #Type of method used ("SVM","BSVM","ECM","SVGPC")
+  MethodType::String #Type of method used ("SVM","BSVM","OMGP","SVGPC")
   Param::Dict{String,Any} #Some paramters to run the method
   Results::Dict{String,Any} #Saved results
   Model::Any
@@ -136,21 +134,21 @@ end
 #Create a model given the parameters passed in p
 function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
     if tm.MethodType == "BXGPC"
-        tm.Model[i] = DAM.BatchXGPC(X,y;Kernels=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
+        tm.Model[i] = OMGP.BatchXGPC(X,y;Kernels=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
             VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(y) : [0.0])
     elseif tm.MethodType == "SXGPC"
-        tm.Model[i] = DAM.SparseXGPC(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],m=tm.Param["M"],
+        tm.Model[i] = OMGP.SparseXGPC(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],m=tm.Param["M"],
             Kernels=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
             SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0])
     elseif tm.MethodType == "LBSVM"
-        tm.Model[i] = DAM.LinearBSVM(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],
+        tm.Model[i] = OMGP.LinearBSVM(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],
             Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
             SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(y) : [0.0])
     elseif tm.MethodType == "BBSVM"
-        tm.Model[i] = DAM.BatchBSVM(X,y;Kernels=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
+        tm.Model[i] = OMGP.BatchBSVM(X,y;Kernels=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
             VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(y) : [0.0])
     elseif tm.MethodType == "SBSVM"
-        tm.Model[i] = DAM.SparseBSVM(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],m=tm.Param["M"],
+        tm.Model[i] = OMGP.SparseBSVM(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],m=tm.Param["M"],
             Kernels=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],AutotuningFrequency=tm.Param["ATFrequency"],
             AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],γ=tm.Param["γ"],
             SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0])
@@ -185,7 +183,7 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
     end
 end
 
-function LogLikeConvergence(model::DAM.AugmentedModel,iter::Integer,X_test,y_test)
+function LogLikeConvergence(model::OMGP.AugmentedModel,iter::Integer,X_test,y_test)
     if iter==1
         push!(model.evol_conv,Inf)
         y_p = model.predictproba(X_test)
@@ -217,7 +215,7 @@ end
 
 #train the model on trainin set (X,y) for #iterations
 function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations)
-  if typeof(tm.Model[i]) <: DAM.AugmentedModel
+  if typeof(tm.Model[i]) <: OMGP.AugmentedModel
       # tm.Model[i].train(iterations=iterations,convergence=function (model::AugmentedModel,iter) return LogLikeConvergence(model,iter,X_test,y_test);end;)
     tm.Model[i].train(iterations=iterations)
   elseif tm.MethodType == "SVGPC"
@@ -260,8 +258,8 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations)
   elseif tm.MethodType == "SVM"
     tm.Model[i][:max_iter] = iterations
     tm.Model[i][:fit](X,y)
-  elseif tm.MethodType == "ECM"
-    tm.Model[i] = ECMTraining(X,y,γ=tm.Param["γ"],nepochs=iterations,ϵ=tm.Param["ϵ"],kernel=tm.Param["Kernel"],verbose=tm.Param["Verbose"])
+  elseif tm.MethodType == "OMGP"
+    tm.Model[i] = OMGPTraining(X,y,γ=tm.Param["γ"],nepochs=iterations,ϵ=tm.Param["ϵ"],kernel=tm.Param["Kernel"],verbose=tm.Param["Verbose"])
   end
 end
 
@@ -295,8 +293,8 @@ end
 
 function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points)
     LogArrays = Array{Any,1}()
-    if typeof(tm.Model[i]) <: DAM.AugmentedModel
-        function LogIt(model::DAM.AugmentedModel,iter)
+    if typeof(tm.Model[i]) <: OMGP.AugmentedModel
+        function LogIt(model::OMGP.AugmentedModel,iter)
             if in(iter,iter_points)
                 a = zeros(8)
                 a[1] = time_ns()
@@ -314,7 +312,7 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
                 a[2] = TestAccuracy(y_test,sign.(y_p-0.5))
                 a[3] = TestMeanHoldOutLikelihood(loglike)
                 a[4] = TestMedianHoldOutLikelihood(loglike)
-                a[5] = DAM.ELBO(model)
+                a[5] = OMGP.ELBO(model)
     #            println("Iteration $iter : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) θ is $(model.Kernels[1].param)")
                 a[6] = time_ns()
                 a[7] = model.Kernels[1].param
@@ -381,8 +379,8 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
         tm.Results["Time"][i] = (tm.Results["Time"][i][2:3]-tm.Results["Time"][i][1])*1e-9
     elseif tm.MethodType == "SVM"
         warn("Not available for libSVM")
-    elseif tm.MethodType == "ECM"
-        warn("Not available for ECM")
+    elseif tm.MethodType == "OMGP"
+        warn("Not available for OMGP")
     end
     return LogArrays
 end
@@ -530,7 +528,7 @@ end
 #Return predicted labels (-1,1) for test set X_test
 function ComputePrediction(tm::TestingModel, i,X, X_test)
   y_predic = []
-  if typeof(tm.Model[i]) <: DAM.AugmentedModel
+  if typeof(tm.Model[i]) <: OMGP.AugmentedModel
     y_predic = sign.(tm.Model[i].predict(X_test))
   elseif tm.MethodType == "SVGPC"
     y_predic = sign.(tm.Model[i][:predict_y](X_test)[1]*2-1)
@@ -538,8 +536,8 @@ function ComputePrediction(tm::TestingModel, i,X, X_test)
     y_predic = sign.(tm.Model[i][:predict](X_test))
   elseif tm.MethodType == "SVM"
     y_predic = sign.(tm.Model[i][:predict](X_test))
-  elseif tm.MethodType == "ECM"
-    y_predic = sign.(PredicECM(X,tm.Model[i][4],X_test,tm.Model[i][1],tm.Model[i][2],tm.Param["γ"],tm.Model[i][3]))
+  elseif tm.MethodType == "OMGP"
+    y_predic = sign.(PredicOMGP(X,tm.Model[i][4],X_test,tm.Model[i][1],tm.Model[i][2],tm.Param["γ"],tm.Model[i][3]))
   end
   return y_predic
 end
@@ -547,18 +545,15 @@ end
 #Return prediction certainty for class 1 on test set X_test
 function ComputePredictionAccuracy(tm::TestingModel,i, X, X_test)
   y_predic = []
-  if typeof(tm.Model[i]) <: DAM.AugmentedModel
+  if typeof(tm.Model[i]) <: OMGP.AugmentedModel
     y_predic = tm.Model[i].predictproba(X_test)
   elseif tm.MethodType == "SVGPC"
     y_predic = tm.Model[i][:predict_y](X_test)[1]
   elseif tm.MethodType == "LogReg"
     y_predic = tm.Model[i][:predict_proba](X_test)[:,2]
-elseif tm.MethodType == "SVM"p_gibbs = gibbs_m.predictproba(X_test)
-        f_gibbs,covf_gibbs = DAM.computefstar(gibbs_m,X_test)
+elseif tm.MethodType == "SVM"
     y_predic = tm.Model[i][:predict_proba](X_test)[:,2]
-  elseif tm.MethodType == "ECM"
-    y_predic = PredictProbaECM(X,tm.Model[i][4],X_test,tm.Model[i][1],tm.Model[i][2],tm.Param["γ"],tm.Model[i][3])
-  end
+ end
   return y_predic
 end
 
@@ -616,7 +611,7 @@ function TestAUCScore(ROC)
 end
 
 function WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
-    if isa(testmodel.Model[i],DAM.AugmentedModel)
+    if isa(testmodel.Model[i],OMGP.AugmentedModel)
         if !isdir(top_fold); mkdir(top_fold); end;
         top_fold = top_fold*"/"*testmodel.DatasetName*"_SavedParams"
         if !isdir(top_fold); mkdir(top_fold); end;
@@ -627,10 +622,10 @@ function WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
         writedlm(top_fold*"/c"*"_$i",testmodel.Model[i].α)
         writedlm(top_fold*"/X_test"*"_$i",X_test)
         writedlm(top_fold*"/y_test"*"_$i",y_test)
-        if isa(testmodel.Model[i],DAM.SparseModel)
+        if isa(testmodel.Model[i],OMGP.SparseModel)
             writedlm(top_fold*"/ind_points"*"_$i",testmodel.Model[i].inducingPoints)
         end
-        if isa(testmodel.Model[i],DAM.NonLinearModel)
+        if isa(testmodel.Model[i],OMGP.NonLinearModel)
             writedlm(top_fold*"/kernel_param"*"_$i",broadcast(getfield,testmodel.Model[i].Kernels,:param))
             writedlm(top_fold*"/kernel_coeff"*"_$i",broadcast(getfield,testmodel.Model[i].Kernels,:coeff))
             writedlm(top_fold*"/kernel_name"*"_$i",broadcast(getfield,testmodel.Model[i].Kernels,:name))
