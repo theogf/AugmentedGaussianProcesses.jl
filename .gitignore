@@ -5,3 +5,4 @@ exp/*
 data/*
 results/*
 cluster_results/*
+examples/.ipynb_checkpoints/*

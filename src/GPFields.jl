@@ -1,3 +1,12 @@
+#Simple tool to define macros
+macro def(name, definition)
+    return quote
+        macro $(esc(name))()
+            esc($(Expr(:quote, definition)))
+        end
+    end
+end
+
 @def commonfields begin
     #Data
     X #Feature vectors
@@ -25,9 +34,15 @@
     MatricesPrecomputed::Bool #Flag to know if matrices needed for predictions are already computed or not
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
 end
+"""
+    initCommon!(model,...)
 
+Initialize all the common fields of the different models, i.e. the dataset inputs `X` and outputs `y`,
+the noise `γ`, the convergence threshold `ϵ`, the initial number of iterations `nEpochs`,
+the `verboseLevel` (from 0 to 3), enabling `Autotuning`, the `AutotuningFrequency` and
+what `optimizer` to use
+"""
 function initCommon!(model::AugmentedModel,X,y,γ,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer)
-#Initialize parameters common to all models and check for consistency
     if size(y,1)!=size(X,1)
         warn("There is a dimension problem with the data size(y)!=size(X)")
         return false
@@ -128,8 +143,9 @@ end
     Ktilde::Array{Float64,1} #Diagonal of the covariance matrix between inducing points and generative points
     κ::Array{Float64,2} #Kmn*invKmm
 end
-
-#Function initializing the sparsefields parameters
+"""
+Function initializing the sparsefields parameters
+"""
 function initSparse!(model::AugmentedModel,m,optimizeIndPoints)
     #Initialize parameters for the sparse model and check consistency
     minpoints = 56;
@@ -146,16 +162,18 @@ function initSparse!(model::AugmentedModel,m,optimizeIndPoints)
     model.optimizers[end].α *= 0.001;
     model.inducingPoints = KMeansInducingPoints(model.X,model.m,10)
 end
-
-#Parameters for the variational multivariate gaussian distribution
+"""
+Parameters for the variational multivariate gaussian distribution
+"""
 @def gaussianparametersfields begin
     μ::Array{Float64,1} # Mean for variational distribution
     η_1::Array{Float64,1} #Natural Parameter #1
     ζ::Array{Float64,2} # Covariance matrix of variational distribution
     η_2::Array{Float64,2} #Natural Parameter #2
 end
-
-#Function for initialisation of the variational multivariate parameters
+"""
+Function for initialisation of the variational multivariate parameters
+"""
 function initGaussian!(model::AugmentedModel,μ_init)
     #Initialize gaussian parameters and check for consistency
     if µ_init == [0.0] || length(µ_init) != model.nFeatures

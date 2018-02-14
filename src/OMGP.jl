@@ -27,16 +27,6 @@ export BatchXGPC, SparseXGPC, GibbsSamplerGPC
 #General class definitions
 export AugmentedModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 export ELBO
-export
-
-#Simple tool to define macros
-macro def(name, definition)
-    return quote
-        macro $(esc(name))()
-            esc($(Expr(:quote, definition)))
-        end
-    end
-end
 
 @enum ClassifierType Undefined=0 BSVM=1 XGPC=2
 

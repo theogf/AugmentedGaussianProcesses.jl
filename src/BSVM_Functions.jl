@@ -101,30 +101,3 @@ function computeHyperParametersGradients(model::SparseBSVM,iter::Integer)
     end
     return gradients
 end
-
-
-
-
-#### Extra for debugging : Computations of the ELBO derivatives ####
-function derivativesELBO(model::LinearBSVM)
-    Z = Diagonal(model.y)*model.X
-    (n,p) = size(Z)
-    dζ = 0.5*(inv(model.ζ)-model.invΣ-transpose(Z)*Diagonal(1./sqrt.(model.α))*Z)
-    dμ = -inv(model.ζ)*model.μ + transpose(Z)*(1./sqrt.(model.α)+1)
-    dα = zeros(model.nSamples)
-    for i in 1:nSamples
-      dα[i] = ((1-dot(Z[i,:],model.μ))^2 + dot(Z[i,:],model.ζ*Z[i,:]))/(2*(model.α[i])) - 0.5
-    end
-    dγ = 0.5*((trace(model.ζ)+norm(model.μ))/(model.γ^2.0)-model.nFeatures/model.γ)
-    return [trace(dζ),mean(dμ),mean(dα),dγ]
-end
-
-function derivativesELBO(model::BatchBSVM)
-    dζ = 0.5*(inv(model.ζ)-model.invK-Diagonal(1./sqrt.(model.α)))
-    dμ = -inv(model.ζ)*model.μ + Diagonal(model.y)*(1./sqrt.(model.α)+1)
-    dα = zeros(model.nSamples)
-    for i in 1:model.nSamples
-      dα[i] = ((1-model.y[i]*model.μ[i])^2+model.ζ[i,i])/(2*model.α[i])-0.5
-    end
-    return [trace(dζ),mean(dμ),mean(dα),mean(dΘ)]
-end

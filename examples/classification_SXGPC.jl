@@ -1,21 +1,9 @@
-# if !isdefined(:DataAccess); include("DataAccess.jl"); end;
-# if !isdefined(:PolyaGammaGPC); include("../src/XGPC.jl"); end;
-# if !isdefined(:KernelFunctions); include("KernelFunctions.jl"); end;
- # include("../src/XGPC.jl");
-# include("../src/DataAugmentedClassifiers.jl")
-# include("../src/DataAugmentedClassifierFunctions.jl")
-push!(LOAD_PATH,"/home/theo/XGPC/src/")
-push!(LOAD_PATH,"/home/theo/XGPC/test/")
 using Plots
 using GradDescent
 pyplot()
 #unicodeplots()
 using DataAccess
-using KernelFunctions
-using Distributions
 using ValueHistories
-include("../src/PGSampler.jl")
-include("../src/DataAugmentedModels.jl")
 import DAM
 doPlot = false
 use_dataset = true
