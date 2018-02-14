@@ -1,5 +1,5 @@
 src/*_full.jl
-src/BSVM_Functions.jl
+exp/*
 *.png
 *.result
 data/*
