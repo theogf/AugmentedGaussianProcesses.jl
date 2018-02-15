@@ -1,27 +1,16 @@
-# XGPC
-<!--Code Repository for paper : "Extrememely Fast Gaussian Process Classification via Polya-Gamma Data Augmentation"
+# OMGP!
 
-You will find here the code for the Polya-Gamma Augmented Gaussian Process Classification in Julia as well as some light datasets.
-This folder contains the algorithm, the code that produced the experiments showed in the submitted paper to AIStats 2018 and some datasets light enough for GitHub.
-It is planned to be transformed as a Julia package in the near future for public use.
-The framework may look weird at first but it is because it has been designed to handle other data augmented models.-->
+Oh My GP! is a Julia package in development for **extremely efficient Gaussian Processes algorithms**. It contains for the moment only two classifiers : the Bayesian SVM, and a state-of-the-art algorithm for classification using the logit link called X-GPC. It is planned to implement Regression, as well as more complex likelihood, including the multi-class classification.
 
-# Tips for code exploration :
+## Install the package
 
-The '''Train''' function is implemented in **DataAugmentedModelFunctions.jl**
-
-The Updates function of the XGPC are found in **XGPC_Functions.jl**
-
-The methods for matrix computations, stochastic methods and prediction methods are in **ModelSpecificFunctions.jl**
+Run in Julia `Pkg.clone("github.com/theogf/OMGP.jl")`, it will install the package and all its requirements
 
 
-# Run the package
-
-Get Julia > 0.6.0, install packages (`Pkg.add('X')`) : Distributions, StatsBase, PyPlot, QuadGK, Clustering.
+## Use the package
 
 ```
-include("DataAugmentedModels.jl")
-using DAM
+using OMGPC
 model = SparseXGPC(X_train,Y_train;Stochastic=?,BatchSize=?,m=?,Kernels=?) #Parameters after ; are optional
 model.train(iterations=100)
 Y_predic = model.predict(X_test) #For getting the label directly

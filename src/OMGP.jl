@@ -27,6 +27,7 @@ export BatchXGPC, SparseXGPC, GibbsSamplerGPC
 #General class definitions
 export AugmentedModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 export ELBO
+export Kernel
 
 @enum ClassifierType Undefined=0 BSVM=1 XGPC=2
 
