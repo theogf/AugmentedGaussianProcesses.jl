@@ -4,7 +4,7 @@ Oh My GP! is a Julia package in development for **extremely efficient Gaussian P
 
 ## Install the package
 
-Run in Julia `Pkg.clone("github.com/theogf/OMGP.jl")`, it will install the package and all its requirements
+Run in Julia `Pkg.clone("git://github.com/theogf/OMGP.jl.git")`, it will install the package and all its requirements
 
 
 ## Use the package
@@ -20,4 +20,12 @@ Y_predic_prob = model.predictproba(X_test) #For getting the likelihood of predic
 ```
 
 There is also a more complete example in a Julia notebook : [Classification with Sparse XGPC][31b06e91]
+
+## References :
+
+ECML 17' "Bayesian Nonlinear Support Vector Machines for Big Data" by Florian Wenzel, Théo Galy-Fajou, Matthäus Deutsch and Marius Kloft. [https://arxiv.org/abs/1707.05532][arxivbsvm]
+
+Arxiv "Efficient Gaussian Process Classification using Polya-Gamma Variables" (link incoming)
+
   [31b06e91]: https://github.com/theogf/OMGP.jl/blob/master/examples/Classification%20-%20SXGPC.ipynb "Classification with Sparse XGPC"
+[arxivbsvm]:https://arxiv.org/abs/1707.05532
