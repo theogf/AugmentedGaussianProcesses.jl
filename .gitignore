@@ -1,0 +1,8 @@
+src/*_full.jl
+exp/*
+*.png
+*.result
+data/*
+results/*
+cluster_results/*
+examples/.ipynb_checkpoints/*

@@ -9,6 +9,8 @@ Run in Julia `Pkg.clone("github.com/theogf/OMGP.jl")`, it will install the packa
 
 ## Use the package
 
+A complete documentation is currently being written, for now you can use this very basic example where `X_train` is a matrix `N x D` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs.
+
 ```
 using OMGPC
 model = SparseXGPC(X_train,Y_train;Stochastic=?,BatchSize=?,m=?,Kernels=?) #Parameters after ; are optional
@@ -16,3 +18,6 @@ model.train(iterations=100)
 Y_predic = model.predict(X_test) #For getting the label directly
 Y_predic_prob = model.predictproba(X_test) #For getting the likelihood of predicting class 1
 ```
+
+There is also a more complete example in a Julia notebook : [Classification with Sparse XGPC][31b06e91]
+  [31b06e91]: https://github.com/theogf/OMGP.jl/blob/master/examples/Classification%20-%20SXGPC.ipynb "Classification with Sparse XGPC"
