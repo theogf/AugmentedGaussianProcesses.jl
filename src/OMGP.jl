@@ -25,7 +25,7 @@ using ValueHistories
 export LinearBSVM, BatchBSVM, SparseBSVM
 export BatchXGPC, SparseXGPC, GibbsSamplerGPC
 #General class definitions
-export AugmentedModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
+export GPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 export ELBO
 export Kernel
 
@@ -33,11 +33,11 @@ export Kernel
 
 #Class arborescence
 
-abstract type AugmentedModel end
+abstract type GPModel end
 
-abstract type LinearModel <: AugmentedModel end
+abstract type LinearModel <: GPModel end
 
-abstract type NonLinearModel <: AugmentedModel end
+abstract type NonLinearModel <: GPModel end
 
 abstract type SparseModel <: NonLinearModel end
 
@@ -52,9 +52,10 @@ include("BatchXGPC.jl")
 include("SparseXGPC.jl")
 include("GibbsSamplerGPC.jl")
 #Functions
-include("ModelFunctions.jl")
-include("GPFunctions.jl")
-#include("BSVM_Functions.jl")
+include("Training.jl")
+include("Autotuning.jl")
+include("Predictions.jl")
+include("BSVM_Functions.jl")
 include("XGPC_Functions.jl")
 
 end #End Module

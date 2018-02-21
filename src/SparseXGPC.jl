@@ -10,7 +10,6 @@ mutable struct SparseXGPC <: SparseModel
     @sparsefields
     @gaussianparametersfields
 
-
     function SparseXGPC(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,BatchSize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,

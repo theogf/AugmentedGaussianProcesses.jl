@@ -97,21 +97,3 @@ function computeHyperParametersGradients(model::SparseXGPC,iter::Integer)
         return gradients_kernel_param,gradients_kernel_coeff
     end
 end
-
-#Return the mean and variance of the predictive distribution of f*
-function computefstar(model::FullBatchModel,X_test)
-    n = size(X_test,1)
-    ksize = model.nSamples
-    if model.DownMatrixForPrediction == 0
-        if model.TopMatrixForPrediction == 0
-            model.TopMatrixForPrediction = model.invK*model.μ
-        end
-      model.DownMatrixForPrediction = -(model.invK*(eye(ksize)-model.ζ*model.invK))
-    end
-    kstar = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
-    A = kstar*model.invK
-    kstarstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
-    meanfstar = kstar*model.TopMatrixForPrediction
-    covfstar = kstarstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(kstar))
-    return meanfstar,covfstar
-end

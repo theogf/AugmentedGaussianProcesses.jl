@@ -3,7 +3,7 @@
 #Possibility to put a callback function, taking the model and the iteration number as an argument
 #Also one can change the convergence function
 
-function train!(model::AugmentedModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
+function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
     if model.VerboseLevel > 0
       println("Starting training of data of size $((model.nSamples,size(model.X,2))), using the "*model.Name*" model")
     end
@@ -66,7 +66,7 @@ function train!(model::AugmentedModel;iterations::Integer=0,callback=0,Convergen
     model.Trained = true
 end
 
-function updateParameters!(model::AugmentedModel,iter::Integer)
+function updateParameters!(model::GPModel,iter::Integer)
 #Function to update variational parameters
     if model.Stochastic
         model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
@@ -93,9 +93,53 @@ function updateParameters!(model::GibbsSamplerGPC,iter::Integer)
     end
 end
 
+#### Computations of the kernel matrices for the different type of models ####
+
+function computeMatrices!(model::SparseModel)
+    if model.HyperParametersUpdated
+        model.invKmm = Matrix(Symmetric(inv(CreateKernelMatrix(model.inducingPoints,model.Kernel_function)+model.γ*eye(model.nFeatures))))
+    end
+    #If change of hyperparameters or if stochatic
+    if model.HyperParametersUpdated || model.Stochastic
+        Knm = CreateKernelMatrix(model.X[model.MBIndices,:],model.Kernel_function,X2=model.inducingPoints)
+        model.κ = Knm*model.invKmm
+        model.Ktilde = CreateDiagonalKernelMatrix(model.X[model.MBIndices,:],model.Kernel_function) + model.γ*ones(length(model.MBIndices)) - squeeze(sum(model.κ.*Knm,2),2)
+    end
+    model.HyperParametersUpdated=false
+end
+
+function computeMatrices!(model::FullBatchModel)
+    if model.HyperParametersUpdated
+        model.invK = inv(Symmetric(CreateKernelMatrix(model.X,model.Kernel_function) + model.γ*eye(model.nFeatures),:U))
+        model.HyperParametersUpdated = false
+    end
+end
+
+function computeMatrices!(model::LinearModel)
+    if model.HyperParametersUpdated
+        model.invΣ =  (1.0/model.γ)*eye(model.nFeatures)
+        model.HyperParametersUpdated = false
+    end
+end
+
+#### Get Functions ####
+
+function getInversePrior(model::LinearModel)
+    return model.invΣ
+end
+
+function getInversePrior(model::FullBatchModel)
+    return model.invK
+end
+
+function getInversePrior(model::SparseModel)
+    return model.invKmm
+end
+
+
 #### Computations of the learning rates ###
 
-function computeLearningRate_Stochastic!(model::AugmentedModel,iter::Integer,grad_1,grad_2)
+function computeLearningRate_Stochastic!(model::GPModel,iter::Integer,grad_1,grad_2)
     if model.Stochastic
         if model.AdaptiveLearningRate
             #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)

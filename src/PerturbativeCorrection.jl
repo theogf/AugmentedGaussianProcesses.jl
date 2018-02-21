@@ -10,7 +10,7 @@ export VarCorrection
 
 # function GetLastState(dataset;cluster=false)
 #     top_fold = "../$(cluster?"cluster_":"")results/$(dataset)_SavedParams/SXGPC/"
-#     models = Array{AugmentedModel,1}(10)
+#     models = Array{GPModel,1}(10)
 #     (X_data,y_data,dataset) = get_Dataset(dataset)
 #     fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
 #     for i in 1:10

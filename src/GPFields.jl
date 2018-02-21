@@ -42,7 +42,7 @@ the noise `γ`, the convergence threshold `ϵ`, the initial number of iterations
 the `verboseLevel` (from 0 to 3), enabling `Autotuning`, the `AutotuningFrequency` and
 what `optimizer` to use
 """
-function initCommon!(model::AugmentedModel,X,y,γ,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer)
+function initCommon!(model::GPModel,X,y,γ,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer)
     if size(y,1)!=size(X,1)
         warn("There is a dimension problem with the data size(y)!=size(X)")
         return false
@@ -84,7 +84,7 @@ end
 end
 
 #Function initializing the stochasticfields parameters
-function initStochastic!(model::AugmentedModel,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow)
+function initStochastic!(model::GPModel,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow)
     #Initialize parameters specific to models using SVI and check for consistency
     model.Stochastic = true; model.nSamplesUsed = BatchSize; model.AdaptiveLearningRate = AdaptiveLearningRate;
     model.κ_s = κ_s; model.τ_s = τ_s; model.SmoothingWindow = SmoothingWindow;
@@ -109,7 +109,7 @@ end
 """
 Function initializing the kernelfields
 """
-function initKernel!(model::AugmentedModel,Kernels)
+function initKernel!(model::GPModel,Kernels)
     #Initialize parameters common to all models containing kernels and check for consistency
     if Kernels == 0
       warn("No kernel indicated, a rbf kernel function with lengthscale 1 is used")
@@ -147,7 +147,7 @@ end
 """
 Function initializing the sparsefields parameters
 """
-function initSparse!(model::AugmentedModel,m,optimizeIndPoints)
+function initSparse!(model::GPModel,m,optimizeIndPoints)
     #Initialize parameters for the sparse model and check consistency
     minpoints = 56;
     if m > model.nSamples
@@ -175,7 +175,7 @@ end
 """
 Function for initialisation of the variational multivariate parameters
 """
-function initGaussian!(model::AugmentedModel,μ_init)
+function initGaussian!(model::GPModel,μ_init)
     #Initialize gaussian parameters and check for consistency
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
       if model.VerboseLevel > 2
@@ -201,7 +201,7 @@ end
 
 #Default function to estimate convergence, based on a window on the variational
 #parameters
-function DefaultConvergence(model::AugmentedModel,iter::Integer)
+function DefaultConvergence(model::GPModel,iter::Integer)
     #Default convergence function
     if iter == 1
         model.prev_params = [model.μ;diag(model.ζ)]
@@ -219,7 +219,7 @@ function DefaultConvergence(model::AugmentedModel,iter::Integer)
 end
 
 #Appropriately assign the functions
-function initFunctions!(model::AugmentedModel)
+function initFunctions!(model::GPModel)
     #Initialize all functions according to the type of models
     model.train = function(;iterations::Integer=0,callback=0,convergence=DefaultConvergence)
         train!(model;iterations=iterations,callback=callback,Convergence=convergence)
@@ -258,7 +258,7 @@ end
 end
 
 #Correct initialization of the model
-function initLinear!(model::AugmentedModel,Intercept)
+function initLinear!(model::GPModel,Intercept)
     model.Intercept = Intercept;
     model.nFeatures = size(model.X,2);
     if model.Intercept
