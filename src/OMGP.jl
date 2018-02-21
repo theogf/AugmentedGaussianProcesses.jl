@@ -24,6 +24,7 @@ using ValueHistories
 #Exported models
 export LinearBSVM, BatchBSVM, SparseBSVM
 export BatchXGPC, SparseXGPC, GibbsSamplerGPC
+export GPRegression, SparseGPRegression
 #General class definitions
 export GPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 export ELBO
@@ -51,11 +52,14 @@ include("SparseBSVM.jl")
 include("BatchXGPC.jl")
 include("SparseXGPC.jl")
 include("GibbsSamplerGPC.jl")
+include("Regression.jl")
+include("SparseRegression.jl")
 #Functions
 include("Training.jl")
 include("Autotuning.jl")
 include("Predictions.jl")
 include("BSVM_Functions.jl")
 include("XGPC_Functions.jl")
+include("Reg_Functions.jl")
 
 end #End Module

@@ -138,6 +138,14 @@ function regpredict(model::GPRegression,X_test)
     return fstar
 end
 
+function regpredict(model::SparseGPRegression,X_test)
+    if model.TopMatrixForPrediction == 0
+        model.TopMatrixForPrediction = model.invKmm*model.μ
+    end
+    k_star = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.inducingPoints)
+    return k_star*model.TopMatrixForPrediction
+end
+
 function regpredictproba(model::GPRegression,X_test)
     k_star = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
     k_starstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
@@ -148,7 +156,7 @@ function regpredictproba(model::GPRegression,X_test)
 end
 
 #Return the mean and variance of the predictive distribution of f*
-function computefstar(model::FullBatchModel,X_test)
+function regpredictproba(model::FullBatchModel,X_test)
     n = size(X_test,1)
     ksize = model.nSamples
     if model.DownMatrixForPrediction == 0

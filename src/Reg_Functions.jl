@@ -15,3 +15,37 @@ function ELBO(model::SparseGPRegression)
     ELBO += -0.5*(sum(model.invKmm.*transpose(model.ζ+model.μ*transpose(model.μ))))
     return -ELBO
 end
+
+
+function variablesUpdate_Regression!(model::GPRegression,iter)
+    #Nothing to do here
+end
+
+
+function variablesUpdate_Regression!(model::SparseGPRegression,iter)
+    (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],inv(model.ζ),model.μ,model.κ,model.γ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
+    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
+    model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
+    model.ζ = -0.5*inv(model.η_2); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
+end
+
+function naturalGradientELBO_Regression(y,invΣ,μ,κ,γ,coeff)
+    grad_1 = (coeff*κ'*y./γ-invΣ*μ)
+    grad_2 = 0.5*(invΣ-coeff*κ'*κ./γ)
+end
+
+
+function computeHyperParametersGradients(model::GPRegression,iter::Integer)
+    A = model.invK*(model.y*transpose(model.y))-eye(model.nSamples)
+    #Update of both the coefficients and hyperparameters of the kernels
+    gradients_kernel_param = zeros(model.nKernels)
+    gradients_kernel_coeff = zeros(model.nKernels)
+    for i in 1:model.nKernels
+        V_param = model.invK*model.Kernels[i].coeff*computeJ(model,model.Kernels[i].compute_deriv)
+        V_coeff = model.invK*computeJ(model,model.Kernels[i].compute)
+        gradients_kernel_param[i] = 0.5*sum(V_param.*transpose(A))
+        gradients_kernel_coeff[i] = 0.5*sum(V_coeff.*transpose(A))
+    end
+
+    return gradients_kernel_param,gradients_kernel_coeff
+end

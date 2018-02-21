@@ -46,7 +46,11 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
             updateHyperParameters!(model,iter) #Do the hyper-parameter optimization
             computeMatrices!(model)
         end
-        conv = Convergence(model,iter) #Check for convergence
+        if !isa(model,GPRegression)
+            conv = Convergence(model,iter) #Check for convergence
+        else
+            conv = Inf
+        end
         ### Print out informations about the convergence
         if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
             print("Iteration : $iter, convergence = $conv \n")

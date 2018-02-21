@@ -11,7 +11,7 @@ end
     #Data
     X #Feature vectors
     y #Labels (-1,1)
-    ModelType::ClassifierType; #Type of classifier
+    ModelType::GPModelType; #Type of classifier
     Name::String #Name of the Classifier
     nSamples::Int64 # Number of data points
     nFeatures::Int64 # Number of features
