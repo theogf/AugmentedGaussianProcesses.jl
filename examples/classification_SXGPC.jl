@@ -2,11 +2,12 @@ using Plots
 using GradDescent
 pyplot()
 #unicodeplots()
-using DataAccess
+using Distributions
 using ValueHistories
-import DAM
+using OMGP
+using ProfileView
 doPlot = false
-use_dataset = true
+use_dataset = false
 X_data = Array{Float64,2}(0,0)
 if use_dataset
     (X_data,y_data,DatasetName) = get_Dataset("German")
@@ -47,7 +48,11 @@ Ninducingpoints = 20
  # toc()
  tic()
 # model = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=true,optimizer=StandardGD(α=0.1),AutotuningFrequency=1,VerboseLevel=2,ϵ=1e-4,nEpochs=100)
-model = DAM.SparseXGPC(X,y;optimizer=Adam(α=0.5),OptimizeIndPoints=true,Stochastic=true,ϵ=1e-4,nEpochs=MaxIter,SmoothingWindow=10,Kernels=kerns,Autotuning=true,AutotuningFrequency=2,VerboseLevel=2,AdaptiveLearningRate=true,BatchSize=BatchSize,m=Ninducingpoints)
+Profile.clear()
+@profile model = SparseXGPC(X,y;optimizer=Adam(α=0.5),OptimizeIndPoints=true,
+Stochastic=false,ϵ=1e-4,nEpochs=MaxIter,SmoothingWindow=10,Kernels=kerns,Autotuning=false,AutotuningFrequency=2,
+VerboseLevel=2,AdaptiveLearningRate=true,BatchSize=BatchSize,m=Ninducingpoints)
+ProfileView.view()
 initPoints = copy(model.inducingPoints)
 # iter_points = vcat(collect(1:1:9),collect(10:10:99))
 iter_points = collect(1:1:1000)
@@ -76,45 +81,14 @@ function StoreIt(model::DAM.AugmentedModel,iter;hyper=false)#;iter_points=[],Log
         end
     end
 end
-
-function LogLikeConvergence(model::DAM.AugmentedModel,iter::Integer,X_test,y_test)
-    if iter==1
-        push!(model.evol_conv,Inf)
-        y_p = model.PredictProba(X_test)
-        loglike = zeros(y_p)
-        loglike[y_test.==1] = log.(y_p[y_test.==1])
-        loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
-        new_params = mean(loglike)
-        model.prev_params = new_params
-        return Inf
-    end
-    if !model.Stochastic || iter%10 == 0
-        y_p = model.PredictProba(X_test)
-        loglike = zeros(y_p)
-        loglike[y_test.==1] = log.(y_p[y_test.==1])
-        loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
-        new_params = mean(loglike)
-        push!(model.evol_conv,abs(new_params-model.prev_params)/((abs(model.prev_params)+abs(new_params))/2.0))
-        println("Last conv : $(model.evol_conv[end])")
-
-        model.prev_params = new_params
-    elseif model.Stochastic
-        return 1
-    end
-    if model.Stochastic
-        println("Averaged conv : $(mean(model.evol_conv[max(1,length(model.evol_conv)-model.SmoothingWindow+1):end]))")
-        println("Windows goes from $(max(1,length(model.evol_conv)-model.SmoothingWindow+1)) to $(length(model.evol_conv))")
-        return mean(model.evol_conv[max(1,length(model.evol_conv)-model.SmoothingWindow+1):end])
-    else
-        return model.evol_conv[end]
-    end
-end
 # model = SparseBSVM(X,y;Stochastic=true,Kernels=kerns,Autotuning=true,SmoothingWindow=50,AutotuningFrequency=1,VerboseLevel=3,ρ_AT=0.2,AdaptiveLearningRate=true,BatchSize=50,m=50)
 # model = BatchBSVM(X,y;Kernels=kerns,Autotuning=false,AutotuningFrequency=2,VerboseLevel=1)
  # model = LinearBSVM(X,y;Intercept=true,Stochastic=false,BatchSize=30,AdaptiveLearningRate=true,VerboseLevel=3,Autotuning=true,AutotuningFrequency=5)
-model.train(callback=StoreIt)
+Profile.clear()
+@profile model.train()
+ProfileView.view()
  # model.train(callback=StoreIt,convergence=function (model::AugmentedClassifier,iter)  return LogLikeConvergence(model,iter,X_test,y_test);end)
- y_predic_log = model.Predict(X_test)
+y_predic_log = model.predict(X_test)
 println(1-sum(1-y_test.*y_predic_log)/(2*length(y_test)))
 toc()
 

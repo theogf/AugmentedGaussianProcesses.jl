@@ -57,7 +57,7 @@ function initCommon!(model::AugmentedModel,X,y,γ,ϵ,nEpochs,VerboseLevel,Autotu
     @assert nEpochs > 0 "nEpochs should be positive"; model.nEpochs = nEpochs;
     @assert (VerboseLevel > -1 && VerboseLevel < 4) "VerboseLevel should be in {0,1,2,3}, here value is $VerboseLevel"; model.VerboseLevel = VerboseLevel;
     model.Autotuning = Autotuning; model.AutotuningFrequency = AutotuningFrequency;
-    model.opt_type = optimizer
+    model.opt_type = optimizer;
     model.nSamples = size(X,1); #model.nSamplesUsed = model.nSamples;
     model.Trained = false; model.Stochastic = false;
     model.TopMatrixForPrediction = 0; model.DownMatrixForPrediction = 0; model.MatricesPrecomputed=false;
@@ -106,8 +106,9 @@ end
     nKernels::Int64 #Number of kernels used
     invK::Array{Float64,2} #Inverse Kernel Matrix for the nonlinear case
 end
-
-#Function initializing the kernelfields
+"""
+Function initializing the kernelfields
+"""
 function initKernel!(model::AugmentedModel,Kernels)
     #Initialize parameters common to all models containing kernels and check for consistency
     if Kernels == 0
@@ -122,8 +123,8 @@ function initKernel!(model::AugmentedModel,Kernels)
         model.kernel_functions[i] = Kernels[i].kernel_function
         model.hyperparameters[i,:] = [Kernels[i].coeff  Kernels[i].param[1]]
     end
-    model.optimizers = Array{Optimizer,1}(2*model.nKernels)
-    broadcast!(deepcopy,model.optimizers,model.opt_type)
+    model.optimizers = Array{Optimizer,1}(2*model.nKernels);
+    broadcast!(deepcopy,model.optimizers,model.opt_type);
     model.Kernel_function = function(X1,X2)
         dist = 0
         for i in 1:size(model.Kernels,1)

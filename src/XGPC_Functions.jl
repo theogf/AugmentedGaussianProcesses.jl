@@ -12,7 +12,7 @@ end
 
 function variablesUpdate_XGPC!(model::SparseXGPC,iter)
     model.α[model.MBIndices] = sqrt.(model.Ktilde+sum(model.κ.*transpose(model.ζ*model.κ.'),2)+(model.κ*model.μ).^2)
-    θs = (1.0./(2.0*model.α[model.MBIndices])).*tanh.(model.α[model.MBIndices]./2.0)
+    θs = 0.5*tanh.(0.5*model.α[model.MBIndices])./model.α[model.MBIndices]
     (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient

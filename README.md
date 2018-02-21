@@ -9,11 +9,11 @@ Run in Julia `Pkg.clone("git://github.com/theogf/OMGP.jl.git")`, it will install
 
 ## Use the package
 
-A complete documentation is currently being written, for now you can use this very basic example where `X_train` is a matrix `N x D` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs.
+A complete documentation is currently being written, for now you can use this very basic example where `X_train` is a matrix ``N x D`` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs.
 
 ```
 using OMGPC
-model = SparseXGPC(X_train,Y_train;Stochastic=?,BatchSize=?,m=?,Kernels=?) #Parameters after ; are optional
+model = SparseXGPC(X_train,Y_train;Stochastic=true,BatchSize=100,m=64,Kernels=[Kernel["rbf",1.0,params=1.0]]) #Parameters after ; are optional
 model.train(iterations=100)
 Y_predic = model.predict(X_test) #For getting the label directly
 Y_predic_prob = model.predictproba(X_test) #For getting the likelihood of predicting class 1
@@ -22,6 +22,8 @@ Y_predic_prob = model.predictproba(X_test) #For getting the likelihood of predic
 There is also a more complete example in a Julia notebook : [Classification with Sparse XGPC][31b06e91]
 
 ## References :
+
+["Gaussian Processes for Machine Learning"](http://www.gaussianprocess.org/gpml/) by Carl Edward Rasmussen and Christopher K.I. Williams
 
 ECML 17' "Bayesian Nonlinear Support Vector Machines for Big Data" by Florian Wenzel, Théo Galy-Fajou, Matthäus Deutsch and Marius Kloft. [https://arxiv.org/abs/1707.05532][arxivbsvm]
 

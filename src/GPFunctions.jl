@@ -113,7 +113,7 @@ function logit(x)
 end
 
 function logitpredict(model::AugmentedModel,X_test)
-    y_predic = logitPredictProba(model,X_test)
+    y_predic = logitpredictproba(model,X_test)
     y_predic[y_predic.>0.5] = 1; y_predic[y_predic.<=0.5] = -1
     return y_predic
 end

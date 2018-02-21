@@ -17,9 +17,9 @@ mutable struct SparseXGPC <: SparseModel
                                     Kernels=0,γ::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=2,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
                                     VerboseLevel::Integer=0)
-            this = new()
-            this.ModelType = XGPC
-            this.Name = "Polya-Gamma Sparse Gaussian Process Classifier"
+            this = new();
+            this.ModelType = XGPC;
+            this.Name = "Polya-Gamma Sparse Gaussian Process Classifier";
             initCommon!(this,X,y,γ,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             if Stochastic
