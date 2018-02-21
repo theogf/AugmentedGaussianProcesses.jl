@@ -1,8 +1,8 @@
-###########################
+"""
 
-#General Framework for the data augmented Gaussian Processes
+General Framework for the data augmented Gaussian Processes
 
-###########################
+"""
 module OMGP
 
 include("KernelFunctions.jl")

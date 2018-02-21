@@ -88,8 +88,8 @@ function computeHyperParametersGradients(model::SparseXGPC,iter::Integer)
                 ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
                 Jtilde = -sum(ι.*(Kmn.'),2)-sum(model.κ.*Jnm[j,:,:],2)
                 V = model.invKmm*Jmm[j,:,:]
-                gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff*(ι'*Θ*model.κ+model.κ'*Θ*ι)).*transpose(B))-trace(V)-model.StochCoeff*sum(Θ.*Jtilde))
-                 + model.StochCoeff*0.5*dot(model.y[model.MBIndices],ι*model.μ)
+                gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff*(ι'*Θ*model.κ+model.κ'*Θ*ι)).*transpose(B))-trace(V)-model.StochCoeff*dot(diag(Θ),Jtilde)
+                 + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
             end
         end
         return gradients_kernel_param,gradients_kernel_coeff,gradients_inducing_points
