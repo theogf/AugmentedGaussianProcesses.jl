@@ -28,6 +28,8 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
                     model.α[model.MBIndices] = sqrt.(model.Ktilde+diag(model.κ*model.ζ*model.κ')+(model.κ*model.μ).^2)
                     θs = (1.0./(2.0*model.α[model.MBIndices])).*tanh.(model.α[model.MBIndices]./2.0)
                     (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
+                elseif model.ModelType==Regression
+                    (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.γ,stoch_coeff=model.StochCoeff)
                 end
                 model.g = model.g + 1/model.τ*vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
                 model.h = model.h + 1/model.τ*norm(vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2)))^2
@@ -49,6 +51,9 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
         if !isa(model,GPRegression)
             conv = Convergence(model,iter) #Check for convergence
         else
+            if model.VerboseLevel > 2
+                warn("GPRegression does not need any convergence criteria")
+            end
             conv = Inf
         end
         ### Print out informations about the convergence
@@ -81,6 +86,8 @@ function updateParameters!(model::GPModel,iter::Integer)
         variablesUpdate_BSVM!(model,iter)
     elseif model.ModelType == XGPC
         variablesUpdate_XGPC!(model,iter)
+    elseif model.ModelType == Regression
+        variablesUpdate_Regression!(model,iter)
     end
 end
 

@@ -187,7 +187,7 @@ function initGaussian!(model::GPModel,μ_init)
     end
     model.ζ = eye(model.nFeatures)
     model.η_2 = -0.5*inv(model.ζ)
-    model.η_1 = 2*model.η_2*model.μ
+    model.η_1 = -2*model.η_2*model.μ
 end
 
 #Parameters defining the available function of the model

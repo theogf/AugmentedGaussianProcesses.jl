@@ -23,15 +23,16 @@ end
 
 
 function variablesUpdate_Regression!(model::SparseGPRegression,iter)
-    (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],inv(model.ζ),model.μ,model.κ,model.γ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
+    (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.γ,stoch_coeff=model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
     model.ζ = -0.5*inv(model.η_2); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
-function naturalGradientELBO_Regression(y,invΣ,μ,κ,γ,coeff)
-    grad_1 = (coeff*κ'*y./γ-invΣ*μ)
-    grad_2 = 0.5*(invΣ-coeff*κ'*κ./γ)
+function naturalGradientELBO_Regression(y,κ,γ;stoch_coeff=1.0)
+    grad_1 = stoch_coeff*κ'*y./γ
+    grad_2 = -0.5*(stoch_coeff*(κ')*κ./γ)
+    return (grad_1,grad_2)
 end
 
 
@@ -46,6 +47,7 @@ function computeHyperParametersGradients(model::GPRegression,iter::Integer)
         gradients_kernel_param[i] = 0.5*sum(V_param.*transpose(A))
         gradients_kernel_coeff[i] = 0.5*sum(V_coeff.*transpose(A))
     end
-
     return gradients_kernel_param,gradients_kernel_coeff
 end
+
+function computeHyperParametersGradients(model::SparseGPRegression,iter::Integer)
