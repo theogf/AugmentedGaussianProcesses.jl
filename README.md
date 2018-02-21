@@ -25,7 +25,8 @@ There is also a more complete example in a Julia notebook : [Classification with
 
 ECML 17' "Bayesian Nonlinear Support Vector Machines for Big Data" by Florian Wenzel, Théo Galy-Fajou, Matthäus Deutsch and Marius Kloft. [https://arxiv.org/abs/1707.05532][arxivbsvm]
 
-Arxiv "Efficient Gaussian Process Classification using Polya-Gamma Variables" (link incoming)
+Arxiv "Efficient Gaussian Process Classification using Polya-Gamma Variables" [https://arxiv.org/abs/1802.06383][arxivxgpc]
 
   [31b06e91]: https://github.com/theogf/OMGP.jl/blob/master/examples/Classification%20-%20SXGPC.ipynb "Classification with Sparse XGPC"
 [arxivbsvm]:https://arxiv.org/abs/1707.05532
+[arxivxgpc]:https://arxiv.org/abs/1802.06383
