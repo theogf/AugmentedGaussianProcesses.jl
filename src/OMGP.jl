@@ -29,7 +29,7 @@ export GPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 export ELBO
 export Kernel
 
-@enum ClassifierType Undefined=0 BSVM=1 XGPC=2
+@enum GPModelType Undefined=0 BSVM=1 XGPC=2 Regression=3
 
 #Class arborescence
 

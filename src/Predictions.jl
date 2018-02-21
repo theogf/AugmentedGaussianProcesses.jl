@@ -131,6 +131,22 @@ function logitpredictproba(model::SparseModel,X_test)
     return predic
 end
 
+function regpredict(model::GPRegression,X_test)
+    k_star = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
+    A = k_star*model.invK
+    fstar = A*model.y
+    return fstar
+end
+
+function regpredictproba(model::GPRegression,X_test)
+    k_star = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
+    k_starstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
+    A = k_star*model.invK
+    fstar = A*model.y
+    vfstar = k_starstar - A*k_star'
+    return fstar,vfstar
+end
+
 #Return the mean and variance of the predictive distribution of f*
 function computefstar(model::FullBatchModel,X_test)
     n = size(X_test,1)
@@ -141,10 +157,10 @@ function computefstar(model::FullBatchModel,X_test)
         end
       model.DownMatrixForPrediction = -(model.invK*(eye(ksize)-model.ζ*model.invK))
     end
-    kstar = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
-    A = kstar*model.invK
-    kstarstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
-    meanfstar = kstar*model.TopMatrixForPrediction
-    covfstar = kstarstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(kstar))
+    k_star = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
+    A = k_star*model.invK
+    k_starstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
+    meanfstar = k_star*model.TopMatrixForPrediction
+    covfstar = k_starstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(k_star))
     return meanfstar,covfstar
 end

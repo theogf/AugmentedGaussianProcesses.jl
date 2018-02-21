@@ -105,8 +105,6 @@ function computeHyperParametersGradients(model::FullBatchModel,iter::Integer)
     return gradients_kernel_param,gradients_kernel_coeff
 end
 
-
-
 #Printing Functions
 
 function printautotuninginformations(model::LinearModel)

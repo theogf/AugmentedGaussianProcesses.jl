@@ -233,6 +233,8 @@ function initFunctions!(model::GPModel)
             probitpredict(model,X_test)
         elseif model.ModelType == XGPC
             logitpredict(model,X_test)
+        elseif model.ModelType == Regression
+            regpredict(model,X_test)
         end
     end
     model.predictproba = function(X_test)
@@ -244,6 +246,8 @@ function initFunctions!(model::GPModel)
             probitpredictproba(model,X_test)
         elseif model.ModelType == XGPC
             logitpredictproba(model,X_test)
+        elseif model.ModelType == Regression
+            regpredictproba(model,X_test)
         end
     end
     model.Plotting = function(;option::String="All")
