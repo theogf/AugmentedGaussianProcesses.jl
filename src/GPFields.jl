@@ -43,14 +43,7 @@ the `verboseLevel` (from 0 to 3), enabling `Autotuning`, the `AutotuningFrequenc
 what `optimizer` to use
 """
 function initCommon!(model::GPModel,X,y,γ,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer)
-    if size(y,1)!=size(X,1)
-        warn("There is a dimension problem with the data size(y)!=size(X)")
-        return false
-    end
-    if γ <= 0
-        warn("Gamma should be strictly positive, setting it to default value 1.0e-3")
-        model.γ = 1e-3
-    end
+    @assert size(y,1)!=size(X,1) "There is a dimension problem with the data size(y)!=size(X)");
     model.X = X; model.y = y;
     @assert γ > 0 "γ should be a positive float"; model.γ = γ;
     @assert ϵ > 0 "ϵ should be a positive float"; model.ϵ = ϵ;
@@ -66,8 +59,9 @@ function initCommon!(model::GPModel,X,y,γ,ϵ,nEpochs,VerboseLevel,Autotuning,Au
     model.evol_conv = Array{Float64,1}()
 end
 
-
-#Parameters for stochastic optimization
+"""
+    Parameters for stochastic optimization
+"""
 @def stochasticfields begin
     nSamplesUsed::Int64 #Size of the minibatch used
     StochCoeff::Float64 #Stochastic Coefficient
@@ -82,8 +76,9 @@ end
     τ::Float64
     SmoothingWindow::Int64
 end
-
-#Function initializing the stochasticfields parameters
+"""
+    Function initializing the stochasticfields parameters
+"""
 function initStochastic!(model::GPModel,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow)
     #Initialize parameters specific to models using SVI and check for consistency
     model.Stochastic = true; model.nSamplesUsed = BatchSize; model.AdaptiveLearningRate = AdaptiveLearningRate;
@@ -96,8 +91,9 @@ function initStochastic!(model::GPModel,AdaptiveLearningRate,BatchSize,κ_s,τ_s
     model.StochCoeff = model.nSamples/model.nSamplesUsed
     model.τ = 50;
 end
-
-#Parameters for the kernel parameters, including the covariance matrix of the prior
+"""
+    Parameters for the kernel parameters, including the covariance matrix of the prior
+"""
 @def kernelfields begin
     Kernels::Array{Kernel,1} #Kernels function used
     hyperparameters::Array{Float64,2} #Hyperparameters of the kernel functions
@@ -134,8 +130,9 @@ function initKernel!(model::GPModel,Kernels)
     end
     model.nFeatures = model.nSamples
 end
-
-#Parameters necessary for the sparse inducing points method
+"""
+    Parameters necessary for the sparse inducing points method
+"""
 @def sparsefields begin
     m::Int64 #Number of inducing points
     inducingPoints::Array{Float64,2} #Inducing points coordinates for the Big Data GP
@@ -179,7 +176,7 @@ function initGaussian!(model::GPModel,μ_init)
     #Initialize gaussian parameters and check for consistency
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
       if model.VerboseLevel > 2
-        warn("Initial mean of the variational distribution is sampled from a multinormal distribution")
+        warn("Initial mean of the variarandntional distribution is sampled from a multinormal distribution")
       end
       model.μ = randn(model.nFeatures)
     else
@@ -189,8 +186,9 @@ function initGaussian!(model::GPModel,μ_init)
     model.η_2 = -0.5*inv(model.ζ)
     model.η_1 = -2*model.η_2*model.μ
 end
-
-#Parameters defining the available function of the model
+"""
+    Parameters defining the available functions of the model
+"""
 @def functionfields begin
     #Functions
     train::Function #Model train for a certain number of iterations
@@ -198,9 +196,9 @@ end
     predictproba::Function
     Plotting::Function
 end
-
-#Default function to estimate convergence, based on a window on the variational
-#parameters
+"""
+Default function to estimate convergence, based on a window on the variational parameters
+"""
 function DefaultConvergence(model::GPModel,iter::Integer)
     #Default convergence function
     if iter == 1
@@ -217,8 +215,9 @@ function DefaultConvergence(model::GPModel,iter::Integer)
         return model.evol_conv[end]
     end
 end
-
-#Appropriately assign the functions
+"""
+    Appropriately assign the functions
+"""
 function initFunctions!(model::GPModel)
     #Initialize all functions according to the type of models
     model.train = function(;iterations::Integer=0,callback=0,convergence=DefaultConvergence)
@@ -254,14 +253,16 @@ function initFunctions!(model::GPModel)
         ##### TODO ####
     end
 end
-
-#Parameters for the linear GPs
+"""
+    Parameters for the linear GPs
+"""
 @def linearfields begin
     Intercept::Bool
     invΣ::Array{Float64,2} #Inverse Prior Matrix
 end
-
-#Correct initialization of the model
+"""
+    Initialization of the linear model
+"""
 function initLinear!(model::GPModel,Intercept)
     model.Intercept = Intercept;
     model.nFeatures = size(model.X,2);
@@ -271,8 +272,9 @@ function initLinear!(model::GPModel,Intercept)
       model.X = [ones(Float64,model.nSamples) model.X]
     end
 end
-
-#Parameters of the variational distribution of the augmented variable
+"""
+    Parameters of the variational distribution of the augmented variable
+"""
 @def latentfields begin
     α::Array{Float64,1}
 end
@@ -281,8 +283,9 @@ function initLatentVariables!(model)
     #Initialize the latent variables
     model.α = abs.(rand(model.nSamples))*2;
 end
-
-#Paramters for the sampling method
+"""
+    Parameters for the sampling method
+"""
 @def samplingfields begin
     burninsamples::Integer
     samplefrequency::Integer
