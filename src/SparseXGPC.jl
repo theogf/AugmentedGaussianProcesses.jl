@@ -13,7 +13,7 @@ mutable struct SparseXGPC <: SparseModel
     function SparseXGPC(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,BatchSize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
-                                    Kernels=0,γ::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=2,
+                                    kernel=0,γ::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=2,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
                                     VerboseLevel::Integer=0)
             this = new();
@@ -26,7 +26,7 @@ mutable struct SparseXGPC <: SparseModel
             else
                 this.MBIndices = 1:this.nSamples; this.nSamplesUsed = this.nSamples; this.StochCoeff=1.0;
             end
-            initKernel!(this,Kernels);
+            initKernel!(this,kernel);
             initSparse!(this,m,OptimizeIndPoints);
             initGaussian!(this,μ_init);
             initLatentVariables!(this);

@@ -68,36 +68,31 @@ function naturalGradientELBO_BSVM(α,Z,invPrior,stoch_coef)
 end
 
 
-function computeHyperParametersGradients(model::SparseBSVM,iter::Integer)
-    gradients = zeros(model.nKernels)
-    A = eye(model.nFeatures)-model.invKmm*model.ζ
+function hyperparameter_gradient_function(model::SparseBSVM)
     B = model.μ*transpose(model.μ) + model.ζ
-    Kmn = CreateKernelMatrix(model.inducingPoints,model.Kernel_function;X2=model.X)
-    #If multikernels only update the weight of the kernels, else update the kernel lengthscale
-    if model.nKernels > 1
-      for i in 1:model.nKernels
-        Jnm = CreateKernelMatrix(model.X[model.MBIndices],model.Kernels[i].compute,X2=model.inducingPoints)
-        Jnn = CreateDiagonalKernelMatrix(model.X[model.MBIndices],model.Kernels[i].compute)
-        Jmm = CreateKernelMatrix(model.inducingPoints,model.Kernels[i].compute)
-        ι = (Jnm-model.κ*Jmm)*model.invKmm
-        V = model.invKmm*Jmm
-        gradients[i] = -0.5*(sum(V.*A) - dot(model.μ, transpose(model.μ)*V*model.invKmm + 2*transpose(ones(model.nSamples)+1./sqrt.(model.α))*diagm(model.y)*ι) +
-        dot(1./sqrt.(model.α),diag(model.κ*(B*transpose(ι)-transpose(Jnm)) + ι*(B*transpose(model.κ)-Kmn))+ Jnn))
-        if model.VerboseLevel > 2
-          println("Grad kernel $i: $(gradients[i])")
-        end
-      end
-    elseif model.Kernels[1].Nparams > 0 #Update of the hyperparameters of the KernelMatrix
-      Jnm = model.Kernels[1].coeff*CreateKernelMatrix(model.X,model.Kernels[1].compute_deriv,X2=model.inducingPoints)
-      Jnn = model.Kernels[1].coeff*CreateDiagonalKernelMatrix(model.X,model.Kernels[1].compute_deriv)
-      Jmm = model.Kernels[1].coeff*CreateKernelMatrix(model.inducingPoints,model.Kernels[1].compute_deriv)
-      ι = (Jnm-model.κ*Jmm)*model.invKmm
-      V = model.invKmm*Jmm
-      gradients[1] = -0.5*(sum(V.*A) - (transpose(model.μ)*V*model.invKmm + 2*transpose(ones(model.nSamples)+1./sqrt.(model.α))*diagm(model.y)*ι)*model.μ
-      + dot(1./sqrt.(model.α),diag(model.κ*(B*transpose(ι)-transpose(Jnm)) + ι*(B*transpose(model.κ)-Kmn))+Jnn))
-      if model.VerboseLevel > 2
-        println("Grad kernel: $(gradients[1]), new param is $(model.Kernels[1].param)")
-      end
+    Kmn = kernelmatrix(model.inducingPoints,model.X,model.kernel)
+    A = Diagonal(1.0./sqrt.(model.α[model.MBIndices]))
+    return function(Js)
+                Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3]
+                ι = (Jnm-model.κ*Jmm)*model.invKmm
+                V = model.invKmm*Jmm
+                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*A*model.κ + model.κ'*A*ι)) .* transpose(B)) - trace(V) - model.StochCoeff*dot(diag(A),Jtilde)
+                    + 2.0*model.StochCoeff*dot(model.y[model.MBIndices],(1+A)*ι*model.μ))
+            end
     end
-    return gradients
+end
+#TODO Also to correct
+function inducingpoints_gradient(model::SparseBSVM)
+    gradients_inducing_points = zeros(model.m,dim)
+    for i in 1:model.m #Iterate over the points
+        Jnm,Jmm = computeIndPointsJ(model,i)
+        for j in 1:dim #iterate over the dimensions
+            ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
+            Jtilde = -sum(ι.*(Kmn.'),2)-sum(model.κ.*Jnm[j,:,:],2)
+            V = model.invKmm*Jmm[j,:,:]
+            gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff*(ι'*Θ*model.κ+model.κ'*Θ*ι)).*transpose(B))-trace(V)-model.StochCoeff*dot(diag(Θ),Jtilde)
+             + 2.0*model.StochCoeff*dot(model.y[model.MBIndices],(1+A)*ι*model.μ))
+        end
+    end
+    return gradients_inducing_points
 end

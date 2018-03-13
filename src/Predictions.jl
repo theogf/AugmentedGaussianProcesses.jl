@@ -14,7 +14,7 @@ function probitpredict(model::FullBatchModel,X_test)
     if model.TopMatrixForPrediction == 0
       model.TopMatrixForPrediction = model.invK*model.μ
     end
-    k_star = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
+    k_star = kernelmatrix(X_test,model.X,model.kernel)
     return k_star*model.TopMatrixForPrediction
 end
 
@@ -23,7 +23,7 @@ function probitpredict(model::SparseModel,X_test)
     if model.TopMatrixForPrediction == 0
       model.TopMatrixForPrediction = model.invKmm*model.μ
     end
-    k_star = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.inducingPoints)
+    k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
     return k_star*model.TopMatrixForPrediction
 end
 
@@ -53,9 +53,9 @@ function probitpredictproba(model::FullBatchModel,X_test)
     k_starstar = 0
     for i in 1:n
       for j in 1:ksize
-        k_star[j] = model.Kernel_function(model.X[j,:],X_test[i,:])
+        k_star[j] = compute(model.kernel,model.X[j,:],X_test[i,:])
       end
-      k_starstar = model.Kernel_function(X_test[i,:],X_test[i,:])
+      k_starstar = compute(model.kernel,X_test[i,:],X_test[i,:])
       predic[i] = cdf(Normal(),(dot(k_star,model.TopMatrixForPrediction))/(k_starstar + dot(k_star,model.DownMatrixForPrediction*k_star) + 1))
     end
     return predic
@@ -75,9 +75,9 @@ function probitpredictproba(model::SparseModel,X_test)
     k_starstar = 0
     for i in 1:n
       for j in 1:ksize
-        k_star[j] = model.Kernel_function(model.inducingPoints[j,:],X_test[i,:])
+        k_star[j] = compute(model.kernel,model.inducingPoints[j,:],X_test[i,:])
       end
-      k_starstar = model.Kernel_function(X_test[i,:],X_test[i,:])
+      k_starstar = compute(model.kernel,X_test[i,:],X_test[i,:])
       predic[i] = cdf(Normal(),(dot(k_star,model.TopMatrixForPrediction))/(k_starstar + dot(k_star,model.DownMatrixForPrediction*k_star) + 1))
     end
     return predic
@@ -95,8 +95,8 @@ end
 
 function logitpredictproba(model::FullBatchModel,X_test)
     nPoints = size(X_test,1)
-    K_starN = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
-    K_starstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
+    K_starN = kernelmatrix(X_test,model.X,model.kernel)
+    K_starstar = kernelmatrix(X_test,model.kernel)
     m = K_starN*model.invK*model.μ;
     cov = K_starstar+sum((K_starN*model.invK).*transpose((model.ζ*model.invK-eye(model.nFeatures))*transpose(K_starN)),2)
     predic = zeros(nPoints)
@@ -113,12 +113,12 @@ end
 function logitpredictproba(model::SparseModel,X_test)
     nPoints = size(X_test,1)
     ksize = model.m
-    K_starM = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.inducingPoints)
-    K_starstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
+    K_starM = kernelmatrix(X_test,model.inducingPoints,model.kernel)
+    K_starstar = kernelmatrix(X_test,model.kernel)
     m = K_starM*model.invKmm*model.μ;
     cov = K_starstar+sum((K_starM*model.invKmm).*transpose((model.ζ*model.invKmm-eye(model.nFeatures))*transpose(K_starM)),2)
     if count(cov.<=0)>0
-        error("Covariance under 0, params are $(broadcast(getfield,model.Kernels,:param)) and coeffs $(broadcast(getfield,model.Kernels,:coeff))")
+        error("Covariance under 0")
     end
     predic = zeros(nPoints)
     for i in 1:nPoints
@@ -132,7 +132,7 @@ function logitpredictproba(model::SparseModel,X_test)
 end
 
 function regpredict(model::GPRegression,X_test)
-    k_star = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
+    k_star = kernelmatrix(X_test,model.X,model.kernel)
     A = k_star*model.invK
     fstar = A*model.y
     return fstar
@@ -142,13 +142,13 @@ function regpredict(model::SparseGPRegression,X_test)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invKmm*model.μ
     end
-    k_star = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.inducingPoints)
+    k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
     return k_star*model.TopMatrixForPrediction
 end
 
 function regpredictproba(model::GPRegression,X_test)
-    k_star = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
-    k_starstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
+    k_star = kernelmatrix(X_test,model.X,model.kernel)
+    k_starstar = diagkernelmatrix(X_test,model.kernel)
     A = k_star*model.invK
     fstar = A*model.y
     vfstar = k_starstar - A*k_star'
@@ -165,9 +165,9 @@ function regpredictproba(model::FullBatchModel,X_test)
         end
       model.DownMatrixForPrediction = -(model.invK*(eye(ksize)-model.ζ*model.invK))
     end
-    k_star = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
+    k_star = kernelmatrix(X_test,model.X,model.kernel)
     A = k_star*model.invK
-    k_starstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
+    k_starstar = diagkernelmatrix(X_test,model.kernel)
     meanfstar = k_star*model.TopMatrixForPrediction
     covfstar = k_starstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(k_star))
     return meanfstar,covfstar

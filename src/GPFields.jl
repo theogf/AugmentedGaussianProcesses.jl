@@ -23,8 +23,6 @@ end
     VerboseLevel::Int64 #Level of printing information
     Stochastic::Bool #Is the model stochastic    #Autotuning parameters
     Autotuning::Bool #Chose Autotuning type
-    opt_type #Type of optimizer
-    optimizers::Array{Optimizer,1} #Optimizers for autotuning
     MaxGradient::Float64 #Maximum value for the gradient clipping
     AutotuningFrequency::Int64 #Frequency of update of the hyperparameter
     Trained::Bool #Verify the algorithm has been trained before making predictions
@@ -95,39 +93,19 @@ end
     Parameters for the kernel parameters, including the covariance matrix of the prior
 """
 @def kernelfields begin
-    Kernels::Array{Kernel,1} #Kernels function used
-    hyperparameters::Array{Float64,2} #Hyperparameters of the kernel functions
-    Kernel_function::Function #kernel function associated with the model
-    kernel_functions::Array{Function,1} #kernel functions associated with the model
-    nKernels::Int64 #Number of kernels used
+    kernel::Kernel #Kernels function used
     invK::Array{Float64,2} #Inverse Kernel Matrix for the nonlinear case
 end
 """
 Function initializing the kernelfields
 """
-function initKernel!(model::GPModel,Kernels)
+function initKernel!(model::GPModel,kernel::Kernel)
     #Initialize parameters common to all models containing kernels and check for consistency
-    if Kernels == 0
+    if kernel == 0
       warn("No kernel indicated, a rbf kernel function with lengthscale 1 is used")
-      Kernels = [Kernel("rbf",1.0,params=1.0)]
+      kernel = RBFKernel(1.0)
     end
-    model.Kernels = deepcopy(Kernels)
-    model.nKernels = length(Kernels)
-    model.kernel_functions = Array{Function,1}(model.nKernels)
-    model.hyperparameters = Array{Float64,2}(model.nKernels,2)
-    for i in 1:model.nKernels
-        model.kernel_functions[i] = Kernels[i].kernel_function
-        model.hyperparameters[i,:] = [Kernels[i].coeff  Kernels[i].param[1]]
-    end
-    model.optimizers = Array{Optimizer,1}(2*model.nKernels);
-    broadcast!(deepcopy,model.optimizers,model.opt_type);
-    model.Kernel_function = function(X1,X2)
-        dist = 0
-        for i in 1:size(model.Kernels,1)
-          dist += model.Kernels[i].coeff*model.Kernels[i].compute(X1,X2)
-        end
-        return dist
-    end
+    model.kernel = deepcopy(kernel)
     model.nFeatures = model.nSamples
 end
 """
@@ -137,6 +115,7 @@ end
     m::Int64 #Number of inducing points
     inducingPoints::Array{Float64,2} #Inducing points coordinates for the Big Data GP
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
+    optimizer::Optimizer #Optimizer for the inducing points
     invKmm::Array{Float64,2} #Inverse Kernel matrix of inducing points
     Ktilde::Array{Float64,1} #Diagonal of the covariance matrix between inducing points and generative points
     κ::Array{Float64,2} #Kmn*invKmm
@@ -156,8 +135,7 @@ function initSparse!(model::GPModel,m,optimizeIndPoints)
     end
     model.m = m; model.nFeatures = model.m;
     model.OptimizeInducingPoints = optimizeIndPoints
-    push!(model.optimizers,model.opt_type);
-    model.optimizers[end].α *= 0.001;
+    model.optimizer = Adam();
     model.inducingPoints = KMeansInducingPoints(model.X,model.m,10)
 end
 """

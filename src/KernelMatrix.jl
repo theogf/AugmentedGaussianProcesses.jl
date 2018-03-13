@@ -16,7 +16,7 @@ function kernelmatrix(X1,X2,kernel)
     n1 = size(X1,1)
     n2 = size(X2,1)
     K = zeros(n1,n2)
-    return CreateKernelMatrix!(K,X1,X2,kernel)
+    return kernelmatrix!(K,X1,X2,kernel)
 end
 """
     Create a symmetric kernel matrix from training data
@@ -34,7 +34,7 @@ end
 function kernelmatrix(X,kernel)
     n = size(X,1);
     K = zeros(n,n);
-    return CreateKernelMatrix!(K,X,kernel)
+    return kernelmatrix!(K,X,kernel)
 end
 
 """
@@ -56,19 +56,9 @@ function diagkernelmatrix(X,kernel)
 end
 
 """
-    Compute derivative of the kernel matrix
+    Compute derivative of the kernel matrix given kernel hyperparameters
 """
 
-function update_kernel_hyperparameters!(model::FullBatchModel)
-    Jnn = compute_J(model.kernel,compute_unmappedJ(model.kernel,model.X),model.nSamples,model.nSamples)
-    apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jnn]))
-end
-function update_kernel_hyperparameters!(model::SparseModel)
-    Jmm = compute_J(model.kernel,compute_unmappedJ(model.kernel,model.inducingPoints),model.m,model.m)
-    Jmm = compute_J(model.kernel,compute_unmappedJ(model.kernel,model.X[model.MBIndices],model.inducingPoints),model.nSamplesUsed,model.m)
-    Jnn = compute_J(model.kernel,compute_unmappeddiagJ(model.kernel,model.X[model.MBIndices]),model.nSamplesUsed,diag=true)
-    apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jnn,Jnm,Jnn]))
-end
 
 function compute_unmappedJ(kernel,X1,X2)
     n1 = size(X1,1)
@@ -147,6 +137,10 @@ function compute_J(k::Kernel,J,n1,n2,weight::Bool=true,diag::Bool=false)
     return J_mat
 end
 
+"""
+    Compute the gradients using a gradient function and matrices Js
+"""
+
 
 function compute_hyperparameter_gradient(k::KernelSum,gradient_function::Function,Js,weight::Bool=true)
     gradients = Array{Any,1}()
@@ -175,4 +169,42 @@ function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,J
         push!(gradients,gradient_function(broadcast(x->x[end],Js)))
     end
     return gradients
+end
+
+
+"""
+    Compute derivative matrices given the data points
+"""
+
+function CreateColumnRowMatrix(n,iter,gradient)
+    K = zeros(n,n)
+    K[iter,:] = gradient; K[:,iter] = gradient;
+    return K
+end
+
+function CreateColumnMatrix(n,m,iter,gradient)
+    K = zeros(n,m)
+    K[:,iter] = gradient;
+    return K
+end
+
+#Compute the gradients given the inducing point locations
+function computeIndPointsJ(model::SparseModel,iter)
+    dim = size(model.X,2)
+    Dnm = zeros(model.nSamplesUsed,dim)
+    Dmm = zeros(model.m,dim)
+    Jnm = zeros(dim,model.nSamplesUsed,model.m)
+    Jmm = zeros(dim,model.m,model.m)
+    #Compute the gradients given every other point
+    for i in 1:model.nSamplesUsed
+        Dnm[i,:] = compute_point_deriv(model.X[model.MBIndices[i],:],model.inducingPoints[iter,:],model.kernel)
+    end
+    for i in 1:model.m
+        Dmm[i,:] = compute_point_deriv(model.inducingPoints[iter,:],model.inducingPoints[i,:],model.kernel)
+    end
+    for i in 1:dim
+        Jnm[i,:,:] = CreateColumnMatrix(model.nSamplesUsed,model.m,iter,Dnm[:,i],model.kernel)
+        Jmm[i,:,:] = CreateColumnRowMatrix(model.m,iter,Dmm[:,i],model.kernel)
+    end
+    return Jnm,Jmm
 end

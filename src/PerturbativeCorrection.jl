@@ -41,8 +41,8 @@ end
 
 function correctedpredict(model,X_test)
     n = size(X_test,1)
-    kstar = CreateKernelMatrix(X_test,model.Kernel_function,X2=model.X)
-    kstarstar = CreateDiagonalKernelMatrix(X_test,model.Kernel_function)
+    kstar = kernelmatrix(X_test,model.X,model.kernel)
+    kstarstar = kernelmatrix(X_test,model.kernel)
     A = kstar*model.invK
     meanfstar = A*model.μ
     meanfstar_corr = meanfstar + meancorrection(model.μ,model.ζ,model.α,A*model.ζ)

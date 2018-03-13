@@ -108,20 +108,20 @@ end
 
 function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated
-        model.invKmm = Matrix(Symmetric(inv(CreateKernelMatrix(model.inducingPoints,model.Kernel_function)+model.γ*eye(model.nFeatures))))
+        model.invKmm = inv(kernelmatrix(model.inducingPoints,model.kernel)++model.γ*eye(model.nFeatures))
     end
     #If change of hyperparameters or if stochatic
     if model.HyperParametersUpdated || model.Stochastic
-        Knm = CreateKernelMatrix(model.X[model.MBIndices,:],model.Kernel_function,X2=model.inducingPoints)
+        Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
         model.κ = Knm*model.invKmm
-        model.Ktilde = CreateDiagonalKernelMatrix(model.X[model.MBIndices,:],model.Kernel_function) + model.γ*ones(length(model.MBIndices)) - squeeze(sum(model.κ.*Knm,2),2)
+        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) + model.γ*ones(length(model.MBIndices)) - squeeze(sum(model.κ.*Knm,2),2)
     end
     model.HyperParametersUpdated=false
 end
 
 function computeMatrices!(model::FullBatchModel)
     if model.HyperParametersUpdated
-        model.invK = inv(Symmetric(CreateKernelMatrix(model.X,model.Kernel_function) + model.γ*eye(model.nFeatures),:U))
+        model.invK = inv(kernelmatrix(model.X,model.kernel) + model.γ*eye(model.nFeatures),:U))
         model.HyperParametersUpdated = false
     end
 end

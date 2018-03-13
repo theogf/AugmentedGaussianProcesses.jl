@@ -13,9 +13,9 @@ macro def(name, definition)
 end
 
 using GradDescent
-import Base: *, +
+import Base: *, +, getindex
 export Kernel
-export CreateKernelMatrix, CreateDiagonalKernelMatrix
+export kernelmatrix,kernelmatrix!,diagkernelmatrix,diagkernelmatrix!
 export delta_kroenecker
 
 abstract type Kernel end;
@@ -97,6 +97,9 @@ function Base.:+(a::KernelSum,b::KernelSum)
     return KernelSum(vcat(a.kernel_array,b.kernel_array))
 end
 
+function getindex(a::KernelSum,i::Int64)
+    return a.kernel_array[i]
+end
 
 mutable struct KernelProduct <: Kernel
     @kernelfunctionfields
@@ -143,11 +146,14 @@ end
 function Base.:*(a::Kernel,b::Kernel)
     return KernelProduct([a,b])
 end
-function Base.:*(a::KernelSum,b::Kernel)
+function Base.:*(a::KernelProduct,b::Kernel)
     return KernelProduct(vcat(a.kernel_array,b))
 end
-function Base.:*(a::KernelSum,b::KernelSum)
+function Base.:*(a::KernelProduct,b::KernelSum)
     return KernelProduct(vcat(a.kernel_array,b.kernel_array))
+end
+function getindex(a::KernelProduct,i::Int64)
+    return a.kernel_array[i]
 end
 
 

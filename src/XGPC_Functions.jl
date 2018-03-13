@@ -55,45 +55,32 @@ function naturalGradientELBO_XGPC(θ,y,invPrior;κ=0,stoch_coef::Float64=1.0)
 end
 
 
-function computeHyperParametersGradients(model::SparseXGPC,iter::Integer)
+function hyperparameter_gradient_function(model::SparseXGPC)
     #General values used for all gradients
     B = model.μ*transpose(model.μ) + model.ζ
-    Kmn = CreateKernelMatrix(model.inducingPoints,model.Kernel_function;X2=model.X[model.MBIndices,:])
+    Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     Θ = Diagonal(0.25./model.α[model.MBIndices].*tanh.(0.5*model.α[model.MBIndices]))
     dim = size(model.X,2)
-    #Update of both the coefficients and hyperparameters of the kernels
-    gradients_kernel_param = zeros(model.nKernels)
-    gradients_kernel_coeff = zeros(model.nKernels)
-    for i in 1:model.nKernels
-        #Compute the derivative of the kernel matrices given the kernel lengthscale
-        Jnm_param,Jnn_param,Jmm_param = model.Kernels[i].coeff.*computeJ(model,model.Kernels[i].compute_deriv)
-        ι_param = (Jnm_param-model.κ*Jmm_param)*model.invKmm
-        Jtilde_param = Jnn_param - sum(ι_param.*(Kmn.'),2) - sum(model.κ.*Jnm_param,2)
-        V_param = model.invKmm*Jmm_param
-        gradients_kernel_param[i] = 0.5*(sum( (V_param*model.invKmm - model.StochCoeff*(ι_param'*Θ*model.κ + model.κ'*Θ*ι_param)) .* transpose(B)) - trace(V_param) - model.StochCoeff*dot(diag(Θ),Jtilde_param)
-         + model.StochCoeff*dot(model.y[model.MBIndices],ι_param*model.μ))
-        #Compute the derivative of the kernel matrices given the kernel weight
-        Jnm_coeff,Jnn_coeff,Jmm_coeff = computeJ(model,model.Kernels[i].compute)
-        ι_coeff = (Jnm_coeff-model.κ*Jmm_coeff)*model.invKmm
-        Jtilde_coeff = Jnn_coeff - sum(ι_coeff.*(Kmn.'),2) - sum(model.κ.*Jnm_coeff,2)
-        V_coeff = model.invKmm*Jmm_coeff
-        gradients_kernel_coeff[i] = 0.5*(sum(( V_coeff*model.invKmm - model.StochCoeff*(ι_coeff'*Θ*model.κ + model.κ'*Θ*ι_coeff)) .* transpose(B)) -trace(V_coeff) - model.StochCoeff*dot(diag(Θ),Jtilde_coeff)
-         + model.StochCoeff*dot(model.y[model.MBIndices],ι_coeff*model.μ))
-    end
-    if model.OptimizeInducingPoints
-        gradients_inducing_points = zeros(model.m,dim)
-        for i in 1:model.m #Iterate over the points
-            Jnm,Jmm = computeIndPointsJ(model,i)
-            for j in 1:dim #iterate over the dimensions
-                ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
-                Jtilde = -sum(ι.*(Kmn.'),2)-sum(model.κ.*Jnm[j,:,:],2)
-                V = model.invKmm*Jmm[j,:,:]
-                gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff*(ι'*Θ*model.κ+model.κ'*Θ*ι)).*transpose(B))-trace(V)-model.StochCoeff*dot(diag(Θ),Jtilde)
-                 + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
-            end
+    return function(Js)
+                Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
+                ι = (Jnm-model.κ*Jmm)*model.invKmm
+                Jtilde = Jnn_param - sum(ι.*(Kmn.'),2) - sum(model.κ.*Jnm,2)
+                V = model.invKmm*Jmm
+                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*Θ*model.κ + model.κ'*Θ*ι)) .* transpose(B)) - trace(V) - model.StochCoeff*dot(diag(Θ),Jtilde)
+                    + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
+     end
+end
+function inducingpoints_gradient(model::SparseXGPC)
+    gradients_inducing_points = zeros(model.m,dim)
+    for i in 1:model.m #Iterate over the points
+        Jnm,Jmm = computeIndPointsJ(model,i)
+        for j in 1:dim #iterate over the dimensions
+            ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
+            Jtilde = -sum(ι.*(Kmn.'),2)-sum(model.κ.*Jnm[j,:,:],2)
+            V = model.invKmm*Jmm[j,:,:]
+            gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff*(ι'*Θ*model.κ+model.κ'*Θ*ι)).*transpose(B))-trace(V)-model.StochCoeff*dot(diag(Θ),Jtilde)
+             + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
         end
-        return gradients_kernel_param,gradients_kernel_coeff,gradients_inducing_points
-    else
-        return gradients_kernel_param,gradients_kernel_coeff
     end
+    return gradients_inducing_points
 end
