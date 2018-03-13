@@ -38,18 +38,6 @@ function applyHyperParametersGradients!(model::GPModel,gradients)
     end
 end
 
-#Compute a the derivative of the covariance matrix
-function computeJ(model::FullBatchModel,derivative::Function)
-    return CreateKernelMatrix(model.X,derivative)
-end
-
-function computeJ(model::SparseModel,derivative::Function)
-    Jnm = CreateKernelMatrix(model.X[model.MBIndices,:],derivative,X2=model.inducingPoints)
-    Jnn = CreateDiagonalKernelMatrix(model.X[model.MBIndices,:],derivative)
-    Jmm = CreateKernelMatrix(model.inducingPoints,derivative)
-    return Jnm,Jnn,Jmm
-end
-
 function CreateColumnRowMatrix(n,iter,gradient)
     K = zeros(n,n)
     K[iter,:] = gradient; K[:,iter] = gradient;
@@ -90,11 +78,27 @@ function computeIndPointsJ(model::SparseModel,iter)
     return Jnm,Jmm
 end
 
+function updateHyperParameters!(model::FullBatchModel)
+    Jnn = compute_J(model.kernel,compute_unmappedJ(model.kernel,model.X),model.nSamples,model.nSamples)
+    apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jnn]))
+end
+function updateHyperParameters!(model::SparseModel)
+    Jmm = compute_J(model.kernel,compute_unmappedJ(model.kernel,model.inducingPoints),model.m,model.m)
+    Jmm = compute_J(model.kernel,compute_unmappedJ(model.kernel,model.X[model.MBIndices],model.inducingPoints),model.nSamplesUsed,model.m)
+    Jnn = compute_J(model.kernel,compute_unmappeddiagJ(model.kernel,model.X[model.MBIndices]),model.nSamplesUsed,diag=true)
+    apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jmm,Jnm,Jnn]))
+end
+
+
 function computeHyperParametersGradients(model::FullBatchModel,iter::Integer)
     A = model.invK*(model.ζ+model.µ*transpose(model.μ))-eye(model.nSamples)
     #Update of both the coefficients and hyperparameters of the kernels
     gradients_kernel_param = zeros(model.nKernels)
     gradients_kernel_coeff = zeros(model.nKernels)
+
+    function kernel_gradient(k)
+        gradient_kernel_matrix(k,X1,X2)
+    end
     for i in 1:model.nKernels
         V_param = model.invK*model.Kernels[i].coeff*computeJ(model,model.Kernels[i].compute_deriv)
         V_coeff = model.invK*computeJ(model,model.Kernels[i].compute)

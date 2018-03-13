@@ -40,7 +40,7 @@ getvalue(param::HyperParameters) = broadcast(x->x.value,param.hyperparameters)
 setvalue(param::HyperParameter,θ::Float64) = param.value=θ
 setvalue(param::HyperParameters,θ::Float64) = broadcast(x->setvalue(x,θ),param.hyperparameters)
 update!(param::HyperParameter,grad) = param.value += GradDescent.update(param.opt,grad)
-# update!(param::HyperParameters,grad) = for i in 1:length(param.hyperparameters); param.hyperparameters[i].value += GradDescent.update(param.hyperparameters[i].opt,grad[i]);end;
+update!(param::HyperParameters,grad) = for i in 1:length(param.hyperparameters); param.hyperparameters[i].value += GradDescent.update(param.hyperparameters[i].opt,grad[i]);end;
 
 
 @def kernelfunctionfields begin
@@ -56,17 +56,17 @@ mutable struct KernelSum <: Kernel
     kernel_array::Array{Kernel,1} #Array of summed kernels
     Nkernels::Int64
     #Constructors
-    function KernelSum(kernels::Array{Kernel,1})
+    function KernelSum(kernels::AbstractArray)
         this = new("Sum of kernels")
-        this.kernel_array = deepcopy(kernels)
+        this.kernel_array = deepcopy(Array{Kernel,1}(kernels))
         this.Nkernels = length(this.kernel_array)
         return this
     end
 end
-function compute(k::KernelSum,X1,X2)
+function compute(k::KernelSum,X1,X2,weight::Bool=true)
     sum = 0.0
     for kernel in k.kernel_array
-        sum += getvalue(kernel.weight)*compute(kernel,X1,X2)
+        sum += compute(kernel,X1,X2)
     end
     return sum
 end
@@ -74,7 +74,7 @@ end
 function compute_deriv(k::KernelSum,X1,X2,weight::Bool)
     deriv_values = Array{Array{Any,1},1}()
     for kernel in k.kernel_array
-        push!(deriv_functions,compute_deriv(kernel,X1,X2,true))
+        push!(deriv_values,compute_deriv(kernel,X1,X2,true))
     end
     return deriv_values
 end
@@ -102,30 +102,30 @@ mutable struct KernelProduct <: Kernel
     @kernelfunctionfields
     kernel_array::Array{Kernel,1} #Array of multiplied kernels
     Nkernels::Int64
-    function KernelProduct(kernels::Array{Kernel,1})
+    function KernelProduct(kernels::AbstractArray)
         this = new("Product of kernels",HyperParameter(1.0))
-        this.kernel_array = deepcopy(kernels)
+        this.kernel_array = deepcopy(Array{Kernel,1}(kernels))
         this.Nkernels = length(this.kernel_array)
         return this
     end
 end
 
-function compute(k::KernelProduct,X1,X2)
+function compute(k::KernelProduct,X1,X2,weight::Bool=true)
     product = 1.0
     for kernel in k.kernel_array
-        product *= compute(kernel,X1,X2)
+        product *= compute(kernel,X1,X2,false)
     end
-    return product
+    return (weight?getvalue(k.weight):1.0)*product
 end
 
-function compute_deriv(k::KernelProduct,X1,X2,weight)
+function compute_deriv(k::KernelProduct,X1,X2,weight::Bool)
     tot = compute(k,X1,X2)
     deriv_values = Array{Array{Any,1},1}()
     for kernel in k.kernel_array
-        push!(deriv_values,compute_deriv(kernel,X1,X2,weight=false).*tot./compute(kernel,X1,X2))
+        push!(deriv_values,compute_deriv(kernel,X1,X2,false).*tot./compute(kernel,X1,X2,false))
     end
     if weight
-        push!(deriv_values,tot)
+        push!(deriv_values,[tot])
     end
     return deriv_values
 end
@@ -141,7 +141,7 @@ function compute_point_deriv(k::KernelProduct,X1,X2)
 end
 
 function Base.:*(a::Kernel,b::Kernel)
-    return KernelProduct(Kernel[a,b])
+    return KernelProduct([a,b])
 end
 function Base.:*(a::KernelSum,b::Kernel)
     return KernelProduct(vcat(a.kernel_array,b))
@@ -160,17 +160,22 @@ mutable struct RBFKernel <: Kernel
         return new("RBF",HyperParameter(1.0),HyperParameter(θ),1)
     end
 end
-function compute(k::RBFKernel,X1,X2)
+function compute(k::RBFKernel,X1,X2,weight::Bool=true)
     if X1 == X2
       return 1
     end
-    exp(-0.5*(norm(X1-X2))^2/(getvalue(k.hyperparameters)^2))
+    return (weight?getvalue(k.weight):1.0)*exp(-0.5*(norm(X1-X2))^2/(getvalue(k.hyperparameters)^2))
 end
 #
-function compute_deriv(k::RBFKernel,X1,X2)
+function compute_deriv(k::RBFKernel,X1,X2,weight::Bool=true)
     a = norm(X1-X2)
     if a != 0
-      return a^2/(getvalue(k.hyperparameters)^3)*rbf(k,X1,X2)
+        grad = a^2/(getvalue(k.hyperparameters)^3)*compute(k,X1,X2)
+        if weight
+            return [getvalue(k.weight)*grad,compute(k,X1,X2)]
+        else
+            return [grad]
+        end
     else
       return 0
     end
@@ -180,28 +185,11 @@ function compute_point_deriv(k::RBFKernel,X1,X2)
     if X1 == X2
         return 0
     else
-        return -(X1-X2)./(getvalue(k.hyperparameters)^2).*rbf(k,X1,X2)
+        return getvalue(k.weight)*(-(X1-X2))./(getvalue(k.hyperparameters)^2).*compute(k,X1,X2)
     end
 end
 
-a= RBFKernel(3.0)
-b= RBFKernel(0.5)
-c = a+b
-X1=rand(5)
-X2=rand(5)
-rc = compute(c,X1,X2)
-ra = compute(a,X1,X2)
-rb = compute(b,X1,X2)
-diff = rc-(ra+rb)
 
-d = a*b
-d2 = a*b
-e = d*d2
-rd = compute(d,X1,X2)
-diff = rd-ra*rb
-re = compute(e,X1,X2)
-
-ds
 # type Kernel
 #     name::String #Type of function
 #     kernel_function::Function # Kernel function
@@ -462,31 +450,25 @@ function deriv_point_linear(X1::Array{Float64,1},X2::Array{Float64,1},θ)
     X2
 end
 
-
-function compute_kernel_gradients(kernel::Kernel,gradient_function::Function)
-    gradients = gradient_function(kernel.compute_deriv)
-    apply_gradients!(kernel,gradients)
-end
-
-function apply_gradients!(kernel::Kernel,gradients,weight)
-    update!(kernel.param,gradients[1:kernel.Nparams])
+function apply_gradients!(kernel::Kernel,gradients,weight::Bool=true)
+    update!(kernel.hyperparameters,gradients[kernel.Nparameters ==1 ? 1 : 1:kernel.Nparameters])
     if weight
         update!(kernel.weight,gradients[end])
     end
 end
 
-function apply_gradients!(kernel::KernelSum,gradients,weight)
+function apply_gradients!(kernel::KernelSum,gradients,weight::Bool=true)
     for i in 1:kernel.Nkernels
-        apply_gradients!(kernel[i],gradients[i],true)
+        apply_gradients!(kernel.kernel_array[i],gradients[i],true)
     end
 end
 
-function apply_gradients!(kernel::KernelProduct,gradients,weight)
+function apply_gradients!(kernel::KernelProduct,gradients,weight::Bool=true)
     for i in 1:kernel.Nkernels
-        apply_gradients!(kernel[i],gradients[i],false)
+        apply_gradients!(kernel.kernel_array[i],gradients[i],false);
     end
     if weight
-        update!(kernel.weight,gradients[end])
+        update!(kernel.weight,gradients[end][1]);
     end
 end
 
