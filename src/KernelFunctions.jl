@@ -63,16 +63,9 @@ macro def(name, definition)
     end
 end
 
-function InnerProduct(X1,X2)
-    return dot(X1,X2)
-end
-
-function SquaredEuclidean(X1,X2)
-    return norm(X1-X2,2)
-end
-
-function Identity(X1,X2)
-    return (X1,X2)
+InnerProduct(X1,X2) = dot(X1,X2);
+SquaredEuclidean(X1,X2) = norm(X1-X2,2)
+Identity(X1,X2) = (X1,X2)
 end
 
 @def kernelfunctionfields begin
@@ -225,7 +218,7 @@ end
 #TODO probably not right
 function compute_point_deriv(k::RBFKernel,X1,X2)
     if X1 == X2
-        return 0
+        return zeros(X1)
     else
         return getvalue(k.weight)*(-(X1-X2))./(getvalue(k.hyperparameters)^2).*compute(k,X1,X2)
     end
@@ -265,7 +258,7 @@ end
 #TODO Not correct
 function compute_point_deriv(k::LaplaceKernel,X1,X2)
     if X1 == X2
-        return 0
+        return zeros(X1)
     else
         return getvalue(k.weight)*(-(X1-X2))./(getvalue(k.hyperparameters)^2).*compute(k,X1,X2)
     end
@@ -278,7 +271,7 @@ end
 mutable struct SigmoidKernel <: Kernel
     @kernelfunctionfields
     function SigmoidKernel(θ::Array{Float64}=[1.0,0.0];weight::Float64=1.0)
-        return new("Sigmoid",HyperParameter(weight),HyperParameters(θ),1,InnerProduct)
+        return new("Sigmoid",HyperParameter(weight),HyperParameters(θ),length(θ),InnerProduct)
     end
 end
 function compute(k::SigmoidKernel,X1,X2,weight::Bool=true)
@@ -307,7 +300,7 @@ end
 mutable struct PolynomialKernel <: Kernel
     @kernelfunctionfields
     function PolynomialKernel(θ::Array{Float64}=[1.0,0.0,2.0];weight::Float64=1.0)
-        return new("Polynomial",HyperParameter(weight),HyperParameters(θ),1,InnerProduct)
+        return new("Polynomial",HyperParameter(weight),HyperParameters(θ),length(θ),InnerProduct)
     end
 end
 function compute(k::PolynomialKernel,X1,X2,weight::Bool=true)
@@ -328,6 +321,48 @@ end
 function compute_point_deriv(k::PolynomialKernel,X1,X2)
     return getvalue(k.hyperparameters)[3]*getvalue(k.hyperparameters)[1]*X2*(getvalue(k.hyperparameters)[1]*k.pairwisefunction(X1,X2)+getvalue(k.hyperparameters)[2])^(getvalue(k.hyperparameters)[3]-1)
 end
+
+"""
+    ARD Kernel
+"""
+
+mutable struct ARDKernel <: Kernel
+    @kernelfunctionfields
+    function ARDKernel(θ::Array{Float64}=[1.0];dim=0,weight::Float64=1.0)
+        if length(θ)==1 && dim ==0
+            error("You defined an ARD kernel without precising the number of dimensions
+                             Please set dim in your kernel initialization or use ARDKernel(X,θ)")
+        elseif dim!=0 && (length(params)!=dim && length(params)!=1)
+            warn("You did not use the same dimension for your params and dim, using the first value of params for all dimensions")
+            θ = ones(dim)*θ[1]
+        elseif length(params)==1 && dim!=0
+            θ = ones(dim)*θ[1]
+        end
+        return new("ARD",HyperParameter(weight),HyperParameters(θ),length(θ),SquaredEuclidean)
+    end
+    function ARDKernel
+end
+function compute(k::ARDKernel,X1,X2,weight::Bool=true)
+    if X1==X2
+        return 1.0
+    end
+    return (weight?getvalue(k.weight):1.0)*exp(-0.5*sum(((X1-X2)./getvalue(k.hyperparameters).^2)))
+end
+#
+function compute_deriv(k::ARDKernel,X1,X2,weight::Bool=true)
+    if X1 == X2
+        return zeros(k.Nparameters)
+    end
+    return 2*(X1-X2).^2./(getvalue(k.hyperparameters).^3)*compute(k,X1,X2)
+end
+
+function compute_point_deriv(k::ARDKernel,X1,X2)
+    if X1==X2
+        return zeros(X1)
+    end
+    return -2*(X1-X2)./(getvalue(k.hyperparameters).^2).*compute(k,X1,X2)
+end
+
 
 # type Kernel
 #     name::String #Type of function

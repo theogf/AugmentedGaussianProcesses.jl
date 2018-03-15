@@ -29,16 +29,16 @@ function applyHyperParametersGradients!(model::GPModel,gradients)
 end
 
 function updateHyperParameters!(model::FullBatchModel)
-    Jnn = compute_J(model.kernel,compute_unmappedJ(model.kernel,model.X),model.nSamples,model.nSamples)
+    Jnn = derivativekernelmatrix(model.kernel,model.X)
     apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jnn]))
 end
 function updateHyperParameters!(model::SparseModel)
-    Jmm = compute_J(model.kernel,compute_unmappedJ(model.kernel,model.inducingPoints),model.m,model.m)
-    Jmm = compute_J(model.kernel,compute_unmappedJ(model.kernel,model.X[model.MBIndices],model.inducingPoints),model.nSamplesUsed,model.m)
-    Jnn = compute_J(model.kernel,compute_unmappeddiagJ(model.kernel,model.X[model.MBIndices]),model.nSamplesUsed,diag=true)
+    Jmm = derivativekernelmatrix(model.kernel,model.inducingPoints)
+    Jnm = derivativekernelmatrix(model.kernel,model.X[model.MBIndices,:],model.inducingPoints)
+    Jnn = derivativediagkernelmatrix(model.kernel,model.X[model.MBIndices,:])
     apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jmm,Jnm,Jnn]))
     if model.OptimizeInducingPoints
-        inducingpoints_gradients = inducingpointsGradients(model)
+        inducingpoints_gradients = inducingpoints_gradient(model)
         model.inducingPoints += GradDescent.update(model.optimizer,inducingpoints_gradients)
     end
 end
@@ -47,8 +47,8 @@ end
 function hyperparameter_gradient_function(model::FullBatchModel)
     A = model.invK*(model.ζ+model.µ*transpose(model.μ))-eye(model.nSamples)
     return function(Js)
-                V_param = model.invK*Js[1]
-                return 0.5*sum(V_param.*transpose(A))
+                V = model.invK*Js[1]
+                return 0.5*sum(V.*transpose(A))
             end
 end
 
