@@ -60,18 +60,17 @@ function hyperparameter_gradient_function(model::SparseXGPC)
     B = model.μ*transpose(model.μ) + model.ζ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     Θ = Diagonal(0.25./model.α[model.MBIndices].*tanh.(0.5*model.α[model.MBIndices]))
-    dim = size(model.X,2)
     return function(Js)
                 Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
-                Jtilde = Jnn_param - sum(ι.*(Kmn.'),2) - sum(model.κ.*Jnm,2)
+                Jtilde = Jnn - sum(ι.*(Kmn.'),2) - sum(model.κ.*Jnm,2)
                 V = model.invKmm*Jmm
                 return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*Θ*model.κ + model.κ'*Θ*ι)) .* transpose(B)) - trace(V) - model.StochCoeff*dot(diag(Θ),Jtilde)
                     + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
      end
 end
 function inducingpoints_gradient(model::SparseXGPC)
-    gradients_inducing_points = zeros(model.m,dim)
+    gradients_inducing_points = zeros(model.inducingPoints)
     for i in 1:model.m #Iterate over the points
         Jnm,Jmm = computeIndPointsJ(model,i)
         for j in 1:dim #iterate over the dimensions

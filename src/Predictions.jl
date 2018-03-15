@@ -96,7 +96,7 @@ end
 function logitpredictproba(model::FullBatchModel,X_test)
     nPoints = size(X_test,1)
     K_starN = kernelmatrix(X_test,model.X,model.kernel)
-    K_starstar = kernelmatrix(X_test,model.kernel)
+    K_starstar = daigkernelmatrix(X_test,model.kernel)
     m = K_starN*model.invK*model.μ;
     cov = K_starstar+sum((K_starN*model.invK).*transpose((model.ζ*model.invK-eye(model.nFeatures))*transpose(K_starN)),2)
     predic = zeros(nPoints)
@@ -114,7 +114,7 @@ function logitpredictproba(model::SparseModel,X_test)
     nPoints = size(X_test,1)
     ksize = model.m
     K_starM = kernelmatrix(X_test,model.inducingPoints,model.kernel)
-    K_starstar = kernelmatrix(X_test,model.kernel)
+    K_starstar = diagkernelmatrix(X_test,model.kernel)
     m = K_starM*model.invKmm*model.μ;
     cov = K_starstar+sum((K_starM*model.invKmm).*transpose((model.ζ*model.invKmm-eye(model.nFeatures))*transpose(K_starM)),2)
     if count(cov.<=0)>0

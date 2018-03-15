@@ -5,6 +5,20 @@ General Framework for the data augmented Gaussian Processes
 """
 module OMGP
 
+@enum GPModelType Undefined=0 BSVM=1 XGPC=2 Regression=3
+
+#Class arborescence
+
+abstract type GPModel end
+
+abstract type LinearModel <: GPModel end
+
+abstract type NonLinearModel <: GPModel end
+
+abstract type SparseModel <: NonLinearModel end
+
+abstract type FullBatchModel <: NonLinearModel end
+
 include("KernelFunctions.jl")
 include("KMeansModule.jl")
 include("PGSampler.jl")
@@ -28,21 +42,7 @@ export GPRegression, SparseGPRegression
 #General class definitions
 export GPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 export ELBO
-export Kernel
-
-@enum GPModelType Undefined=0 BSVM=1 XGPC=2 Regression=3
-
-#Class arborescence
-
-abstract type GPModel end
-
-abstract type LinearModel <: GPModel end
-
-abstract type NonLinearModel <: GPModel end
-
-abstract type SparseModel <: NonLinearModel end
-
-abstract type FullBatchModel <: NonLinearModel end
+export Kernel, RBFKernel
 
 include("GPFields.jl")
 #Models

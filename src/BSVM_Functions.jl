@@ -79,11 +79,10 @@ function hyperparameter_gradient_function(model::SparseBSVM)
                 return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*A*model.κ + model.κ'*A*ι)) .* transpose(B)) - trace(V) - model.StochCoeff*dot(diag(A),Jtilde)
                     + 2.0*model.StochCoeff*dot(model.y[model.MBIndices],(1+A)*ι*model.μ))
             end
-    end
 end
-#TODO Also to correct
+
 function inducingpoints_gradient(model::SparseBSVM)
-    gradients_inducing_points = zeros(model.m,dim)
+    gradients_inducing_points = zeros(model.inducingPoints)
     for i in 1:model.m #Iterate over the points
         Jnm,Jmm = computeIndPointsJ(model,i)
         for j in 1:dim #iterate over the dimensions

@@ -45,45 +45,29 @@ function naturalGradientELBO_Regression(y,κ,γ;stoch_coeff=1.0)
 end
 
 
-function computeHyperParametersGradients(model::GPRegression,iter::Integer)
+function hyper_parameter_gradient_function(model::GPRegression)
     A = model.invK*(model.y*transpose(model.y))-eye(model.nSamples)
-    #Update of both the coefficients and hyperparameters of the kernels
-    gradients_kernel_param = zeros(model.nKernels)
-    gradients_kernel_coeff = zeros(model.nKernels)
-    for i in 1:model.nKernels
-        V_param = model.invK*model.Kernels[i].coeff*computeJ(model,model.Kernels[i].compute_deriv)
-        V_coeff = model.invK*computeJ(model,model.Kernels[i].compute)
-        gradients_kernel_param[i] = 0.5*sum(V_param.*transpose(A))
-        gradients_kernel_coeff[i] = 0.5*sum(V_coeff.*transpose(A))
-    end
-    return gradients_kernel_param,gradients_kernel_coeff
+    return function(Js)
+                V = model.invK*Js[1]
+                return 0.5*sum(V_param.*transpose(A))
+            end
 end
 
-function computeHyperParametersGradients(model::SparseGPRegression,iter::Integer)
+function hyperparameter_gradient_function(model::SparseGPRegression)
     B = model.μ*transpose(model.μ) + model.ζ
-    Kmn = CreateKernelMatrix(model.inducingPoints,model.Kernel_function;X2=model.X[model.MBIndices,:])
-    dim = size(model.X,2)
-    #Update of both the coefficients and hyperparameters of the kernels
-    gradients_kernel_param = zeros(model.nKernels)
-    gradients_kernel_coeff = zeros(model.nKernels)
-    for i in 1:model.nKernels
-        #Compute the derivative of the kernel matrices given the kernel lengthscale
-        Jnm_param,Jnn_param,Jmm_param = model.Kernels[i].coeff.*computeJ(model,model.Kernels[i].compute_deriv)
-        ι_param = (Jnm_param-model.κ*Jmm_param)*model.invKmm
-        Jtilde_param = Jnn_param - sum(ι_param.*(Kmn.'),2) - sum(model.κ.*Jnm_param,2)
-        V_param = model.invKmm*Jmm_param
-        gradients_kernel_param[i] = 0.5*(sum( (V_param*model.invKmm - model.StochCoeff/model.γ*(ι_param'*model.κ + model.κ'*ι_param)) .* transpose(B)) - trace(V_param) - model.StochCoeff/model.γ*sum(Jtilde_param)
-         + 2*model.StochCoeff/model.γ*dot(model.y[model.MBIndices],ι_param*model.μ))
-        #Compute the derivative of the kernel matrices given the kernel weight
-        Jnm_coeff,Jnn_coeff,Jmm_coeff = computeJ(model,model.Kernels[i].compute)
-        ι_coeff = (Jnm_coeff-model.κ*Jmm_coeff)*model.invKmm
-        Jtilde_coeff = Jnn_coeff - sum(ι_coeff.*(Kmn.'),2) - sum(model.κ.*Jnm_coeff,2)
-        V_coeff = model.invKmm*Jmm_coeff
-        gradients_kernel_coeff[i] = 0.5*(sum(( V_coeff*model.invKmm - model.StochCoeff/model.γ*(ι_coeff'*model.κ + model.κ'*ι_coeff)) .* transpose(B)) -trace(V_coeff) - model.StochCoeff/model.γ*sum(Jtilde_coeff)
-         + 2*model.StochCoeff/model.γ*dot(model.y[model.MBIndices],ι_coeff*model.μ))
-    end
-    if model.OptimizeInducingPoints
-        gradients_inducing_points = zeros(model.m,dim)
+    Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
+    return function(Js)
+            Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
+            ι = (Jnm-model.κ*Jmm)*model.invKmm
+            Jtilde = Jnn - sum(ι.*(Kmn.'),2) - sum(model.κ.*Jnm,2)
+            V = model.invKmm*Jmm
+            return 0.5*(sum( (V*model.invKmm - model.StochCoeff/model.γ*(ι'*model.κ + model.κ'*ι)) .* transpose(B)) - trace(V) - model.StochCoeff/model.γ*sum(Jtilde)
+             + 2*model.StochCoeff/model.γ*dot(model.y[model.MBIndices],ι*model.μ))
+        end
+end
+
+function inducingpoints_gradient(model::SparseGPRegression)
+        gradients_inducing_points = zeros(model.inducingPoints)
         for i in 1:model.m #Iterate over the points
             Jnm,Jmm = computeIndPointsJ(model,i)
             for j in 1:dim #iterate over the dimensions
@@ -94,8 +78,5 @@ function computeHyperParametersGradients(model::SparseGPRegression,iter::Integer
                  + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
             end
         end
-        return gradients_kernel_param,gradients_kernel_coeff,gradients_inducing_points
-    else
-        return gradients_kernel_param,gradients_kernel_coeff
-    end
+        return gradients_inducing_points
 end

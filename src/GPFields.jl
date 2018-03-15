@@ -7,10 +7,12 @@ macro def(name, definition)
     end
 end
 
+
+
 @def commonfields begin
     #Data
     X #Feature vectors
-    y #Labels (-1,1)
+    y #Output (-1,1 for classification, real for regression)
     ModelType::GPModelType; #Type of classifier
     Name::String #Name of the Classifier
     nSamples::Int64 # Number of data points
@@ -41,14 +43,14 @@ the `verboseLevel` (from 0 to 3), enabling `Autotuning`, the `AutotuningFrequenc
 what `optimizer` to use
 """
 function initCommon!(model::GPModel,X,y,γ,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer)
-    @assert size(y,1)!=size(X,1) "There is a dimension problem with the data size(y)!=size(X)");
+    @assert (size(y,1)==size(X,1)) "There is a dimension problem with the data size(y)!=size(X)";
     model.X = X; model.y = y;
     @assert γ > 0 "γ should be a positive float"; model.γ = γ;
     @assert ϵ > 0 "ϵ should be a positive float"; model.ϵ = ϵ;
     @assert nEpochs > 0 "nEpochs should be positive"; model.nEpochs = nEpochs;
     @assert (VerboseLevel > -1 && VerboseLevel < 4) "VerboseLevel should be in {0,1,2,3}, here value is $VerboseLevel"; model.VerboseLevel = VerboseLevel;
     model.Autotuning = Autotuning; model.AutotuningFrequency = AutotuningFrequency;
-    model.opt_type = optimizer;
+    # model.opt_type = optimizer;
     model.nSamples = size(X,1); #model.nSamplesUsed = model.nSamples;
     model.Trained = false; model.Stochastic = false;
     model.TopMatrixForPrediction = 0; model.DownMatrixForPrediction = 0; model.MatricesPrecomputed=false;
@@ -154,7 +156,7 @@ function initGaussian!(model::GPModel,μ_init)
     #Initialize gaussian parameters and check for consistency
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
       if model.VerboseLevel > 2
-        warn("Initial mean of the variarandntional distribution is sampled from a multinormal distribution")
+        warn("Initial mean of the variational distribution is sampled from a multinormal distribution")
       end
       model.μ = randn(model.nFeatures)
     else

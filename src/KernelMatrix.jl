@@ -29,7 +29,7 @@ function kernelmatrix!(K,X,kernel)
         K[i,j] = compute(kernel,X[i,:],X[j,:])
       end
     end
-    return Symmetric(K,uplo=:L)
+    return Symmetric(K,:L)
 end
 function kernelmatrix(X,kernel)
     n = size(X,1);
@@ -60,13 +60,26 @@ end
 """
 
 
+function derivativekernelmatrix(kernel,X1,X2)
+    return compute_J(kernel,compute_unmappedJ(kernel,X1,X2),size(X1,1),size(X2,1))
+end
+
+function derivativekernelmatrix(kernel,X)
+    return compute_J(kernel,compute_unmappedJ(kernel,X),size(X,1),size(X,1))
+end
+
+function derivativediagkernelmatrix(kernel,X)
+    return compute_J(kernel,compute_unmappeddiagJ(kernel,X),size(X,1),true,diag=true)
+end
+
+
 function compute_unmappedJ(kernel,X1,X2)
     n1 = size(X1,1)
     n2 = size(X2,1)
     J = Array{Any,2}(n1,n2)
     for i in 1:n1
         for j in 1:n2
-            J[i,j] = compute_deriv(kernel,X[i,:],Y[j,:],true)
+            J[i,j] = compute_deriv(kernel,X1[i,:],X2[j,:],true)
         end
     end
     return J[:]
@@ -90,23 +103,23 @@ function compute_unmappeddiagJ(kernel,X)
     n = size(X,1)
     J = Array{Any,1}(n)
     for i in 1:n
-        J[i,i] = compute_deriv(kernel,X[i,:],X[i,:],true)
+        J[i] = compute_deriv(kernel,X[i,:],X[i,:],true)
     end
-    return J[:]
+    return J
 end
 
-function compute_J(k::KernelSum,J,n1,n2,weight::Bool=true,diag::Bool=false)
+function compute_J(k::KernelSum,J,n1,n2,weight::Bool=true;diag::Bool=false)
     J_mat = Array{Any,1}()
     for (i,kernel) in enumerate(k.kernel_array)
-        push!(J_mat,compute_J(kernel,broadcast(x->x[i],J),n1,n2,true))
+        push!(J_mat,compute_J(kernel,broadcast(x->x[i],J),n1,n2,true,diag=diag))
     end
     return J_mat
 end
 
-function compute_J(k::KernelProduct,J,n1,n2,weight::Bool=true,diag::Bool=false)
+function compute_J(k::KernelProduct,J,n1,n2,weight::Bool=true;diag::Bool=false)
     J_mat = Array{Any,1}()
     for (i,kernel) in enumerate(k.kernel_array)
-        push!(J_mat,compute_J(kernel,broadcast(x->x[i],J),n1,n2,false))
+        push!(J_mat,compute_J(kernel,broadcast(x->x[i],J),n1,n2,false,diag=diag))
     end
     if weight
         if diag
@@ -118,7 +131,7 @@ function compute_J(k::KernelProduct,J,n1,n2,weight::Bool=true,diag::Bool=false)
     return J_mat
 end
 
-function compute_J(k::Kernel,J,n1,n2,weight::Bool=true,diag::Bool=false)
+function compute_J(k::Kernel,J,n1,n2,weight::Bool=true;diag::Bool=false)
     J_mat = Array{Any,1}()
     for i in k.Nparameters
         if diag
@@ -189,7 +202,7 @@ function CreateColumnMatrix(n,m,iter,gradient)
 end
 
 #Compute the gradients given the inducing point locations
-function computeIndPointsJ(model::SparseModel,iter)
+function computeIndPointsJ(model,iter)
     dim = size(model.X,2)
     Dnm = zeros(model.nSamplesUsed,dim)
     Dmm = zeros(model.m,dim)

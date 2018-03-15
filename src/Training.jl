@@ -45,7 +45,7 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
         end
         updateParameters!(model,iter) #Update all the variational parameters
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
-            updateHyperParameters!(model,iter) #Do the hyper-parameter optimization
+            updateHyperParameters!(model) #Do the hyper-parameter optimization
             computeMatrices!(model)
         end
         if !isa(model,GPRegression)
@@ -108,7 +108,7 @@ end
 
 function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated
-        model.invKmm = inv(kernelmatrix(model.inducingPoints,model.kernel)++model.γ*eye(model.nFeatures))
+        model.invKmm = inv(kernelmatrix(model.inducingPoints,model.kernel)+model.γ*eye(model.nFeatures))
     end
     #If change of hyperparameters or if stochatic
     if model.HyperParametersUpdated || model.Stochastic
@@ -121,7 +121,7 @@ end
 
 function computeMatrices!(model::FullBatchModel)
     if model.HyperParametersUpdated
-        model.invK = inv(kernelmatrix(model.X,model.kernel) + model.γ*eye(model.nFeatures),:U))
+        model.invK = inv(kernelmatrix(model.X,model.kernel) + model.γ*eye(model.nFeatures))
         model.HyperParametersUpdated = false
     end
 end
