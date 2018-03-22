@@ -4,23 +4,32 @@
 # """
 
 module KernelFunctions
-# macro def(name, definition)
-#     return quote
-#         macro $(esc(name))()
-#             esc($(Expr(:quote, definition)))
-#         end
-#     end
-# end
+
+#Simple tool to define macros
+macro kernelfunctionfields()
+    return esc(quote
+        name::String #Name of the kernel function
+        weight::HyperParameter #Weight of the kernel
+        hyperparameters::AbstractHyperParameter #Parameters of the kernel
+        Nparameters::Int64 #Number of parameters
+        pairwisefunction::Function
+    end)
+end
 
 using GradDescent
 using Plots;
 pyplot();
+
+
+
 import Base: *, +, getindex
 export Kernel, KernelSum, KernelProduct
-export RBFKernel, LaplaceKernel, SigmoidKernel
+export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 export kernelmatrix,kernelmatrix!,diagkernelmatrix,diagkernelmatrix!
 export derivativekernelmatrix,derivativediagkernelmatrix,compute_hyperparameter_gradient,apply_gradients!
 export compute,plotkernel
+
+
 
 abstract type Kernel end;
 
@@ -43,7 +52,6 @@ mutable struct HyperParameters <: AbstractHyperParameter
         end
         return this
     end
-
 end
 
 
@@ -54,31 +62,16 @@ setvalue(param::HyperParameters,θ::Float64) = broadcast(x->setvalue(x,θ),param
 update!(param::HyperParameter,grad) = param.value += GradDescent.update(param.opt,grad)
 update!(param::HyperParameters,grad) = for i in 1:length(param.hyperparameters); param.hyperparameters[i].value += GradDescent.update(param.hyperparameters[i].opt,grad[i]);end;
 
-#Simple tool to define macros
-macro def(name, definition)
-    return quote
-        macro $(esc(name))()
-            esc($(Expr(:quote, definition)))
-        end
-    end
-end
+
 
 InnerProduct(X1,X2) = dot(X1,X2);
 SquaredEuclidean(X1,X2) = norm(X1-X2,2)
 Identity(X1,X2) = (X1,X2)
-end
 
-@def kernelfunctionfields begin
-    name::String #Name of the kernel function
-    weight::HyperParameter #Weight of the kernel
-    hyperparameters::AbstractHyperParameter #Parameters of the kernel
-    Nparameters::Int64 #Number of parameters
-    pairwisefunction::Function
-end
 
 
 mutable struct KernelSum <: Kernel
-    @kernelfunctionfields
+    @kernelfunctionfields()
     kernel_array::Array{Kernel,1} #Array of summed kernels
     Nkernels::Int64
     #Constructors
@@ -335,12 +328,11 @@ mutable struct ARDKernel <: Kernel
         elseif dim!=0 && (length(params)!=dim && length(params)!=1)
             warn("You did not use the same dimension for your params and dim, using the first value of params for all dimensions")
             θ = ones(dim)*θ[1]
-        elseif length(params)==1 && dim!=0
+        elseif length(θ)==1 && dim!=0
             θ = ones(dim)*θ[1]
         end
         return new("ARD",HyperParameter(weight),HyperParameters(θ),length(θ),SquaredEuclidean)
     end
-    function ARDKernel
 end
 function compute(k::ARDKernel,X1,X2,weight::Bool=true)
     if X1==X2
@@ -362,6 +354,7 @@ function compute_point_deriv(k::ARDKernel,X1,X2)
     end
     return -2*(X1-X2)./(getvalue(k.hyperparameters).^2).*compute(k,X1,X2)
 end
+
 
 
 # type Kernel
@@ -436,47 +429,6 @@ end
 # end
 
 
-function ARD(X1::Array{Float64,1},X2::Array{Float64,1},θ)
-    if X1==X2
-        return 1
-    end
-    return exp(-0.5*sum(((X1-X2)./θ).^2))
-end
-
-function deriv_ARD(X1,X2,θ)
-    if X1 == X2
-        return 0
-    end
-    return 2*(X1-X2).^2./(θ.^3)*ARD(X1,X2,θ)
-end
-
-function deriv_point_ARD(X1,X2,θ)
-    if X1==X2
-        return 0
-    end
-    return -2*(X1-X2)./(θ.^2).*ARD(X1,X2,θ)
-end
-
-#Polynomial Kernel
-
-
-
-#Laplace Kernel
-function laplace(X1::Array{Float64,1},X2::Array{Float64,1},Θ)
-    if X1 == X2
-        return 1
-    end
-    return exp(-norm(X1-X2,2)/θ[1])
-end
-
-function deriv_laplace(X1::Array{Float64,1},X2::Array{Float64,1},Θ)
-    a = norm(X1-X2,2)
-    return a/(θ[1]^2)*exp(-a/θ[1])
-end
-
-function deriv_point_laplace(X1::Array{Float64,1},X2::Array{Float64,1},Θ)
-    return 0
-end
 
 #The ANOVA kernel is not super well defined for now #TODO
 # function anov(x,i,y,j,k,K)

@@ -42,7 +42,7 @@ export GPRegression, SparseGPRegression
 #General class definitions
 export GPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 export ELBO
-export Kernel, RBFKernel
+export Kernel, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 
 include("GPFields.jl")
 #Models

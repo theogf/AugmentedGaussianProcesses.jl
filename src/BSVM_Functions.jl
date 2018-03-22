@@ -75,6 +75,7 @@ function hyperparameter_gradient_function(model::SparseBSVM)
     return function(Js)
                 Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3]
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
+                Jtilde = Jnn - sum(ι.*(Kmn.'),2) - sum(model.κ.*Jnm,2)
                 V = model.invKmm*Jmm
                 return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*A*model.κ + model.κ'*A*ι)) .* transpose(B)) - trace(V) - model.StochCoeff*dot(diag(A),Jtilde)
                     + 2.0*model.StochCoeff*dot(model.y[model.MBIndices],(1+A)*ι*model.μ))
