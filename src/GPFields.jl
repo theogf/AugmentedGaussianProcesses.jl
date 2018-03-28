@@ -118,6 +118,7 @@ end
     inducingPoints::Array{Float64,2} #Inducing points coordinates for the Big Data GP
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
     optimizer::Optimizer #Optimizer for the inducing points
+    Kmm::Array{Float64,2} #Kernel matrix
     invKmm::Array{Float64,2} #Inverse Kernel matrix of inducing points
     Ktilde::Array{Float64,1} #Diagonal of the covariance matrix between inducing points and generative points
     κ::Array{Float64,2} #Kmn*invKmm

@@ -108,14 +108,15 @@ end
 
 function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated
-        model.invKmm = Symmetric(inv(kernelmatrix(model.inducingPoints,model.kernel)+model.γ*eye(model.nFeatures)))
+        model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+model.γ*eye(model.nFeatures))
+        model.invKmm = inv(model.Kmm)
     end
     #If change of hyperparameters or if stochatic
     if model.HyperParametersUpdated || model.Stochastic
         Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
-        model.κ = Knm*model.invKmm
-        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*Knm,2)[:]
-        # model.γ*ones(length(model.MBIndices))
+        model.κ = Knm/model.Kmm
+        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) + model.γ*ones(length(model.MBIndices)) - sum(model.κ.*Knm,2)[:]
+        @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
     end
     model.HyperParametersUpdated=false
 end

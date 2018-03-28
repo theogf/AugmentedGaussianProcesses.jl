@@ -17,6 +17,7 @@ function getLog(model,X_test=0,y_test=0,iter_points=vcat(1:99,100:10:999,1000:10
                 push!(metrics,:ELBO,iter,model.elbo())
                 push!(metrics,:mu,iter,model.μ)
                 push!(metrics,:sigma,iter,diag(model.ζ))
+                push!(metrics,:kernel_weight,iter,model.kernel.weight.value)
         end
     end
     return metrics,SaveLog

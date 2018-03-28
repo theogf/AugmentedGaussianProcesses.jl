@@ -4,27 +4,55 @@ File treating all the prediction functions
 
 
 #### Computation of predictions with and without variance using the probit and logit link ####
+# function fstar(model::LinearModel,X_test,cov::Bool=true)
+# end
+
+function fstar(model::FullBatchModel,X_test,covf::Bool=true)
+    if model.DownMatrixForPrediction == 0
+        if covf && model.TopMatrixForPrediction == 0
+            model.TopMatrixForPrediction = model.invK*model.μ
+        end
+      model.DownMatrixForPrediction = (model.invK*(eye(model.nSamples)-model.ζ*model.invK))
+    end
+    k_star = kernelmatrix(X_test,model.X,model.kernel)
+    mean_fstar = k_star*model.TopMatrixForPrediction
+    if !covf
+        return mean_fstar
+    else
+        k_starstar = diagkernelmatrix(X_test,model.kernel)
+        cov_fstar = k_starstar - sum(k_star.*transpose(model.DownMatrixForPrediction*k_star'),2)
+        return mean_fstar,cov_fstar
+    end
+end
+
+function fstar(model::SparseModel,X_test,covf::Bool=true)
+    if model.DownMatrixForPrediction == 0
+        if covf && model.TopMatrixForPrediction == 0
+            model.TopMatrixForPrediction = model.Kmm\model.μ
+        end
+      model.DownMatrixForPrediction = (model.Kmm\(eye(model.nFeatures)-model.ζ/model.Kmm))
+    end
+    k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
+    mean_fstar = k_star*model.TopMatrixForPrediction
+    if !covf
+        return mean_fstar
+    else
+        k_starstar = diagkernelmatrix(X_test,model.kernel)
+        cov_fstar = k_starstar - sum(k_star.*transpose(model.DownMatrixForPrediction*k_star'),2)
+        return mean_fstar,cov_fstar
+    end
+end
 
 function probitpredict(model::LinearModel,X_test)
     return model.Intercept ? [ones(Float64,size(X_test,1)) X_test]*model.μ : X_test*model.μ
 end
 
 function probitpredict(model::FullBatchModel,X_test)
-    n = size(X_test,1)
-    if model.TopMatrixForPrediction == 0
-      model.TopMatrixForPrediction = model.invK*model.μ
-    end
-    k_star = kernelmatrix(X_test,model.X,model.kernel)
-    return k_star*model.TopMatrixForPrediction
+    return fstar(model,X_test,covf=false)
 end
 
 function probitpredict(model::SparseModel,X_test)
-    n = size(X_test,1)
-    if model.TopMatrixForPrediction == 0
-      model.TopMatrixForPrediction = model.invKmm*model.μ
-    end
-    k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
-    return k_star*model.TopMatrixForPrediction
+    return fstar(model,X_test,covf=false)
 end
 
 function probitpredictproba(model::LinearModel,X_test)
@@ -40,38 +68,13 @@ function probitpredictproba(model::LinearModel,X_test)
 end
 
 function probitpredictproba(model::FullBatchModel,X_test)
-    n = size(X_test,1)
-    if model.DownMatrixForPrediction == 0
-        if model.TopMatrixForPrediction == 0
-            model.TopMatrixForPrediction = model.invK*model.μ
-        end
-      model.DownMatrixForPrediction = (model.invK*(eye(model.nSamples)-model.ζ*model.invK))
-    end
-    predic = zeros(n)
-    k_star = kernelmatrix(X_test,model.X,model.kernel)
-    k_starstar = diagkernelmatrix(X_test,model.kernel)
-    for i in 1:n
-      predic[i] = cdf(Normal(),(dot(k_star[i,:],model.TopMatrixForPrediction))/(k_starstar[i] - dot(k_star[i,:],model.DownMatrixForPrediction*k_star[i,:]) + 1))
-    end
-    return predic
+    m_f,cov_f = fstar(model,X_test,covf=true)
+    return broadcast((m,c)->cdf(Normal(),m/(c+1)),m_f,cov_f)
 end
 
 function probitpredictproba(model::SparseModel,X_test)
-    n = size(X_test,1)
-    if model.DownMatrixForPrediction == 0
-      if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = model.invKmm*model.μ
-      end
-      model.DownMatrixForPrediction = (model.invKmm*(eye(model.m)-model.ζ*model.invKmm))
-    end
-    k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
-    k_starstar = diagkernelmatrix(X_test,model.kernel)
-    mean_fstar = k_star*model.TopMatrixForPrediction
-    cov_fstar = k_starstar - sum(k_star.*transpose(model.DownMatrixForPrediction*k_star'),2)
-    predic = broadcast((x,y)->cdf(Normal(),x/(y+1)),mean_fstar,cov_fstar)
-    # for i in 1:n
-    #   predic[i] = cdf(Normal(),m[i]/(k_starstar[i] - dot(k_star[i,:],model.DownMatrixForPrediction*k_star[i,:]) + 1))
-    # end
+    m_f,cov_f = fstar(model,X_test,covf=true)
+    predic = broadcast((m,c)->cdf(Normal(),m/(c+1)),m_f,cov_f)
     return predic
 end
 
@@ -85,50 +88,16 @@ function logitpredict(model::GPModel,X_test)
     return y_predic
 end
 
-function logitpredictproba(model::FullBatchModel,X_test)
-    nPoints = size(X_test,1)
-    if model.DownMatrixForPrediction == 0
-      if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = model.invK*model.μ
-      end
-      model.DownMatrixForPrediction = (model.invK*(eye(model.nSamples)-model.ζ*model.invK))
-    end
-    k_star = kernelmatrix(X_test,model.X,model.kernel)
-    k_starstar = diagkernelmatrix(X_test,model.kernel)
-    mean_fstar = k_star*model.TopMatrixForPrediction;
-    cov_fstar = k_starstar-sum(k_star.*transpose(model.DownMatrixForPrediction*k_star'),2)
-    @assert count(cov_fstar.<=0)==0  error("Covariance under 0")
+function logitpredictproba(model::GPModel,X_test)
+    m_f,cov_f = fstar(model,X_test,covf=true)
+    @assert minimum(cov_f)<0  error("Covariance under 0")
     predic = zeros(nPoints)
     for i in 1:nPoints
         d= Normal(mean_fstar[i],cov_fstar[i])
         f=function(x)
             return logit(x)*pdf(d,x)
         end
-        predic[i] = quadgk(f,mean_fstar[i]-10*cov_fstar[i],mean_fstar[i]+10*cov_fstar[i])[1]
-    end
-    return predic
-end
-
-function logitpredictproba(model::SparseModel,X_test)
-    nPoints = size(X_test,1)
-    if model.DownMatrixForPrediction == 0
-      if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = model.invKmm*model.μ
-      end
-      model.DownMatrixForPrediction = (model.invKmm*(eye(model.m)-model.ζ*model.invKmm))
-    end
-    k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
-    k_starstar = diagkernelmatrix(X_test,model.kernel)
-    mean_fstar = k_star*model.TopMatrixForPrediction;
-    cov_fstar = k_starstar-sum(k_star.*transpose(model.DownMatrixForPrediction*k_star'),2)
-    @assert count(cov_fstar.<=0)==0  error("Covariance under 0")
-    predic = zeros(nPoints)
-    for i in 1:nPoints
-        d= Normal(mean_fstar[i],cov_fstar[i])
-        f=function(x)
-            return logit(x)*pdf(d,x)
-        end
-        predic[i] = quadgk(f,mean_fstar[i]-10*cov_fstar[i],mean_fstar[i]+10*cov_fstar[i])[1]
+        predic[i] = quadgk(f,m_f[i]-10*cov_f[i],m_f[i]+10*cov_f[i])[1]
     end
     return predic
 end
@@ -142,11 +111,7 @@ function regpredict(model::GPRegression,X_test)
 end
 
 function regpredict(model::SparseGPRegression,X_test)
-    if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = model.invKmm*model.μ
-    end
-    k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
-    return k_star*model.TopMatrixForPrediction
+    return fstar(model,X_test,covf=false)
 end
 
 #Return the mean and variance of the predictive distribution of f*

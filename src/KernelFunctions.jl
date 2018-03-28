@@ -37,9 +37,10 @@ abstract type AbstractHyperParameter end;
 
 mutable struct HyperParameter <: AbstractHyperParameter
     value::Float64
+    fixed::Bool
     opt::Optimizer
     function HyperParameter(θ::Float64;opt::Optimizer=Adam())
-        new(θ,opt)
+        new(θ,false,opt)
     end
 end
 
@@ -59,9 +60,9 @@ getvalue(param::HyperParameter) = param.value
 getvalue(param::HyperParameters) = broadcast(x->x.value,param.hyperparameters)
 setvalue(param::HyperParameter,θ::Float64) = param.value=θ
 setvalue(param::HyperParameters,θ::Float64) = broadcast(x->setvalue(x,θ),param.hyperparameters)
-update!(param::HyperParameter,grad) = param.value += GradDescent.update(param.opt,grad)
-update!(param::HyperParameters,grad) = for i in 1:length(param.hyperparameters); param.hyperparameters[i].value += GradDescent.update(param.hyperparameters[i].opt,grad[i]);end;
-
+update!(param::HyperParameter,grad) = !param.fixed ? param.value += GradDescent.update(param.opt,grad) : nothing
+update!(param::HyperParameters,grad) = for i in 1:length(param.hyperparameters); !param.hyperparameters[i].fixed ? param.hyperparameters[i].value += GradDescent.update(param.hyperparameters[i].opt,grad[i]):nothing;end;
+isfixed(param::HyperParameter) = param.fixed
 
 
 InnerProduct(X1,X2) = dot(X1,X2);
@@ -235,7 +236,7 @@ function compute(k::LaplaceKernel,X1,X2,weight::Bool=true)
 end
 #
 function compute_deriv(k::LaplaceKernel,X1,X2,weight::Bool=true)
-    a = pairwisefunction(X1,X2)
+    a = k.pairwisefunction(X1,X2)
     if a != 0
         grad = a/(getvalue(k.hyperparameters)^2)*compute(k,X1,X2)
         if weight

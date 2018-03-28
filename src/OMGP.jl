@@ -45,7 +45,7 @@ export GPRegression, SparseGPRegression
 export GPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 #Useful functions
 export getLog
-export Kernel, kernelmatrix, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
+export Kernel, diagkernelmatrix, kernelmatrix, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 
 include("GPFields.jl")
 #Models
