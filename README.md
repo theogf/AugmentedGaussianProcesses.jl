@@ -1,6 +1,6 @@
 # OMGP!
 
-Oh My GP! is a Julia package in development for **extremely efficient Gaussian Processes algorithms**. It contains for the moment only two classifiers : the Bayesian SVM, and a state-of-the-art algorithm for classification using the logit link called X-GPC. It is planned to implement Regression, as well as more complex likelihood, including the multi-class classification.
+Oh My GP! is a Julia package in development for **extremely efficient Gaussian Processes algorithms**. It contains for the moment only two classifiers : the Bayesian SVM, and a state-of-the-art algorithm for classification using the logit link called X-GPC and a regression model . It is planned to implement more complex likelihoods, including the multi-class classification.
 
 ## Install the package
 
@@ -27,8 +27,11 @@ There is also a more complete example in a Julia notebook : [Classification with
 
 ECML 17' "Bayesian Nonlinear Support Vector Machines for Big Data" by Florian Wenzel, Théo Galy-Fajou, Matthäus Deutsch and Marius Kloft. [https://arxiv.org/abs/1707.05532][arxivbsvm]
 
-Arxiv "Efficient Gaussian Process Classification using Polya-Gamma Variables" [https://arxiv.org/abs/1802.06383][arxivxgpc]
+Arxiv "Efficient Gaussian Process Classification using Polya-Gamma Variables" by Florian Wenzel, Théo Galy-Fajou, Christian Donner, Marius Kloft and Manfred Opper. [https://arxiv.org/abs/1802.06383][arxivxgpc]
 
+UAI 13' "Gaussian Process for Big Data" by James Hensman, Nicolo Fusi and Neil D. Lawrence [https://arxiv.org/abs/1309.6835][arxivgpbigdata]
+
+[arxivgpbigdata]:https://arxiv.org/abs/1309.6835
   [31b06e91]: https://github.com/theogf/OMGP.jl/blob/master/examples/Classification%20-%20SXGPC.ipynb "Classification with Sparse XGPC"
 [arxivbsvm]:https://arxiv.org/abs/1707.05532
 [arxivxgpc]:https://arxiv.org/abs/1802.06383
