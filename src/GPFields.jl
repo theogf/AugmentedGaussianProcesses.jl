@@ -156,7 +156,7 @@ function initGaussian!(model::GPModel,μ_init)
     #Initialize gaussian parameters and check for consistency
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
       if model.VerboseLevel > 2
-        warn("Initial mean of the variational distribution is sampled from a multinormal distribution")
+        warn("Initial mean of the variational distribution is sampled from a multivariate normal distribution")
       end
       model.μ = randn(model.nFeatures)
     else
@@ -174,6 +174,7 @@ end
     train::Function #Model train for a certain number of iterations
     predict::Function
     predictproba::Function
+    elbo::Function
     Plotting::Function
 end
 """
@@ -228,6 +229,9 @@ function initFunctions!(model::GPModel)
         elseif model.ModelType == Regression
             regpredictproba(model,X_test)
         end
+    end
+    model.elbo = function()
+        return ELBO(model)
     end
     model.Plotting = function(;option::String="All")
         ##### TODO ####

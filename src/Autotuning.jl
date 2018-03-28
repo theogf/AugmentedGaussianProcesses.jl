@@ -10,7 +10,7 @@ function updateHyperParameters!(model::LinearModel,iter::Integer)
     model.HyperParametersUpdated = true
 end
 
-# Apply the gradients of the hyperparameters following Nesterov Accelerated Gradient Method and clipping method
+#NOT USED AT THE MOMENT Apply the gradients of the hyperparameters following Nesterov Accelerated Gradient Method and clipping method
 function applyHyperParametersGradients!(model::GPModel,gradients)
     #Gradients contain the : kernel param gradients, kernel coeffs gradients and eventually the inducing points gradients
     for i in 1:model.nKernels

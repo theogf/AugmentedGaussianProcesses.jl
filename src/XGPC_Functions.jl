@@ -16,7 +16,7 @@ function variablesUpdate_XGPC!(model::SparseXGPC,iter)
     (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
-    model.ζ = -0.5*inv(model.η_2); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
+    model.ζ = -0.5*Symmetric(inv(model.η_2)); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
 function ELBO(model::BatchXGPC)

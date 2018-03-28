@@ -22,13 +22,19 @@ end
 
 function variablesUpdate_BSVM!(model::SparseBSVM,iter)
     Z = Diagonal(model.y[model.MBIndices])*model.κ;
-    model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,2),2)+model.Ktilde;
+    model.α[model.MBIndices] = (1 - Z*model.μ).^2 + sum((Z*model.ζ).*Z,2)[:] + model.Ktilde;
     (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invKmm, model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
     model.ζ = -0.5*inv(model.η_2); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
+
+function naturalGradientELBO_BSVM(α,Z,invPrior,stoch_coef)
+  grad_1 =  stoch_coef*transpose(Z)*(1.0./sqrt.(α).+1.0)
+  grad_2 = -0.5*(stoch_coef*transpose(Z)*Diagonal(1.0./sqrt.(α))*Z + invPrior)
+  (grad_1,grad_2)
+end
 
 
 function ELBO(model::LinearBSVM)
@@ -61,16 +67,10 @@ function ELBO(model::SparseBSVM)
     return ELBO
 end
 
-function naturalGradientELBO_BSVM(α,Z,invPrior,stoch_coef)
-  grad_1 =  stoch_coef*transpose(Z)*(1./sqrt.(α)+1)
-  grad_2 = -0.5*(stoch_coef*transpose(Z)*Diagonal(1./sqrt.(α))*Z + invPrior)
-  (grad_1,grad_2)
-end
-
-
 function hyperparameter_gradient_function(model::SparseBSVM)
+    #General values used for all gradients
     B = model.μ*transpose(model.μ) + model.ζ
-    Kmn = kernelmatrix(model.inducingPoints,model.X,model.kernel)
+    Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     A = Diagonal(1.0./sqrt.(model.α[model.MBIndices]))
     return function(Js)
                 Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3]
@@ -78,7 +78,7 @@ function hyperparameter_gradient_function(model::SparseBSVM)
                 Jtilde = Jnn - sum(ι.*(Kmn.'),2) - sum(model.κ.*Jnm,2)
                 V = model.invKmm*Jmm
                 return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*A*model.κ + model.κ'*A*ι)) .* transpose(B)) - trace(V) - model.StochCoeff*dot(diag(A),Jtilde)
-                    + 2.0*model.StochCoeff*dot(model.y[model.MBIndices],(1+A)*ι*model.μ))
+                    + 2.0*model.StochCoeff*dot(model.y[model.MBIndices],(eye(A)+A)*ι*model.μ))
             end
 end
 

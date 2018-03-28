@@ -23,26 +23,29 @@ include("KernelFunctions.jl")
 include("KMeansModule.jl")
 include("PGSampler.jl")
 include("PerturbativeCorrection.jl")
+include("GPAnalysisTools.jl")
 #Custom modules
 using .KernelFunctions
 using .KMeansModule
 using .PGSampler
 using .PerturbativeCorrection
+using .GPAnalysisTools
 #General modules
 using Distributions
 using StatsBase
 using QuadGK
 using GradDescent
 using ValueHistories
-
+using Gallium
 #Exported models
 export LinearBSVM, BatchBSVM, SparseBSVM
 export BatchXGPC, SparseXGPC, GibbsSamplerGPC
 export GPRegression, SparseGPRegression
 #General class definitions
 export GPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
-export ELBO
-export Kernel, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
+#Useful functions
+export getLog
+export Kernel, kernelmatrix, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 
 include("GPFields.jl")
 #Models
