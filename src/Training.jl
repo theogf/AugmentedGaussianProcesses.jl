@@ -29,7 +29,7 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
                     θs = (1.0./(2.0*model.α[model.MBIndices])).*tanh.(model.α[model.MBIndices]./2.0)
                     (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
                 elseif model.ModelType==Regression
-                    (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.γ,stoch_coeff=model.StochCoeff)
+                    (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.StochCoeff)
                 end
                 model.g = model.g + 1/model.τ*vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
                 model.h = model.h + 1/model.τ*norm(vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2)))^2
@@ -108,14 +108,14 @@ end
 
 function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated
-        model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+model.γ*eye(model.nFeatures))
+        model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+model.noise*eye(model.nFeatures))
         model.invKmm = inv(model.Kmm)
     end
     #If change of hyperparameters or if stochatic
     if model.HyperParametersUpdated || model.Stochastic
         Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
         model.κ = Knm/model.Kmm
-        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) + model.γ*ones(length(model.MBIndices)) - sum(model.κ.*Knm,2)[:]
+        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) + model.noise*ones(length(model.MBIndices)) - sum(model.κ.*Knm,2)[:]
         @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
     end
     model.HyperParametersUpdated=false
@@ -123,14 +123,14 @@ end
 
 function computeMatrices!(model::FullBatchModel)
     if model.HyperParametersUpdated
-        model.invK = inv(kernelmatrix(model.X,model.kernel) + model.γ*eye(model.nFeatures))
+        model.invK = inv(kernelmatrix(model.X,model.kernel) + model.noise*eye(model.nFeatures))
         model.HyperParametersUpdated = false
     end
 end
 
 function computeMatrices!(model::LinearModel)
     if model.HyperParametersUpdated
-        model.invΣ =  (1.0/model.γ)*eye(model.nFeatures)
+        model.invΣ =  (1.0/model.noise)*eye(model.nFeatures)
         model.HyperParametersUpdated = false
     end
 end

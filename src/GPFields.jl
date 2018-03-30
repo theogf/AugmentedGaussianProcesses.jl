@@ -12,12 +12,12 @@ end
 @def commonfields begin
     #Data
     X #Feature vectors
-    y #Output (-1,1 for classification, real for regression)
-    ModelType::GPModelType; #Type of classifier
-    Name::String #Name of the Classifier
+    y #Output (-1,1 for classification, real for regression, matrix for multiclass)
+    ModelType::GPModelType; #Type of model
+    Name::String #Name of the model
     nSamples::Int64 # Number of data points
     nFeatures::Int64 # Number of features
-    γ::Float64  #Regularization parameter of the noise
+    noise::Float64  #Regularization parameter of the noise
     ϵ::Float64  #Desired Precision on ||ELBO(t+1)-ELBO(t)||))
     evol_conv::Array{Float64,1} #Used for convergence estimation
     prev_params::Any
@@ -38,14 +38,14 @@ end
     initCommon!(model,...)
 
 Initialize all the common fields of the different models, i.e. the dataset inputs `X` and outputs `y`,
-the noise `γ`, the convergence threshold `ϵ`, the initial number of iterations `nEpochs`,
+the noise `noise`, the convergence threshold `ϵ`, the initial number of iterations `nEpochs`,
 the `verboseLevel` (from 0 to 3), enabling `Autotuning`, the `AutotuningFrequency` and
 what `optimizer` to use
 """
-function initCommon!(model::GPModel,X,y,γ,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer)
+function initCommon!(model::GPModel,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer)
     @assert (size(y,1)==size(X,1)) "There is a dimension problem with the data size(y)!=size(X)";
     model.X = X; model.y = y;
-    @assert γ > 0 "γ should be a positive float"; model.γ = γ;
+    @assert noise > 0 "noise should be a positive float"; model.noise = noise;
     @assert ϵ > 0 "ϵ should be a positive float"; model.ϵ = ϵ;
     @assert nEpochs > 0 "nEpochs should be positive"; model.nEpochs = nEpochs;
     @assert (VerboseLevel > -1 && VerboseLevel < 4) "VerboseLevel should be in {0,1,2,3}, here value is $VerboseLevel"; model.VerboseLevel = VerboseLevel;
@@ -101,7 +101,7 @@ end
 """
 Function initializing the kernelfields
 """
-function initKernel!(model::GPModel,kernel::Kernel)
+function initKernel!(model::GPModel,kernel)
     #Initialize parameters common to all models containing kernels and check for consistency
     if kernel == 0
       warn("No kernel indicated, a rbf kernel function with lengthscale 1 is used")
@@ -143,6 +143,43 @@ function initSparse!(model::GPModel,m,optimizeIndPoints)
     model.inducingPoints += rand(Normal(0,0.1),size(model.inducingPoints)...)
 end
 """
+Parameters for the multiclass version of the classifier based of softmax
+"""
+@def multiclassfields begin
+    K::Int64 #Number of classes
+    class_mapping::Array{Any,1} # Classes labels mapping
+    μ::Array{Array{Float64,1}} #Mean for each class
+    η_1::Array{Array{Float64,1}} #Natural parameter #1 for each class
+    ζ::Array{Array{Float64,2}} #Covariance matrix for each class
+    η_2::Array{Array{Float64,2}} #Natural parameter #2 for each class
+    α::Array{Float64,1} #Gamma shape parameters
+    β::Array{Float64,1} #Gamma rate parameters
+    θ::Array{Float64,2} #Expectations of PG
+    γ::Array{Float64,2} #Poisson rate parameters
+end
+
+function initMultiClass(model,y_mapping,μ_init)
+    model.K = length(y_mapping)
+    model.class_mapping = y_mapping
+    if µ_init == [0.0] || length(µ_init) != model.nFeatures
+      if model.VerboseLevel > 2
+        warn("Initial mean of the variational distribution is sampled from a multivariate normal distribution")
+      end
+      model.μ = [randn(model.nFeatures) for i in 1:model.K]
+    else
+      model.μ = [μ_init for i in 1:model.K]
+    end
+    model.ζ = [eye(model.nFeatures) for i in 1:model.K]
+    model.η_2 = broadcast(x->-0.5*inv(x),model.ζ)
+    model.η_1 = -2.0*model.η_2.*model.μ
+    model.α = ones(model.nSamples)
+    model.β = ones(model.nSamples)
+    model.θ = abs.(rand(model.nSamples,model.K+1))*2
+    model.γ = abs.(rand(model.nSamples,model.K))*2
+end
+
+
+"""
 Parameters for the variational multivariate gaussian distribution
 """
 @def gaussianparametersfields begin
@@ -166,7 +203,7 @@ function initGaussian!(model::GPModel,μ_init)
     end
     model.ζ = eye(model.nFeatures)
     model.η_2 = -0.5*inv(model.ζ)
-    model.η_1 = -2*model.η_2*model.μ
+    model.η_1 = -2.0*model.η_2*model.μ
 end
 """
     Parameters defining the available functions of the model

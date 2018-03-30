@@ -1,14 +1,14 @@
-import OMGP
+# import OMGP
 using Distributions
-
+using StatsBase
+using Gallium
+N_data = 10
+N_class = 4
+N_test = 20
 minx=-5.0
 maxx=5.0
 
-X = (rand(10,2)*10.0)-5.0
-y = rand(Uniform(1,4),10)
 
-function y_mapping(y)
-    [sum(y .== i) for i in unique(y)]
-end
-
-y_mapping(y)
+X = (rand(N_data,2)*(maxx-minx))+minx
+y = rand(DiscreteUniform(1,N_class),N_data)
+OMGP.MultiClass(X,y)

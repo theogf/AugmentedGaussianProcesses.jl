@@ -2,11 +2,11 @@
 
 #### Optimization of the hyperparameters #### #TODO
 function updateHyperParameters!(model::LinearModel,iter::Integer)
-    grad_γ = 0.5*((trace(model.ζ)+norm(model.μ))/(model.γ^2.0)-model.nFeatures/model.γ);
+    grad_noise = 0.5*((trace(model.ζ)+norm(model.μ))/(model.noise^2.0)-model.nFeatures/model.noise);
     if model.VerboseLevel > 2
-        println("Grad γ : $(grad_γ)")
+        println("Grad noise : $(grad_noise)")
     end
-    model.γ += GradDescent.update(model.optimizers[1],grad_γ)
+    model.noise += GradDescent.update(model.optimizers[1],grad_noise)
     model.HyperParametersUpdated = true
 end
 
@@ -56,7 +56,7 @@ end
 
 function printautotuninginformations(model::LinearModel)
 #Print the updated values of the noise
-    println("Gamma : $(model.γ)")
+    println("Gamma : $(model.noise)")
 end
 
 function printautotuninginformations(model::NonLinearModel)

@@ -38,7 +38,7 @@ else
 end
 
 MaxIter = 500#Maximum number of iterations for every algorithm
-M=100; θ=5.0; ϵ=1e-4; γ=1e-3
+M=100; θ=5.0; ϵ=1e-4; noise=1e-3
 kerns = [Kernel("rbf",1.0;params=θ)]
 # kerns = [Kernel("rbf",1.0;params=θ);Kernel("linear",1.0)]
  # kerns = [Kernel("linear",1.0)]

@@ -14,10 +14,10 @@ end
 """
 function ELBO(model::SparseGPRegression)
     model.StochCoeff = model.nSamples/model.nSamplesUsed
-    ELBO = -0.5*model.nSamples*(log(model.γ)+log(2*pi))
-    ELBO += -0.5*model.StochCoeff*(model.y - model.κ*model.μ).^2/model.γ
-    ELBO += -0.5*model.StochCoeff*sum(model.Ktilde)./model.γ
-    ELBO += -0.5*model.StochCoeff/model.γ*sum((model.ζ*model.kappa).*model.kappa)
+    ELBO = -0.5*model.nSamples*(log(model.noise)+log(2*pi))
+    ELBO += -0.5*model.StochCoeff*(model.y - model.κ*model.μ).^2/model.noise
+    ELBO += -0.5*model.StochCoeff*sum(model.Ktilde)./model.noise
+    ELBO += -0.5*model.StochCoeff/model.noise*sum((model.ζ*model.kappa).*model.kappa)
     ELBO += 0.5*(logdet(model.ζ)+logdet(model.invKmm))
     ELBO += -0.5*(sum(model.invKmm.*transpose(model.ζ+model.μ*transpose(model.μ))))
     return -ELBO
@@ -32,15 +32,15 @@ end
     Update the variational parameters of the model
 """
 function variablesUpdate_Regression!(model::SparseGPRegression,iter)
-    (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.γ,stoch_coeff=model.Stochastic ? model.StochCoeff : 1.0)
+    (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
     model.ζ = -0.5*inv(model.η_2); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
-function naturalGradientELBO_Regression(y,κ,γ;stoch_coeff=1.0)
-    grad_1 = stoch_coeff*κ'*y./γ
-    grad_2 = -0.5*(stoch_coeff*(κ')*κ./γ)
+function naturalGradientELBO_Regression(y,κ,noise;stoch_coeff=1.0)
+    grad_1 = stoch_coeff*κ'*y./noise
+    grad_2 = -0.5*(stoch_coeff*(κ')*κ./noise)
     return (grad_1,grad_2)
 end
 
@@ -61,8 +61,8 @@ function hyperparameter_gradient_function(model::SparseGPRegression)
             ι = (Jnm-model.κ*Jmm)*model.invKmm
             Jtilde = Jnn - sum(ι.*(Kmn.'),2) - sum(model.κ.*Jnm,2)
             V = model.invKmm*Jmm
-            return 0.5*(sum( (V*model.invKmm - model.StochCoeff/model.γ*(ι'*model.κ + model.κ'*ι)) .* transpose(B)) - trace(V) - model.StochCoeff/model.γ*sum(Jtilde)
-             + 2*model.StochCoeff/model.γ*dot(model.y[model.MBIndices],ι*model.μ))
+            return 0.5*(sum( (V*model.invKmm - model.StochCoeff/model.noise*(ι'*model.κ + model.κ'*ι)) .* transpose(B)) - trace(V) - model.StochCoeff/model.noise*sum(Jtilde)
+             + 2*model.StochCoeff/model.noise*dot(model.y[model.MBIndices],ι*model.μ))
         end
 end
 
@@ -74,7 +74,7 @@ function inducingpoints_gradient(model::SparseGPRegression)
                 ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
                 Jtilde = -sum(ι.*(Kmn.'),2)-sum(model.κ.*Jnm[j,:,:],2)
                 V = model.invKmm*Jmm[j,:,:]
-                gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff/model.γ*(ι'*model.κ+model.κ'*ι)).*transpose(B))-trace(V)-model.StochCoeff/model.γ*Jtilde
+                gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff/model.noise*(ι'*model.κ+model.κ'*ι)).*transpose(B))-trace(V)-model.StochCoeff/model.noise*Jtilde
                  + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
             end
         end
