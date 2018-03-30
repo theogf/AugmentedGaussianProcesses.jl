@@ -2,14 +2,14 @@ using Distributions
 include("../src/OMGP.jl")
 import OMGP
 
-N_data = 100
+N_data = 1000
 N_test = 20
 N_dim = 2
 noise = 0.2
 minx=-5.0
 maxx=5.0
 function latent(x)
-    return x[:,1].*sin.(x[:,2])
+    return (x[:,1].*x[:,2])
 end
 X = rand(N_data,N_dim)*(maxx-minx)+minx
 x_test = linspace(minx,maxx,N_test)
@@ -17,13 +17,16 @@ X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_tes
 y = sign.(latent(X)+rand(Normal(0,noise),size(X,1)))
 y_test = sign.(latent(X_test)+rand(Normal(0,noise),size(X_test,1)))
 (nSamples,nFeatures) = (N_data,1)
-kernel = OMGP.RBFKernel(1.5)
+kernel = OMGP.LaplaceKernel(1.5)
 t_full = @elapsed fullmodel = OMGP.BatchBSVM(X,y,γ=noise,kernel=kernel,VerboseLevel=3)
-t_sparse = @elapsed sparsemodel = OMGP.SparseBSVM(X,y,Stochastic=false,Autotuning=true,VerboseLevel=3,m=20,γ=noise,kernel=kernel)
-t_stoch = @elapsed stochmodel = OMGP.SparseBSVM(X,y,Stochastic=true,BatchSize=20,Autotuning=true,VerboseLevel=3,m=20,γ=1e-3,kernel=kernel)
+t_sparse = @elapsed sparsemodel = OMGP.SparseBSVM(X,y,Stochastic=false,ϵ=1e-18,Autotuning=true,VerboseLevel=3,m=20,γ=noise,kernel=kernel)
+t_stoch = @elapsed stochmodel = OMGP.SparseBSVM(X,y,Stochastic=true,BatchSize=10,Autotuning=true,VerboseLevel=3,m=20,γ=1e-3,kernel=kernel)
 t_full += @elapsed fullmodel.train()
-t_sparse += @elapsed sparsemodel.train(iterations=20)
-t_stoch += @elapsed stochmodel.train(iterations=10000)
+t_sparse += @elapsed sparsemodel.train(iterations=200)
+metrics,flog = OMGP.getLog(stochmodel)
+stochmodel.kernel.weight.fixed = false
+stochmodel.kernel.hyperparameters.fixed= false
+t_stoch += @elapsed stochmodel.train(iterations=10000,callback=flog)
 y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full-0.5)-y_test))/(2*length(y_test))
 y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse-0.5)-y_test))/(2*length(y_test))
 y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch-0.5)-y_test))/(2*length(y_test))
@@ -40,4 +43,4 @@ p3=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=
 plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
 p4=plot(x_test,x_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse Regression")
 plot!(stochmodel.inducingPoints[:,1],stochmodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
-display(plot(p1,p2,p3,p4))
+display(plot(p1,p2,p3,p4));

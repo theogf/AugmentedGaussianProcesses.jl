@@ -11,7 +11,7 @@ noise = 0.2
 minx=-5.0
 maxx=5.0
 function latent(x)
-    return x[:,1].*sin.(x[:,2])
+    return x[:,1].*sin.(0.5*x[:,2])
 end
 X = rand(N_data,N_dim)*(maxx-minx)+minx
 x_test = linspace(minx,maxx,N_test)

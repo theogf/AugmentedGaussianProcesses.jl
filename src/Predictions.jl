@@ -7,7 +7,7 @@ File treating all the prediction functions
 # function fstar(model::LinearModel,X_test,cov::Bool=true)
 # end
 
-function fstar(model::FullBatchModel,X_test,covf::Bool=true)
+function fstar(model::FullBatchModel,X_test;covf::Bool=true)
     if model.DownMatrixForPrediction == 0
         if covf && model.TopMatrixForPrediction == 0
             model.TopMatrixForPrediction = model.invK*model.μ
@@ -25,7 +25,7 @@ function fstar(model::FullBatchModel,X_test,covf::Bool=true)
     end
 end
 
-function fstar(model::SparseModel,X_test,covf::Bool=true)
+function fstar(model::SparseModel,X_test;covf::Bool=true)
     if model.DownMatrixForPrediction == 0
         if covf && model.TopMatrixForPrediction == 0
             model.TopMatrixForPrediction = model.Kmm\model.μ

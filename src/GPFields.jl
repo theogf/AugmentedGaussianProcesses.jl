@@ -140,6 +140,7 @@ function initSparse!(model::GPModel,m,optimizeIndPoints)
     model.OptimizeInducingPoints = optimizeIndPoints
     model.optimizer = Adam();
     model.inducingPoints = KMeansInducingPoints(model.X,model.m,10)
+    model.inducingPoints += rand(Normal(0,0.1),size(model.inducingPoints)...)
 end
 """
 Parameters for the variational multivariate gaussian distribution
