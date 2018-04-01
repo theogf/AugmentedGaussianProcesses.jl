@@ -88,6 +88,8 @@ function updateParameters!(model::GPModel,iter::Integer)
         variablesUpdate_XGPC!(model,iter)
     elseif model.ModelType == Regression
         variablesUpdate_Regression!(model,iter)
+    elseif model.ModelType == MultiClassModel
+        variablesUpdate_MultiClass!(model,iter)
     end
 end
 
@@ -123,7 +125,7 @@ end
 
 function computeMatrices!(model::FullBatchModel)
     if model.HyperParametersUpdated
-        model.invK = inv(kernelmatrix(model.X,model.kernel) + model.noise*eye(model.nFeatures))
+        model.invK = inv(Symmetric(kernelmatrix(model.X,model.kernel) + model.noise*eye(model.nFeatures)))
         model.HyperParametersUpdated = false
     end
 end
@@ -133,6 +135,21 @@ function computeMatrices!(model::LinearModel)
         model.invΣ =  (1.0/model.noise)*eye(model.nFeatures)
         model.HyperParametersUpdated = false
     end
+end
+
+function computeMatrices!(model::SparseMultiClass)
+    if model.HyperParametersUpdated
+        model.Kmm = broadcast(points->Symmetric(kernelmatrix(points,model.kernel)+model.noise*eye(model.nFeatures),model.inducingPoints)
+        model.invKmm = inv.(model.Kmm)
+    end
+    #If change of hyperparameters or if stochatic
+    if model.HyperParametersUpdated || model.Stochastic
+        Knm = broadcast(points->kernelmatrix(model.X[model.MBIndices,:],points,model.kernel),model.inducingPoints)
+        model.κ = Knm./model.Kmm
+        model.Ktilde = broadcast((knm,kappa)->diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) + model.noise*ones(length(model.MBIndices)) - sum(kappa.*knm,2)[:],Knm,model.κ)
+        @assert count.(model.Ktilde.<0)==0 "Ktilde has negative values"
+    end
+    model.HyperParametersUpdated=false
 end
 
 #### Get Functions ####

@@ -147,3 +147,21 @@ function regpredictproba(model::SparseModel,X_test)
     covfstar = k_starstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(k_star))
     return meanfstar,covfstar
 end
+
+function multiclasspredict(model::MultiClass,X_test)
+    n = size(X_test,1)
+    if model.TopMatrixForPrediction == 0
+        model.TopMatrixForPrediction = broadcast(x->model.invK*x,model.μ)
+    end
+    k_star = kernelmatrix(X_test,model.X,model.kernel)
+    meanfstar = hcat(broadcast(x->logit.(k_star*x),model.TopMatrixForPrediction))
+    predic = zeros(Int64,n)
+    for i in 1:n
+        predic[i] = findmax(broadcast(x->x[i],meanfstar))[2]
+    end
+    # return predic
+    return model.class_mapping[predic]
+end
+
+function multiclasspredictproba(model::MultiClass,X_test)
+end

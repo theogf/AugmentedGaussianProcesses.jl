@@ -146,6 +146,8 @@ end
 Parameters for the multiclass version of the classifier based of softmax
 """
 @def multiclassfields begin
+    Y::Array{Array{Float64,1},1} #Mapping from instances to classes
+    y_class::Array{Int64,1}
     K::Int64 #Number of classes
     class_mapping::Array{Any,1} # Classes labels mapping
     μ::Array{Array{Float64,1}} #Mean for each class
@@ -154,13 +156,38 @@ Parameters for the multiclass version of the classifier based of softmax
     η_2::Array{Array{Float64,2}} #Natural parameter #2 for each class
     α::Array{Float64,1} #Gamma shape parameters
     β::Array{Float64,1} #Gamma rate parameters
-    θ::Array{Float64,2} #Expectations of PG
-    γ::Array{Float64,2} #Poisson rate parameters
+    θ::Array{Array{Float64,1}} #Expectations of PG
+    γ::Array{Array{Float64,1}} #Poisson rate parameters
 end
 
-function initMultiClass(model,y_mapping,μ_init)
+"""
+    Return a matrix of NxK with one of K vectors
+"""
+function one_of_K_mapping(y)
+    y_values = unique(y)
+    Y = [zeros(length(y)) for i in 1:length(y_values)]
+    y_class = zeros(Int64,length(y))
+    for i in 1:length(y)
+        for j in 1:length(y_values)
+            if y[i]==y_values[j]
+                Y[j][i] = 1;
+                y_class[i] = j;
+                break;
+            end
+        end
+    end
+    return Y,y_values,y_class
+end
+
+"""
+    Initialise the parameters of the multiclass model
+"""
+
+function initMultiClass!(model,Y,y_class,y_mapping,μ_init)
     model.K = length(y_mapping)
+    model.Y = Y
     model.class_mapping = y_mapping
+    model.y_class = y_class
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
       if model.VerboseLevel > 2
         warn("Initial mean of the variational distribution is sampled from a multivariate normal distribution")
@@ -172,10 +199,48 @@ function initMultiClass(model,y_mapping,μ_init)
     model.ζ = [eye(model.nFeatures) for i in 1:model.K]
     model.η_2 = broadcast(x->-0.5*inv(x),model.ζ)
     model.η_1 = -2.0*model.η_2.*model.μ
-    model.α = ones(model.nSamples)
-    model.β = ones(model.nSamples)
-    model.θ = abs.(rand(model.nSamples,model.K+1))*2
-    model.γ = abs.(rand(model.nSamples,model.K))*2
+    model.α = 0.5*ones(model.nSamples)
+    model.β = model.K*ones(model.nSamples)
+    model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.K+1)]
+    # model.γ = [zeros(model.nSamples) for i in 1:model.K]
+    model.γ = [abs.(rand(model.nSamples)) for i in 1:model.K]
+end
+
+"""
+    Parameters necessary for the sparse inducing points method
+"""
+@def multiclass_sparsefields begin
+    m::Int64 #Number of inducing points
+    inducingPoints::Array{Array{Float64,2},1} #Inducing points coordinates for the Big Data GP
+    OptimizeInducingPoints::Bool #Flag for optimizing the points during training
+    optimizer::Optimizer #Optimizer for the inducing points
+    Kmm::Array{Array{Float64,2},1} #Kernel matrix
+    invKmm::Array{Array{Float64,2},1} #Inverse Kernel matrix of inducing points
+    Ktilde::Array{Array{Float64,1},1} #Diagonal of the covariance matrix between inducing points and generative points
+    κ::Array{Array{Float64,2},1} #Kmn*invKmm
+end
+"""
+Function initializing the multiclass sparsefields parameters
+"""
+function initMultiClassSparse!(model::GPModel,m,optimizeIndPoints)
+    #Initialize parameters for the sparse model and check consistency
+    minpoints = 56;
+    if m > model.nSamples
+        warn("There are more inducing points than actual points, setting it to 10%")
+        m = min(minpoints,model.nSamples÷10)
+    elseif m == 0
+        warn("Number of inducing points was not manually set, setting it to 10% of the datasize (minimum of $minpoints points)")
+        m = min(minpoints,model.nSamples÷10)
+    end
+    model.m = m; model.nFeatures = model.m;
+    model.OptimizeInducingPoints = optimizeIndPoints
+    model.optimizer = Adam();
+    Ninst_per_K = countmap(model.y)
+    for k in 1:K
+        K_freq = Ninst_per_K[model.y_mapping[k]]/model.nSamples
+        weights = model.Y[k].*(2*K_freq-1.0)+.(1.0-K_freq)
+        model.inducingPoints[k] = KMeansInducingPoints(model.X,model.m,10,weights)
+    end
 end
 
 
@@ -222,11 +287,19 @@ Default function to estimate convergence, based on a window on the variational p
 function DefaultConvergence(model::GPModel,iter::Integer)
     #Default convergence function
     if iter == 1
-        model.prev_params = [model.μ;diag(model.ζ)]
+        if isa(MultiClass,typeof(model))
+        else
+            model.prev_params = vcat(broadcast((μ,diagζ)->[μ;diagζ],model.μ,diag.(model.ζ))...)
+            # model.prev_params = [model.μ;diag(model.ζ)]
+        end
         push!(model.evol_conv,Inf)
         return Inf
     end
-    new_params = [model.μ;diag(model.ζ)]
+    if isa(MultiClass,typeof(model))
+    else
+        new_params = vcat(broadcast((μ,diagζ)->[μ;diagζ],model.μ,diag.(model.ζ))...)
+        # new_params = [model.μ;diag(model.ζ)]
+    end
     push!(model.evol_conv,mean(abs.(new_params-model.prev_params)./((abs.(model.prev_params)+abs.(new_params))./2.0)))
     model.prev_params = new_params;
     if model.Stochastic
@@ -235,6 +308,7 @@ function DefaultConvergence(model::GPModel,iter::Integer)
         return model.evol_conv[end]
     end
 end
+
 """
     Appropriately assign the functions
 """
@@ -254,6 +328,8 @@ function initFunctions!(model::GPModel)
             logitpredict(model,X_test)
         elseif model.ModelType == Regression
             regpredict(model,X_test)
+        elseif model.ModelType == MultiClassModel
+            multiclasspredict(model,X_test)
         end
     end
     model.predictproba = function(X_test)
@@ -267,6 +343,8 @@ function initFunctions!(model::GPModel)
             logitpredictproba(model,X_test)
         elseif model.ModelType == Regression
             regpredictproba(model,X_test)
+        elseif model.ModelType == MultiClassModel
+            multiclasspredictproba(model,X_test)
         end
     end
     model.elbo = function()

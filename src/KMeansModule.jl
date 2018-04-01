@@ -8,10 +8,14 @@ using Clustering
 export KMeansInducingPoints
 
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
-function KMeansInducingPoints(X,K,m)
-  C = (KmeansSeed(X,K,m))'
-  kmeans!(X',C)
-  return C'
+function KMeansInducingPoints(X,K,m;weights=0)
+    C = (KmeansSeed(X,K,m))'
+    if weight!=0
+        kmeans!(X',C,weights)
+    else
+        kmeans!(X',C)
+    end
+return C'
 end
 #Fast and efficient seeding for KMeans
 function KmeansSeed(X,K,m) #X is the data, K the number of centers wanted, m the number of Markov iterations
