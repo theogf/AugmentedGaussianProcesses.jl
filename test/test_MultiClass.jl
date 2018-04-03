@@ -30,12 +30,18 @@ end
 # X = data[1:100,1:(end-1)]; y=data[1:100,end]
 # X_test = data[101:end,1:(end-1)]; y_test=data[101:end,end]
 
-X = readdlm("data/mnist_train")
-y=  X[:,1]; X= X[:,2:end]
-X_test = readdlm("data/mnist_test")
-y_test= X_test[:,1]; X_test=X_test[:,2:end]
 
-kernel = OMGP.RBFKernel(1.0)
+data = readdlm("data/Glass")
+# Dataset has been already randomized
+X = data[1:150,1:(end-1)]; y=data[1:150,end]
+X_test = data[151:end,1:(end-1)]; y_test=data[151:end,end]
+
+# X = readdlm("data/mnist_train")
+# y=  X[:,1]; X= X[:,2:end]
+# X_test = readdlm("data/mnist_test")
+# y_test= X_test[:,1]; X_test=X_test[:,2:end]
+
+kernel = OMGP.RBFKernel(0.1)
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 full_model = OMGP.MultiClass(X,y,VerboseLevel=1,kernel=kernel)
 sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
