@@ -43,6 +43,44 @@ function fstar(model::SparseModel,X_test;covf::Bool=true)
     end
 end
 
+function fstar(model::MultiClass,X_test;covf::Bool=true)
+    if model.DownMatrixForPrediction == 0
+        if covf && model.TopMatrixForPrediction == 0
+            model.TopMatrixForPrediction = broadcast(x->model.invK*x,model.μ)
+        end
+      model.DownMatrixForPrediction = broadcast(var->model.invK*(eye(model.nSamples)-var*model.invK),model.ζ)
+    end
+    k_star = kernelmatrix(X_test,model.X,model.kernel)
+    mean_fstar = broadcast(x->k_star*x,model.TopMatrixForPrediction)
+    if !covf
+        return mean_fstar
+    else
+        k_starstar = diagkernelmatrix(X_test,model.kernel)
+        cov_fstar = broadcast(x->(k_starstar - sum(k_star.*transpose(x*k_star'),2)),model.DownMatrixForPrediction)
+        return mean_fstar,cov_fstar
+    end
+end
+
+
+function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
+    if model.DownMatrixForPrediction == 0
+        if covf && model.TopMatrixForPrediction == 0
+            model.TopMatrixForPrediction = broadcast((k,mu)->k\mu,model.Kmm,model.μ)
+        end
+      model.DownMatrixForPrediction = broadcast((var,Kmm)->(Kmm\(eye(model.nFeatures)-var/Kmm)),model.ζ,model.Kmm)
+    end
+    k_star = broadcast(points->kernelmatrix(X_test,points,model.kernel),model.inducingPoints)
+    mean_fstar = k_star.*model.TopMatrixForPrediction
+    if !covf
+        return mean_fstar
+    else
+        k_starstar = diagkernelmatrix(X_test,model.kernel)
+        cov_fstar = broadcast((x,k)->(k_starstar - sum(k.*transpose(x*k'),2)),model.DownMatrixForPrediction,k_star)
+        return mean_fstar,cov_fstar
+    end
+end
+
+
 function probitpredict(model::LinearModel,X_test)
     return model.Intercept ? [ones(Float64,size(X_test,1)) X_test]*model.μ : X_test*model.μ
 end
@@ -159,7 +197,20 @@ function multiclasspredict(model::MultiClass,X_test)
     for i in 1:n
         predic[i] = findmax(broadcast(x->x[i],meanfstar))[2]
     end
-    # return predic
+    return model.class_mapping[predic]
+end
+
+function multiclasspredict(model::SparseMultiClass,X_test)
+    n=size(X_test,1)
+    if model.TopMatrixForPrediction == 0
+        model.TopMatrixForPrediction = model.invKmm.*model.μ
+    end
+    k_star = broadcast(points->kernelmatrix(X_test,points,model.kernel),model.inducingPoints)
+    meanfstar = hcat(broadcast((x,k)->logit.(k*x),model.TopMatrixForPrediction,k_star))
+    predic = zeros(Int64,n)
+    for i in 1:n
+        predic[i] = findmax(broadcast(x->x[i],meanfstar))[2]
+    end
     return model.class_mapping[predic]
 end
 

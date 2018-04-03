@@ -183,11 +183,15 @@ end
     Initialise the parameters of the multiclass model
 """
 
-function initMultiClass!(model,Y,y_class,y_mapping,μ_init)
+function initMultiClass!(model,Y,y_class,y_mapping)
     model.K = length(y_mapping)
     model.Y = Y
     model.class_mapping = y_mapping
     model.y_class = y_class
+end
+
+
+function initMultiClassVariables!(model,μ_init)
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
       if model.VerboseLevel > 2
         warn("Initial mean of the variational distribution is sampled from a multivariate normal distribution")
@@ -236,10 +240,11 @@ function initMultiClassSparse!(model::GPModel,m,optimizeIndPoints)
     model.OptimizeInducingPoints = optimizeIndPoints
     model.optimizer = Adam();
     Ninst_per_K = countmap(model.y)
-    for k in 1:K
-        K_freq = Ninst_per_K[model.y_mapping[k]]/model.nSamples
-        weights = model.Y[k].*(2*K_freq-1.0)+.(1.0-K_freq)
-        model.inducingPoints[k] = KMeansInducingPoints(model.X,model.m,10,weights)
+    model.inducingPoints= [zeros(model.m,size(model.X,2)) for i in 1:model.K]
+    for k in 1:model.K
+        K_freq = model.nSamples/Ninst_per_K[model.class_mapping[k]]
+        weights = model.Y[k].*(K_freq-1.0).+(1.0)
+        model.inducingPoints[k] = KMeansInducingPoints(model.X,model.m,10,weights=weights)
     end
 end
 

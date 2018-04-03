@@ -41,12 +41,13 @@ using Gallium
 export LinearBSVM, BatchBSVM, SparseBSVM
 export BatchXGPC, SparseXGPC, GibbsSamplerGPC
 export GPRegression, SparseGPRegression
-export MultiClass
+export MultiClass, SparseMultiClass
 #General class definitions
 export GPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 #Useful functions
 export getLog
 export Kernel, diagkernelmatrix, kernelmatrix, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
+export fstar
 
 include("GPFields.jl")
 #Models
@@ -59,6 +60,7 @@ include("GibbsSamplerGPC.jl")
 include("Regression.jl")
 include("SparseRegression.jl")
 include("MultiClass.jl")
+include("SparseMultiClass.jl")
 #Functions
 include("Training.jl")
 include("Autotuning.jl")

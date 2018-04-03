@@ -10,8 +10,8 @@ export KMeansInducingPoints
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
 function KMeansInducingPoints(X,K,m;weights=0)
     C = (KmeansSeed(X,K,m))'
-    if weight!=0
-        kmeans!(X',C,weights)
+    if weights!=0
+        kmeans!(X',C,weights=weights)
     else
         kmeans!(X',C)
     end

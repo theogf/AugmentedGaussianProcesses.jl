@@ -17,7 +17,7 @@ mutable struct SparseMultiClass <: SparseModel
             Y,y_map,y_class = one_of_K_mapping(y)
             this = new()
             this.ModelType = MultiClassModel
-            this.Name = "MultiClass Gaussian Process Classifier"
+            this.Name = "Sparse MultiClass Gaussian Process Classifier"
             initCommon!(this,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             if Stochastic
@@ -26,8 +26,9 @@ mutable struct SparseMultiClass <: SparseModel
                 this.MBIndices = 1:this.nSamples; this.nSamplesUsed = this.nSamples; this.StochCoeff=1.0;
             end
             initKernel!(this,kernel);
-            initMultiClass!(this,Y,y_class,y_map,μ_init);
-            initMultiClassSparse!(this,m,optimizeIndPoints)
+            initMultiClass!(this,Y,y_class,y_map);
+            initMultiClassSparse!(this,m,OptimizeIndPoints)
+            initMultiClassVariables!(this,μ_init)
             return this;
     end
 end

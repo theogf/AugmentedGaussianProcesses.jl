@@ -30,7 +30,10 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
                     (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
                 elseif model.ModelType==Regression
                     (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.StochCoeff)
+                elseif model.ModelType==MultiClassModel
+
                 end
+
                 model.g = model.g + 1/model.τ*vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
                 model.h = model.h + 1/model.τ*norm(vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2)))^2
             end
@@ -139,7 +142,7 @@ end
 
 function computeMatrices!(model::SparseMultiClass)
     if model.HyperParametersUpdated
-        model.Kmm = broadcast(points->Symmetric(kernelmatrix(points,model.kernel)+model.noise*eye(model.nFeatures),model.inducingPoints)
+        model.Kmm = broadcast(points->Symmetric(kernelmatrix(points,model.kernel)+model.noise*eye(model.nFeatures)),model.inducingPoints)
         model.invKmm = inv.(model.Kmm)
     end
     #If change of hyperparameters or if stochatic
@@ -147,7 +150,7 @@ function computeMatrices!(model::SparseMultiClass)
         Knm = broadcast(points->kernelmatrix(model.X[model.MBIndices,:],points,model.kernel),model.inducingPoints)
         model.κ = Knm./model.Kmm
         model.Ktilde = broadcast((knm,kappa)->diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) + model.noise*ones(length(model.MBIndices)) - sum(kappa.*knm,2)[:],Knm,model.κ)
-        @assert count.(model.Ktilde.<0)==0 "Ktilde has negative values"
+        @assert sum(count.(broadcast(x->x.<0,model.Ktilde)))==0 "Ktilde has negative values"
     end
     model.HyperParametersUpdated=false
 end

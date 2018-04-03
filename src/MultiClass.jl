@@ -16,7 +16,8 @@ mutable struct MultiClass <: FullBatchModel
             initCommon!(this,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             initKernel!(this,kernel);
-            initMultiClass!(this,Y,y_class,y_map,μ_init);
+            initMultiClass!(this,Y,y_class,y_map);
+            initMultiClassVariables!(this,μ_init)
             return this;
     end
 end
