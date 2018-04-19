@@ -8,11 +8,11 @@ File treating all the prediction functions
 # end
 
 function fstar(model::FullBatchModel,X_test;covf::Bool=true)
-    if model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = (model.invK*(eye(model.nSamples)-model.ζ*model.invK))
-    end
-    if covf && model.TopMatrixForPrediction == 0
+    if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.μ
+    end
+    if covf && model.DownMatrixForPrediction == 0
+      model.DownMatrixForPrediction = (model.invK*(eye(model.nSamples)-model.ζ*model.invK))
     end
     k_star = kernelmatrix(X_test,model.X,model.kernel)
     mean_fstar = k_star*model.TopMatrixForPrediction
@@ -26,11 +26,11 @@ function fstar(model::FullBatchModel,X_test;covf::Bool=true)
 end
 
 function fstar(model::SparseModel,X_test;covf::Bool=true)
-    if model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = (model.Kmm\(eye(model.nFeatures)-model.ζ/model.Kmm))
-    end
-    if covf && model.TopMatrixForPrediction == 0
+    if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.Kmm\model.μ
+    end
+    if covf && model.DownMatrixForPrediction == 0
+      model.DownMatrixForPrediction = (model.Kmm\(eye(model.nFeatures)-model.ζ/model.Kmm))
     end
     k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
     mean_fstar = k_star*model.TopMatrixForPrediction
@@ -155,36 +155,12 @@ end
 
 #Return the mean and variance of the predictive distribution of f*
 function regpredictproba(model::FullBatchModel,X_test)
-    n = size(X_test,1)
-    ksize = model.nSamples
-    if model.DownMatrixForPrediction == 0
-        if model.TopMatrixForPrediction == 0
-            model.TopMatrixForPrediction = model.invK*model.μ
-        end
-      model.DownMatrixForPrediction = -(model.invK*(eye(ksize)-model.ζ*model.invK))
-    end
-    k_star = kernelmatrix(X_test,model.X,model.kernel)
-    k_starstar = diagkernelmatrix(X_test,model.kernel)
-    meanfstar = k_star*model.TopMatrixForPrediction
-    covfstar = k_starstar - k_star*model.DownMatrixForPrediction*transpose(k_star)
-    return meanfstar,covfstar
+    return fstar(model,X_test)
 end
 
 #Return the mean and variance of the predictive distribution of f*
 function regpredictproba(model::SparseModel,X_test)
-    n = size(X_test,1)
-    ksize = model.nSamples
-    if model.DownMatrixForPrediction == 0
-        if model.TopMatrixForPrediction == 0
-            model.TopMatrixForPrediction = model.invKmm*model.μ
-        end
-      model.DownMatrixForPrediction = -(model.invKmm*(eye(ksize)-model.ζ*model.invKmm))
-    end
-    k_star = kernelmatrix(X_test,model.X,model.kernel)
-    k_starstar = diagkernelmatrix(X_test,model.kernel)
-    meanfstar = k_star*model.TopMatrixForPrediction
-    covfstar = k_starstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(k_star))
-    return meanfstar,covfstar
+    return fstar(model,X_test)
 end
 
 function multiclasspredict(model::MultiClass,X_test)

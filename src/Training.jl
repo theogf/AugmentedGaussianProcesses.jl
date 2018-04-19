@@ -55,7 +55,7 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
             conv = Convergence(model,iter) #Check for convergence
         else
             if model.VerboseLevel > 2
-                warn("GPRegression does not need any convergence criteria")
+                # warn("GPRegression does not need any convergence criteria")
             end
             conv = Inf
         end
@@ -73,7 +73,7 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
     if isa(model,GibbsSamplerGPC) #Compute the average of the samples
         model.μ = squeeze(mean(hcat(model.estimate...),2),2)
         model.ζ = cov(hcat(model.estimate...),2)
-    else
+    elseif !isa(model,GPRegression)
         model.ζ = -0.5*inv(model.η_2);
     end
     computeMatrices!(model)

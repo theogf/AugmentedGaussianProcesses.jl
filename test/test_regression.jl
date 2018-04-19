@@ -1,6 +1,7 @@
 
 using Distributions
-using OMGP
+include("../src/OMGP.jl")
+import OMGP
 
 N_data = 200
 N_test = 20
@@ -17,10 +18,10 @@ X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_tes
 y = latent(X)+rand(Normal(0,noise),size(X,1))
 y_test = latent(X_test)
 (nSamples,nFeatures) = (N_data,1)
-kernel = RBFKernel(2.0)
+kernel = OMGP.RBFKernel(2.0)
 t_full = @elapsed fullmodel = OMGP.GPRegression(X,y,noise=noise,kernel=kernel,VerboseLevel=3)
 t_sparse = @elapsed sparsemodel = OMGP.SparseGPRegression(X,y,Stochastic=false,Autotuning=false,VerboseLevel=3,m=20,noise=noise,kernel=kernel)
-t_stoch = @elapsed stochmodel = OMGP.OMGP.SparseGPRegression(X,y,Stochastic=true,BatchSize=20,Autotuning=true,VerboseLevel=2,m=20,noise=noise,kernel=kernel)
+t_stoch = @elapsed stochmodel = OMGP.SparseGPRegression(X,y,Stochastic=true,BatchSize=20,Autotuning=true,VerboseLevel=2,m=20,noise=noise,kernel=kernel)
 t_full += @elapsed fullmodel.train()
 t_sparse += @elapsed sparsemodel.train(iterations=20)
 t_stoch += @elapsed stochmodel.train(iterations=200)
@@ -32,7 +33,6 @@ println("Full model : RMSE=$(rmse_full), time=$t_full")
 println("Sparse model : RMSE=$(rmse_sparse), time=$t_sparse")
 println("Stoch. Sparse model : RMSE=$(rmse_stoch), time=$t_stoch")
 using Plots
-plotlyjs()
 p1=plot(x_test,x_test,reshape(latent(X_test),N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="")
 plot!(p1,X[:,1],X[:,2],t=:scatter,lab="training points",title="Truth")
 p2=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="Regression")
