@@ -242,8 +242,8 @@ function initMultiClassSparse!(model::GPModel,m,optimizeIndPoints)
     Ninst_per_K = countmap(model.y)
     model.inducingPoints= [zeros(model.m,size(model.X,2)) for i in 1:model.K]
     for k in 1:model.K
-        K_freq = model.nSamples/Ninst_per_K[model.class_mapping[k]]
-        weights = model.Y[k].*(K_freq-1.0).+(1.0)
+        K_corr = model.nSamples/Ninst_per_K[model.class_mapping[k]]-1.0
+        weights = model.Y[k].*(K_corr-1.0).+(1.0)
         model.inducingPoints[k] = KMeansInducingPoints(model.X,model.m,10,weights=weights)
     end
 end
