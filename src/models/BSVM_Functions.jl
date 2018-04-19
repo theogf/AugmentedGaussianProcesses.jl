@@ -5,28 +5,30 @@
 function variablesUpdate_BSVM!(model::LinearBSVM,iter)
 #Compute the updates for the linear BSVM
     Z = Diagonal(model.y[model.MBIndices])*model.X[model.MBIndices,:];
-    model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,2),2);
+    model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((-0.5*Z/model.η_2).*Z,2),2);
     (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invΣ, model.Stochastic ? model.StochCoeff : 1)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
-    model.ζ = -0.5*inv(model.η_2); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
+    model.μ = -0.5*model.η_2\model.η_1 #Back to the distribution parameters (needed for α updates)
+    # model.ζ = -0.5*inv(model.η_2);
 end
 
 function variablesUpdate_BSVM!(model::BatchBSVM,iter)
     Z = Diagonal(model.y);
-    model.α = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,2),2);
-    (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α,Z, model.invK, 1.0)
-    model.η_1 = grad_η_1; model.η_2 = grad_η_2 #Update of the natural parameters with noisy/full natural gradient
-    model.ζ = -0.5*inv(model.η_2); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
+    model.α = (1 - Z*model.μ).^2 +  squeeze(sum((-0.5*Z/model.η_2).*Z,2),2);
+    (model.η_1,model.η_2) = naturalGradientELBO_BSVM(model.α,Z, model.invK, 1.0)
+    model.μ = -0.5*model.η_2\model.η_1 #Back to the distribution parameters (needed for α updates)
+    # model.ζ = -0.5*inv(model.η_2);
 end
 
 function variablesUpdate_BSVM!(model::SparseBSVM,iter)
     Z = Diagonal(model.y[model.MBIndices])*model.κ;
-    model.α[model.MBIndices] = (1 - Z*model.μ).^2 + sum((Z*model.ζ).*Z,2)[:] + model.Ktilde;
+    model.α[model.MBIndices] = (1 - Z*model.μ).^2 + sum((-0.5*Z/model.η_2).*Z,2)[:] + model.Ktilde;
     (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invKmm, model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
-    model.ζ = -0.5*inv(model.η_2); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
+    model.μ = -0.5*model.η_2\model.η_1 #Back to the distribution parameters (needed for α updates)
+    # model.ζ = -0.5*inv(model.η_2);
 end
 
 

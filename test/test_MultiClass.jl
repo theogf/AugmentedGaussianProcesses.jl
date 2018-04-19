@@ -1,3 +1,4 @@
+include("../src/OMGP.jl")
 import OMGP
 using Distributions
 using StatsBase

@@ -292,18 +292,18 @@ Default function to estimate convergence, based on a window on the variational p
 function DefaultConvergence(model::GPModel,iter::Integer)
     #Default convergence function
     if iter == 1
-        if isa(MultiClass,typeof(model))
-        else
+        if model.ModelType == MultiClassModel
             model.prev_params = vcat(broadcast((μ,diagζ)->[μ;diagζ],model.μ,diag.(model.ζ))...)
-            # model.prev_params = [model.μ;diag(model.ζ)]
+        else
+            model.prev_params = [model.μ;diag(model.ζ)]
         end
         push!(model.evol_conv,Inf)
         return Inf
     end
-    if isa(MultiClass,typeof(model))
-    else
+    if model.ModelType == MultiClassModel
         new_params = vcat(broadcast((μ,diagζ)->[μ;diagζ],model.μ,diag.(model.ζ))...)
-        # new_params = [model.μ;diag(model.ζ)]
+    else
+        new_params = [model.μ;diag(model.ζ)]
     end
     push!(model.evol_conv,mean(abs.(new_params-model.prev_params)./((abs.(model.prev_params)+abs.(new_params))./2.0)))
     model.prev_params = new_params;

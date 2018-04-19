@@ -73,6 +73,8 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
     if isa(model,GibbsSamplerGPC) #Compute the average of the samples
         model.μ = squeeze(mean(hcat(model.estimate...),2),2)
         model.ζ = cov(hcat(model.estimate...),2)
+    else
+        model.ζ = -0.5*inv(model.η_2);
     end
     computeMatrices!(model)
     model.Trained = true

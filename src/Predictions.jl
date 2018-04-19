@@ -9,10 +9,10 @@ File treating all the prediction functions
 
 function fstar(model::FullBatchModel,X_test;covf::Bool=true)
     if model.DownMatrixForPrediction == 0
-        if covf && model.TopMatrixForPrediction == 0
-            model.TopMatrixForPrediction = model.invK*model.μ
-        end
       model.DownMatrixForPrediction = (model.invK*(eye(model.nSamples)-model.ζ*model.invK))
+    end
+    if covf && model.TopMatrixForPrediction == 0
+        model.TopMatrixForPrediction = model.invK*model.μ
     end
     k_star = kernelmatrix(X_test,model.X,model.kernel)
     mean_fstar = k_star*model.TopMatrixForPrediction
@@ -20,17 +20,17 @@ function fstar(model::FullBatchModel,X_test;covf::Bool=true)
         return mean_fstar
     else
         k_starstar = diagkernelmatrix(X_test,model.kernel)
-        cov_fstar = k_starstar - sum(k_star.*transpose(model.DownMatrixForPrediction*k_star'),2)
+        cov_fstar = k_starstar - sum((k_star*model.DownMatrixForPrediction).*k_star,2)
         return mean_fstar,cov_fstar
     end
 end
 
 function fstar(model::SparseModel,X_test;covf::Bool=true)
     if model.DownMatrixForPrediction == 0
-        if covf && model.TopMatrixForPrediction == 0
-            model.TopMatrixForPrediction = model.Kmm\model.μ
-        end
       model.DownMatrixForPrediction = (model.Kmm\(eye(model.nFeatures)-model.ζ/model.Kmm))
+    end
+    if covf && model.TopMatrixForPrediction == 0
+        model.TopMatrixForPrediction = model.Kmm\model.μ
     end
     k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
     mean_fstar = k_star*model.TopMatrixForPrediction
@@ -38,7 +38,7 @@ function fstar(model::SparseModel,X_test;covf::Bool=true)
         return mean_fstar
     else
         k_starstar = diagkernelmatrix(X_test,model.kernel)
-        cov_fstar = k_starstar - sum(k_star.*transpose(model.DownMatrixForPrediction*k_star'),2)
+        cov_fstar = k_starstar - sum((k_star*model.DownMatrixForPrediction).*k_star,2)
         return mean_fstar,cov_fstar
     end
 end
@@ -56,7 +56,7 @@ function fstar(model::MultiClass,X_test;covf::Bool=true)
         return mean_fstar
     else
         k_starstar = diagkernelmatrix(X_test,model.kernel)
-        cov_fstar = broadcast(x->(k_starstar - sum(k_star.*transpose(x*k_star'),2)),model.DownMatrixForPrediction)
+        cov_fstar = broadcast(x->(k_starstar - sum((k_star*x).*k_star,2)),model.DownMatrixForPrediction)
         return mean_fstar,cov_fstar
     end
 end
@@ -75,7 +75,7 @@ function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
         return mean_fstar
     else
         k_starstar = diagkernelmatrix(X_test,model.kernel)
-        cov_fstar = broadcast((x,k)->(k_starstar - sum(k.*transpose(x*k'),2)),model.DownMatrixForPrediction,k_star)
+        cov_fstar = broadcast((x,k)->(k_starstar - sum((k*x).*k,2)),model.DownMatrixForPrediction,k_star)
         return mean_fstar,cov_fstar
     end
 end
@@ -128,10 +128,11 @@ end
 
 function logitpredictproba(model::GPModel,X_test)
     m_f,cov_f = fstar(model,X_test,covf=true)
-    @assert minimum(cov_f)<0  error("Covariance under 0")
-    predic = zeros(nPoints)
-    for i in 1:nPoints
-        d= Normal(mean_fstar[i],cov_fstar[i])
+    n_test = size(X_test,1)
+    @assert minimum(cov_f)>0  error("Covariance under 0")
+    predic = zeros(n_test)
+    for i in 1:n_test
+        d= Normal(m_f[i],cov_f[i])
         f=function(x)
             return logit(x)*pdf(d,x)
         end
