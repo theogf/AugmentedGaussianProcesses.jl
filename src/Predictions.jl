@@ -163,27 +163,122 @@ function regpredictproba(model::SparseModel,X_test)
     return fstar(model,X_test)
 end
 
-function multiclasspredict(model::MultiClass,X_test)
+function multiclasspredict(model::MultiClass,X_test,all_class=false)
     n = size(X_test,1)
     m_f = fstar(model,X_test,covf=false)
-    y = hcat(broadcast(x->logit.(x),m_f))
-    predic = zeros(Int64,n)
-    for i in 1:n
-        predic[i] = findmax(broadcast(x->x[i],y))[2]
+    σ = hcat(logit.(m_f)...)
+    σ = [σ[i,:] for i in 1:n]
+    normsig = sum.(σ)
+    y = mod_soft_max.(σ,normsig)
+    if all_class
+        return y
     end
-    return model.class_mapping[predic]
+    predic = zeros(Int64,n)
+    value = zeros(Float64,n)
+    for i in 1:n
+        res = findmax(y[i]);
+        predic[i]=res[2];
+        value[i]=res[1]
+    end
+    # broadcast((x,pred,val)->begin ;end,y,predic,value)
+    return model.class_mapping[predic],value
 end
 
 function multiclasspredict(model::SparseMultiClass,X_test)
     n=size(X_test,1)
     m_f = fstar(model,X_test,covf=false)
-    y = hcat(broadcast(x->logit.(x),m_f))
+    σ = hcat(logit.(m_f)...)
+    σ = [σ[i,:] for i in 1:n]
+    normsig = sum.(σ)
+    y = mod_soft_max.(σ,normsig)
     predic = zeros(Int64,n)
+    value = zeros(Float64,n)
     for i in 1:n
-        predic[i] = findmax(broadcast(x->x[i],y))[2]
+        predic[i],value[i] = findmax(broadcast(x->x[i],y))
     end
-    return model.class_mapping[predic]
+    return model.class_mapping[predic],value
 end
 
+
+
 function multiclasspredictproba(model::MultiClass,X_test)
+    n = size(X_test,1)
+    m_f,cov_f = fstar(model,X_test)
+    σ = hcat(logit.(m_f)...)
+    σ = [σ[i,:] for i in 1:n]
+    cov_f = hcat(cov_f...)
+    cov_f = [cov_f[i,:] for i in 1:n]
+    normsig = sum.(σ)
+    h = mod_soft_max.(σ,normsig)
+    grad_h = grad_mod_soft_max.(σ,normsig)
+    hess_h = hessian_mod_soft_max.(σ,normsig)
+    m_predic = h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f)
+    cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov+0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
+    return m_predic,cov_predic
+end
+function multiclasspredictprobamcmc(model::MultiClass,X_test,NSamples=100)
+    n = size(X_test,1)
+    m_f,cov_f = fstar(model,X_test)
+    m_f = hcat(m_f...)
+    m_f = [m_f[i,:] for i in 1:n]
+    cov_f = hcat(cov_f...)
+    cov_f = [cov_f[i,:] for i in 1:n]
+    stack_preds = Array{Array{Any,1},1}(n);
+    m_pred_mc = Array{Array{Float64,1},1}(n)
+    sig_pred_mc = Array{Array{Float64,1},1}(n)
+    for i in 1:n
+        preds = []
+        if i%100 == 0
+            println("$i/$n points predicted with sampling ($NSamples samples)")
+        end
+        for samp in 1:NSamples
+            samp = logit.(broadcast((m,cov)->rand(Normal(m,cov)),m_f[i],cov_f[i]))
+            norm_sig = sum(samp)
+            push!(preds,mod_soft_max(samp,norm_sig))
+        end
+        m_pred_mc[i]=mean(preds)
+        sig_pred_mc[i]=cov.([broadcast(x->x[j],preds) for j in 1:model.K])
+    end
+    return m_pred_mc,sig_pred_mc
+end
+
+function mod_soft_max(σ,normsig)
+    return σ./normsig
+end
+
+function grad_mod_soft_max(σ,normsig)
+    short_sum = normsig-σ
+    norm_square = normsig^2
+    base_grad = (σ-(σ.^2))./norm_square
+    n = size(σ,1)
+    grad = zeros(n,n)
+    for i in 1:n
+        for j in 1:n
+            if i==j
+                grad[i,i] = short_sum[i]*base_grad[i]
+            else
+                grad[i,j] = -σ[i]*base_grad[j]
+            end
+        end
+    end
+    return grad
+end
+
+function hessian_mod_soft_max(σ,normsig)
+    short_sum = normsig-σ
+    norm_square = normsig^2
+    norm_cube = normsig^3
+    base_grad = (σ-σ.^2).*((1.0-2.0.*σ).*norm_square-2.0.*(σ-σ.^2)*normsig)./norm_cube
+    n = size(σ,1)
+    grad = zeros(n,n)
+    for i in 1:n
+        for j in 1:n
+            if i==j
+                grad[i,i] = -short_sum[i]*base_grad[i]
+            else
+                grad[i,j] = σ[i]*base_grad[j]
+            end
+        end
+    end
+    return grad
 end
