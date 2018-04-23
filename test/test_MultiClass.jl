@@ -40,7 +40,7 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 # y_test= X_test[:,1]; X_test=X_test[:,2:end]
 
 kernel = OMGP.RBFKernel(1.0)
-kernel.weight.value=5
+kernel.weight.value=10.0
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 full_model = OMGP.MultiClass(X,y,VerboseLevel=1,kernel=kernel)
 # sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
