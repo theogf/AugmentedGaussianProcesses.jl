@@ -10,21 +10,19 @@ macro kernelfunctionfields()
     return esc(quote
         name::String #Name of the kernel function
         weight::HyperParameter #Weight of the kernel
-        hyperparameters::AbstractHyperParameter #Parameters of the kernel
-        Nparameters::Int64 #Number of parameters
-        pairwisefunction::Function
+        param::AbstractHyperParameter #Parameters of the kernel
+        Nparam::Int64 #Number of parameters
+        distance::Function
     end)
 end
 
 using GradDescent
-using Plots;
-pyplot();
 
 
 
 import Base: *, +, getindex
 export Kernel, KernelSum, KernelProduct
-export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
+export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2, Matern5_2
 export kernelmatrix,kernelmatrix!,diagkernelmatrix,diagkernelmatrix!
 export derivativekernelmatrix,derivativediagkernelmatrix,compute_hyperparameter_gradient,apply_gradients!
 export compute,plotkernel
@@ -64,6 +62,13 @@ update!(param::HyperParameter,grad) = !param.fixed ? param.value += GradDescent.
 update!(param::HyperParameters,grad) = for i in 1:length(param.hyperparameters); !param.hyperparameters[i].fixed ? param.hyperparameters[i].value += GradDescent.update(param.hyperparameters[i].opt,grad[i]):nothing;end;
 isfixed(param::HyperParameter) = param.fixed
 
+function Base.getindex(param::HyperParameters, il::Int64)
+    return getindex(getvalue(param),il)
+end
+
+function Base.getindex(param::HyperParameter, il::Int64)
+    return getvalue(param)
+end
 
 InnerProduct(X1,X2) = dot(X1,X2);
 SquaredEuclidean(X1,X2) = norm(X1-X2,2)
@@ -80,7 +85,7 @@ mutable struct KernelSum <: Kernel
         this = new("Sum of kernels")
         this.kernel_array = deepcopy(Array{Kernel,1}(kernels))
         this.Nkernels = length(this.kernel_array)
-        this.pairwisefunction = Identity
+        this.distance = Identity
         return this
     end
 end
@@ -130,7 +135,7 @@ mutable struct KernelProduct <: Kernel
         this = new("Product of kernels",HyperParameter(1.0))
         this.kernel_array = deepcopy(Array{Kernel,1}(kernels))
         this.Nkernels = length(this.kernel_array)
-        this.pairwisefunction = Identity
+        this.distance = Identity
         return this
     end
 end
@@ -192,13 +197,13 @@ function compute(k::RBFKernel,X1,X2,weight::Bool=true)
     if X1 == X2
       return (weight?getvalue(k.weight):1.0)
     end
-    return (weight?getvalue(k.weight):1.0)*exp(-0.5*(k.pairwisefunction(X1,X2))^2/(getvalue(k.hyperparameters)^2))
+    return (weight?getvalue(k.weight):1.0)*exp(-0.5*(k.distance(X1,X2))^2/(getvalue(k.param)^2))
 end
 #
 function compute_deriv(k::RBFKernel,X1,X2,weight::Bool=true)
-    a = k.pairwisefunction(X1,X2)
+    a = k.distance(X1,X2)
     if a != 0
-        grad = a^2/(getvalue(k.hyperparameters)^3)*compute(k,X1,X2)
+        grad = a^2/(getvalue(k.param)^3)*compute(k,X1,X2)
         if weight
             return [getvalue(k.weight)*grad,compute(k,X1,X2)]
         else
@@ -214,7 +219,7 @@ function compute_point_deriv(k::RBFKernel,X1,X2)
     if X1 == X2
         return zeros(X1)
     else
-        return getvalue(k.weight)*(-(X1-X2))./(getvalue(k.hyperparameters)^2).*compute(k,X1,X2)
+        return getvalue(k.weight)*(-(X1-X2))./(getvalue(k.param)^2).*compute(k,X1,X2)
     end
 end
 
@@ -232,13 +237,13 @@ function compute(k::LaplaceKernel,X1,X2,weight::Bool=true)
     if X1 == X2
       return (weight?getvalue(k.weight):1.0)
     end
-    return (weight?getvalue(k.weight):1.0)*exp(-k.pairwisefunction(X1,X2)/(getvalue(k.hyperparameters)))
+    return (weight?getvalue(k.weight):1.0)*exp(-k.distance(X1,X2)/(getvalue(k.param)))
 end
 #
 function compute_deriv(k::LaplaceKernel,X1,X2,weight::Bool=true)
-    a = k.pairwisefunction(X1,X2)
+    a = k.distance(X1,X2)
     if a != 0
-        grad = a/(getvalue(k.hyperparameters)^2)*compute(k,X1,X2)
+        grad = a/(getvalue(k.param)^2)*compute(k,X1,X2)
         if weight
             return [getvalue(k.weight)*grad,compute(k,X1,X2)]
         else
@@ -254,7 +259,7 @@ function compute_point_deriv(k::LaplaceKernel,X1,X2)
     if X1 == X2
         return zeros(X1)
     else
-        return getvalue(k.weight)*(-(X1-X2))./(getvalue(k.hyperparameters)^2).*compute(k,X1,X2)
+        return getvalue(k.weight)*(-(X1-X2))./(getvalue(k.param)^2).*compute(k,X1,X2)
     end
 end
 
@@ -269,12 +274,12 @@ mutable struct SigmoidKernel <: Kernel
     end
 end
 function compute(k::SigmoidKernel,X1,X2,weight::Bool=true)
-    return (weight?getvalue(k.weight):1.0)*tanh(getvalue(k.hyperparameters)[1]*k.pairwisefunction(X1,X2)+getvalue(k.hyperparameters)[2])
+    return (weight?getvalue(k.weight):1.0)*tanh(k.param[1]*k.distance(X1,X2)+k.param[2])
 end
 #
 function compute_deriv(k::SigmoidKernel,X1,X2,weight::Bool=true)
 
-    grad_1 = k.pairwisefunction(X1,X2)*(1-compute(k,X1,X2)^2)
+    grad_1 = k.distance(X1,X2)*(1-compute(k,X1,X2)^2)
     grad_2 = (1-compute(k,X1,X2)^2)
     if weight
         return [getvalue(k.weight)*grad_1,getvalue(k.weight)*grad_2,compute(k,X1,X2)]
@@ -284,7 +289,7 @@ function compute_deriv(k::SigmoidKernel,X1,X2,weight::Bool=true)
 end
 
 function compute_point_deriv(k::SigmoidKernel,X1,X2)
-    return getvalue(k.hyperparameters)[1]*X2.*(1-compute(k,X1,X2)^2)
+    return k.param[1]*X2.*(1-compute(k,X1,X2)^2)
 end
 
 """
@@ -298,13 +303,13 @@ mutable struct PolynomialKernel <: Kernel
     end
 end
 function compute(k::PolynomialKernel,X1,X2,weight::Bool=true)
-    return (weight?getvalue(k.weight):1.0)*(getvalue(k.hyperparameters)[1]*k.pairwisefunction(X1,X2)+getvalue(k.hyperparameters)[2])^getvalue(k.hyperparameters)[3]
+    return (weight?getvalue(k.weight):1.0)*(k.param[1]*k.distance(X1,X2)+k.param[2])^k.param[3]
 end
 #
 function compute_deriv(k::PolynomialKernel,X1,X2,weight::Bool=true)
-    grad_1 = getvalue(k.hyperparameters)[3]*k.pairwisefunction(X1,X2)*(getvalue(k.hyperparameters)[1]*k.pairwisefunction(X1,X2)+getvalue(k.hyperparameters)[2])^(getvalue(k.hyperparameters)[3]-1)
-    grad_2 = getvalue(k.hyperparameters)[3]*(getvalue(k.hyperparameters)[1]*k.pairwisefunction(X1,X2)+getvalue(k.hyperparameters)[2])^(getvalue(k.hyperparameters)[3]-1)
-    grad_3 = log(getvalue(k.hyperparameters)[1]*k.pairwisefunction(X1,X2)+getvalue(k.hyperparameters)[2])*compute(k,X1,X2)
+    grad_1 = k.param[3]*k.distance(X1,X2)*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
+    grad_2 = k.param[3]*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
+    grad_3 = log(k.param[1]*k.distance(X1,X2)+k.param[2])*compute(k,X1,X2)
     if weight
         return [getvalue(k.weight)*grad_1,getvalue(k.weight)*grad_2,getvalue(k.weight)*grad_3,compute(k,X1,X2)]
     else
@@ -313,7 +318,7 @@ function compute_deriv(k::PolynomialKernel,X1,X2,weight::Bool=true)
 end
 
 function compute_point_deriv(k::PolynomialKernel,X1,X2)
-    return getvalue(k.hyperparameters)[3]*getvalue(k.hyperparameters)[1]*X2*(getvalue(k.hyperparameters)[1]*k.pairwisefunction(X1,X2)+getvalue(k.hyperparameters)[2])^(getvalue(k.hyperparameters)[3]-1)
+    return k.param[3]*k.param[1]*X2*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
 end
 
 """
@@ -356,7 +361,69 @@ function compute_point_deriv(k::ARDKernel,X1,X2)
     return -2*(X1-X2)./(getvalue(k.hyperparameters).^2).*compute(k,X1,X2)
 end
 
+"""
+    Matern 3/2 Kernel
+    d= ||X1-X2||^2
+    (1+\frac{√(3)d}{ρ})exp(-\frac{√(3)d}{ρ})
+"""
 
+mutable struct Matern3_2 <: Kernel
+    @kernelfunctionfields
+    function Matern3_2(θ::Float64=1.0;weight::Float64=1.0)
+        return new("Matern3_2",HyperParameter(weight),HyperParameter(θ),length(θ),SquaredEuclidean)
+    end
+end
+
+function compute(k::Matern3_2,X1,X2,weight::Bool=true)
+    d = sqrt(3.0)*k.distance(X1,X2)
+    return (weight?getvalue(k.weight):1.0)*(1.0+d/getvalue(k.param)*exp(-d/getvalue(k.param))
+end
+#
+function compute_deriv(k::Matern3_2,X1,X2,weight::Bool=true)
+    d = sqrt(3.0)*k.distance(X1,X2)
+    grad_1 = -d*(1+d/getvalue(k.param)+1/(getvalue(k.param)^2))*exp(-d/getvalue(k.param))
+    if weight
+        return [getvalue(k.weight)*grad_1,compute(k,X1,X2)]
+    else
+        return [grad_1]
+    end
+end
+
+function compute_point_deriv(k::Matern3_2,X1,X2)
+    ### TODO
+end
+
+"""
+    Matern 5/2 Kernel
+    d= ||X1-X2||^2
+    (1+\frac{√(5)d}{ρ}+\frac{5d^2}{3ρ^2})exp(-\frac{-√(5)d}{ρ})
+"""
+
+mutable struct Matern5_2 <: Kernel
+    @kernelfunctionfields
+    function Matern5_2(θ::Float64=1.0;weight::Float64=1.0)
+        return new("Matern5_2",HyperParameter(weight),HyperParameter(θ),length(θ),SquaredEuclidean)
+    end
+end
+
+function compute(k::Matern5_2,X1,X2,weight::Bool=true)
+    d = sqrt(5.0)*k.distance(X1,X2)
+    return (weight?getvalue(k.weight):1.0)*(1.0+d/getvalue(k.param)+d^2/(3.0*getvalue(k.param)^2))*exp(-d/getvalue(k.param))
+end
+#
+function compute_deriv(k::Matern3_2,X1,X2,weight::Bool=true)
+    d = sqrt(5.0)*k.distance(X1,X2)
+    grad_1 = -d*(1+d^2/p+(3*d+d^3)/(3*(getvalue(k.param))^2)+2*d^2/(3*(getvalue(k.param))^3))*exp(-d/getvalue(k.param))
+    if weight
+        return [getvalue(k.weight)*grad_1,compute(k,X1,X2)]
+    else
+        return [grad_1]
+    end
+end
+
+function compute_point_deriv(k::Matern3_2,X1,X2)
+    ### TODO
+end
 
 # type Kernel
 #     name::String #Type of function
@@ -520,31 +587,6 @@ function apply_gradients!(kernel::KernelProduct,gradients,weight::Bool=true)
     end
     if weight
         update!(kernel.weight,gradients[end][1]);
-    end
-end
-
-function plotkernel(kernel::Kernel;range=[-3.0,3.0],npoints::Int64=100)
-    if kernel.pairwisefunction == InnerProduct
-        X1 = ones(npoints);
-        X2 = collect(linspace(range[1],range[2],npoints));
-        value = zeros(npoints);
-        for i in 1:npoints
-            value[i] = compute(kernel,X1[i],X2[i])
-        end
-        plot(X2,value,lab="k(x)",xlabel="x")
-    elseif kernel.pairwisefunction == SquaredEuclidean
-        X1 = zeros(npoints);
-        X2 = collect(linspace(range[1],range[2],npoints));
-        value = zeros(npoints);
-        for i in 1:npoints
-            value[i] = compute(kernel,X1[i],X2[i])
-        end
-        plot(X2,value,lab="k(x)",xlabel="x")
-    elseif kernel.pairwisefunction == Identity
-        plotlyjs()
-        x = collect(linspace(range[1],range[2],npoints));
-        value = broadcast((x,y)->compute(kernel,x,y),[i for i in x, j in x],[j for i in x, j in x])
-        display(plot(x,x,value,t=:contour,fill=true,cbar=true,xlabel="X",ylabel="Y",title="k(X,Y)"))
     end
 end
 

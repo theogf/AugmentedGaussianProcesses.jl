@@ -213,7 +213,7 @@ function multiclasspredictproba(model::MultiClass,X_test)
     grad_h = grad_mod_soft_max.(σ,normsig)
     hess_h = hessian_mod_soft_max.(σ,normsig)
     m_predic = h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f)
-    cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov+0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
+    cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov-0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
     return m_predic,cov_predic
 end
 function multiclasspredictprobamcmc(model::MultiClass,X_test,NSamples=100)
@@ -274,9 +274,9 @@ function hessian_mod_soft_max(σ,normsig)
     for i in 1:n
         for j in 1:n
             if i==j
-                grad[i,i] = -short_sum[i]*base_grad[i]
+                grad[i,i] = short_sum[i]*base_grad[i]
             else
-                grad[i,j] = σ[i]*base_grad[j]
+                grad[i,j] = -σ[i]*base_grad[j]
             end
         end
     end

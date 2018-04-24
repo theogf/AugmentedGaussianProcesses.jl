@@ -47,7 +47,7 @@ export GPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 #Useful functions
 export getLog
 export Kernel, diagkernelmatrix, kernelmatrix, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
-export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict
+export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 
 include("GPFields.jl")
 #Models

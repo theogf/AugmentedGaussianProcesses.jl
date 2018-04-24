@@ -32,3 +32,24 @@ function naturalGradientELBO_MultiClass(Y,θ_0,θ,invK,γ;stoch_coeff=1.0,MBIndi
     end
     return grad_1,grad_2
 end
+
+
+function ELBO(model::MultiClass)
+    expec_f2 = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.ζ),model.μ)
+    ELBO_v = -model.nSamples*log(2.0)+0.5*model.K*size(model.X,2)+sum(model.α-log.(model.β)+log.(gamma.(model.α)))+dot(1-model.α,digamma.(model.α))
+    ELBO_v += 0.5*sum(broadcast((y,gam,mu,theta,sigma)->logdet(model.invK)+logdet(sigma)+dot(y-gam,mu)-sum((Diagonal(y.*model.θ[1]+theta)+model.invK).*(sigma+mu*(mu'))),broadcast(x->x[model.MBIndices],model.Y),broadcast(x->x[model.MBIndices],model.γ),model.μ,broadcast(x->x[model.MBIndices],model.θ[2:end]),model.ζ,model.κ))
+    ELBO_v += sum(broadcast((gam,f2,theta)->dot(gam,-log(2)-log.(gam)+1+digamma.(model.α)-log.(model.β))-sum(log.(cosh.(0.5*f2)))+0.5*dot(f2,f2.*theta);end,model.γ,expec_f2,model.θ[2:end]))
+    model.θ[1] = [0.5./sqrt(expec_f2[model.y_class[i]][i])*tanh(0.5*expec_f2[model.y_class[i]][i]) for i in 1:model.nSamples ];
+    ELBO_v += sum([-log.(cosh.(0.5*expec_f2[model.y_class[i]][i]))+0.5*model.θ[1][i]*(expec_f2[model.y_class[i]][i]^2) for i in 1:model.nSamples])
+    return -ELBO_v
+end
+
+function ELBO(model::SparseMultiClass)
+    expec_f2 = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.ζ),model.μ)
+    ELBO_v = -model.nSamples*log(2.0)+0.5*model.K*model.m+sum(model.α-log.(model.β)+log.(gamma.(model.α)))+dot(1-model.α,digamma.(model.α))
+    ELBO_v += 0.5*sum(broadcast((y,gam,mu,theta,sigma,kappa)->logdet(model.invK)+logdet(sigma)+dot(y-gam,kappa*mu)-sum((kappa'*Diagonal(y.*model.θ[1]+theta)*kappa+invK).*(sigma+mu*(mu'))),model.Y,model.γ,model.μ,model.θ[2:end],model.ζ))
+    ELBO_v += sum(broadcast((gam,f2,theta)->dot(gam,-log(2)-log.(gam)+1+digamma.(model.α)-log.(model.β))-sum(log.(cosh.(0.5*f2)))+0.5*dot(f2,f2.*theta);end,model.γ,expec_f2,model.θ[2:end]))
+    model.θ[1] = [0.5./sqrt(expec_f2[model.y_class[i]][i])*tanh(0.5*expec_f2[model.y_class[i]][i]) for i in 1:model.nSamples ];
+    ELBO_v += sum([-log.(cosh.(0.5*expec_f2[model.y_class[i]][i]))+0.5*model.θ[1][i]*(expec_f2[model.y_class[i]][i]^2) for i in 1:model.nSamples])
+    return -ELBO_v
+end

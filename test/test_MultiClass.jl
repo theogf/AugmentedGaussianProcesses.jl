@@ -38,11 +38,12 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 # y=  X[:,1]; X= X[:,2:end]
 # X_test = readdlm("data/mnist_test")
 # y_test= X_test[:,1]; X_test=X_test[:,2:end]
-
+include("../src/OMGP.jl")
+import OMGP
 kernel = OMGP.RBFKernel(1.0)
-kernel.weight.value=10.0
+kernel.weight.value=0.1
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
-full_model = OMGP.MultiClass(X,y,VerboseLevel=1,kernel=kernel)
+full_model = OMGP.MultiClass(X,y,VerboseLevel=3,kernel=kernel)
 # sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
 t_full = @elapsed full_model.train(iterations=200)
 # t_sparse = @elapsed sparse_model.train(iterations=200)
@@ -51,7 +52,7 @@ m_base = OMGP.multiclasspredict(full_model,X_test,true)
 m_pred,sig_pred = OMGP.multiclasspredictproba(full_model,X_test)
 println("Full predictions computed")
 # y_sparse, = sparse_model.predict(X_test)
-m_pred_mc,sig_pred_mc = OMGP.multiclasspredictprobamcmc(full_model,X_test,1000)
+# m_pred_mc,sig_pred_mc = OMGP.multiclasspredictprobamcmc(full_model,X_test,1000)
 println("Sampling done")
 full_score = 0
 for (i,pred) in enumerate(y_full)
@@ -75,7 +76,8 @@ logit_f = logit.(full_f_star)
 
 
 #
-if size(X,2)==2
+if false
+# if size(X,2)==2
     using Plots
     # plotlyjs()
     # p1=plot(x_test,x_test,reshape(y_test,N_test,N_test),t=:contour,clims=(1,N_class),cbar=false,fill=:true)
@@ -88,13 +90,13 @@ if size(X,2)==2
     # sparse_f_star = OMGP.fstar(sparse_model,X_test,covf=false)
     p_full = [plot(x_test,x_test,reshape(full_f_star[i],N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="f_$(full_model.class_mapping[i])") for i in 1:N_class]
     println("Latent plots ready")
-    p_logit_full = [plot(x_test,x_test,reshape(logit_f[i],N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="σ(f)_$(full_model.class_mapping[i])") for i in 1:N_class]
+    p_logit_full = [plot(x_test,x_test,reshape(logit_f[i],N_test,N_test),t=:contour,fill=true,clims=[0,1],cbar=true,lab="",title="σ(f)_$(full_model.class_mapping[i])") for i in 1:N_class]
     println("Logit Latent plots ready")
     p_val = [plot(x_test,x_test,reshape(broadcast(x->x[i],m_pred),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="mu_approx_$(full_model.class_mapping[i])") for i in 1:N_class]
     println("Mu plots ready")
     p_val_simple = [plot(x_test,x_test,reshape(broadcast(x->x[i],m_base),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="mu_simple_$(full_model.class_mapping[i])") for i in 1:N_class]
     println("Mu base plots ready")
-    p_val_mc = [plot(x_test,x_test,reshape(broadcast(x->x[i],m_pred_mc),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="MC mu_$(full_model.class_mapping[i])") for i in 1:N_class]
+    p_val_mc = [plot(x_test,x_test,reshape(broadcast(x->x[i],m_pred_mc),N_test,N_test),t=:contour,clims=[0,1],fill=true,cbar=true,lab="",title="MC mu_$(full_model.class_mapping[i])") for i in 1:N_class]
     println("MC Mu plots ready")
     p_sig = [plot(x_test,x_test,reshape(broadcast(x->x[i],sig_pred),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="sig_$(full_model.class_mapping[i])") for i in 1:N_class]
     println("Sig plots ready")

@@ -62,6 +62,7 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
         ### Print out informations about the convergence
         if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
             print("Iteration : $iter, convergence = $conv \n")
+            println("Neg. ELBO is : $(ELBO(model))")
         end
         (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         iter += 1;
