@@ -25,6 +25,7 @@ export Kernel, KernelSum, KernelProduct
 export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2, Matern5_2
 export kernelmatrix,kernelmatrix!,diagkernelmatrix,diagkernelmatrix!
 export derivativekernelmatrix,derivativediagkernelmatrix,compute_hyperparameter_gradient,apply_gradients!
+export InnerProduct, SquaredEuclidean, Identity
 export compute,plotkernel
 
 
@@ -331,7 +332,7 @@ mutable struct ARDKernel <: Kernel
         if length(θ)==1 && dim ==0
             error("You defined an ARD kernel without precising the number of dimensions
                              Please set dim in your kernel initialization or use ARDKernel(X,θ)")
-        elseif dim!=0 && (length(params)!=dim && length(params)!=1)
+        elseif dim!=0 && (length(θ)!=dim && length(θ)!=1)
             warn("You did not use the same dimension for your params and dim, using the first value of params for all dimensions")
             θ = ones(dim)*θ[1]
         elseif length(θ)==1 && dim!=0
@@ -344,21 +345,21 @@ function compute(k::ARDKernel,X1,X2,weight::Bool=true)
     if X1==X2
         return 1.0
     end
-    return (weight?getvalue(k.weight):1.0)*exp(-0.5*sum(((X1-X2)./getvalue(k.hyperparameters).^2)))
+    return (weight?getvalue(k.weight):1.0)*exp(-0.5*sum(((X1-X2)./getvalue(k.param).^2)))
 end
 #
 function compute_deriv(k::ARDKernel,X1,X2,weight::Bool=true)
     if X1 == X2
         return zeros(k.Nparameters)
     end
-    return 2*(X1-X2).^2./(getvalue(k.hyperparameters).^3)*compute(k,X1,X2)
+    return 2*(X1-X2).^2./(getvalue(k.param).^3)*compute(k,X1,X2)
 end
 
 function compute_point_deriv(k::ARDKernel,X1,X2)
     if X1==X2
         return zeros(X1)
     end
-    return -2*(X1-X2)./(getvalue(k.hyperparameters).^2).*compute(k,X1,X2)
+    return -2*(X1-X2)./(getvalue(k.param).^2).*compute(k,X1,X2)
 end
 
 """
@@ -376,7 +377,7 @@ end
 
 function compute(k::Matern3_2,X1,X2,weight::Bool=true)
     d = sqrt(3.0)*k.distance(X1,X2)
-    return (weight?getvalue(k.weight):1.0)*(1.0+d/getvalue(k.param)*exp(-d/getvalue(k.param))
+    return (weight?getvalue(k.weight):1.0)*(1.0+d/getvalue(k.param))*exp(-d/getvalue(k.param))
 end
 #
 function compute_deriv(k::Matern3_2,X1,X2,weight::Bool=true)
