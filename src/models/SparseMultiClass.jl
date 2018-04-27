@@ -8,9 +8,9 @@ mutable struct SparseMultiClass <: SparseModel
     @stochasticfields
     @kernelfields
     @multiclass_sparsefields
-    function SparseMultiClass(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
+    function SparseMultiClass(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,KStochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false,
-                                    nEpochs::Integer = 10000,BatchSize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
+                                    nEpochs::Integer = 10000,KSize::Int64=-1,BatchSize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
                                     kernel=0,noise::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=2,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
                                     VerboseLevel::Integer=0)
@@ -29,6 +29,11 @@ mutable struct SparseMultiClass <: SparseModel
             initMultiClass!(this,Y,y_class,y_map);
             initMultiClassSparse!(this,m,OptimizeIndPoints)
             initMultiClassVariables!(this,μ_init)
+            if KStochastic
+                initKstochastic!(this,KSize)
+            else
+                this.KIndices=1:this.K; this.nClassesUsed = this.K; this.KStochCoeff = 1.0;
+            end
             return this;
     end
 end

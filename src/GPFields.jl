@@ -91,6 +91,27 @@ function initStochastic!(model::GPModel,AdaptiveLearningRate,BatchSize,κ_s,τ_s
     model.StochCoeff = model.nSamples/model.nSamplesUsed
     model.τ = 50;
 end
+
+"""
+    Parameters for stochasticity in the number of classes
+"""
+
+@def Kstochasticfields begin
+    nClassesUsed::Int64 #Number of classes used
+    KStochCoeff::Float64 #Stochastic coefficient for the number of classes
+    KIndices #Class indices
+end
+
+"""
+    Function to initialize Kstochasticfields parameters
+"""
+
+function initKstochastic(model,Ksize_used::Int64)
+    model.KStochastic = true;
+    model.nClassesUsed = Ksize_used
+    model.KStochCoeff = model.K/model.nClassesUsed
+end
+
 """
     Parameters for the kernel parameters, including the covariance matrix of the prior
 """
@@ -149,6 +170,7 @@ Parameters for the multiclass version of the classifier based of softmax
     Y::Array{Array{Float64,1},1} #Mapping from instances to classes
     y_class::Array{Int64,1}
     K::Int64 #Number of classes
+    KStochastic::Bool #Stochasticity in the number of classes
     class_mapping::Array{Any,1} # Classes labels mapping
     μ::Array{Array{Float64,1}} #Mean for each class
     η_1::Array{Array{Float64,1}} #Natural parameter #1 for each class
@@ -208,6 +230,7 @@ function initMultiClassVariables!(model,μ_init)
     model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.K+1)]
     # model.γ = [zeros(model.nSamples) for i in 1:model.K]
     model.γ = [abs.(rand(model.nSamples)) for i in 1:model.K]
+    model.KStochastic = false
 end
 
 """
