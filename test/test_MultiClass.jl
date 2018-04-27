@@ -41,7 +41,7 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 include("../src/OMGP.jl")
 import OMGP
 kernel = OMGP.RBFKernel(1.0)
-kernel.weight.value=0.1
+kernel.weight.value=10.0
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 full_model = OMGP.MultiClass(X,y,VerboseLevel=3,kernel=kernel)
 # sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
@@ -52,7 +52,7 @@ m_base = OMGP.multiclasspredict(full_model,X_test,true)
 m_pred,sig_pred = OMGP.multiclasspredictproba(full_model,X_test)
 println("Full predictions computed")
 # y_sparse, = sparse_model.predict(X_test)
-# m_pred_mc,sig_pred_mc = OMGP.multiclasspredictprobamcmc(full_model,X_test,1000)
+m_pred_mc,sig_pred_mc = OMGP.multiclasspredictprobamcmc(full_model,X_test,1000)
 println("Sampling done")
 full_score = 0
 for (i,pred) in enumerate(y_full)
@@ -76,8 +76,8 @@ logit_f = logit.(full_f_star)
 
 
 #
-if false
-# if size(X,2)==2
+# if false
+if size(X,2)==2
     using Plots
     # plotlyjs()
     # p1=plot(x_test,x_test,reshape(y_test,N_test,N_test),t=:contour,clims=(1,N_class),cbar=false,fill=:true)

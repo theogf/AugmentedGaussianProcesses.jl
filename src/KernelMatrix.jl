@@ -133,7 +133,7 @@ end
 
 function compute_J(k::Kernel,J,n1,n2,weight::Bool=true;diag::Bool=false)
     J_mat = Array{Any,1}()
-    for i in k.Nparameters
+    for i in k.Nparam
         if diag
             push!(J_mat,broadcast(x->x[i],J))
         else
@@ -175,7 +175,7 @@ function compute_hyperparameter_gradient(k::KernelProduct,gradient_function::Fun
 end
 function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,Js,weight::Bool=true)
     gradients = Array{Float64,1}()
-    for i in k.Nparameters
+    for i in k.Nparam
         push!(gradients,gradient_function(broadcast(x->x[i],Js)))
     end
     if weight
