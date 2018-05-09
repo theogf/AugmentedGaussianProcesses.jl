@@ -40,7 +40,7 @@ end
 
 import Base: *, +, getindex
 export Kernel, KernelSum, KernelProduct
-export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2, Matern5_2
+export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2Kernel, Matern5_2Kernel
 export kernelmatrix,kernelmatrix!,diagkernelmatrix,diagkernelmatrix!
 export derivativekernelmatrix,derivativediagkernelmatrix,compute_hyperparameter_gradient,apply_gradients!
 export InnerProduct, SquaredEuclidean, Identity
@@ -50,27 +50,30 @@ export compute,plotkernel
 
 abstract type Kernel{T<:AbstractFloat} end;
 
-IntervalArray{T<:Real} = Array{Interval{T},1}
-
 mutable struct HyperParameters{T<:AbstractFloat}
     hyperparameters::Array{HyperParameter{T},1}
-    function HyperParameters{T}(θ::Array{T},intervals::Array{Interval{T}}) where {T<:AbstractFloat}
-        this = new(Array{HyperParameter{T},1}())
+    function HyperParameters{T}(θ::Vector{T},intervals::Array{Interval{T,A,B}}) where {A<:Bound{T},B<:Bound{T}} where {T<:AbstractFloat}
+        this = new(Vector{HyperParameter{T}}())
         for (val,int) in zip(θ,intervals)
-            push!(this.hyperparameters,HyperParameter{T}(x,int))
+            push!(this.hyperparameters,HyperParameter{T}(val,int))
         end
         return this
     end
 end
-function HyperParameters{T<:Real}(θ::Array{T,1},intervals::IntervalArray{T})
-    println("Blah")
+function HyperParameters(θ::Vector{T},intervals::Vector{Interval{T,A,B}}) where {A<:Bound{T},B<:Bound{T}} where {T<:Real}
     HyperParameters{T}(θ,intervals)
 end
 
-
+function Base.getindex(p::HyperParameters,it::Integer)
+    return p.hyperparameters[it]
+end
 """
     Distance functions
 """
+
+function compute(k::Kernel,X1::T,X2::T) where {T<:Real}
+    compute(k,[X1],[X2])
+end
 
 InnerProduct(X1,X2) = dot(X1,X2);
 SquaredEuclidean(X1,X2) = norm(X1-X2,2)
@@ -78,27 +81,27 @@ Identity(X1,X2) = (X1,X2)
 
 mutable struct KernelSum{T<:AbstractFloat} <: Kernel{T}
     @kernelfunctionfields()
-    kernel_array::Array{Kernel{T},1} #Array of summed kernels
+    kernel_array::Vector{Kernel{T}} #Array of summed kernels
     Nkernels::Int64
     #Constructors
     function KernelSum{T}(kernels::AbstractArray) where {T<:AbstractFloat}
         this = new("Sum of kernels")
-        this.kernel_array = deepcopy(Array{Kernel{T},1}(kernels))
+        this.kernel_array = deepcopy(Vector{Kernel{T}}(kernels))
         this.Nkernels = length(this.kernel_array)
         this.distance = Identity
         return this
     end
 end
-function compute{T}(k::KernelSum{T},X1::Array{T},X2::Array{T},weight::Bool=true)
+function compute{T}(k::KernelSum{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     sum = 0.0
     for kernel in k.kernel_array
-        sum += compute{T}(kernel,X1,X2)
+        sum += compute(kernel,X1,X2)
     end
     return sum
 end
 
-function compute_deriv{T}(k::KernelSum{T},X1::Array{T},X2::Array{T},weight::Bool=true)
-    deriv_values = Array{Array{Any,1},1}()
+function compute_deriv{T}(k::KernelSum{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
+    deriv_values = Vector{Vector{Any}}()
     for kernel in k.kernel_array
         push!(deriv_values,compute_deriv{T}(kernel,X1,X2,true))
     end
@@ -108,7 +111,7 @@ end
 function compute_point_deriv{T}(k::KernelSum{T},X1,X2)
     deriv_values = zeros(X1)
     for kernel in k.kernel_array
-        deriv_values += getvalue(kernel.weight)*compute_point_deriv(kernel,X1,X2)
+        deriv_values += getvalue(kernel.weight)*compute_point_deriv{T}(kernel,X1,X2)
     end
     return deriv_values
 end
@@ -129,31 +132,31 @@ end
 
 mutable struct KernelProduct{T<:AbstractFloat} <: Kernel{T}
     @kernelfunctionfields
-    kernel_array::Array{Kernel{T},1} #Array of multiplied kernels
+    kernel_array::Vector{Kernel{T}} #Array of multiplied kernels
     Nkernels::Int64
-    function KernelProduct{T}(kernels::Array{Kernel{T}}) where {T<:AbstractFloat}
+    function KernelProduct{T}(kernels::Vector{Kernel{T}}) where {T<:AbstractFloat}
         this = new("Product of kernels",
         HyperParameter(1.0,interval(OpenBound(zero(Float64)),nothing)))
-        this.kernel_array = deepcopy(Array{Kernel,1}(kernels))
+        this.kernel_array = deepcopy(Vector{Kernel}(kernels))
         this.Nkernels = length(this.kernel_array)
         this.distance = Identity
         return this
     end
 end
 
-function compute{T}(k::KernelProduct{T},X1::Array{T},X2::Array{T},weight::Bool=true)
+function compute{T}(k::KernelProduct{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     product = 1.0
     for kernel in k.kernel_array
-        product *= compute{T}(kernel,X1,X2,false)
+        product *= compute(kernel,X1,X2,false)
     end
     return (weight?getvalue(k.weight):1.0)*product
 end
 
-function compute_deriv{T}(k::KernelProduct{T},X1::Array{T},X2::Array{T},weight::Bool=true)
-    tot = compute{T}(k,X1,X2)
-    deriv_values = Array{Array{Any,1},1}()
+function compute_deriv{T}(k::KernelProduct{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
+    tot = compute(k,X1,X2)
+    deriv_values = Vector{Vector{Any}}()
     for kernel in k.kernel_array
-        push!(deriv_values,compute_deriv{T}(kernel,X1,X2,false).*tot./compute{T}(kernel,X1,X2,false))
+        push!(deriv_values,compute_deriv(kernel,X1,X2,false).*tot./compute(kernel,X1,X2,false))
     end
     if weight
         push!(deriv_values,[tot])
@@ -161,12 +164,12 @@ function compute_deriv{T}(k::KernelProduct{T},X1::Array{T},X2::Array{T},weight::
     return deriv_values
 end
 
-function compute_point_deriv{T}(k::KernelProduct{T},X1::Array{T},X2::Array{T})
-    tot = compute{T}(k,X1,X2)
+function compute_point_deriv{T}(k::KernelProduct{T},X1::Vector{T},X2::Vector{T})
+    tot = compute(k,X1,X2)
     deriv_values = zeros(X1)
     for kernel in k.kernel_array
         #This should be checked TODO
-        deriv_values += compute_point_deriv{T}(kernel,X1,X2).*tot./compute{T}(kernel,X1,X2)
+        deriv_values += compute_point_deriv(kernel,X1,X2).*tot./compute(kernel,X1,X2)
     end
     return deriv_values
 end
@@ -193,25 +196,25 @@ end
 """
 mutable struct RBFKernel{T<:AbstractFloat} <: Kernel{T}
     @kernelfunctionfields
-    function RBFKernel{T}(θ::T=1.0;coeff::T=1.0) where {T<:AbstractFloat}
+    function RBFKernel{T}(θ::T=1.0;weight::T=1.0) where {T<:AbstractFloat}
         println("BLAH")
         return new("RBF",
-        HyperParameter{T}(coeff,interval(OpenBound(zero(T)),nothing)),
+        HyperParameter{T}(weight,interval(OpenBound(zero(T)),nothing)),
         HyperParameters([θ],[interval(OpenBound(zero(T)),NullBound{T}())]),
         1,SquaredEuclidean)
     end
 end
-function RBFKernel(θ::T1=1.0;coeff::T2=one(T1)) where {T1<:Real,T2<:Real}
-     RBFKernel{floattype(T1,T2)}(θ,coeff=coeff)
+function RBFKernel(θ::T1=1.0;weight::T2=one(T1)) where {T1<:Real,T2<:Real}
+     RBFKernel{floattype(T1,T2)}(θ,weight=weight)
  end
-function compute{T}(k::RBFKernel{T},X1::Array{T},X2::Array{T},weight::Bool=true)
+function compute{T}(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     if X1 == X2
       return (weight?getvalue(k.weight):1.0)
     end
     return (weight?getvalue(k.weight):1.0)*exp(-0.5*(k.distance(X1,X2))^2/(k.param[1])^2)
 end
 #
-function compute_deriv{T}(k::RBFKernel{T},X1::Array{T},X2::Array{T},weight::Bool=true)
+function compute_deriv{T}(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     a = k.distance(X1,X2)
     if a != 0
         grad = a^2/((k.param[1])^3)*compute(k,X1,X2)
@@ -226,7 +229,7 @@ function compute_deriv{T}(k::RBFKernel{T},X1::Array{T},X2::Array{T},weight::Bool
 end
 
 #TODO probably not right
-function compute_point_deriv{T}(k::RBFKernel{T},X1::Array{T},X2::Array{T})
+function compute_point_deriv{T}(k::RBFKernel{T},X1::Vector{T},X2::Vector{T})
     if X1 == X2
         return zeros(X1)
     else
@@ -240,21 +243,25 @@ end
 
 mutable struct LaplaceKernel{T} <: Kernel{T}
     @kernelfunctionfields
-    function LaplaceKernel{T}(θ::T=1.0;coeff::T=1.0) where {T<:AbstractFloat}
+    function LaplaceKernel{T}(θ::T=1.0;weight::T=1.0) where {T<:AbstractFloat}
         return new("Laplace",
-        HyperParameter{T}(coeff,interval(OpenBound(zero(T)),nothing)),
-        HyperParameter{T}(θ,interval(OpenBound(zero(T)),nothing)),
+        HyperParameter{T}(weight,interval(OpenBound(zero(T)),nothing)),
+        HyperParameters{T}([θ],[interval(OpenBound(zero(T)),nothing)]),
         1,SquaredEuclidean)
     end
 end
-function compute{T}(k::LaplaceKernel{T},X1::Array{T},X2::Array{T},weight::Bool=true)
+function LaplaceKernel(θ::T1=1.0;weight::T2=one(T1)) where {T1<:Real,T2<:Real}
+     LaplaceKernel{floattype(T1,T2)}(θ,weight=weight)
+ end
+
+function compute{T}(k::LaplaceKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     if X1 == X2
       return (weight?getvalue(k.weight):1.0)
     end
     return (weight?getvalue(k.weight):1.0)*exp(-k.distance(X1,X2)/(k.param[1]))
 end
 #
-function compute_deriv{T}(k::LaplaceKernel{T},X1::Array{T},X2::Array{T},weight::Bool=true)
+function compute_deriv{T}(k::LaplaceKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     a = k.distance(X1,X2)
     if a != 0
         grad = a/((k.param[1])^2)*compute(k,X1,X2)
@@ -269,30 +276,37 @@ function compute_deriv{T}(k::LaplaceKernel{T},X1::Array{T},X2::Array{T},weight::
 end
 
 #TODO Not correct
-function compute_point_deriv{T}(k::LaplaceKernel{T},X1::Array{T},X2::Array{T})
+function compute_point_deriv{T}(k::LaplaceKernel{T},X1::Vector{T},X2::Vector{T})
     if X1 == X2
         return zeros(X1)
     else
-        return getvalue(k.weight)*(-(X1-X2))./(getvalue(k.param)^2).*compute(k,X1,X2)
+        return getvalue(k.weight)*(-(X1-X2))./(k.param[1]^2).*compute(k,X1,X2)
     end
 end
 
 """
     Sigmoid Kernel
+    tanh(p1*d+p2)
 """
 
 mutable struct SigmoidKernel{T} <: Kernel{T}
     @kernelfunctionfields
-    function SigmoidKernel{T}(θ::Array{T}=[1.0,0.0];weight::Float64=1.0) where {T<:Real}
+    function SigmoidKernel{T}(θ::Vector{T}=[1.0,0.0];weight::Float64=1.0) where {T<:Real}
         return new("Sigmoid",
-        HyperParameter{T}(weight),HyperParameters(θ),length(θ),InnerProduct)
+        HyperParameter{T}(weight,interval(OpenBound{T}(zero(T)),NullBound{T}())),
+        HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()), interval(NullBound{T}(),NullBound{T}())]),
+        length(θ),InnerProduct)
     end
 end
-function compute(k::SigmoidKernel,X1,X2,weight::Bool=true)
+function SigmoidKernel(θ::Vector{T1}=[1.0,0.0];weight::T2=one(T1)) where {T1<:Real,T2<:Real}
+     SigmoidKernel{floattype(T1,T2)}(θ,weight=weight)
+ end
+
+function compute{T}(k::SigmoidKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     return (weight?getvalue(k.weight):1.0)*tanh(k.param[1]*k.distance(X1,X2)+k.param[2])
 end
 #
-function compute_deriv(k::SigmoidKernel,X1,X2,weight::Bool=true)
+function compute_deriv{T}(k::SigmoidKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
 
     grad_1 = k.distance(X1,X2)*(1-compute(k,X1,X2)^2)
     grad_2 = (1-compute(k,X1,X2)^2)
@@ -303,25 +317,32 @@ function compute_deriv(k::SigmoidKernel,X1,X2,weight::Bool=true)
     end
 end
 
-function compute_point_deriv(k::SigmoidKernel,X1,X2)
+function compute_point_deriv{T}(k::SigmoidKernel{T},X1::Vector{T},X2::Vector{T})
     return k.param[1]*X2.*(1-compute(k,X1,X2)^2)
 end
 
 """
     Polynomial Kernel
+    (p1*d+p2)^p3
 """
 
 mutable struct PolynomialKernel{T} <: Kernel{T}
     @kernelfunctionfields
-    function PolynomialKernel{T}(θ::Array{Float64}=[1.0,0.0,2.0];weight::Float64=1.0) where {T<:Real}
-        return new("Polynomial",HyperParameter(weight),HyperParameters(θ),length(θ),InnerProduct)
+    function PolynomialKernel{T}(θ::Vector{T}=[1.0,0.0,2.0];weight::T=1.0) where {T<:Real}
+        return new("Polynomial",HyperParameter{T}(weight,interval(OpenBound{T}(zero(T)),NullBound{T}())),
+                                HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()) for i in 1:length(θ)]),
+                                length(θ),InnerProduct)
     end
 end
-function compute(k::PolynomialKernel,X1,X2,weight::Bool=true)
-    return (weight?getvalue(k.weight):1.0)*(k.param[1]*k.distance(X1,X2)+k.param[2])^k.param[3]
+function PolynomialKernel(θ::Vector{T1}=[1.0,0.0,2.0];weight::T2=one(T1)) where {T1<:Real,T2<:Real}
+     PolynomialKernel{floattype(T1,T2)}(θ,weight=weight)
+ end
+
+function compute{T}(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
+    return (weight?getvalue(k.weight):1.0)*(k.param[1]*k.distance(X1,X2)+k.param[2])^getvalue(k.param[3])
 end
 #
-function compute_deriv(k::PolynomialKernel,X1,X2,weight::Bool=true)
+function compute_deriv{T}(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     grad_1 = k.param[3]*k.distance(X1,X2)*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
     grad_2 = k.param[3]*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
     grad_3 = log(k.param[1]*k.distance(X1,X2)+k.param[2])*compute(k,X1,X2)
@@ -332,7 +353,7 @@ function compute_deriv(k::PolynomialKernel,X1,X2,weight::Bool=true)
     end
 end
 
-function compute_point_deriv(k::PolynomialKernel,X1,X2)
+function compute_point_deriv{T}(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T})
     return k.param[3]*k.param[1]*X2*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
 end
 
@@ -342,38 +363,45 @@ end
 
 mutable struct ARDKernel{T} <: Kernel{T}
     @kernelfunctionfields
-    function ARDKernel{T}(θ::Array{Float64}=[1.0];dim=0,weight::Float64=1.0) where {T<:Real}
+    function ARDKernel{T}(θ::Vector{T}=[1.0];dim::Int64=0,weight::T=1.0) where {T<:Real}
         if length(θ)==1 && dim ==0
             error("You defined an ARD kernel without precising the number of dimensions
                              Please set dim in your kernel initialization or use ARDKernel(X,θ)")
         elseif dim!=0 && (length(θ)!=dim && length(θ)!=1)
             warn("You did not use the same dimension for your params and dim, using the first value of params for all dimensions")
-            θ = ones(dim)*θ[1]
+            θ = ones(dim,T=T)*θ[1]
         elseif length(θ)==1 && dim!=0
             θ = ones(dim)*θ[1]
         end
-        return new("ARD",HyperParameter(weight),HyperParameters(θ),length(θ),SquaredEuclidean)
+        intervals = [interval(OpenBound{T}(zero(T)),NullBound{T}()) for i in 1:length(θ)]
+        return new("ARD",HyperParameter{T}(weight,interval(OpenBound{T}(zero(T)),NullBound{T}())),
+                        HyperParameters{T}(θ,intervals),
+                        length(θ),SquaredEuclidean)
     end
 end
-function compute(k::ARDKernel,X1,X2,weight::Bool=true)
+
+function ARDKernel(θ::Vector{T1}=[1.0];dim::Int64=0,weight::T2=one(T1)) where {T1<:Real,T2<:Real}
+     ARDKernel{floattype(T1,T2)}(θ,dim=dim,weight=weight)
+end
+function compute{T}(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     if X1==X2
         return 1.0
     end
-    return (weight?getvalue(k.weight):1.0)*exp(-0.5*sum(((X1-X2)./getvalue(k.param).^2)))
+    return (weight?getvalue(k.weight):1.0)*exp(-0.5*sum(((X1-X2)./(k.param.hyperparameters.^2))))
 end
 #
-function compute_deriv(k::ARDKernel,X1,X2,weight::Bool=true)
+function compute_deriv{T}(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     if X1 == X2
-        return zeros(k.Nparameters)
+        return zeros(k.Nparam)
     end
     return 2*(X1-X2).^2./(getvalue(k.param).^3)*compute(k,X1,X2)
 end
 
-function compute_point_deriv(k::ARDKernel,X1,X2)
+function compute_point_deriv{T}(k::ARDKernel{T},X1::Vector{T},X2::Vector{T})
     if X1==X2
         return zeros(X1)
     end
-    return -2*(X1-X2)./(getvalue(k.param).^2).*compute(k,X1,X2)
+    return -2*(X1-X2)./(k.param.hyperparameters.^2).*compute(k,X1,X2)
 end
 
 """
@@ -382,21 +410,25 @@ end
     (1+\frac{√(3)d}{ρ})exp(-\frac{√(3)d}{ρ})
 """
 
-mutable struct Matern3_2{T} <: Kernel{T}
+mutable struct Matern3_2Kernel{T} <: Kernel{T}
     @kernelfunctionfields
-    function Matern3_2{T}(θ::Float64=1.0;weight::Float64=1.0) where {T<:Real}
-        return new("Matern3_2",HyperParameter(weight),HyperParameter(θ),length(θ),SquaredEuclidean)
+    function Matern3_2Kernel{T}(θ::Float64=1.0;weight::Float64=1.0) where {T<:Real}
+        return new("Matern3_2Kernel",HyperParameter(weight,interval(OpenBound{T}(zero(T)),NullBound{T}())),
+                                    HyperParameters([θ],[interval(OpenBound{T}(zero(T)),NullBound{T}())]),
+                                    length(θ),SquaredEuclidean)
     end
 end
-
-function compute{T}(k::Matern3_2{T},X1::Array{T,1},X2::Array{T,1},weight::Bool=true)
+function Matern3_2Kernel(θ::T1=1.0;weight::T2=one(T1)) where {T1<:Real,T2<:Real}
+     Matern3_2Kernel{floattype(T1,T2)}(θ,weight=weight)
+ end
+function compute{T}(k::Matern3_2Kernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     d = sqrt(3.0)*k.distance(X1,X2)
     return (weight?getvalue(k.weight):1.0)*(1.0+d/k.param[1])*exp(-d/k.param[1])
 end
 #
-function compute_deriv{T}(k::Matern3_2{T},X1::Array{T},X2::Array{T},weight::Bool=true)
+function compute_deriv{T}(k::Matern3_2Kernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     d = sqrt(3.0)*k.distance(X1,X2)
-    grad_1 = -d*(1+d/k.param[1]+1/(k.param)^2)*exp(-d/k.param[1])
+    grad_1 = -d*(1+d/k.param[1]+1/(k.param[1])^2)*exp(-d/k.param[1])
     if weight
         return [getvalue(k.weight)*grad_1,compute(k,X1,X2)]
     else
@@ -404,7 +436,7 @@ function compute_deriv{T}(k::Matern3_2{T},X1::Array{T},X2::Array{T},weight::Bool
     end
 end
 
-function compute_point_deriv{T}(k::Matern3_2{T},X1::Array{T},X2::Array{T})
+function compute_point_deriv{T}(k::Matern3_2Kernel{T},X1::Vector{T},X2::Vector{T})
     ### TODO
 end
 
@@ -414,21 +446,27 @@ end
     (1+\frac{√(5)d}{ρ}+\frac{5d^2}{3ρ^2})exp(-\frac{-√(5)d}{ρ})
 """
 
-mutable struct Matern5_2{T} <: Kernel{T}
+mutable struct Matern5_2Kernel{T} <: Kernel{T}
     @kernelfunctionfields
-    function Matern5_2{T}(θ::Float64=1.0;weight::Float64=1.0) where {T<:Real}
-        return new("Matern5_2",HyperParameter(weight),HyperParameter(θ),length(θ),SquaredEuclidean)
+    function Matern5_2Kernel{T}(θ::T=1.0;weight::T=1.0) where {T<:Real}
+        return new("Matern5_2Kernel",HyperParameter{T}(weight,interval(OpenBound{T}(zero(T)),NullBound{T}())),
+                                    HyperParameters{T}([θ],[interval(OpenBound{T}(zero(T)),NullBound{T}())]),
+                                    length(θ),SquaredEuclidean)
     end
 end
 
-function compute(k::Matern5_2,X1,X2,weight::Bool=true)
+function Matern5_2Kernel(θ::T1=1.0;weight::T2=one(T1)) where {T1<:Real,T2<:Real}
+     Matern5_2Kernel{floattype(T1,T2)}(θ,weight=weight)
+ end
+
+function compute{T}(k::Matern5_2Kernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     d = sqrt(5.0)*k.distance(X1,X2)
-    return (weight?getvalue(k.weight):1.0)*(1.0+d/getvalue(k.param)+d^2/(3.0*getvalue(k.param)^2))*exp(-d/getvalue(k.param))
+    return (weight?getvalue(k.weight):1.0)*(1.0+d/k.param[1]+d^2/(3.0*k.param[1]^2))*exp(-d/k.param[1])
 end
 #
-function compute_deriv(k::Matern3_2,X1,X2,weight::Bool=true)
+function compute_deriv{T}(k::Matern5_2Kernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     d = sqrt(5.0)*k.distance(X1,X2)
-    grad_1 = -d*(1+d^2/p+(3*d+d^3)/(3*(getvalue(k.param))^2)+2*d^2/(3*(getvalue(k.param))^3))*exp(-d/getvalue(k.param))
+    grad_1 = -d*(1+d^2/k.param[1]+(3*d+d^3)/(3*k.param[1]^2)+2*d^2/(3*k.param[1]^3))*exp(-d/k.param[1])
     if weight
         return [getvalue(k.weight)*grad_1,compute(k,X1,X2)]
     else
@@ -436,7 +474,7 @@ function compute_deriv(k::Matern3_2,X1,X2,weight::Bool=true)
     end
 end
 
-function compute_point_deriv(k::Matern3_2,X1,X2)
+function compute_point_deriv{T}(k::Matern5_2Kernel{T},X1::Vector{T},X2::Vector{T})
     ### TODO
 end
 
@@ -549,7 +587,7 @@ end
 
 
 #Abel Kernel
-function abel(X1::Array{Float64,1},X2::Array{Float64,1},Θ)
+function abel(X1::Vector{Float64},X2::Array{Float64,1},Θ)
   if X1==X2
     return 1
   end
@@ -584,7 +622,7 @@ function deriv_point_linear(X1::Array{Float64,1},X2::Array{Float64,1},θ)
 end
 
 function apply_gradients!(kernel::Kernel,gradients,weight::Bool=true)
-    update!(kernel.hyperparameters,gradients[kernel.Nparameters ==1 ? 1 : 1:kernel.Nparameters])
+    update!(kernel.hyperparameters,gradients[kernel.Nparam ==1 ? 1 : 1:kernel.Nparam])
     if weight
         update!(kernel.weight,gradients[end])
     end

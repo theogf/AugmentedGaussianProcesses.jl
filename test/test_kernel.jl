@@ -11,10 +11,10 @@ e = OMGP.ARDKernel([1.0,1.0,3.0]); OMGP.compute(e,X1,X2)
 f = a+b; OMGP.compute(f,X1,X2)
 g = a*b; OMGP.compute(g,X1,X2)
 h = c*(d+e); OMGP.compute(g,X1,X2)
-i = OMGP.Matern3_2(); OMGP.compute(i,X1,X2)
-j = OMGP.Matern5_2(); OMGP.compute(j,X1,X2)
+i = OMGP.Matern3_2Kernel(); OMGP.compute(i,X1,X2)
+j = OMGP.Matern5_2Kernel(); OMGP.compute(j,X1,X2)
 using Plots;
-pyplot();
+gr()
 function plotkernel(kernel::OMGP.Kernel;range=[-1.5,1.5],npoints::Int64=100)
     if kernel.distance == OMGP.InnerProduct
         X1 = ones(npoints);
