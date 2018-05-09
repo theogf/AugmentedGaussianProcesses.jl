@@ -5,6 +5,7 @@
 
 module KernelFunctions
 
+
 include("HyperParameters/HyperParametersMod.jl")
 using .HyperParametersMod:
     Bound,
@@ -16,6 +17,7 @@ using .HyperParametersMod:
     interval,
 
     HyperParameter,
+    HyperParameters,
     getvalue,
     setvalue!,
     checkvalue,
@@ -23,8 +25,10 @@ using .HyperParametersMod:
     checktheta,
     settheta!,
     lowerboundtheta,
-    upperboundtheta
-using GradDescent
+    upperboundtheta,
+    update!,
+    setfixed!,
+    setfree!
 
 
 #Common fields to all kernels
@@ -45,28 +49,12 @@ export kernelmatrix,kernelmatrix!,diagkernelmatrix,diagkernelmatrix!
 export derivativekernelmatrix,derivativediagkernelmatrix,compute_hyperparameter_gradient,apply_gradients!
 export InnerProduct, SquaredEuclidean, Identity
 export compute,plotkernel
+export getvalue,setvalue!,setfixed!,setfree!
 
 
 
 abstract type Kernel{T<:AbstractFloat} end;
 
-mutable struct HyperParameters{T<:AbstractFloat}
-    hyperparameters::Array{HyperParameter{T},1}
-    function HyperParameters{T}(θ::Vector{T},intervals::Array{Interval{T,A,B}}) where {A<:Bound{T},B<:Bound{T}} where {T<:AbstractFloat}
-        this = new(Vector{HyperParameter{T}}())
-        for (val,int) in zip(θ,intervals)
-            push!(this.hyperparameters,HyperParameter{T}(val,int))
-        end
-        return this
-    end
-end
-function HyperParameters(θ::Vector{T},intervals::Vector{Interval{T,A,B}}) where {A<:Bound{T},B<:Bound{T}} where {T<:Real}
-    HyperParameters{T}(θ,intervals)
-end
-
-function Base.getindex(p::HyperParameters,it::Integer)
-    return p.hyperparameters[it]
-end
 """
     Distance functions
 """
@@ -197,7 +185,6 @@ end
 mutable struct RBFKernel{T<:AbstractFloat} <: Kernel{T}
     @kernelfunctionfields
     function RBFKernel{T}(θ::T=1.0;weight::T=1.0) where {T<:AbstractFloat}
-        println("BLAH")
         return new("RBF",
         HyperParameter{T}(weight,interval(OpenBound(zero(T)),nothing)),
         HyperParameters([θ],[interval(OpenBound(zero(T)),NullBound{T}())]),
@@ -622,7 +609,7 @@ function deriv_point_linear(X1::Array{Float64,1},X2::Array{Float64,1},θ)
 end
 
 function apply_gradients!(kernel::Kernel,gradients,weight::Bool=true)
-    update!(kernel.hyperparameters,gradients[kernel.Nparam ==1 ? 1 : 1:kernel.Nparam])
+    update!(kernel.param,gradients[kernel.Nparam ==1 ? 1 : 1:kernel.Nparam])
     if weight
         update!(kernel.weight,gradients[end])
     end

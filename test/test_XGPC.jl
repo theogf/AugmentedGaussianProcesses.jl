@@ -26,7 +26,7 @@ t_stoch = @elapsed stochmodel = OMGP.SparseXGPC(X,y,Stochastic=true,BatchSize=40
 t_full += @elapsed fullmodel.train()
 t_sparse += @elapsed sparsemodel.train(iterations=20)
 metrics,savelog = OMGP.getLog(stochmodel)
-stochmodel.kernel.weight.fixed = true
+OMGP.setfixed!(stochmodel.kernel.weight)
 t_stoch += @elapsed stochmodel.train(iterations=500,callback=savelog)
 y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full-0.5)-y_test))/(2*length(y_test))
 y_sparse = sparsemodel.predictproba(X_test);

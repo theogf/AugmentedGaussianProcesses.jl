@@ -1,5 +1,5 @@
 module HyperParametersMod
-
+using GradDescent
 import Base: convert, eltype, promote_type, show, string, ==, *, /, +, -, ^, isless
 
 export
@@ -13,6 +13,8 @@ export
     checkbounds,
 
     HyperParameter,
+    HyperParameters,
+    update!,
     getvalue,
     setvalue!,
     checkvalue,
@@ -20,7 +22,9 @@ export
     settheta!,
     checktheta,
     upperboundtheta,
-    lowerboundtheta
+    lowerboundtheta,
+    setfixed!,
+    setfree!
 
 include("bound.jl")
 include("interval.jl")

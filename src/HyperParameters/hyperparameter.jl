@@ -1,14 +1,16 @@
 #== HyperParameter Type ==#
 
-immutable HyperParameter{T<:Real}
+mutable struct HyperParameter{T<:Real}
     value::Base.RefValue{T}
     interval::Interval{T}
-    function HyperParameter{T}(x::T, I::Interval{T}) where {T<:Real}
+    opt::Optimizer
+    fixed::Bool
+    function HyperParameter{T}(x::T, I::Interval{T},opt::Optimizer=Adam()) where {T<:Real}
         checkvalue(I, x) || error("Value $(x) must be in range " * string(I))
-        new{T}(Ref(x), I)
+        new{T}(Ref(x), I, opt, false)
     end
 end
-HyperParameter{T<:Real}(x::T, I::Interval{T} = interval(T)) = HyperParameter{T}(x, I)
+HyperParameter{T<:Real}(x::T, I::Interval{T} = interval(T),opt::Optimizer = Adam()) = HyperParameter{T}(x, I, opt)
 
 eltype{T}(::HyperParameter{T}) = T
 
@@ -44,3 +46,41 @@ for op in (:isless, :(==), :+, :-, :*, :/)
         $op(θ::HyperParameter, a::Number) = $op(getvalue(θ), a)
     end
 end
+
+update!{T}(param::HyperParameter{T},grad::T) = isfree(param) ? setvalue!(param, getvalue(param)+  GradDescent.update(param.opt,grad)) : nothing
+
+isfree(θ::HyperParameter) = !θ.fixed
+
+setfixed!(θ::HyperParameter) = θ.fixed = true
+
+
+
+setfree!(θ::HyperParameter) = θ.fixed = false
+
+mutable struct HyperParameters{T<:AbstractFloat}
+    hyperparameters::Array{HyperParameter{T},1}
+    function HyperParameters{T}(θ::Vector{T},intervals::Array{Interval{T,A,B}}) where {A<:Bound{T},B<:Bound{T}} where {T<:AbstractFloat}
+        this = new(Vector{HyperParameter{T}}())
+        for (val,int) in zip(θ,intervals)
+            push!(this.hyperparameters,HyperParameter{T}(val,int))
+        end
+        return this
+    end
+end
+function HyperParameters(θ::Vector{T},intervals::Vector{Interval{T,A,B}}) where {A<:Bound{T},B<:Bound{T}} where {T<:Real}
+    HyperParameters{T}(θ,intervals)
+end
+
+function Base.getindex(p::HyperParameters,it::Integer)
+    return p.hyperparameters[it]
+end
+
+function update!(param::HyperParameters,grad)
+    for i in 1:length(param.hyperparameters)
+        update!(param.hyperparameters[i],grad[i])
+    end
+end
+
+setfixed!(θ::HyperParameters) = setfixed!.(θ.hyperparameters)
+
+setfree!(θ::HyperParameters) = setfree!.(θ.hyperparameters)

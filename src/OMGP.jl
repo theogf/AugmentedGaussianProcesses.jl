@@ -48,6 +48,8 @@ export GPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 export getLog
 export Kernel, diagkernelmatrix, kernelmatrix, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
+export setvalue!,getvalue,setfixed!,setfree!
+
 
 include("GPFields.jl")
 #Models
