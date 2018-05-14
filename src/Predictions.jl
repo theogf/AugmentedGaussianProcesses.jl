@@ -27,10 +27,10 @@ end
 
 function fstar(model::SparseModel,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = model.Kmm\model.μ
+        model.TopMatrixForPrediction = model.invKmm*model.μ
     end
     if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = (model.Kmm\(eye(model.nFeatures)-model.ζ/model.Kmm))
+      model.DownMatrixForPrediction = (model.invKmm*(eye(model.nFeatures)-model.ζ*model.invKmm))
     end
     k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
     mean_fstar = k_star*model.TopMatrixForPrediction
