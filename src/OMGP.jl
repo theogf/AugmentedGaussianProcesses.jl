@@ -23,12 +23,12 @@ include("KernelFunctions.jl")
 include("KMeansModule.jl")
 include("PGSampler.jl")
 include("PerturbativeCorrection.jl")
-include("GPAnalysisTools.jl")
 #Custom modules
 using .KernelFunctions
 using .KMeansModule
 using .PGSampler
 using .PerturbativeCorrection
+include("GPAnalysisTools.jl")
 using .GPAnalysisTools
 #General modules
 using Distributions

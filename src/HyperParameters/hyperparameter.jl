@@ -39,6 +39,8 @@ settheta!{T}(θ::HyperParameter, x::T) = setvalue!(θ, eta(θ.interval,x))
 
 checktheta{T}(θ::HyperParameter, x::T) = checktheta(θ.interval, x)
 
+getderiv_eta(θ::HyperParameter) = deriv_eta(θ.interval, getvalue(θ))
+
 for op in (:isless, :(==), :+, :-, :*, :/)
     @eval begin
         $op(θ1::HyperParameter, θ2::HyperParameter) = $op(getvalue(θ1), getvalue(θ2))
@@ -46,8 +48,11 @@ for op in (:isless, :(==), :+, :-, :*, :/)
         $op(θ::HyperParameter, a::Number) = $op(getvalue(θ), a)
     end
 end
+###Old version not using reparametrization
+# update!{T}(param::HyperParameter{T},grad::T) = isfree(param) ? setvalue!(param, getvalue(param)+  GradDescent.update(param.opt,grad)) : nothing
+update!{T}(param::HyperParameter{T},grad::T) = isfree(param) ? settheta!(param, gettheta(param)+  getderiv_eta(param).*GradDescent.update(param.opt,grad)) : nothing
 
-update!{T}(param::HyperParameter{T},grad::T) = isfree(param) ? setvalue!(param, getvalue(param)+  GradDescent.update(param.opt,grad)) : nothing
+
 
 isfree(θ::HyperParameter) = !θ.fixed
 
