@@ -36,11 +36,11 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 
 #### Test on the mnist dataset
 
-# X = readdlm("data/mnist_train")
-# y=  X[:,1]; X= X[:,2:end]
-# X_test = readdlm("data/mnist_test")
-# y_test= X_test[:,1]; X_test=X_test[:,2:end]
-# println("MNIST data loaded")
+X = readdlm("data/mnist_train")
+y=  X[:,1]; X= X[:,2:end]
+X_test = readdlm("data/mnist_test")
+y_test= X_test[:,1]; X_test=X_test[:,2:end]
+println("MNIST data loaded")
 
 
 kernel = OMGP.Matern5_2Kernel(1.0)

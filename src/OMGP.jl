@@ -58,6 +58,7 @@ export KMeansInducingPoints
 using Plots
 
 include("GPFields.jl")
+include("MultiClassGPFields.jl")
 #Models
 include("models/LinearBSVM.jl")
 include("models/BatchBSVM.jl")
