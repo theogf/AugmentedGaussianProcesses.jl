@@ -5,7 +5,7 @@ General Framework for the data augmented Gaussian Processes
 """
 module OMGP
 
-@enum GPModelType Undefined=0 BSVM=1 XGPC=2 Regression=3 MultiClassModel=4
+@enum GPModelType Undefined=0 BSVM=1 XGPC=2 Regression=3 MultiClassGP=4
 
 #Class arborescence
 
@@ -15,9 +15,12 @@ abstract type LinearModel <: GPModel end
 
 abstract type NonLinearModel <: GPModel end
 
+abstract type MultiClassGPModel <: GPModel end
+
 abstract type SparseModel <: NonLinearModel end
 
 abstract type FullBatchModel <: NonLinearModel end
+
 
 include("KernelFunctions.jl")
 include("KMeansModule.jl")
@@ -51,6 +54,8 @@ export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspred
 export setvalue!,getvalue,setfixed!,setfree!
 export KMeansInducingPoints
 
+
+using Plots
 
 include("GPFields.jl")
 #Models

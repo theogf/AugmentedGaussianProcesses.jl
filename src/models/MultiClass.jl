@@ -1,7 +1,7 @@
 
 #Batch Xtreme Gaussian Process Classifier (no inducing points)
 
-mutable struct MultiClass <: FullBatchModel
+mutable struct MultiClass <: MultiClassGPModel
     @commonfields
     @functionfields
     @multiclassfields
@@ -11,7 +11,7 @@ mutable struct MultiClass <: FullBatchModel
                                     ϵ::Float64=1e-5,μ_init::Array{Float64,1}=[0.0],VerboseLevel::Integer=0)
             Y,y_map,y_class = one_of_K_mapping(y)
             this = new()
-            this.ModelType = MultiClassModel
+            this.ModelType = MultiClassGP
             this.Name = "MultiClass Gaussian Process Classifier"
             initCommon!(this,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);

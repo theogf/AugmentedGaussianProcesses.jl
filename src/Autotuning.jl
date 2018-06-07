@@ -31,6 +31,7 @@ end
 function updateHyperParameters!(model::FullBatchModel)
     Jnn = derivativekernelmatrix(model.kernel,model.X)
     apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jnn]))
+    model.HyperParametersUpdated = true
 end
 function updateHyperParameters!(model::SparseModel)
     Jmm = derivativekernelmatrix(model.kernel,model.inducingPoints)
@@ -41,6 +42,7 @@ function updateHyperParameters!(model::SparseModel)
         inducingpoints_gradients = inducingpoints_gradient(model)
         model.inducingPoints += GradDescent.update(model.optimizer,inducingpoints_gradients)
     end
+    model.HyperParametersUpdated = true
 end
 
 
@@ -62,6 +64,6 @@ end
 function printautotuninginformations(model::NonLinearModel)
 #Print the updated values of the kernel hyperparameters
     for i in 1:model.nKernels
-        print("Hyperparameters  (param,coeff) $((getfield.(model.Kernels,:param),getfield.(model.Kernels,:coeff))) with gradients $(gradients[1:2]) \n");
+        print("Hyperparameters  (param,coeff) $((getfield.(model.kernel,:param),getfield.(model.kernel,:coeff))) with gradients $(gradients[1:2]) \n");
     end
 end

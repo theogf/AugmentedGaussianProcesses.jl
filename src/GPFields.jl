@@ -93,24 +93,39 @@ function initStochastic!(model::GPModel,AdaptiveLearningRate,BatchSize,κ_s,τ_s
 end
 
 """
-    Parameters for stochasticity in the number of classes
+    Parameters for multiclass stochastic optimization
 """
-
-@def Kstochasticfields begin
-    nClassesUsed::Int64 #Number of classes used
-    KStochCoeff::Float64 #Stochastic coefficient for the number of classes
-    KIndices #Class indices
+@def multiclassstochasticfields begin
+    nSamplesUsed::Int64 #Size of the minibatch used
+    StochCoeff::Float64 #Stochastic Coefficient
+    MBIndices #MiniBatch Indices
+    #Flag for adaptative learning rate for the SVI
+    AdaptiveLearningRate::Bool
+      κ_s::Float64 #Parameters for decay of learning rate (iter + κ)^-τ in case adaptative learning rate is not used
+      τ_s::Float64
+    ρ_s::Array{Float64,1} #Learning rate for CAVI
+    g::Array{Array{Float64,1},1} # g & h are expected gradient value for computing the adaptive learning rate and τ is an intermediate
+    h::Array{Float64,1}
+    τ::Array{Float64,1}
+    SmoothingWindow::Int64
+end
+"""
+    Function initializing the stochasticfields parameters
+"""
+function initMultiClassStochastic!(model::GPModel,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow)
+    #Initialize parameters specific to models using SVI and check for consistency
+    model.Stochastic = true; model.nSamplesUsed = BatchSize; model.AdaptiveLearningRate = AdaptiveLearningRate;
+    model.nInnerLoops = 10;
+    model.κ_s = κ_s; model.τ_s = τ_s; model.SmoothingWindow = SmoothingWindow;
+    if (model.nSamplesUsed <= 0 || model.nSamplesUsed > model.nSamples)
+################### TODO MUST DECIDE FOR DEFAULT VALUE OR STOPPING STOCHASTICITY ######
+        warn("Invalid value for the BatchSize : $BatchSize, assuming a full batch method")
+        model.nSamplesUsed = model.nSamples; model.Stochastic = false;
+    end
+    model.StochCoeff = model.nSamples/model.nSamplesUsed
+    model.τ = 50.0*ones(Float64,model.K);
 end
 
-"""
-    Function to initialize Kstochasticfields parameters
-"""
-
-function initKstochastic(model,Ksize_used::Int64)
-    model.KStochastic = true;
-    model.nClassesUsed = Ksize_used
-    model.KStochCoeff = model.K/model.nClassesUsed
-end
 
 """
     Parameters for the kernel parameters, including the covariance matrix of the prior
@@ -161,6 +176,9 @@ function initSparse!(model::GPModel,m,optimizeIndPoints)
     model.OptimizeInducingPoints = optimizeIndPoints
     model.optimizer = Adam();
     model.inducingPoints = KMeansInducingPoints(model.X,model.m,10)
+    if model.VerboseLevel>1
+        println("Inducing points determined through KMeans algorithm")
+    end
     model.inducingPoints += rand(Normal(0,0.1),size(model.inducingPoints)...)
 end
 """
@@ -225,12 +243,18 @@ function initMultiClassVariables!(model,μ_init)
     model.ζ = [eye(model.nFeatures) for i in 1:model.K]
     model.η_2 = broadcast(x->-0.5*inv(x),model.ζ)
     model.η_1 = -2.0*model.η_2.*model.μ
-    model.α = 0.5*ones(model.nSamples)
-    model.β = model.K*ones(model.nSamples)
-    model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.K+1)]
-    # model.γ = [zeros(model.nSamples) for i in 1:model.K]
-    model.γ = [abs.(rand(model.nSamples)) for i in 1:model.K]
-    model.KStochastic = false
+    if model.Stochastic
+        model.α = 0.5*ones(model.nSamplesUsed)
+        model.β = model.K*ones(model.nSamplesUsed)
+        model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.K+1)]
+        model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.K]
+    else
+        model.α = 0.5*ones(model.nSamples)
+        model.β = model.K*ones(model.nSamples)
+        model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.K+1)]
+        # model.γ = [zeros(model.nSamples) for i in 1:model.K]
+        model.γ = [abs.(rand(model.nSamples)) for i in 1:model.K]
+    end
 end
 
 """
@@ -241,6 +265,7 @@ end
     inducingPoints::Array{Array{Float64,2},1} #Inducing points coordinates for the Big Data GP
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
     optimizer::Optimizer #Optimizer for the inducing points
+    nInnerLoops::Int64 #Number of updates for converging α and γ
     Kmm::Array{Array{Float64,2},1} #Kernel matrix
     invKmm::Array{Array{Float64,2},1} #Inverse Kernel matrix of inducing points
     Ktilde::Array{Array{Float64,1},1} #Diagonal of the covariance matrix between inducing points and generative points
@@ -262,12 +287,16 @@ function initMultiClassSparse!(model::GPModel,m,optimizeIndPoints)
     model.m = m; model.nFeatures = model.m;
     model.OptimizeInducingPoints = optimizeIndPoints
     model.optimizer = Adam();
+    model.nInnerLoops = 1;
     Ninst_per_K = countmap(model.y)
     model.inducingPoints= [zeros(model.m,size(model.X,2)) for i in 1:model.K]
     for k in 1:model.K
         K_corr = model.nSamples/Ninst_per_K[model.class_mapping[k]]-1.0
         weights = model.Y[k].*(K_corr-1.0).+(1.0)
         model.inducingPoints[k] = KMeansInducingPoints(model.X,model.m,10,weights=weights)
+    end
+    if model.VerboseLevel>1
+        println("Inducing points determined through KMeans algorithm")
     end
 end
 
@@ -315,7 +344,7 @@ Default function to estimate convergence, based on a window on the variational p
 function DefaultConvergence(model::GPModel,iter::Integer)
     #Default convergence function
     if iter == 1
-        if model.ModelType == MultiClassModel
+        if typeof(model) <: MultiClassGPModel
             model.prev_params = vcat(broadcast((μ,diagζ)->[μ;diagζ],model.μ,diag.(model.ζ))...)
         else
             model.prev_params = [model.μ;diag(model.ζ)]
@@ -323,7 +352,7 @@ function DefaultConvergence(model::GPModel,iter::Integer)
         push!(model.evol_conv,Inf)
         return Inf
     end
-    if model.ModelType == MultiClassModel
+    if typeof(model) <: MultiClassGPModel
         new_params = vcat(broadcast((μ,diagζ)->[μ;diagζ],model.μ,diag.(model.ζ))...)
     else
         new_params = [model.μ;diag(model.ζ)]
@@ -356,7 +385,7 @@ function initFunctions!(model::GPModel)
             logitpredict(model,X_test)
         elseif model.ModelType == Regression
             regpredict(model,X_test)
-        elseif model.ModelType == MultiClassModel
+        elseif typeof(model) <: MultiClassGPModel
             multiclasspredict(model,X_test)
         end
     end
@@ -371,7 +400,7 @@ function initFunctions!(model::GPModel)
             logitpredictproba(model,X_test)
         elseif model.ModelType == Regression
             regpredictproba(model,X_test)
-        elseif model.ModelType == MultiClassModel
+        elseif typeof(model) <: MultiClassGPModel
             multiclasspredictproba(model,X_test)
         end
     end

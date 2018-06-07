@@ -184,17 +184,22 @@ function multiclasspredict(model::MultiClass,X_test,all_class=false)
     return model.class_mapping[predic],value
 end
 
-function multiclasspredict(model::SparseMultiClass,X_test)
+function multiclasspredict(model::SparseMultiClass,X_test,all_class=false)
     n=size(X_test,1)
     m_f = fstar(model,X_test,covf=false)
     σ = hcat(logit.(m_f)...)
     σ = [σ[i,:] for i in 1:n]
     normsig = sum.(σ)
     y = mod_soft_max.(σ,normsig)
+    if all_class
+        return y
+    end
     predic = zeros(Int64,n)
     value = zeros(Float64,n)
     for i in 1:n
-        predic[i],value[i] = findmax(broadcast(x->x[i],y))
+        res = findmax(y[i]);
+        predic[i]=res[2];
+        value[i]=res[1]
     end
     return model.class_mapping[predic],value
 end

@@ -5,8 +5,8 @@
 
 function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
     if model.VerboseLevel > 0
-      println("Starting training of data of $(model.nSamples) with $(size(model.X,2)) features $(model.ModelType==MultiClassModel?"and $(model.K) classes":nothing) , using the "*model.Name*" model")
-  end
+      println("Starting training of data of $(model.nSamples) with $(size(model.X,2)) features $(typeof(model)<:MultiClass?"and $(model.K) classes":nothing), using the "*model.Name*" model")
+    end
 
     if iterations > 0 #&& iterations < model.nEpochs
         model.nEpochs = iterations
@@ -15,27 +15,59 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
     if model.Stochastic
         if model.AdaptiveLearningRate
             #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC
-            model.g = zeros(model.m*(model.m+1));
-            model.h = 0;
-            for i in 1:model.τ
-                model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
-                computeMatrices!(model)
-                if model.ModelType==BSVM
-                    Z = Diagonal(model.y[model.MBIndices])*model.κ;
-                    model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,2),2)+model.Ktilde;
-                    (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invKmm, model.StochCoeff)
-                elseif model.ModelType==XGPC
-                    model.α[model.MBIndices] = sqrt.(model.Ktilde+diag(model.κ*model.ζ*model.κ')+(model.κ*model.μ).^2)
-                    θs = (1.0./(2.0*model.α[model.MBIndices])).*tanh.(model.α[model.MBIndices]./2.0)
-                    (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
-                elseif model.ModelType==Regression
-                    (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.StochCoeff)
-                elseif model.ModelType==MultiClassModel
-
+            if typeof(model) <: MultiClassGPModel
+                model.g = [zeros(model.m*(model.m+1)) for i in 1:model.K]
+                model.h = zeros(model.K)
+                for i in 1:model.τ[1]
+                    model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
+                    computeMatrices!(model)
+                    expec_f2 = broadcast((m,var,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,2)+(kappa*m).^2),model.μ,model.ζ,model.κ,model.Ktilde)
+                    model.θ[1] = [0.5./expec_f2[model.y_class[i]][j]*tanh(0.5*expec_f2[model.y_class[i]][j]) for (j,i) in enumerate(model.MBIndices) ];
+                    for l in 1:model.nInnerLoops
+                        broadcast((gamma,f,kappa,μ)->gamma=0.5./(cosh.(0.5.*f).*model.β).*exp.(digamma.(model.α).-0.5.*kappa*μ),model.γ,expec_f2,model.κ,model.μ)
+                        model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamplesUsed]
+                    end
+                    broadcast((theta,γ,f)->theta=0.5.*γ./f.*tanh.(0.5.*f),model.θ[2:end],model.γ,expec_f2)
+                    (grad_η_1, grad_η_2) = naturalGradientELBO_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invKmm,model.γ,stoch_coeff=model.StochCoeff,MBIndices=model.MBIndices,κ=model.κ)
+                    model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_η_1,model.η_1,grad_η_2,model.η_2)
+                    model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η_1,model.η_1,grad_η_2,model.η_2)
                 end
-
-                model.g = model.g + 1/model.τ*vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
-                model.h = model.h + 1/model.τ*norm(vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2)))^2
+                model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
+                if model.VerboseLevel > 2
+                    println("MCMC estimation of the gradient completed")
+                end
+            else
+                model.g = zeros(model.m*(model.m+1));
+                model.h = 0;
+                for i in 1:model.τ
+                    model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
+                    computeMatrices!(model)
+                    if model.ModelType==BSVM
+                        Z = Diagonal(model.y[model.MBIndices])*model.κ;
+                        model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,2),2)+model.Ktilde;
+                        (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invKmm, model.StochCoeff)
+                    elseif model.ModelType==XGPC
+                        model.α[model.MBIndices] = sqrt.(model.Ktilde+diag(model.κ*model.ζ*model.κ')+(model.κ*model.μ).^2)
+                        θs = (1.0./(2.0*model.α[model.MBIndices])).*tanh.(model.α[model.MBIndices]./2.0)
+                        (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
+                    elseif model.ModelType==Regression
+                        (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.StochCoeff)
+                    end
+                    if typeof(model) <: MultiClassGPModel
+                        expec_f2 = broadcast((m,var,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,2)+(kappa*m).^2),model.μ,model.ζ,model.κ,model.Ktilde)
+                        model.θ[1][model.MBIndices] = [0.5./expec_f2[model.y_class[i]][i]*tanh(0.5*expec_f2[model.y_class[i]][i]) for i in model.MBIndices ];
+                        broadcast((gamma,f,kappa,μ)->gamma[model.MBIndices]=0.5./(cosh.(0.5.*f).*model.β[model.MBIndices]).*exp.(digamma.(model.α[model.MBIndices]).-0.5.*kappa*μ),model.γ,expec_f2,model.κ,model.μ)
+                        model.α[model.MBIndices] = [1+sum(broadcast(x->x[i],model.γ)) for i in model.MBIndices]
+                        broadcast((theta,γ,f)->theta[model.MBIndices]=0.5.*γ./f.*tanh.(0.5.*f),model.θ[2:end],model.γ,expec_f2)
+                        (grad_η_1, grad_η_2) = naturalGradientELBO_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invKmm,model.γ,stoch_coeff=model.StochCoeff,MBIndices=model.MBIndices,κ=model.κ)
+                    end
+                    model.g = model.g + 1/model.τ*vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
+                    model.h = model.h + 1/model.τ*norm(vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2)))^2
+                end
+                model.ρ_s = norm(model.g)^2/model.h
+                if model.VerboseLevel > 2
+                    println("MCMC estimation of the gradient completed")
+                end
             end
         end
     end
@@ -49,7 +81,6 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
         updateParameters!(model,iter) #Update all the variational parameters
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
             updateHyperParameters!(model) #Do the hyper-parameter optimization
-            computeMatrices!(model)
         end
         if !isa(model,GPRegression)
             conv = Convergence(model,iter) #Check for convergence
@@ -64,12 +95,14 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
             print("Iteration : $iter, convergence = $conv \n")
             println("Neg. ELBO is : $(ELBO(model))")
         end
+        # (iter < model.nEpochs) || break; #Verify if any condition has been broken
         (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         iter += 1;
     end
     if model.VerboseLevel > 0
       println("Training ended after $iter iterations")
     end
+    computeMatrices!(model)
     #Compute final version of the matrices for prediction
     if isa(model,GibbsSamplerGPC) #Compute the average of the samples
         model.μ = squeeze(mean(hcat(model.estimate...),2),2)
@@ -89,14 +122,14 @@ function updateParameters!(model::GPModel,iter::Integer)
         model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
         #No replacement means one points cannot be twice in the same minibatch
     end
-    computeMatrices!(model); #Compute the matrices if necessary (always for the stochastic case)
+    computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     if model.ModelType == BSVM
         variablesUpdate_BSVM!(model,iter)
     elseif model.ModelType == XGPC
         variablesUpdate_XGPC!(model,iter)
     elseif model.ModelType == Regression
         variablesUpdate_Regression!(model,iter)
-    elseif model.ModelType == MultiClassModel
+    elseif typeof(model) <: MultiClassGPModel
         variablesUpdate_MultiClass!(model,iter)
     end
 end
@@ -125,8 +158,17 @@ function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated || model.Stochastic
         Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
         model.κ = Knm/model.Kmm
-        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) + model.noise*ones(length(model.MBIndices)) - sum(model.κ.*Knm,2)[:]
-        @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
+        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*Knm,2)[:]
+        #+ model.noise*ones(length(model.MBIndices))
+        # @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
+        if count(model.Ktilde.<0)==0
+            println("Ktildes has negative values")
+            p=plot(model.X[model.MBIndices,1],model.X[model.MBIndices,2],t=:scatter,xlim=(-5,5),ylim=(-5,5))
+            plot!(p,model.inducingPoints[:,1],model.inducingPoints[:,2],t=:scatter, lab="ind points")
+            plot!(p,[model.X[model.MBIndices[model.Ktilde.<0],1]],[model.X[model.MBIndices[model.Ktilde.<0],2]],t=:scatter,color=:red)
+            display(p)
+            sleep(0.5)
+        end
     end
     model.HyperParametersUpdated=false
 end
@@ -141,6 +183,13 @@ end
 function computeMatrices!(model::LinearModel)
     if model.HyperParametersUpdated
         model.invΣ =  (1.0/model.noise)*eye(model.nFeatures)
+        model.HyperParametersUpdated = false
+    end
+end
+
+function computeMatrices!(model::MultiClass)
+    if model.HyperParametersUpdated
+        model.invK = inv(Symmetric(kernelmatrix(model.X,model.kernel) + model.noise*eye(model.nFeatures)))
         model.HyperParametersUpdated = false
     end
 end
@@ -192,5 +241,23 @@ function computeLearningRate_Stochastic!(model::GPModel,iter::Integer,grad_1,gra
     else
       #Non-Stochastic case
       model.ρ_s = 1.0
+    end
+end
+
+function computeLearningRate_Stochastic!(model::MultiClassGPModel,iter::Integer,grad_1,grad_2)
+    if model.Stochastic
+        if model.AdaptiveLearningRate
+            #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)
+            model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->(1-1/tau)*g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_1,model.η_1,grad_2,model.η_2)
+            model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->(1-1/tau)*h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_1,model.η_1,grad_2,model.η_2)
+            model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
+            model.τ = broadcast((rho,tau)->(1.0 - rho)*tau + 1.0,model.ρ_s,model.τ)
+        else
+            #Simple model of time decreasing learning rate
+            model.ρ_s = [(iter+model.τ_s)^(-model.κ_s) for i in 1:model.K]
+        end
+    else
+      #Non-Stochastic case
+      model.ρ_s = [1.0 for i in 1:model.K]
     end
 end

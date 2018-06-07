@@ -1,11 +1,11 @@
 
 #Batch Xtreme Gaussian Process Classifier (no inducing points)
 
-mutable struct SparseMultiClass <: SparseModel
+mutable struct SparseMultiClass <: MultiClassGPModel
     @commonfields
     @functionfields
     @multiclassfields
-    @stochasticfields
+    @multiclassstochasticfields
     @kernelfields
     @multiclass_sparsefields
     function SparseMultiClass(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,KStochastic::Bool=false,AdaptiveLearningRate::Bool=true,
@@ -16,24 +16,19 @@ mutable struct SparseMultiClass <: SparseModel
                                     VerboseLevel::Integer=0)
             Y,y_map,y_class = one_of_K_mapping(y)
             this = new()
-            this.ModelType = MultiClassModel
+            this.ModelType = MultiClassGP
             this.Name = "Sparse MultiClass Gaussian Process Classifier"
             initCommon!(this,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
-            if Stochastic
-                initStochastic!(this,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow);
-            else
-                this.MBIndices = 1:this.nSamples; this.nSamplesUsed = this.nSamples; this.StochCoeff=1.0;
-            end
             initKernel!(this,kernel);
             initMultiClass!(this,Y,y_class,y_map);
             initMultiClassSparse!(this,m,OptimizeIndPoints)
-            initMultiClassVariables!(this,μ_init)
-            if KStochastic
-                initKstochastic!(this,KSize)
+            if Stochastic
+                initMultiClassStochastic!(this,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow);
             else
-                this.KIndices=1:this.K; this.nClassesUsed = this.K; this.KStochCoeff = 1.0;
+                this.MBIndices = collect(1:this.nSamples); this.nSamplesUsed = this.nSamples; this.StochCoeff=1.0; this.ρ_s=ones(Float64,this.K)
             end
+            initMultiClassVariables!(this,μ_init)
             return this;
     end
 end

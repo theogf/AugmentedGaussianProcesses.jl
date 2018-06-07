@@ -198,6 +198,7 @@ function compute{T}(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=tru
     if X1 == X2
       return (weight?getvalue(k.weight):1.0)
     end
+    @assert k.distance(X1,X2)>0  "Problem with distance computation"
     return (weight?getvalue(k.weight):1.0)*exp(-0.5*(k.distance(X1,X2))^2/(k.param[1])^2)
 end
 #
