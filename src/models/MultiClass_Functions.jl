@@ -39,13 +39,9 @@ end
 function ELBO(model::MultiClass)
     C = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.ζ),model.μ)
     ELBO_v = -model.nSamples*log(2.0)+0.5*model.K*size(model.X,2)+sum(model.α-log.(model.β)+log.(gamma.(model.α)))+dot(1-model.α,digamma.(model.α))
-    println("1: $(-ELBO_v)")
     ELBO_v += 0.5*sum(broadcast((y,gam,mu,theta,sigma)->logdet(model.invK)+logdet(sigma)+dot(y-gam,mu)-sum((Diagonal(y.*model.θ[1]+theta)+model.invK).*(sigma+mu*(mu'))),model.Y,model.γ,model.μ,model.θ[2:end],model.ζ))
-    println("2: $(-ELBO_v)")
     ELBO_v += sum(broadcast((gam,c,theta)->dot(gam,-log(2)-log.(gam)+1.0+digamma.(model.α)-log.(model.β))-sum(log.(cosh.(0.5*c)))+0.5*dot(c,c.*theta),model.γ,C,model.θ[2:end]))
-    println("3: $(-ELBO_v)")
     ELBO_v += sum([-log.(cosh.(0.5*C[model.y_class[i]][i]))+0.5*model.θ[1][i]*(C[model.y_class[i]][i]^2) for i in 1:model.nSamples])
-    println("4: $(-ELBO_v)")
     return -ELBO_v
 end
 
@@ -53,19 +49,13 @@ end
 function ELBO(model::SparseMultiClass)
     C = broadcast((var,m,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,2)+(kappa*m).^2),model.ζ,model.μ,model.κ,model.Ktilde)
     ELBO_v = -model.nSamples*log(2.0)+0.5*model.K*model.m+model.StochCoeff*(sum(model.α-log.(model.β)+log.(gamma.(model.α)))+dot(1-model.α,digamma.(model.α)))
-    println("1: $(-ELBO_v)")
     ELBO_v += 0.5*sum(broadcast((y,gam,mu,theta,sigma,invK,kappa,ktilde)->model.StochCoeff*dot(y[model.MBIndices]-gam,kappa*mu)-
                   sum((model.StochCoeff*kappa'*Diagonal(y[model.MBIndices].*model.θ[1]+theta)*kappa+invK).*(sigma+mu*(mu')))-
                   model.StochCoeff*dot(y[model.MBIndices].*model.θ[1]+theta,ktilde),model.Y,model.γ,model.μ,model.θ[2:end],
                   model.ζ,model.invKmm,model.κ,model.Ktilde))
-   println("2: $(-ELBO_v)")
     ELBO_v += 0.5*sum(logdet.(model.invKmm)+logdet.(model.ζ))
-    println("3: $(-ELBO_v)")
     ELBO_v += model.StochCoeff*sum(broadcast((gam,c,theta)->dot(gam,-log(2)-log.(gam)+1.0+digamma.(model.α)-log.(model.β))-sum(log.(cosh.(0.5*c)))+0.5*dot(c,c.*theta),model.γ,C,model.θ[2:end]))
-    println("4: $(-ELBO_v)")
     ELBO_v += model.StochCoeff*sum([-log.(cosh.(0.5*C[model.y_class[i]][iter]))+0.5*model.θ[1][iter]*(C[model.y_class[i]][iter]^2) for (iter,i) in enumerate(model.MBIndices)])
-    println("5: $(-ELBO_v)")
-    # ELBO_v += model.StochCoeff*sum(broadcast((c,)->-log.(cosh.(0.5*c))+0.5*model.θ[1][iter]*(c[model.y_class[i]][iter]^2) for (iter,i) in enumerate(model.MBIndices)])
     return -ELBO_v
 end
 
