@@ -22,6 +22,9 @@ mutable struct SparseMultiClass <: MultiClassGPModel
             initFunctions!(this);
             initKernel!(this,kernel);
             initMultiClass!(this,Y,y_class,y_map);
+            if this.VerboseLevel > 2
+                println("$(now()): Classes data treated")
+            end
             initMultiClassSparse!(this,m,OptimizeIndPoints)
             if Stochastic
                 initMultiClassStochastic!(this,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow);

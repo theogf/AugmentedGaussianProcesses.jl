@@ -21,20 +21,20 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
                 for i in 1:model.τ[1]
                     model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
                     computeMatrices!(model)
-                    expec_f2 = broadcast((m,var,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,2)+(kappa*m).^2),model.μ,model.ζ,model.κ,model.Ktilde)
-                    model.θ[1] = [0.5./expec_f2[model.y_class[i]][j]*tanh(0.5*expec_f2[model.y_class[i]][j]) for (j,i) in enumerate(model.MBIndices) ];
+                    C = broadcast((m,var,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,2)[:]+(kappa*m).^2),model.μ,model.ζ,model.κ,model.Ktilde)
+                    model.θ[1] = [0.5./C[model.y_class[i]][j]*tanh(0.5*C[model.y_class[i]][j]) for (j,i) in enumerate(model.MBIndices) ];
                     for l in 1:model.nInnerLoops
-                        broadcast((gamma,f,kappa,μ)->gamma=0.5./(cosh.(0.5.*f).*model.β).*exp.(digamma.(model.α).-0.5.*kappa*μ),model.γ,expec_f2,model.κ,model.μ)
+                        model.γ = broadcast((c,kappa,μ)->0.5./(cosh.(0.5.*c).*model.β).*exp.(digamma.(model.α).-0.5.*kappa*μ),C,model.κ,model.μ)
                         model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamplesUsed]
                     end
-                    broadcast((theta,γ,f)->theta=0.5.*γ./f.*tanh.(0.5.*f),model.θ[2:end],model.γ,expec_f2)
+                    broadcast((theta,γ,c)->theta=0.5.*γ./c.*tanh.(0.5.*c),model.θ[2:end],model.γ,C)
                     (grad_η_1, grad_η_2) = naturalGradientELBO_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invKmm,model.γ,stoch_coeff=model.StochCoeff,MBIndices=model.MBIndices,κ=model.κ)
                     model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_η_1,model.η_1,grad_η_2,model.η_2)
                     model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η_1,model.η_1,grad_η_2,model.η_2)
                 end
                 model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
                 if model.VerboseLevel > 2
-                    println("MCMC estimation of the gradient completed")
+                    println("$(now()): MCMC estimation of the gradient completed")
                 end
             else
                 model.g = zeros(model.m*(model.m+1));
@@ -250,6 +250,7 @@ function computeLearningRate_Stochastic!(model::MultiClassGPModel,iter::Integer,
             #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)
             model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->(1-1/tau)*g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_1,model.η_1,grad_2,model.η_2)
             model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->(1-1/tau)*h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_1,model.η_1,grad_2,model.η_2)
+            # println("G : $(norm(model.g[1])), H : $(model.h[1])")
             model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
             model.τ = broadcast((rho,tau)->(1.0 - rho)*tau + 1.0,model.ρ_s,model.τ)
         else
@@ -260,4 +261,5 @@ function computeLearningRate_Stochastic!(model::MultiClassGPModel,iter::Integer,
       #Non-Stochastic case
       model.ρ_s = [1.0 for i in 1:model.K]
     end
+    println("rho : $(model.ρ_s[1])")
 end
