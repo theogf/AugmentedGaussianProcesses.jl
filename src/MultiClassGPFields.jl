@@ -145,13 +145,13 @@ function initMultiClassSparse!(model::GPModel,m,optimizeIndPoints)
     if model.VerboseLevel>2
         println("$(now()): Starting determination of inducing points through KMeans algorithm")
     end
-    # for k in 1:model.K
-    #     K_corr = model.nSamples/Ninst_per_K[model.class_mapping[k]]-1.0
-    #     weights = [model.Y[k]...].*(K_corr-1.0).+(1.0)
-    #     model.inducingPoints[k] = KMeansInducingPoints(model.X,model.m,10,weights=weights)
-    # end
-    indpoints = KMeansInducingPoints(model.X,model.m,10)
-    model.inducingPoints = [indpoints for i in 1:model.K]
+    for k in 1:model.K
+        K_corr = model.nSamples/Ninst_per_K[model.class_mapping[k]]-1.0
+        weights = [model.Y[k]...].*(K_corr-1.0).+(1.0)
+        model.inducingPoints[k] = KMeansInducingPoints(model.X,model.m,10,weights=weights)
+    end
+    # indpoints = KMeansInducingPoints(model.X,model.m,10)
+    # model.inducingPoints = [indpoints for i in 1:model.K]
     if model.VerboseLevel>2
         println("$(now()): Inducing points determined through KMeans algorithm")
     end

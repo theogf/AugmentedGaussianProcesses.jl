@@ -8,7 +8,7 @@ N_class = 3
 N_test = 50
 minx=-5.0
 maxx=5.0
-noise = 0.1
+noise = 0.01
 
 println("$(now()): Starting testing multiclass")
 
@@ -35,7 +35,6 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 # X = data[1:150,1:(end-1)]; y=data[1:150,end]
 # X_test = data[151:end,1:(end-1)]; y_test=data[151:end,end]
 
-#### Test on the mnist dataset
 # function norm_data(input_df)
 #     for i in 1:size(input_df,2)
 #         input_df[:,i] = (input_df[:,i] - mean(input_df[:,i])) ./
@@ -44,20 +43,28 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 #     return input_df
 # end
 
+#### Test on the mnist dataset
 # X = readdlm("data/mnist_train")
 # y=  X[:,1]; X= X[:,2:end]
 # X_test = readdlm("data/mnist_test")
 # y_test= X_test[:,1]; X_test=X_test[:,2:end]
 # println("$(now()): MNIST data loaded")
+
+#### Test on the artificial character dataset
+X = readdlm("data/artificial-characters_train")
+y=  X[:,1]; X= X[:,2:end]
+X_test = readdlm("data/artificial-characters_test")
+y_test= X_test[:,1]; X_test=X_test[:,2:end]
+println("$(now()): Artificial Characters data loaded")
 full = false
 sparse = true
 
-kernel = OMGP.Matern5_2Kernel(1.0)
-# OMGP.setvalue!(kernel.weight,10.0)
+kernel = OMGP.RBFKernel(0.5)
+OMGP.setvalue!(kernel.weight,1.0)
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 if full
     full_model = OMGP.MultiClass(X,y,VerboseLevel=3,kernel=kernel)
-    t_full = @elapsed full_model.train(iterations=200)
+    t_full = @elapsed full_model.train(iterations=20)
     y_full, = full_model.predict(X_test)
     println("Full predictions computed")
     full_score = 0
@@ -69,9 +76,9 @@ if full
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s")
 end
 if sparse
-    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=50,Stochastic=true,BatchSize=100)
-    # sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=50,Stochastic=false)
-    t_sparse = @elapsed sparse_model.train(iterations=50)
+    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=200,Stochastic=true,BatchSize=200)
+    # sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
+    t_sparse = @elapsed sparse_model.train(iterations=200)
     y_sparse, = sparse_model.predict(X_test)
     println("Sparse predictions computed")
     sparse_score=0

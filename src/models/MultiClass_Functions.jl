@@ -45,7 +45,6 @@ function ELBO(model::MultiClass)
     return -ELBO_v
 end
 
-##TODO: THE ELBO function is completely wrong, it has to be checked with the paper
 function ELBO(model::SparseMultiClass)
     C = broadcast((var,m,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,2)+(kappa*m).^2),model.ζ,model.μ,model.κ,model.Ktilde)
     ELBO_v = -model.nSamples*log(2.0)+0.5*model.K*model.m+model.StochCoeff*(sum(model.α-log.(model.β)+log.(gamma.(model.α)))+dot(1-model.α,digamma.(model.α)))
@@ -60,4 +59,5 @@ function ELBO(model::SparseMultiClass)
 end
 
 function hyperparameter_gradient_function(model::MultiClass)
+    
 end
