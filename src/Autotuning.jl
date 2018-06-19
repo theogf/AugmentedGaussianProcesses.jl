@@ -45,13 +45,32 @@ function updateHyperParameters!(model::SparseModel)
     model.HyperParametersUpdated = true
 end
 
-
 function hyperparameter_gradient_function(model::FullBatchModel)
     A = model.invK*(model.ζ+model.µ*transpose(model.μ))-eye(model.nSamples)
     return function(Js)
                 V = model.invK*Js[1]
                 return 0.5*sum(V.*transpose(A))
             end
+end
+
+function updateHyperParameters!(model::MultiClass)
+    Jnn = derivativekernelmatrix(model.kernel,model.X)
+    apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jnn]))
+    model.HyperParametersUpdated = true
+end
+
+
+function updateHyperParameters!(model::SparseMultiClass)
+    Jmm = [derivativekernelmatrix(model.kernel,model.inducingPoints[i]) for i in 1:model.K]
+    Jnm = [derivativekernelmatrix(model.kernel,model.X[model.MBIndices,:],model.inducingPoints[i]) for i in 1:model.K]
+    Jnn = [derivativediagkernelmatrix(model.kernel,model.X[model.MBIndices,:]) for i in 1:model.K]
+    println(size(Jmm),size(Jnm),size(Jnn))
+    apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jmm,Jnm,Jnn]))
+    if model.OptimizeInducingPoints
+        inducingpoints_gradients = inducingpoints_gradient(model)
+        model.inducingPoints += GradDescent.update(model.optimizer,inducingpoints_gradients)
+    end
+    model.HyperParametersUpdated = true
 end
 
 #Printing Functions

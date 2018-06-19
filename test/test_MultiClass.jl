@@ -3,7 +3,7 @@ import OMGP
 using Distributions
 using StatsBase
 using Gallium
-N_data = 1000
+N_data = 500
 N_class = 3
 N_test = 50
 minx=-5.0
@@ -51,11 +51,14 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 # println("$(now()): MNIST data loaded")
 
 #### Test on the artificial character dataset
-X = readdlm("data/artificial-characters_train")
-y=  X[:,1]; X= X[:,2:end]
-X_test = readdlm("data/artificial-characters_test")
-y_test= X_test[:,1]; X_test=X_test[:,2:end]
-println("$(now()): Artificial Characters data loaded")
+# X = readdlm("data/artificial-characters_train")
+# y=  X[:,1]; X= X[:,2:end]
+# X_test = readdlm("data/artificial-characters_test")
+# y_test= X_test[:,1]; X_test=X_test[:,2:end]
+# println("$(now()): Artificial Characters data loaded")
+
+
+##Which algorithm are tested
 full = false
 sparse = true
 
@@ -63,8 +66,8 @@ kernel = OMGP.RBFKernel(0.5)
 OMGP.setvalue!(kernel.weight,1.0)
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 if full
-    full_model = OMGP.MultiClass(X,y,VerboseLevel=3,kernel=kernel)
-    t_full = @elapsed full_model.train(iterations=20)
+    full_model = OMGP.MultiClass(X,y,VerboseLevel=3,kernel=kernel,Autotuning=true)
+    t_full = @elapsed full_model.train(iterations=100)
     y_full, = full_model.predict(X_test)
     println("Full predictions computed")
     full_score = 0
@@ -76,9 +79,9 @@ if full
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s")
 end
 if sparse
-    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=200,Stochastic=true,BatchSize=200)
+    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=200,Autotuning=true,Stochastic=true,BatchSize=200)
     # sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    t_sparse = @elapsed sparse_model.train(iterations=200)
+    t_sparse = @elapsed sparse_model.train(iterations=20)
     y_sparse, = sparse_model.predict(X_test)
     println("Sparse predictions computed")
     sparse_score=0

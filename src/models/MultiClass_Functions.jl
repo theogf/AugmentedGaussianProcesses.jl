@@ -59,5 +59,28 @@ function ELBO(model::SparseMultiClass)
 end
 
 function hyperparameter_gradient_function(model::MultiClass)
-    
+    A = [model.invK*(model.ζ[i]+model.µ[i]*transpose(model.μ[i]))-eye(model.nSamples) for i in 1:model.K]
+    return function(Js)
+                V = model.invK*Js[1]
+                return sum([0.5*sum(V.*transpose(A[i])) for i in 1:model.K])
+            end
+end
+
+function hyperparameter_gradient_function(model::SparseMultiClass)
+    #General values used for all gradients
+    B = broadcast((mu,sigma)->mu*transpose(mu) + sigma,model.μ,model.ζ)
+    Kmn = [kernelmatrix(model.inducingPoints[i],model.X[model.MBIndices,:],model.kernel) for i in 1:model.K]
+    return function(Js)
+        println(size(Js))
+                Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
+                println("Sizes")
+                print(size(Jmm),size(Jnm),size(Jnn))
+                ι = [(Jnm[i]-model.κ[i]*Jmm[i])*model.invKmm[i] for i in 1:model.K]
+                Jtilde = [Jnn - sum(ι[i].*(Kmn[i].'),2) - sum(model.κ[i].*Jnm[i],2) for i in 1:model.K]
+                V = model.invKmm.*Jmm
+                return sum( broadcast((v,invK,iota,theta,kappa,b,jtilde,y,gam)->
+                0.5*sum((v*invK-model.StochCoeff*(iota'*theta*kappa+kappa'*theta*iota)).*b')-trace(v)-model.StochCoeff*dot(model.θ[1].*y[model.MBIndices],jtilde)
+                    + model.StochCoeff*(dot(y[model.MBIndices]-gam,iota*mu)),
+                    V,model.invKmm,ι,model.θ[2:end],model.κ,B,Jtilde,model.y,model.γ)) #arugments
+     end
 end
