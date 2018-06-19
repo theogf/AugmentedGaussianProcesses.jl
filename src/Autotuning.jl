@@ -63,8 +63,7 @@ end
 function updateHyperParameters!(model::SparseMultiClass)
     Jmm = [derivativekernelmatrix(model.kernel,model.inducingPoints[i]) for i in 1:model.K]
     Jnm = [derivativekernelmatrix(model.kernel,model.X[model.MBIndices,:],model.inducingPoints[i]) for i in 1:model.K]
-    Jnn = [derivativediagkernelmatrix(model.kernel,model.X[model.MBIndices,:]) for i in 1:model.K]
-    println(size(Jmm),size(Jnm),size(Jnn))
+    Jnn = derivativediagkernelmatrix(model.kernel,model.X[model.MBIndices,:]) for i in 1:model.K
     apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jmm,Jnm,Jnn]))
     if model.OptimizeInducingPoints
         inducingpoints_gradients = inducingpoints_gradient(model)

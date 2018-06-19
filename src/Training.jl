@@ -80,7 +80,7 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
         end
         updateParameters!(model,iter) #Update all the variational parameters
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
-            updateHyperParameters!(model) #Do the hyper-parameter optimization
+            @enter updateHyperParameters!(model) #Do the hyper-parameter optimization
         end
         if !isa(model,GPRegression)
             conv = Convergence(model,iter) #Check for convergence

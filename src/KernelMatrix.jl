@@ -69,7 +69,7 @@ function derivativekernelmatrix(kernel,X)
 end
 
 function derivativediagkernelmatrix(kernel,X)
-    return compute_J(kernel,compute_unmappeddiagJ(kernel,X),size(X,1),size(X,1),weight=true,diag=true)
+    return compute_J(kernel,compute_unmappeddiagJ(kernel,X),size(X,1),true,diag=true)
 end
 
 

@@ -72,7 +72,7 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
     Kmn = [kernelmatrix(model.inducingPoints[i],model.X[model.MBIndices,:],model.kernel) for i in 1:model.K]
     return function(Js)
         println(size(Js))
-                Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
+                Jmm = [x->Js[1][i] for i in 1:model.K]; Jnm = [x->Js[2][i] for i in 1:model.K]; Jnn = Js[3];
                 println("Sizes")
                 print(size(Jmm),size(Jnm),size(Jnn))
                 ι = [(Jnm[i]-model.κ[i]*Jmm[i])*model.invKmm[i] for i in 1:model.K]
