@@ -51,11 +51,11 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 # println("$(now()): MNIST data loaded")
 
 #### Test on the artificial character dataset
-# X = readdlm("data/artificial-characters_train")
-# y=  X[:,1]; X= X[:,2:end]
-# X_test = readdlm("data/artificial-characters_test")
-# y_test= X_test[:,1]; X_test=X_test[:,2:end]
-# println("$(now()): Artificial Characters data loaded")
+X = readdlm("data/artificial-characters-train")
+y=  X[:,1]; X= X[:,2:end]
+X_test = readdlm("data/artificial-characters-test")
+y_test= X_test[:,1]; X_test=X_test[:,2:end]
+println("$(now()): Artificial Characters data loaded")
 
 
 ##Which algorithm are tested
@@ -79,9 +79,10 @@ if full
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s")
 end
 if sparse
-    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Autotuning=false,Stochastic=true,BatchSize=50,KIndPoints=true)
+    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=2,kernel=kernel,m=200,Autotuning=false,Stochastic=true,BatchSize=100,KIndPoints=true)
+    metrics, callback = OMGP.getMultiClassLog(sparse_model,X_test,y_test)
     # sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    t_sparse = @elapsed sparse_model.train(iterations=10000)
+    t_sparse = @elapsed sparse_model.train(iterations=1000,callback=callback)
     y_sparse, = sparse_model.predict(X_test)
     println("Sparse predictions computed")
     sparse_score=0

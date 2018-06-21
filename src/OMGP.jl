@@ -48,7 +48,7 @@ export MultiClass, SparseMultiClass
 #General class definitions
 export GPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 #Useful functions
-export getLog
+export getLog, getMultiClassLog
 export Kernel, diagkernelmatrix, kernelmatrix, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 export setvalue!,getvalue,setfixed!,setfree!

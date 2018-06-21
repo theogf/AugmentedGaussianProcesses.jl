@@ -12,7 +12,7 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
         model.nEpochs = iterations
     end
     model.evol_conv = []
-    if model.Stochastic && model.AdaptiveLearningRate && model.Trained!
+    if model.Stochastic && model.AdaptiveLearningRate && !model.Trained
             #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC (if restarting training, avoid this part)
             MCInit!(model)
     end
@@ -24,6 +24,7 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
                 callback(model,iter) #Use a callback method if put by user
         end
         updateParameters!(model,iter) #Update all the variational parameters
+        reset_prediction_matrices!(model) #Reset predicton matrices
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
             @enter updateHyperParameters!(model) #Do the hyper-parameter optimization
         end
@@ -164,6 +165,10 @@ function computeMatrices!(model::SparseMultiClass)
     model.HyperParametersUpdated=false
 end
 
+function reset_prediction_matrices!(model::GPModel)
+    model.TopMatrixForPrediction=0;
+    model.DownMatrixForPrediction=0;
+end
 #### Get Functions ####
 
 function getInversePrior(model::LinearModel)
@@ -263,5 +268,5 @@ function computeLearningRate_Stochastic!(model::MultiClassGPModel,iter::Integer,
       #Non-Stochastic case
       model.ρ_s = [1.0 for i in 1:model.K]
     end
-    println("rho : $(model.ρ_s[1])")
+    # println("rho : $(model.ρ_s[1])")
 end

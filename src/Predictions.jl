@@ -64,12 +64,24 @@ end
 
 function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = broadcast((k,mu)->k\mu,model.Kmm,model.μ)
+        if model.KInducingPoints
+            model.TopMatrixForPrediction = broadcast((k,mu)->k\mu,model.Kmm,model.μ)
+        else
+            model.TopMatrixForPrediction = broadcast((mu)->model.Kmm[1]\mu,model.μ)
+        end
     end
     if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = broadcast((var,Kmm)->(Kmm\(eye(model.nFeatures)-var/Kmm)),model.ζ,model.Kmm)
+        if model.KInducingPoints
+            model.DownMatrixForPrediction = broadcast((var,Kmm)->(Kmm\(eye(model.nFeatures)-var/Kmm)),model.ζ,model.Kmm)
+        else
+            model.DownMatrixForPrediction = broadcast((var)->(model.Kmm[1]\(eye(model.nFeatures)-var/model.Kmm[1])),model.ζ)
+        end
     end
-    k_star = broadcast(points->kernelmatrix(X_test,points,model.kernel),model.inducingPoints)
+    if model.KInducingPoints
+        k_star = broadcast(points->kernelmatrix(X_test,points,model.kernel),model.inducingPoints)
+    else
+        k_star = [kernelmatrix(X_test,model.inducingPoints[1],model.kernel)]
+    end
     mean_fstar = k_star.*model.TopMatrixForPrediction
     if !covf
         return mean_fstar
