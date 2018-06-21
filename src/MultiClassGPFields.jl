@@ -115,6 +115,7 @@ end
 @def multiclass_sparsefields begin
     m::Int64 #Number of inducing points
     inducingPoints::Array{Array{Float64,2},1} #Inducing points coordinates for the Big Data GP
+    KInducingPoints::Bool
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
     optimizer::Optimizer #Optimizer for the inducing points
     nInnerLoops::Int64 #Number of updates for converging α and γ
@@ -126,7 +127,7 @@ end
 """
 Function initializing the multiclass sparsefields parameters
 """
-function initMultiClassSparse!(model::GPModel,m,optimizeIndPoints)
+function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool,KIndPoints::Bool)
     #Initialize parameters for the sparse model and check consistency
     minpoints = 56;
     if m > model.nSamples
@@ -137,6 +138,7 @@ function initMultiClassSparse!(model::GPModel,m,optimizeIndPoints)
         m = min(minpoints,model.nSamples÷10)
     end
     model.m = m; model.nFeatures = model.m;
+    model.KInducingPoints = KIndPoints
     model.OptimizeInducingPoints = optimizeIndPoints
     model.optimizer = Adam();
     model.nInnerLoops = 1;
@@ -145,13 +147,15 @@ function initMultiClassSparse!(model::GPModel,m,optimizeIndPoints)
     if model.VerboseLevel>2
         println("$(now()): Starting determination of inducing points through KMeans algorithm")
     end
-    for k in 1:model.K
-        K_corr = model.nSamples/Ninst_per_K[model.class_mapping[k]]-1.0
-        weights = [model.Y[k]...].*(K_corr-1.0).+(1.0)
-        model.inducingPoints[k] = KMeansInducingPoints(model.X,model.m,10,weights=weights)
+    if model.KInducingPoints
+        for k in 1:model.K
+            K_corr = model.nSamples/Ninst_per_K[model.class_mapping[k]]-1.0
+            weights = [model.Y[k]...].*(K_corr-1.0).+(1.0)
+            model.inducingPoints[k] = KMeansInducingPoints(model.X,model.m,10,weights=weights)
+        end
+    else
+        model.inducingPoints = [KMeansInducingPoints(model.X,model.m,10)]
     end
-    # indpoints = KMeansInducingPoints(model.X,model.m,10)
-    # model.inducingPoints = [indpoints for i in 1:model.K]
     if model.VerboseLevel>2
         println("$(now()): Inducing points determined through KMeans algorithm")
     end

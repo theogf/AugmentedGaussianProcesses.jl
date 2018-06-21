@@ -79,9 +79,9 @@ if full
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s")
 end
 if sparse
-    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=200,Autotuning=true,Stochastic=true,BatchSize=200)
+    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Autotuning=false,Stochastic=true,BatchSize=50,KIndPoints=true)
     # sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    t_sparse = @elapsed sparse_model.train(iterations=20)
+    t_sparse = @elapsed sparse_model.train(iterations=10000)
     y_sparse, = sparse_model.predict(X_test)
     println("Sparse predictions computed")
     sparse_score=0
