@@ -5,7 +5,7 @@
 
 function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
     if model.VerboseLevel > 0
-      println("Starting training of data of $(model.nSamples) with $(size(model.X,2)) features $(typeof(model)<:MultiClassGPModel?"and $(model.K) classes":""), using the "*model.Name*" model")
+      println("Starting training of data of $(model.nSamples) samples with $(size(model.X,2)) features $(typeof(model)<:MultiClassGPModel?"and $(model.K) classes":""), using the "*model.Name*" model")
     end
 
     if iterations > 0 #&& iterations < model.nEpochs

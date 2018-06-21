@@ -61,6 +61,7 @@ println("$(now()): Artificial Characters data loaded")
 ##Which algorithm are tested
 full = false
 sparse = true
+sharedInd = false
 
 kernel = OMGP.RBFKernel(0.5)
 OMGP.setvalue!(kernel.weight,1.0)
@@ -79,13 +80,20 @@ if full
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s")
 end
 if sparse
-    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=2,kernel=kernel,m=200,Autotuning=false,Stochastic=true,BatchSize=100,KIndPoints=true)
+    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=2,kernel=kernel,m=200,Autotuning=false,Stochastic=true,BatchSize=100,KIndPoints=!sharedInd)
     metrics, callback = OMGP.getMultiClassLog(sparse_model,X_test,y_test)
     # sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    t_sparse = @elapsed sparse_model.train(iterations=1000,callback=callback)
+    t_sparse = @elapsed sparse_model.train(iterations=10,callback=callback)
     y_sparse, = sparse_model.predict(X_test)
     println("Sparse predictions computed")
     sparse_score=0
+    if sharedInd
+        writedlm("test/results/sharedIndPoints_acc",metrics[:test_error].values)
+        writedlm("test/results/sharedIndPoints_ELBO",metrics[:ELBO].values)
+    else
+        writedlm("test/results/uniqueIndPoints_acc",metrics[:ELBO].values)
+        writedlm("test/results/uniqueIndPoints_ELBO",metrics[:ELBO].values)
+    end
     for (i,pred) in enumerate(y_sparse)
         if pred == y_test[i]
             sparse_score += 1
