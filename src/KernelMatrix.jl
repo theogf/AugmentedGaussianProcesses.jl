@@ -203,21 +203,21 @@ end
 
 #Compute the gradients given the inducing point locations
 function computeIndPointsJ(model,iter)
-    dim = size(model.X,2)
-    Dnm = zeros(model.nSamplesUsed,dim)
-    Dmm = zeros(model.m,dim)
-    Jnm = zeros(dim,model.nSamplesUsed,model.m)
-    Jmm = zeros(dim,model.m,model.m)
-    #Compute the gradients given every other point
+    Dnm = zeros(model.nSamplesUsed,model.nDim)
+    Dmm = zeros(model.m,model.nDim)
+    Jnm = zeros(model.nDim,model.nSamplesUsed,model.m)
+    Jmm = zeros(model.nDim,model.m,model.m)
+    #Compute the gradients given every data point
     for i in 1:model.nSamplesUsed
-        Dnm[i,:] = compute_point_deriv(model.X[model.MBIndices[i],:],model.inducingPoints[iter,:],model.kernel)
+        Dnm[i,:] = compute_point_deriv(model.kernel,model.X[model.MBIndices[i],:],model.inducingPoints[iter,:])
     end
     for i in 1:model.m
-        Dmm[i,:] = compute_point_deriv(model.inducingPoints[iter,:],model.inducingPoints[i,:],model.kernel)
+        Dmm[i,:] = compute_point_deriv(model.kernel,model.inducingPoints[iter,:],model.inducingPoints[i,:])
     end
-    for i in 1:dim
-        Jnm[i,:,:] = CreateColumnMatrix(model.nSamplesUsed,model.m,iter,Dnm[:,i],model.kernel)
-        Jmm[i,:,:] = CreateColumnRowMatrix(model.m,iter,Dmm[:,i],model.kernel)
+    for i in 1:model.nDim
+        Jnm[i,:,:] = CreateColumnMatrix(model.nSamplesUsed,model.m,iter,Dnm[:,i])
+        Jmm[i,:,:] = CreateColumnRowMatrix(model.m,iter,Dmm[:,i])
     end
     return Jnm,Jmm
+    #Return dim * K*K tensors for computing the gradient
 end

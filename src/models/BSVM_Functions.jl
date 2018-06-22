@@ -46,18 +46,18 @@ function ELBO(model::LinearBSVM)
         ELBO += model.StochCoeff*(2.0*log.(model.α[model.MBIndices[i]]) + log.(besselk.(0.5,model.α[MBIndices[i]]))
         + dot(vec(Z[i,:]),model.μ) + 0.5/model.α[MBIndices[i]]*(model.α[MBIndices[i]]^2-(1-dot(vec(Z[i,:]),model.μ))^2 - dot(vec(Z[i,:]),model.ζ*vec(Z[i,:]))))
     end
-    return ELBO
+    return -ELBO
 end
 
-function ELBO(model::BatchBSVM)
-    ELBO = 0.5*(logdet(model.ζ)+logdet(model.invK)-trace(model.invK*model.ζ)-dot(model.μ,model.invK*model.μ))
+function ELBO(model::BatchBSVM) #TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
+    ELBO = 0.5*(logdet(model.ζ)+logdet(model.invK)-sum(model.invK.*transpose(model.ζ+model.μ*transpose(model.μ)))
     for i in 1:model.nSamples
       ELBO += 0.25*log.(model.α[i])+log.(besselk.(0.5,sqrt.(model.α[i])))+model.y[i]*model.μ[i]+(model.α[i]-(1-model.y[i]*model.μ[i])^2-model.ζ[i,i])/(2*sqrt.(model.α[i]))
     end
-    return ELBO
+    return -ELBO
 end
 
-function ELBO(model::SparseBSVM)
+function ELBO(model::SparseBSVM)#TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
     ELBO = 0.5*(logdet(model.ζ)+logdet(model.invKmm))
     ELBO += -0.5*(trace(model.invKmm*(model.ζ+model.μ*transpose(model.μ)))) #trace replaced by sum
     ELBO += model.StochCoeff*dot(model.y[model.MBIndices],model.κ*model.μ)
@@ -66,7 +66,7 @@ function ELBO(model::SparseBSVM)
     for i in 1:length(model.MBIndices)
       ELBO += 0.5*model.StochCoeff/sqrt.(model.α[model.MBIndices[i]])*(model.α[model.MBIndices[i]]-(1-model.y[model.MBIndices[i]]*dot(model.κ[i,:],model.μ))^2-(ζtilde[i,i]+model.Ktilde[i]))
     end
-    return ELBO
+    return -ELBO
 end
 
 function hyperparameter_gradient_function(model::SparseBSVM)

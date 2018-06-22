@@ -26,7 +26,7 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
         updateParameters!(model,iter) #Update all the variational parameters
         reset_prediction_matrices!(model) #Reset predicton matrices
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
-            @enter updateHyperParameters!(model) #Do the hyper-parameter optimization
+            updateHyperParameters!(model) #Do the hyper-parameter optimization
         end
         if !isa(model,GPRegression)
             conv = Convergence(model,iter) #Check for convergence
@@ -104,17 +104,12 @@ function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated || model.Stochastic
         Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
         model.κ = Knm/model.Kmm
+        #println( diagkernelmatrix(model.X[model.MBIndices,:],model.kernel))
+        #println(sum(model.κ.*Knm,2)[:])
         model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*Knm,2)[:]
+        #println(model.Ktilde)
         #+ model.noise*ones(length(model.MBIndices))
-        # @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
-        if count(model.Ktilde.<0)==0
-            println("Ktildes has negative values")
-            p=plot(model.X[model.MBIndices,1],model.X[model.MBIndices,2],t=:scatter,xlim=(-5,5),ylim=(-5,5))
-            plot!(p,model.inducingPoints[:,1],model.inducingPoints[:,2],t=:scatter, lab="ind points")
-            plot!(p,[model.X[model.MBIndices[model.Ktilde.<0],1]],[model.X[model.MBIndices[model.Ktilde.<0],2]],t=:scatter,color=:red)
-            display(p)
-            sleep(0.5)
-        end
+        @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
     end
     model.HyperParametersUpdated=false
 end
@@ -210,8 +205,7 @@ function MCInit!(model::GPModel)
         for i in 1:model.τ
             model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
             computeMatrices!(model)
-            local_updates!(model)
-
+            # local_updates!(model)
             if model.ModelType==BSVM
                 Z = Diagonal(model.y[model.MBIndices])*model.κ;
                 model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,2),2)+model.Ktilde;

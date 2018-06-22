@@ -45,7 +45,7 @@ end
 import Base: *, +, getindex
 export Kernel, KernelSum, KernelProduct
 export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2Kernel, Matern5_2Kernel
-export kernelmatrix,kernelmatrix!,diagkernelmatrix,diagkernelmatrix!
+export kernelmatrix,kernelmatrix!,diagkernelmatrix,diagkernelmatrix!,computeIndPointsJ
 export derivativekernelmatrix,derivativediagkernelmatrix,compute_hyperparameter_gradient,apply_gradients!
 export InnerProduct, SquaredEuclidean, Identity
 export compute,plotkernel

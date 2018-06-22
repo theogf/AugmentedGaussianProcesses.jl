@@ -16,6 +16,7 @@ end
     ModelType::GPModelType; #Type of model
     Name::String #Name of the model
     nSamples::Int64 # Number of data points
+    nDim::Int64
     nFeatures::Int64 # Number of features
     noise::Float64  #Regularization parameter of the noise
     ϵ::Float64  #Desired Precision on ||ELBO(t+1)-ELBO(t)||))
@@ -52,6 +53,7 @@ function initCommon!(model::GPModel,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning
     model.Autotuning = Autotuning; model.AutotuningFrequency = AutotuningFrequency;
     # model.opt_type = optimizer;
     model.nSamples = size(X,1); #model.nSamplesUsed = model.nSamples;
+    model.nDim= size(X,2);
     model.Trained = false; model.Stochastic = false;
     model.TopMatrixForPrediction = 0; model.DownMatrixForPrediction = 0; model.MatricesPrecomputed=false;
     model.MaxGradient = 50;
@@ -140,7 +142,7 @@ function initSparse!(model::GPModel,m,optimizeIndPoints)
     end
     model.m = m; model.nFeatures = model.m;
     model.OptimizeInducingPoints = optimizeIndPoints
-    model.optimizer = Adam();
+    model.optimizer = Adam(α=0.1);
     model.inducingPoints = KMeansInducingPoints(model.X,model.m,10)
     if model.VerboseLevel>1
         println("Inducing points determined through KMeans algorithm")

@@ -9,3 +9,4 @@ test/main_testing.jl
 test/results/*
 docs/build/
 docs/site/
+data/*

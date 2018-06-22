@@ -51,11 +51,11 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 # println("$(now()): MNIST data loaded")
 
 #### Test on the artificial character dataset
-X = readdlm("data/artificial-characters-train")
-y=  X[:,1]; X= X[:,2:end]
-X_test = readdlm("data/artificial-characters-test")
-y_test= X_test[:,1]; X_test=X_test[:,2:end]
-println("$(now()): Artificial Characters data loaded")
+# X = readdlm("data/artificial-characters-train")
+# y=  X[:,1]; X= X[:,2:end]
+# X_test = readdlm("data/artificial-characters-test")
+# y_test= X_test[:,1]; X_test=X_test[:,2:end]
+# println("$(now()): Artificial Characters data loaded")
 
 
 ##Which algorithm are tested
@@ -91,7 +91,7 @@ if sparse
         writedlm("test/results/sharedIndPoints_acc",metrics[:test_error].values)
         writedlm("test/results/sharedIndPoints_ELBO",metrics[:ELBO].values)
     else
-        writedlm("test/results/uniqueIndPoints_acc",metrics[:ELBO].values)
+        writedlm("test/results/uniqueIndPoints_acc",metrics[:test_error].values)
         writedlm("test/results/uniqueIndPoints_ELBO",metrics[:ELBO].values)
     end
     for (i,pred) in enumerate(y_sparse)

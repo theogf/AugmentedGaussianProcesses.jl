@@ -40,7 +40,7 @@ function updateHyperParameters!(model::SparseModel)
     apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jmm,Jnm,Jnn]))
     if model.OptimizeInducingPoints
         inducingpoints_gradients = inducingpoints_gradient(model)
-        model.inducingPoints += GradDescent.update(model.optimizer,inducingpoints_gradients)
+        model.inducingPoints -= GradDescent.update(model.optimizer,inducingpoints_gradients)
     end
     model.HyperParametersUpdated = true
 end
