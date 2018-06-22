@@ -8,7 +8,7 @@ N_class = 3
 N_test = 50
 minx=-5.0
 maxx=5.0
-noise = 0.01
+noise = 1e-3
 
 println("$(now()): Starting testing multiclass")
 
@@ -44,18 +44,18 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 # end
 
 #### Test on the mnist dataset
-# X = readdlm("data/mnist_train")
-# y=  X[:,1]; X= X[:,2:end]
-# X_test = readdlm("data/mnist_test")
-# y_test= X_test[:,1]; X_test=X_test[:,2:end]
-# println("$(now()): MNIST data loaded")
+X = readdlm("data/mnist_train")
+y=  X[:,1]; X= X[:,2:end]
+X_test = readdlm("data/mnist_test")
+y_test= X_test[:,1]; X_test=X_test[:,2:end]
+println("$(now()): MNIST data loaded")
 
-#### Test on the artificial character dataset
-# X = readdlm("data/artificial-characters-train")
-# y=  X[:,1]; X= X[:,2:end]
-# X_test = readdlm("data/artificial-characters-test")
-# y_test= X_test[:,1]; X_test=X_test[:,2:end]
-# println("$(now()): Artificial Characters data loaded")
+### Test on the artificial character dataset
+X = readdlm("data/artificial-characters-train")
+y=  X[:,1]; X= X[:,2:end]
+X_test = readdlm("data/artificial-characters-test")
+y_test= X_test[:,1]; X_test=X_test[:,2:end]
+println("$(now()): Artificial Characters data loaded")
 
 
 ##Which algorithm are tested
@@ -63,7 +63,7 @@ full = false
 sparse = true
 sharedInd = false
 
-kernel = OMGP.RBFKernel(0.5)
+kernel = OMGP.RBFKernel(2.0)
 OMGP.setvalue!(kernel.weight,1.0)
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 if full

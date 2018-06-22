@@ -50,7 +50,7 @@ function ELBO(model::LinearBSVM)
 end
 
 function ELBO(model::BatchBSVM) #TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
-    ELBO = 0.5*(logdet(model.ζ)+logdet(model.invK)-sum(model.invK.*transpose(model.ζ+model.μ*transpose(model.μ)))
+    ELBO = 0.5*(logdet(model.ζ)+logdet(model.invK)-sum(model.invK.*transpose(model.ζ+model.μ*transpose(model.μ))))
     for i in 1:model.nSamples
       ELBO += 0.25*log.(model.α[i])+log.(besselk.(0.5,sqrt.(model.α[i])))+model.y[i]*model.μ[i]+(model.α[i]-(1-model.y[i]*model.μ[i])^2-model.ζ[i,i])/(2*sqrt.(model.α[i]))
     end
