@@ -1,7 +1,7 @@
 mutable struct SparseEPGPC <: SparseModel
     @commonfields
     @functionfields
-    @latentfields
+    @EPlatentfields
     @stochasticfields
     @kernelfields
     @sparsefields
@@ -26,7 +26,7 @@ mutable struct SparseEPGPC <: SparseModel
             initKernel!(this,kernel);
             initSparse!(this,m,OptimizeIndPoints);
             initGaussian!(this,μ_init);
-            initLatentVariables!(this);
+            initEPLatentVariables!(this);
             return this;
     end
 end

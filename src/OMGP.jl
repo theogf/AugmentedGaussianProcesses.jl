@@ -42,7 +42,7 @@ using ValueHistories
 using Gallium #TODO remove for published version
 #Exported models
 export LinearBSVM, BatchBSVM, SparseBSVM
-export BatchXGPC, SparseXGPC, GibbsSamplerGPC
+export BatchXGPC, SparseXGPC, GibbsSamplerGPC, EPSparseGPC
 export GPRegression, SparseGPRegression
 export MultiClass, SparseMultiClass
 #General class definitions
