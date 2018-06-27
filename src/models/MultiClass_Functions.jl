@@ -1,7 +1,7 @@
 function variablesUpdate_MultiClass!(model::MultiClass,iter)
     local_updates!(model)
     (model.η_1, model.η_2) = naturalGradientELBO_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invK,model.γ)
-    global_updates!(model,nothing,nothing,iter)
+    global_updates!(model,nothing,nothing)
 end
 
 function local_updates!(model::MultiClass)

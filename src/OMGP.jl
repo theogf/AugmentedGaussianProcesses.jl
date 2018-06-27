@@ -5,7 +5,7 @@ General Framework for the data augmented Gaussian Processes
 """
 module OMGP
 
-@enum GPModelType Undefined=0 BSVM=1 XGPC=2 Regression=3 MultiClassGP=4
+@enum GPModelType Undefined=0 BSVM=1 XGPC=2 Regression=3 MultiClassGP=4 EPGPC=5
 
 #Class arborescence
 
@@ -70,6 +70,7 @@ include("models/Regression.jl")
 include("models/SparseRegression.jl")
 include("models/MultiClass.jl")
 include("models/SparseMultiClass.jl")
+include("models/SparseEPGPC.jl")
 #Functions
 include("Training.jl")
 include("Autotuning.jl")
@@ -78,5 +79,6 @@ include("models/BSVM_Functions.jl")
 include("models/XGPC_Functions.jl")
 include("models/Reg_Functions.jl")
 include("models/MultiClass_Functions.jl")
+include("models/EP_Functions.jl")
 
 end #End Module
