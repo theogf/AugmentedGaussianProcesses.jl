@@ -293,31 +293,6 @@ function initLatentVariables!(model)
 end
 
 """
-    Parameters of the variational distribution of the augmented variable
-"""
-@def EPlatentfields begin
-    ν::Array{Float64,1}
-    mu::Array{Float64,1}
-    α::Array{Float64,1}
-    a::Array{Float64,1}
-    b::Array{Float64,1}
-    θ::Array{Float64,1}
-    s::Array{Float64,1}
-    Z::Array{Float64,1}
-end
-
-function initEPLatentVariables!(model)
-    #Initialize the latent variables
-    model.ν = zeros(model.nSamples);
-    model.mu = zeros(model.nSamples);
-    model.α = zeros(model.nSamples);
-    model.a = zeros(model.nSamples);
-    model.b = zeros(model.nSamples);
-    model.θ = zeros(model.nSamples);
-    model.s = zeros(model.nSamples);
-    model.Z = zeros(model.nSamples);
-end
-"""
     Parameters for the sampling method
 """
 @def samplingfields begin

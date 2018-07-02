@@ -93,65 +93,6 @@ function updateParameters!(model::GibbsSamplerGPC,iter::Integer)
     end
 end
 
-function updateParameters!(model::SparseEPGPC,iter::Integer)
-    computeMatrices!(model)
-    x_old = model.ν[model.MBIndices]
-    vNew = model.Kmm
-	x_new = model.κ'
-    x_newTvNew = x_new'*vNew
-	x_oldTvNew = x_old'*vNew
-	x_newTvNewx_old = sum(x_newTvNew' .* x_old,2)[:]
-	x_oldTvNewx_old = sum(x_oldTvNew' .* x_old,2)[:]
-	x_newTvNewx_new = sum(x_newTvNew' .* x_new,2)[:]
-
-	C1 = (model.ν[model.MBIndices].^-1 - x_oldTvNewx_old).^-1
-
-	x_newTvOldx_new = x_newTvNewx_new + x_newTvNewx_old.^2 .* C1 # defines kappa Σ\i kappa
-	x_oldTvOldx_new = x_newTvNewx_old + x_oldTvNewx_old .* x_newTvNewx_old .* C1
-	x_oldTmNew = x_old' * mNew
-	x_newTmNew = x_new' * mNew
-	C2 = model.ν[model.MBIndices] .* x_oldTmNew - model.mu[ model.MBIndices ]
-	x_newTmOld = x_newTmNew + x_oldTvOldx_new .* C2 #defines kappa μ\i
-
-	model.b[model.MBIndices] = model.Ktilde + x_newTvOldx_new + 1
-	model.a[model.MBIndices] = x_newTmOld
-	model.α[model.MBIndices] = model.y[model.MBIndices] ./ sqrt.(model.b[model.MBIndices]) .*
-     exp.(logpdf(Normal(),model.y[MBIndices] .* model.a[model.MBIndices] ./ sqrt(model.b[model.MBIndices])) -
-		logcdf(model.y[model.MBIndices] * model.a[model.MBIndices] / sqrt(model.b[model.MBIndices])))
-
-    #Updates for ν and mu
-	eta2new = (model.α[model.MBIndices].^2 + model.α[model.MBIndices] * model.a[model.MBIndices] / model.b[model.MBIndices]) *
-     (1 - (model.α[model.MBIndices].^2 + model.α[model.MBIndices] .* model.a[model.MBIndices] ./ model.b[model.MBIndices]) .* x_newTvOldx_new).^-1
-	eta1new = eta2new .* model.a[model.MBIndices] + model.α[model.MBIndices] + model.α[model.MBIndices] .* x_newTvOldx_new .* eta2new
-
-    #Stochastic updates
-	eta1new = (1 - model.ρ_s) *  model.mu[model.MBIndices] + model.ρ_s * eta1new
-	eta2new = (1 - model.ρ_s) *  model.ν[ model.MBIndices ] + model.ρ_s * eta2new
-
-	# This avoids uniform approximate factors
-
-	eta2new[ abs(eta2new) .< 1e-10] = 1e-10
-
-	# We update the posterior approximation
-
-	if count(model.ν[ model.MBIndices ]!=0)>0
-		vOld = vNew + (x_oldTvNew'*inv(diag(model.ν[ model.MBIndices ].^-1) - x_oldTvNew * x_old)) * x_oldTvNew
-	else
-		vOld = vNew
-    end
-
-	x_oldTvOld = x_old' * vOld
-	mOld = mNew + x_oldTvOld' * ((repmat(model.mu[model.MBIndices], 1, model.m) * x_old') * mNew - model.mu[ model.MBIndices ])
-
-	x_newTvOld = x_new' * vOld
-	vNew = vOld - x_newTvOld' * inv(diag(eta2new.^-1) + x_newTvOld * x_new) * x_newTvOld
-	x_newTvNew = x_new' * vNew
-	mNew = mOld - x_newTvNew' * ((repmat(eta2new, 1, model.m) * x_new') * mOld - eta1new)
-
-	model.ν[ model.MBIndices ] = eta2new
-	model.mu[ model.MBIndices ] = eta1new
-end
-
 #### Computations of the kernel matrices for the different type of models ####
 
 function computeMatrices!(model::SparseModel)
