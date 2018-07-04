@@ -100,6 +100,7 @@ end
 """
 @def kernelfields begin
     kernel::Kernel #Kernels function used
+    Knn::Array{Float64,2} #Kernel matrix of the GP prior
     invK::Array{Float64,2} #Inverse Kernel Matrix for the nonlinear case
 end
 """
@@ -132,12 +133,12 @@ Function initializing the sparsefields parameters
 """
 function initSparse!(model::GPModel,m,optimizeIndPoints)
     #Initialize parameters for the sparse model and check consistency
-    minpoints = 56;
+    minpoints = 64;
     if m > model.nSamples
-        warn("There are more inducing points than actual points, setting it to 10%")
+        warn("There are more inducing points than actual points, setting it to min($minpoints,10%)")
         m = min(minpoints,model.nSamples÷10)
     elseif m == 0
-        warn("Number of inducing points was not manually set, setting it to 10% of the datasize (minimum of $minpoints points)")
+        warn("Number of inducing points was not manually set, setting it to min($minpoints,10%)")
         m = min(minpoints,model.nSamples÷10)
     end
     model.m = m; model.nFeatures = model.m;

@@ -8,7 +8,7 @@ mutable struct BatchXGPC <: FullBatchModel
     @gaussianparametersfields
     @kernelfields
     function BatchXGPC(X::AbstractArray,y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 200,
-                                    kernel=0,noise::Float64=1e-3,AutotuningFrequency::Integer=10,
+                                    kernel=0,noise::Float64=1e-3,AutotuningFrequency::Integer=2,
                                     ϵ::Float64=1e-5,μ_init::Array{Float64,1}=[0.0],VerboseLevel::Integer=0)
             this = new(X,y)
             this.ModelType = XGPC

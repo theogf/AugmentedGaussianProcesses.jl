@@ -55,6 +55,9 @@ end
 
 function updateHyperParameters!(model::MultiClass)
     Jnn = derivativekernelmatrix(model.kernel,model.X)
+    grads = compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jnn])
+    println("Kernel params : $(getvalue(model.kernel.param))")
+    println("Gradients : $grads")
     apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jnn]))
     model.HyperParametersUpdated = true
 end
@@ -65,8 +68,8 @@ function updateHyperParameters!(model::SparseMultiClass)
         Jmm = [derivativekernelmatrix(model.kernel,model.inducingPoints[i]) for i in 1:model.K]
         Jnm = [derivativekernelmatrix(model.kernel,model.X[model.MBIndices,:],model.inducingPoints[i]) for i in 1:model.K]
     else
-        Jmm = derivativekernelmatrix(model.kernel,model.inducingPoints)
-        Jnm = derivativekernelmatrix(model.kernel,model.X[model.MBIndices,:],model.inducingPoints)
+        Jmm = derivativekernelmatrix(model.kernel,model.inducingPoints[1])
+        Jnm = derivativekernelmatrix(model.kernel,model.X[model.MBIndices,:],model.inducingPoints[1])
     end
     Jnn = derivativediagkernelmatrix(model.kernel,model.X[model.MBIndices,:])
     apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jmm,Jnm,Jnn]))

@@ -86,10 +86,10 @@ function inducingpoints_gradient(model::SparseXGPC)
     for i in 1:model.m #Iterate over the points
         Jnm,Jmm = computeIndPointsJ(model,i)
         for j in 1:model.nDim #Compute the gradient over the dimensions
-            ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
+            ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])/model.Kmm
             Jtilde = -sum(ι.*(Kmn.'),2)[:]-sum(model.κ.*Jnm[j,:,:],2)[:]
-            V = model.invKmm*Jmm[j,:,:]
-            gradients_inducing_points[i,j] = 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*Θ*model.κ + model.κ'*Θ*ι)) .* transpose(B)) - trace(V) - model.StochCoeff*dot(diag(Θ),Jtilde)
+            V = model.Kmm\Jmm[j,:,:]
+            gradients_inducing_points[i,j] = 0.5*(sum( (V/model.Kmm - model.StochCoeff*(ι'*Θ*model.κ + model.κ'*Θ*ι)) .* transpose(B)) - trace(V) - model.StochCoeff*dot(diag(Θ),Jtilde)
                 + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
         end
     end

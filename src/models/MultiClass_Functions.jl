@@ -69,10 +69,10 @@ end
 
 function ELBO(model::MultiClass)
     C = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.ζ),model.μ)
-    ELBO_v = -model.nSamples*log(2.0)+0.5*model.K*size(model.X,2)+sum(model.α-log.(model.β)+log.(gamma.(model.α)))+dot(1-model.α,digamma.(model.α))
-    ELBO_v += 0.5*sum(broadcast((y,gam,mu,theta,sigma)->logdet(model.invK)+logdet(sigma)+dot(y-gam,mu)-sum((Diagonal(y.*model.θ[1]+theta)+model.invK).*(sigma+mu*(mu'))),model.Y,model.γ,model.μ,model.θ[2:end],model.ζ))
+    ELBO_v = model.nSamples*(-log(2.0)+0.5*model.K)+sum(model.α-log.(model.β)-model.α./model.β+log.(gamma.(model.α)))+dot(1-model.α,digamma.(model.α))
+    ELBO_v += sum([-log.(cosh.(0.5*C[model.y_class[i]][i]))-0.5*model.θ[1][i]*(C[model.y_class[i]][i]^2) for i in 1:model.nSamples])
+    ELBO_v += 0.5*sum(broadcast((y,gam,mu,theta,sigma)->logdet(model.invK)+logdet(sigma)+dot(y-gam,mu)-sum((Diagonal(y.*model.θ[1]+theta)+model.invK).*transpose(sigma+mu*(mu'))),model.Y,model.γ,model.μ,model.θ[2:end],model.ζ))
     ELBO_v += sum(broadcast((gam,c,theta)->dot(gam,-log(2)-log.(gam)+1.0+digamma.(model.α)-log.(model.β))-sum(log.(cosh.(0.5*c)))+0.5*dot(c,c.*theta),model.γ,C,model.θ[2:end]))
-    ELBO_v += sum([-log.(cosh.(0.5*C[model.y_class[i]][i]))+0.5*model.θ[1][i]*(C[model.y_class[i]][i]^2) for i in 1:model.nSamples])
     return -ELBO_v
 end
 
@@ -93,33 +93,49 @@ function ELBO(model::SparseMultiClass)
     end
     ELBO_v += 0.5*sum(logdet.(model.invKmm).+logdet.(model.ζ))
     ELBO_v += model.StochCoeff*sum(broadcast((gam,c,theta)->dot(gam,-log(2)-log.(gam)+1.0+digamma.(model.α)-log.(model.β))-sum(log.(cosh.(0.5*c)))+0.5*dot(c,c.*theta),model.γ,C,model.θ[2:end]))
-    ELBO_v += model.StochCoeff*sum([-log.(cosh.(0.5*C[model.y_class[i]][iter]))+0.5*model.θ[1][iter]*(C[model.y_class[i]][iter]^2) for (iter,i) in enumerate(model.MBIndices)])
+    ELBO_v += model.StochCoeff*sum([-log.(cosh.(0.5*C[model.y_class[i]][iter]))-0.5*model.θ[1][iter]*(C[model.y_class[i]][iter]^2) for (iter,i) in enumerate(model.MBIndices)])
     return -ELBO_v
 end
 
+#Return the negative gradient of the ELBO
 function hyperparameter_gradient_function(model::MultiClass)
     A = [model.invK*(model.ζ[i]+model.µ[i]*transpose(model.μ[i]))-eye(model.nSamples) for i in 1:model.K]
     return function(Js)
-                V = model.invK*Js[1]
-                return sum([0.5*sum(V.*transpose(A[i])) for i in 1:model.K])
+                V = model.Knn\Js[1]
+                return -0.5*sum([sum(V.*transpose(A[i])) for i in 1:model.K])
             end
 end
-
+#Return the negative gradient of the ELBO
 function hyperparameter_gradient_function(model::SparseMultiClass)
     #General values used for all gradients
     B = broadcast((mu,sigma)->mu*transpose(mu) + sigma,model.μ,model.ζ)
-    Kmn = [kernelmatrix(model.inducingPoints[i],model.X[model.MBIndices,:],model.kernel) for i in 1:model.K]
-    return function(Js)
-        println(size(Js))
-                Jmm = [x->Js[1][i] for i in 1:model.K]; Jnm = [x->Js[2][i] for i in 1:model.K]; Jnn = Js[3];
-                println("Sizes")
-                print(size(Jmm),size(Jnm),size(Jnn))
-                ι = [(Jnm[i]-model.κ[i]*Jmm[i])*model.invKmm[i] for i in 1:model.K]
-                Jtilde = [Jnn - sum(ι[i].*(Kmn[i].'),2) - sum(model.κ[i].*Jnm[i],2) for i in 1:model.K]
-                V = model.invKmm.*Jmm
-                return sum( broadcast((v,invK,iota,theta,kappa,b,jtilde,y,gam)->
-                0.5*sum((v*invK-model.StochCoeff*(iota'*theta*kappa+kappa'*theta*iota)).*b')-trace(v)-model.StochCoeff*dot(model.θ[1].*y[model.MBIndices],jtilde)
-                    + model.StochCoeff*(dot(y[model.MBIndices]-gam,iota*mu)),
-                    V,model.invKmm,ι,model.θ[2:end],model.κ,B,Jtilde,model.y,model.γ)) #arugments
-     end
+    if model.KInducingPoints
+        Kmn = [kernelmatrix(model.inducingPoints[i],model.X[model.MBIndices,:],model.kernel) for i in 1:model.K]
+        return function(Js)
+            println(size(Js))
+                    Jmm = [x->Js[1][i] for i in 1:model.K]; Jnm = [x->Js[2][i] for i in 1:model.K]; Jnn = Js[3];
+                    println("Sizes")
+                    print(size(Jmm),size(Jnm),size(Jnn))
+                    ι = [(Jnm[i]-model.κ[i]*Jmm[i])*model.invKmm[i] for i in 1:model.K]
+                    Jtilde = [Jnn - sum(ι[i].*(Kmn[i].'),2) - sum(model.κ[i].*Jnm[i],2) for i in 1:model.K]
+                    V = model.invKmm.*Jmm
+                    return 0;#TODO copy the formula from down#sum( broadcast((v,invK,iota,theta,kappa,b,jtilde,y,gam)->
+                    # 0.5*sum((v*invK-model.StochCoeff*(iota'*theta*kappa+kappa'*theta*iota)).*b')-trace(v)-model.StochCoeff*dot(model.θ[1][model.MBIndices].*y[model.MBIndices],jtilde)
+                        # + model.StochCoeff*(dot(y[model.MBIndices]-gam,iota*mu)),
+                        # V,model.invKmm,ι,model.θ[2:end],model.κ,B,Jtilde,model.y,model.γ)) #arugments
+         end #end of function(Js)
+    else
+        Kmn = kernelmatrix(model.inducingPoints[1],model.X[model.MBIndices,:],model.kernel)
+        return function(Js)
+                    Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
+                    ι = (Jnm-model.κ[1]*Jmm)/model.Kmm[1]
+                    Jtilde = Jnn - sum(ι.*(Kmn.'),2) - sum(model.κ[1].*Jnm,2)
+                    V = model.Kmm[1]\Jmm
+                    return -sum(broadcast((theta,b,y,gam,mu)->
+                        0.5*(sum((V/model.Kmm[1]-model.StochCoeff*(ι'*theta*model.κ[1]+model.κ[1]'*theta*ι)).*b')
+                        -trace(V)-model.StochCoeff*dot(model.θ[1].*y[model.MBIndices],Jtilde)
+                        + model.StochCoeff*dot(y[model.MBIndices]-gam,ι*mu)),
+                        Diagonal.(model.θ[2:end]),B,model.Y,model.γ,model.μ)) #arguments
+        end#end of function(Js)
+    end
 end

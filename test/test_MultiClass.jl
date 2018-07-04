@@ -3,31 +3,34 @@ import OMGP
 using Distributions
 using StatsBase
 using Gallium
-N_data = 500
+using MLDataUtils
+N_data = 300
 N_class = 3
-N_test = 50
+N_test = 30
 minx=-5.0
 maxx=5.0
-noise = 1e-7
+noise = 1e-1
 
 println("$(now()): Starting testing multiclass")
 
 function latent(X)
     return sqrt.(X[:,1].^2+X[:,2].^2)
 end
-
-X = (rand(N_data,2)*(maxx-minx))+minx
+dim=2
+X = (rand(N_data,dim)*(maxx-minx))+minx
 trunc_d = Truncated(Normal(0,3),minx,maxx)
-X = rand(trunc_d,N_data,2)
+# X = rand(trunc_d,N_data,dim)
 x_test = linspace(minx,maxx,N_test)
 X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
+# X_test = rand(trunc_d,N_test^dim,dim)
 y = min.(max.(1,floor.(Int64,latent(X)+rand(Normal(0,noise),size(X,1)))),N_class)
 y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 
-# data = readdlm("data/Iris")
-#Dataset has been already randomized
-# X = data[1:100,1:(end-1)]; y=data[1:100,end]
-# X_test = data[101:end,1:(end-1)]; y_test=data[101:end,end]
+#Test on the Iris dataet
+# train = readdlm("data/iris-X")
+# X = train[1:100,:]; X_test=train[101:end,:]
+# test = readdlm("data/iris-y")
+# y = test[1:100,:]; y_test=test[101:end,:]
 
 #
 # data = readdlm("data/Glass")
@@ -35,13 +38,13 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 # X = data[1:150,1:(end-1)]; y=data[1:150,end]
 # X_test = data[151:end,1:(end-1)]; y_test=data[151:end,end]
 
-# function norm_data(input_df)
-#     for i in 1:size(input_df,2)
-#         input_df[:,i] = (input_df[:,i] - mean(input_df[:,i])) ./
-#             (var(input_df[:,i])==0?1:sqrt(var(input_df[:,i])))
-#     end
-#     return input_df
-# end
+function norm_data(input_df)
+    for i in 1:size(input_df,2)
+        input_df[:,i] = (input_df[:,i] - mean(input_df[:,i])) ./
+            (var(input_df[:,i])==0?1:sqrt(var(input_df[:,i])))
+    end
+    return input_df
+end
 
 #### Test on the mnist dataset
 # X = readdlm("data/mnist_train")
@@ -58,17 +61,23 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 # println("$(now()): Artificial Characters data loaded")
 
 
+
 ##Which algorithm are tested
-full = true
+full = false
 sparse = true
 sharedInd = true
-
-kernel = OMGP.RBFKernel(0.5)
+# for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
+# for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
+ l = 0.01
+# kernel = OMGP.RBFKernel(l)
+kernel = OMGP.ARDKernel(l*ones(size(X,2)))
 OMGP.setvalue!(kernel.weight,1.0)
+
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 if full
-    full_model = OMGP.MultiClass(X,y,VerboseLevel=3,kernel=kernel,Autotuning=true)
-    t_full = @elapsed full_model.train(iterations=100)
+    full_model = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true)
+    metrics, callback = OMGP.getMultiClassLog(full_model,X_test,y_test)
+    t_full = @elapsed full_model.train(iterations=200,callback=callback)
     y_full, = full_model.predict(X_test)
     println("Full predictions computed")
     full_score = 0
@@ -77,13 +86,15 @@ if full
             full_score += 1
         end
     end
-    println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s")
+    println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s for l = $l")
 end
+# end #End for loop on kernel lengthscale
 if sparse
-    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=2,kernel=kernel,m=200,Autotuning=false,Stochastic=true,BatchSize=100,KIndPoints=!sharedInd)
+    sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=40,Autotuning=true,Stochastic=false,BatchSize=100,KIndPoints=!sharedInd)
+    sparse_model.AutotuningFrequency=5
     metrics, callback = OMGP.getMultiClassLog(sparse_model,X_test,y_test)
     # sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    t_sparse = @elapsed sparse_model.train(iterations=10,callback=callback)
+    t_sparse = @elapsed sparse_model.train(iterations=1000,callback=callback)
     y_sparse, = sparse_model.predict(X_test)
     println("Sparse predictions computed")
     sparse_score=0
@@ -101,21 +112,21 @@ if sparse
     end
     println("Sparse model Accuracy is $(sparse_score/length(y_test)) in $t_sparse s")
 end
-m_base = OMGP.multiclasspredict(full_model,X_test,true)
+# m_base = OMGP.multiclasspredict(full_model,X_test,true)
 # m_base = OMGP.multiclasspredict(sparse_model,X_test)
-m_pred,sig_pred = OMGP.multiclasspredictproba(full_model,X_test)
+# m_pred,sig_pred = OMGP.multiclasspredictproba(full_model,X_test)
 
-m_pred_mc,sig_pred_mc = OMGP.multiclasspredictprobamcmc(full_model,X_test,1000)
+# m_pred_mc,sig_pred_mc = OMGP.multiclasspredictprobamcmc(full_model,X_test,1000)
 println("Sampling done")
-full_f_star,full_cov_f_star = OMGP.fstar(full_model,X_test)
+# full_f_star,full_cov_f_star = OMGP.fstar(full_model,X_test)
 function logit(x)
     return 1./(1+exp.(-x))
 end
-logit_f = logit.(full_f_star)
+# logit_f = logit.(full_f_star)
 
 
 #
-# if false
+if false
 if size(X,2)==2
     using Plots
     pyplot()
@@ -144,4 +155,5 @@ if size(X,2)==2
     println("MC sig plots ready")
     # p_sparse = [begin plot(x_test,x_test,reshape(sparse_f_star[i],N_test,N_test),t=:contour,fill=true,cbar=false,lab="",title="f_$(sparse_model.class_mapping[i])");plot!(sparse_model.inducingPoints[i][:,1],sparse_model.inducingPoints[i][:,2],t=:scatter,lab="") end for i in 1:N_class]
     display(plot(p_full...,p_logit_full...,p_val...,p_val_mc...,p_val_simple...,p_sig...,p_sig_mc...,layout=(7,N_class)))
+end
 end
