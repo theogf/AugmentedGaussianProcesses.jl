@@ -26,9 +26,9 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
         updateParameters!(model,iter) #Update all the variational parameters
         reset_prediction_matrices!(model) #Reset predicton matrices
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
-            println("Before hyperparam : neg. ELBO is : $(ELBO(model))")
             updateHyperParameters!(model) #Do the hyper-parameter optimization
             computeMatrices!(model)
+            title!("$iter")
         end
         if !isa(model,GPRegression)
             conv = Convergence(model,iter) #Check for convergence
@@ -41,7 +41,7 @@ function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=Defa
         ### Print out informations about the convergence
         if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
             print("Iteration : $iter, convergence = $conv \n")
-            println("After Hyperparam Neg. ELBO is : $(ELBO(model))")
+            println("Neg. ELBO is : $(ELBO(model))")
         end
         # (iter < model.nEpochs) || break; #Verify if any condition has been broken
         (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken

@@ -4,7 +4,7 @@ using Distributions
 using StatsBase
 using Gallium
 using MLDataUtils
-N_data = 300
+N_data = 100
 N_class = 3
 N_test = 30
 minx=-5.0
@@ -19,10 +19,10 @@ end
 dim=2
 X = (rand(N_data,dim)*(maxx-minx))+minx
 trunc_d = Truncated(Normal(0,3),minx,maxx)
-# X = rand(trunc_d,N_data,dim)
+X = rand(trunc_d,N_data,dim)
 x_test = linspace(minx,maxx,N_test)
-X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
-# X_test = rand(trunc_d,N_test^dim,dim)
+# X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
+X_test = rand(trunc_d,N_test^dim,dim)
 y = min.(max.(1,floor.(Int64,latent(X)+rand(Normal(0,noise),size(X,1)))),N_class)
 y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 
@@ -63,21 +63,23 @@ end
 
 
 ##Which algorithm are tested
-full = false
-sparse = true
+full = true
+sparse = false
 sharedInd = true
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
- l = 0.01
-# kernel = OMGP.RBFKernel(l)
-kernel = OMGP.ARDKernel(l*ones(size(X,2)))
+ l = 1.0
+kernel = OMGP.RBFKernel(l)
+# kernel = OMGP.ARDKernel(l*ones(size(X,2)))
 OMGP.setvalue!(kernel.weight,1.0)
 
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 if full
     full_model = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true)
-    metrics, callback = OMGP.getMultiClassLog(full_model,X_test,y_test)
-    t_full = @elapsed full_model.train(iterations=200,callback=callback)
+    metrics, callback = OMGP.getMultiClassLog(full_model)#,X_test,y_test)
+    # full_model.AutotuningFrequency=1
+    t_full = @elapsed full_model.train(iterations=100,callback=callback)
+
     y_full, = full_model.predict(X_test)
     println("Full predictions computed")
     full_score = 0
@@ -91,10 +93,10 @@ end
 # end #End for loop on kernel lengthscale
 if sparse
     sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=40,Autotuning=true,Stochastic=false,BatchSize=100,KIndPoints=!sharedInd)
-    sparse_model.AutotuningFrequency=5
+    # sparse_model.AutotuningFrequency=5
     metrics, callback = OMGP.getMultiClassLog(sparse_model,X_test,y_test)
     # sparse_model = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    t_sparse = @elapsed sparse_model.train(iterations=1000,callback=callback)
+    t_sparse = @elapsed sparse_model.train(iterations=100,callback=callback)
     y_sparse, = sparse_model.predict(X_test)
     println("Sparse predictions computed")
     sparse_score=0

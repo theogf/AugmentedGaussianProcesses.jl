@@ -64,8 +64,8 @@ function compute(k::Kernel,X1::T,X2::T) where {T<:Real}
 end
 
 InnerProduct(X1,X2) = dot(X1,X2);
-SquaredEuclidean(X1,X2) = norm(X1-X2,2)
-Identity(X1,X2) = (X1,X2)
+SquaredEuclidean(X1,X2) = norm(X1-X2,2);
+Identity(X1,X2) = (X1,X2);
 
 mutable struct KernelSum{T<:AbstractFloat} <: Kernel{T}
     @kernelfunctionfields()
@@ -204,15 +204,11 @@ end
 #
 function compute_deriv{T}(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     a = k.distance(X1,X2)
-    if a != 0
-        grad = a^2/((k.param[1])^3)*compute(k,X1,X2)
-        if weight
-            return [getvalue(k.weight)*grad,compute(k,X1,X2)]
-        else
-            return [grad]
-        end
+    grad = a^2/((k.param[1])^3)*compute(k,X1,X2,false)
+    if weight
+        return [getvalue(k.weight)*grad,compute(k,X1,X2)]
     else
-      return [0.0]
+        return [grad]
     end
 end
 
@@ -375,14 +371,14 @@ function compute{T}(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=tru
     if X1==X2
         return 1.0
     end
-    return (weight?getvalue(k.weight):1.0)*exp(-0.5*sum(((X1-X2)./(k.param.hyperparameters)).^2))
+    return (weight?getvalue(k.weight):1.0)*exp(-0.5*norm((X1-X2)./k.param.hyperparameters)^2)
 end
 #
 function compute_deriv{T}(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     if X1 == X2
         grad = zeros(k.Nparam)
     else
-        grad = (X1-X2).^2./(getvalue(k.param).^3)*compute(k,X1,X2)
+        grad = (X1-X2).^2./(k.param.hyperparameters.^3)*compute(k,X1,X2,false)
     end
     if weight
         return vcat(getvalue(k.weight)*grad,compute(k,X1,X2,false))
@@ -617,6 +613,7 @@ end
 
 function apply_gradients!(kernel::Kernel,gradients,weight::Bool=true)
     update!(kernel.param,gradients[kernel.Nparam ==1 ? 1 : 1:kernel.Nparam])
+    update!(kernel.param,gradients[1:kernel.Nparam])
     if weight
         update!(kernel.weight,gradients[end])
     end

@@ -6,12 +6,12 @@ mutable struct HyperParameter{T<:Real}
     opt::Optimizer
     fixed::Bool
     # function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=Momentum(η=0.5)) where {T<:Real}
-    function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=Adam(α=0.05)) where {T<:Real}
+    function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=Adam(α=0.01)) where {T<:Real}
         checkvalue(I, x) || error("Value $(x) must be in range " * string(I))
         new{T}(Ref(x), I, opt, fixed)
     end
 end
-HyperParameter{T<:Real}(x::T, I::Interval{T} = interval(T); fixed::Bool = false, opt::Optimizer = Adam(α=0.05)) = HyperParameter{T}(x, I, fixed, opt)
+HyperParameter{T<:Real}(x::T, I::Interval{T} = interval(T); fixed::Bool = false, opt::Optimizer = Adam(α=0.01)) = HyperParameter{T}(x, I, fixed, opt)
 
 eltype{T}(::HyperParameter{T}) = T
 
@@ -52,8 +52,8 @@ end
 ###Old version not using reparametrization
 update!{T}(param::HyperParameter{T},grad::T) = begin
     # println("Correc : $(getderiv_eta(param)), Grad : $(GradDescent.update(param.opt,grad)), theta : $(gettheta(param))")
-    return isfree(param) ? settheta!(param, gettheta(param) - GradDescent.update(param.opt,getderiv_eta(param)*grad)) : nothing
-# update!{T}(param::HyperParameter{T},grad::T) = isfree(param) ? setvalue!(param, getvalue(param) + GradDescent.update(param.opt,grad)) : nothing
+    isfree(param) ? settheta!(param, gettheta(param) + update(param.opt,getderiv_eta(param)*grad)) : nothing
+    # isfree(param) ? setvalue!(param, getvalue(param) + GradDescent.update(param.opt,grad)) : nothing
 end
 
 isfree(θ::HyperParameter) = !θ.fixed

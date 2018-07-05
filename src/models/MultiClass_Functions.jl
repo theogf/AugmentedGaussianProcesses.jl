@@ -99,10 +99,10 @@ end
 
 #Return the negative gradient of the ELBO
 function hyperparameter_gradient_function(model::MultiClass)
-    A = [model.invK*(model.ζ[i]+model.µ[i]*transpose(model.μ[i]))-eye(model.nSamples) for i in 1:model.K]
+    A = [model.invK*(model.ζ[i]+model.µ[i]*model.μ[i]')-eye(model.nSamples) for i in 1:model.K]
     return function(Js)
-                V = model.Knn\Js[1]
-                return -0.5*sum([sum(V.*transpose(A[i])) for i in 1:model.K])
+                V = model.invK*Js[1]
+                return 0.5*sum([sum(V.*transpose(A[i])) for i in 1:model.K])
             end
 end
 #Return the negative gradient of the ELBO
@@ -131,7 +131,7 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
                     ι = (Jnm-model.κ[1]*Jmm)/model.Kmm[1]
                     Jtilde = Jnn - sum(ι.*(Kmn.'),2) - sum(model.κ[1].*Jnm,2)
                     V = model.Kmm[1]\Jmm
-                    return -sum(broadcast((theta,b,y,gam,mu)->
+                    return sum(broadcast((theta,b,y,gam,mu)->
                         0.5*(sum((V/model.Kmm[1]-model.StochCoeff*(ι'*theta*model.κ[1]+model.κ[1]'*theta*ι)).*b')
                         -trace(V)-model.StochCoeff*dot(model.θ[1].*y[model.MBIndices],Jtilde)
                         + model.StochCoeff*dot(y[model.MBIndices]-gam,ι*mu)),
