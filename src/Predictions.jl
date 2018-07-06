@@ -41,6 +41,23 @@ function fstar(model::SparseModel,X_test;covf::Bool=true)
     end
 end
 
+function fstar(model::OnlineGPModel,X_test;covf::Bool=true)
+    if model.TopMatrixForPrediction == 0
+        model.TopMatrixForPrediction = model.invKmm*model.μ
+    end
+    if covf && model.DownMatrixForPrediction == 0
+      model.DownMatrixForPrediction = (model.invKmm*(eye(model.nFeatures)-model.ζ*model.invKmm))
+    end
+    k_star = kernelmatrix(X_test,model.kmeansalg.centers,model.kernel)
+    mean_fstar = k_star*model.TopMatrixForPrediction
+    if !covf
+        return mean_fstar
+    else
+        cov_fstar = diagkernelmatrix(X_test,model.kernel) - sum((k_star*model.DownMatrixForPrediction).*k_star,2)[:]
+        return mean_fstar,cov_fstar
+    end
+end
+
 function fstar(model::MultiClass,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = broadcast(x->model.invK*x,model.μ)
@@ -160,6 +177,10 @@ function regpredict(model::GPRegression,X_test)
 end
 
 function regpredict(model::SparseGPRegression,X_test)
+    return fstar(model,X_test,covf=false)
+end
+
+function regpredict(model::OnlineGPRegression,X_test)
     return fstar(model,X_test,covf=false)
 end
 

@@ -12,19 +12,18 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,Convergenc
         model.nEpochs = iterations
     end
     # model.evol_conv = []
+    ##TODO for now it is not possible to compute an adaptive learning rate
     # if model.Stochastic && model.AdaptiveLearningRate && !model.Trained
             #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC (if restarting training, avoid this part)
             # MCInit!(model)
     # end
-    # computeMatrices!(model)
-    init_inducing_points!(model)
+    computeMatrices!(model)
     model.Trained = true
     iter::Int64 = 1; conv = Inf;
     while true #do while loop
         if callback != 0
                 callback(model,iter) #Use a callback method if put by user
         end
-        update_inducing_points!(model)
         updateParameters!(model,iter) #Update all the variational parameters
         reset_prediction_matrices!(model) #Reset predicton matrices
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
@@ -33,12 +32,12 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,Convergenc
         end
         # conv = Convergence(model,iter) #Check for convergence
         ### Print out informations about the convergence
-        # if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
-            # print("Iteration : $iter, convergence = $conv \n")
+         if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
+            print("Iteration : $iter, convergence = $conv \n")
             # println("Neg. ELBO is : $(ELBO(model))")
-        # end
+        end
         # (iter < model.nEpochs) || break; #Verify if any condition has been broken
-        # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
+         (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         iter += 1;
     end
     if model.VerboseLevel > 0
@@ -58,12 +57,10 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,Convergenc
     model.Trained = true
 end
 
-function updateParameters!(model::GPModel,iter::Integer)
+function updateParameters!(model::OnlineGPModel,iter::Integer)
 #Function to update variational parameters
-    if model.Stochastic
-        model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
-        #No replacement means one points cannot be twice in the same minibatch
-    end
+    model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
+    update_points!(model)
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     if model.ModelType == BSVM
         variablesUpdate_BSVM!(model,iter)
@@ -76,110 +73,50 @@ function updateParameters!(model::GPModel,iter::Integer)
     end
 end
 
-function updateParameters!(model::GibbsSamplerGPC,iter::Integer)
-#Sample for every parameter
-    computeMatrices!(model)
-    model.α = broadcast(model.pgsampler.draw,1.0,model.μ)
-    push!(model.samplehistory,:ω,iter,model.α)
-    C = Matrix(Symmetric(inv(diagm(model.α)+model.invK),:U))
-    model.μ = rand(MvNormal(0.5*C*model.y,C))
-    push!(model.samplehistory,:f,iter,model.μ)
-    if iter > model.burninsamples && (iter-model.burninsamples)%model.samplefrequency==0
-        push!(model.estimate,model.μ)
+
+function update_points!(model::OnlineGPModel)
+    update!(model.kmeansalg,model.X[model.MBIndices,:])
+    NCenters = model.kmeansalg.k
+    Nnewpoints = NCenters-model.m
+
+    #Make the latent variables larger #TODO Preallocating them might be a better option
+    if Nnewpoints!=0
+        model.μ = vcat(model.μ, zeros(Nnewpoints))
+        model.η_1 = vcat(model.η_1, zeros(Nnewpoints))
+        ζ_temp = eye(NCenters)
+        ζ_temp[1:model.m,1:model.m] = model.ζ
+        model.ζ = ζ_temp
+        η_2temp = -0.5*eye(NCenters)
+        η_2temp[1:model.m,1:model.m] = model.η_2
+        model.η_2 = η_2temp
+        model.m = NCenters
     end
+    model.indpoints_updated = true
 end
 
 #### Computations of the kernel matrices for the different type of models ####
-function computeMatrices!(model::FullBatchModel)
-    if model.HyperParametersUpdated
-        model.Knn = Symmetric(kernelmatrix(model.X,model.kernel) + model.noise*eye(model.nFeatures))
-        model.invK = inv(model.Knn)
-        model.HyperParametersUpdated = false
-    end
-end
-
-function computeMatrices!(model::SparseModel)
-    if model.HyperParametersUpdated
-        model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+model.noise*eye(model.nFeatures))
+function computeMatrices!(model::OnlineGPModel)
+    if model.HyperParametersUpdated || model.indpoints_updated
+        model.Kmm = Symmetric(kernelmatrix(model.kmeansalg.centers,model.kernel)+model.noise*eye(model.m))
         model.invKmm = inv(model.Kmm)
-    end
-    #If change of hyperparameters or if stochatic
-    if model.HyperParametersUpdated || model.Stochastic
-        Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
+        Knm = kernelmatrix(model.X[model.MBIndices,:],model.kmeansalg.centers,model.kernel)
         model.κ = Knm/model.Kmm
-        #println( diagkernelmatrix(model.X[model.MBIndices,:],model.kernel))
-        #println(sum(model.κ.*Knm,2)[:])
         model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*Knm,2)[:]
-        #println(model.Ktilde)
-        #+ model.noise*ones(length(model.MBIndices))
         @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
     end
-    model.HyperParametersUpdated=false
+    model.HyperParametersUpdated = false;
+    model.indpoints_updated = false;
 end
 
-
-function computeMatrices!(model::LinearModel)
-    if model.HyperParametersUpdated
-        model.invΣ =  (1.0/model.noise)*eye(model.nFeatures)
-        model.HyperParametersUpdated = false
-    end
-end
-
-function computeMatrices!(model::MultiClass)
-    if model.HyperParametersUpdated
-        model.Knn = Symmetric(kernelmatrix(model.X,model.kernel) + model.noise*eye(model.nFeatures))
-        model.invK = inv(model.Knn)
-        model.HyperParametersUpdated = false
-    end
-end
-
-function computeMatrices!(model::SparseMultiClass)
-    if model.HyperParametersUpdated
-        if model.KInducingPoints
-            model.Kmm = broadcast(points->Symmetric(kernelmatrix(points,model.kernel)+model.noise*eye(model.nFeatures)),model.inducingPoints)
-        else
-            model.Kmm = [Symmetric(kernelmatrix(model.inducingPoints[1],model.kernel)+model.noise*eye(model.nFeatures))]
-        end
-        model.invKmm = inv.(model.Kmm)
-    end
-    #If change of hyperparameters or if stochatic
-    if model.HyperParametersUpdated || model.Stochastic
-        if model.KInducingPoints
-            Knm = broadcast(points->kernelmatrix(model.X[model.MBIndices,:],points,model.kernel),model.inducingPoints)
-            model.κ = Knm./model.Kmm
-            model.Ktilde = broadcast((knm,kappa)->diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(kappa.*knm,2)[:],Knm,model.κ)
-        else
-            Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel)
-            model.κ = [Knm/model.Kmm[1]]
-            model.Ktilde = [diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ[1].*Knm,2)[:]]
-        end
-        @assert sum(count.(broadcast(x->x.<0,model.Ktilde)))==0 "Ktilde has negative values"
-    end
-    model.HyperParametersUpdated=false
-end
-
-function reset_prediction_matrices!(model::GPModel)
+function reset_prediction_matrices!(model::OnlineGPModel)
     model.TopMatrixForPrediction=0;
     model.DownMatrixForPrediction=0;
-end
-#### Get Functions ####
-
-function getInversePrior(model::LinearModel)
-    return model.invΣ
-end
-
-function getInversePrior(model::FullBatchModel)
-    return model.invK
-end
-
-function getInversePrior(model::SparseModel)
-    return model.invKmm
 end
 
 
 #### Computations of the learning rates ###
 
-function MCInit!(model::GPModel)
+function MCInit!(model::OnlineGPModel)
     if typeof(model) <: MultiClassGPModel
         model.g = [zeros(model.m*(model.m+1)) for i in 1:model.K]
         model.h = zeros(model.K)

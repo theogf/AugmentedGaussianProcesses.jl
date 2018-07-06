@@ -12,10 +12,10 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
         model.nEpochs = iterations
     end
     model.evol_conv = []
-    # if model.Stochastic && model.AdaptiveLearningRate && !model.Trained
-    #         #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC (if restarting training, avoid this part)
-    #         MCInit!(model)
-    # end
+    if model.Stochastic && model.AdaptiveLearningRate && !model.Trained
+            #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC (if restarting training, avoid this part)
+            MCInit!(model)
+    end
     computeMatrices!(model)
     model.Trained = true
     iter::Int64 = 1; conv = Inf;

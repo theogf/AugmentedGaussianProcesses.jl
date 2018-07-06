@@ -8,6 +8,7 @@ using Clustering
 export KMeansInducingPoints
 export KMeansAlg, StreamOnline, Webscale
 export total_cost
+export init!, update!
 
 function find_nearest_center(X,C)
     nC = size(C,1)

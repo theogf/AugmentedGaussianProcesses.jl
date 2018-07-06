@@ -26,7 +26,6 @@ end
     VerboseLevel::Int64 #Level of printing information
     Stochastic::Bool #Is the model stochastic    #Autotuning parameters
     Autotuning::Bool #Chose Autotuning type
-    MaxGradient::Float64 #Maximum value for the gradient clipping
     AutotuningFrequency::Int64 #Frequency of update of the hyperparameter
     Trained::Bool #Verify the algorithm has been trained before making predictions
     #Parameters learned with training
@@ -56,7 +55,6 @@ function initCommon!(model::GPModel,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning
     model.nDim= size(X,2);
     model.Trained = false; model.Stochastic = false;
     model.TopMatrixForPrediction = 0; model.DownMatrixForPrediction = 0; model.MatricesPrecomputed=false;
-    model.MaxGradient = 50;
     model.HyperParametersUpdated = true;
     model.evol_conv = Array{Float64,1}()
 end
@@ -148,7 +146,7 @@ function initSparse!(model::GPModel,m,optimizeIndPoints)
     if model.VerboseLevel>1
         println("Inducing points determined through KMeans algorithm")
     end
-    model.inducingPoints += rand(Normal(0,0.1),size(model.inducingPoints)...)
+    # model.inducingPoints += rand(Normal(0,0.1),size(model.inducingPoints)...)
 end
 
 
@@ -170,11 +168,11 @@ function initGaussian!(model::GPModel,μ_init)
       if model.VerboseLevel > 2
         warn("Initial mean of the variational distribution is sampled from a multivariate normal distribution")
       end
-      model.μ = randn(model.nFeatures)
+      model.μ = randn(model.m)
     else
       model.μ = μ_init
     end
-    model.ζ = eye(model.nFeatures)
+    model.ζ = eye(model.m)
     model.η_2 = -0.5*inv(model.ζ)
     model.η_1 = -2.0*model.η_2*model.μ
 end
@@ -299,13 +297,23 @@ end
 @def onlinefields begin
     semi_online::Bool #Defines if we know how many point will be treated at the beginning
     kmeansalg::KMeansAlg # Online KMean algorithm
+    indpoints_updated::Bool#Trigger for matrix computations
+    m::Int64 #Number of wanted inducing points
+    Kmm::Array{Float64,2} #Kernel matrix
+    invKmm::Array{Float64,2} #Inverse Kernel matrix of inducing points
+    Ktilde::Array{Float64,1} #Diagonal of the covariance matrix between inducing points and generative points
+    κ::Array{Float64,2} #Kmn*invKmm
 end
 
 """
 Function for initiating online parameters
 """
-function initOnline!(model,alg=StreamOnline())
-    init!(model.kmeansalg,model.X[sample(1:size(model.X,1),model.m,replace=false),:],model.m)
+function initOnline!(model,alg::KMeansAlg,m::Int64)
+    model.m = m
+    model.kmeansalg = alg
+    model.MBIndices = StatsBase.sample(1:model.nSamples,model.m,replace=false) #Sample nSamplesUsed indices for the minibatches
+    init!(model.kmeansalg,model.X[model.MBIndices,:],model.m)
+    model.indpoints_updated = true
 end
 
 """

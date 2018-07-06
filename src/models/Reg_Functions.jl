@@ -15,9 +15,9 @@ end
 function ELBO(model::SparseGPRegression)
     model.StochCoeff = model.nSamples/model.nSamplesUsed
     ELBO = -0.5*model.nSamples*(log(model.noise)+log(2*pi))
-    ELBO += -0.5*model.StochCoeff*(model.y - model.κ*model.μ).^2/model.noise
+    ELBO += -0.5*model.StochCoeff*sum((model.y[model.MBIndices] - model.κ*model.μ).^2)/model.noise
     ELBO += -0.5*model.StochCoeff*sum(model.Ktilde)./model.noise
-    ELBO += -0.5*model.StochCoeff/model.noise*sum((model.ζ*model.kappa).*model.kappa)
+    ELBO += -0.5*model.StochCoeff/model.noise*sum((model.κ*model.ζ).*model.κ)
     ELBO += 0.5*(logdet(model.ζ)+logdet(model.invKmm))
     ELBO += -0.5*(sum(model.invKmm.*transpose(model.ζ+model.μ*transpose(model.μ))))
     return -ELBO
