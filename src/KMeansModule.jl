@@ -6,6 +6,139 @@ using StatsBase
 using Clustering
 
 export KMeansInducingPoints
+export KMeansAlg, StreamOnline, Webscale
+export total_cost
+
+function find_nearest_center(X,C)
+    nC = size(C,1)
+    best = Int64(1); best_val = Inf
+    for i in 1:nC
+        val = distance(X,C[i,:])
+        if val < best_val
+            best_val = val
+            best = i
+        end
+    end
+    return best,best_val
+end
+function total_cost(X,C)
+    n = size(X,1)
+    tot = 0
+    for i in 1:n
+        tot += find_nearest_center(X[i,:],C)[2]
+    end
+    return tot
+end
+
+function distance(X,C)
+    return norm(X-C,2)^2
+end
+
+abstract type KMeansAlg end;
+
+function total_cost(X::Array{Float64,2},alg::KMeansAlg)
+    n = size(X,1)
+    tot = 0
+    for i in 1:n
+        tot += find_nearest_center(X[i,:],alg.centers)[2]
+    end
+    return tot
+end
+
+mutable struct OfflineKmeans <: KMeansAlg
+    k::Int64
+    centers::Array{Float64,2}
+    function OfflineKmeans()
+        return new()
+    end
+end
+
+function init!(alg::OfflineKmeans,X,k::Int64)
+    @assert size(X,1)>=k "Input data not big enough given $k"
+    alg.k = k
+end
+
+function update!(alg::OfflineKmeans,X)
+    results = kmeans(X',alg.k)
+    alg.centers = results.centers'
+    return results
+end
+
+mutable struct Webscale <: KMeansAlg
+    k::Int64
+    v::Array{Int64,1}
+    centers::Array{Float64,2}
+    function Webscale()
+        return new()
+    end
+end
+
+
+function init!(alg::Webscale,X,k::Int64)
+    @assert size(X,1)>=k "Input data not big enough given $k"
+    alg.k = k;
+    alg.v = zeros(Int64,k);
+    alg.centers = X[sample(1:size(X,1),k),:];
+end
+
+function update!(alg::Webscale,X)
+    b = size(X,1)
+    d = zeros(Int64,b)
+    for i in 1:b
+        d[i] = find_nearest_center(X[i,:],alg.centers)[1]
+    end
+    for i in 1:b
+        alg.v[d[i]] += 1
+        η = 1/alg.v[d[i]]
+        alg.centers[d[i],:] = (1-η)*alg.centers[d[i],:]+ η*X[i,:]
+    end
+end
+
+mutable struct StreamOnline <: KMeansAlg
+    k_target::Int64
+    k_efficient::Int64
+    k::Int64
+    f::Float64
+    q::Int64
+    centers::Array{Float64,2}
+    function StreamOnline()
+        return new()
+    end
+end
+
+
+function init!(alg::StreamOnline,X,k::Int64)
+    @assert size(X,1)>=10 "The first batch of data should be bigger than 10 samples"
+    alg.k_target = k;
+    alg.k_efficient = max(1,ceil(Int64,(k-15)/5))
+    if alg.k_efficient+10 > size(X,1)
+         alg.k_efficient = 0
+    end
+    alg.centers = X[1:(alg.k_efficient+10),:]
+    alg.k = alg.k_efficient+10
+    w=zeros(alg.k)
+    for i in 1:alg.k
+        w[i] = 0.5*find_nearest_center(X[i,:],alg.centers[1:alg.k.!=i,:])[2]
+    end
+    alg.f = sum(sort(w)[1:10]) #Take the 10 smallest values
+    alg.q = 0
+end
+
+function update!(alg::StreamOnline,X)
+    b = size(X,1)
+    for i in 1:b
+        val = find_nearest_center(X[i,:],alg.centers)[2]
+        if val>(alg.f*rand())
+            alg.centers = vcat(alg.centers,X[i,:]')
+            alg.q += 1
+            alg.k += 1
+        end
+        if alg.q >= alg.k_efficient
+            alg.q = 0
+            alg.f *=10
+        end
+    end
+end
 
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
 function KMeansInducingPoints(X,K,m;weights=0)
@@ -46,7 +179,7 @@ function KmeansSeed(X,K,m) #X is the data, K the number of centers wanted, m the
   return C
 end
 
-#Compue the minimum distance
+#Compute the minimum distance
 function mindistance(x,C,K) #Point to look for, collection of centers, number of centers computed
   mindist = Inf
   for i in 1:K

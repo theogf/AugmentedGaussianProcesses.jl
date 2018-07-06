@@ -294,6 +294,21 @@ function initLatentVariables!(model)
 end
 
 """
+    Parameters for online setting
+        """
+@def onlinefields begin
+    semi_online::Bool #Defines if we know how many point will be treated at the beginning
+    kmeansalg::KMeansAlg # Online KMean algorithm
+end
+
+"""
+Function for initiating online parameters
+"""
+function initOnline!(model,alg=StreamOnline())
+    init!(model.kmeansalg,model.X[sample(1:size(model.X,1),model.m,replace=false),:],model.m)
+end
+
+"""
     Parameters for the sampling method
 """
 @def samplingfields begin

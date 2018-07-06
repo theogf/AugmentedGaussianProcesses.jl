@@ -3,48 +3,42 @@
 #Possibility to put a callback function, taking the model and the iteration number as an argument
 #Also one can change the convergence function
 
-function train!(model::GPModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
+function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
     if model.VerboseLevel > 0
-      println("Starting training of data of $(model.nSamples) samples with $(size(model.X,2)) features $(typeof(model)<:MultiClassGPModel?"and $(model.K) classes":""), using the "*model.Name*" model")
+      println("Starting training of online training of data with $(model.semi_online?model.nSamples:"?") samples with $(size(model.X,2)) features :, using the "*model.Name*" model")
     end
 
     if iterations > 0 #&& iterations < model.nEpochs
         model.nEpochs = iterations
     end
-    model.evol_conv = []
-    if model.Stochastic && model.AdaptiveLearningRate && !model.Trained
+    # model.evol_conv = []
+    # if model.Stochastic && model.AdaptiveLearningRate && !model.Trained
             #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC (if restarting training, avoid this part)
-            MCInit!(model)
-    end
-    computeMatrices!(model)
+            # MCInit!(model)
+    # end
+    # computeMatrices!(model)
+    init_inducing_points!(model)
     model.Trained = true
     iter::Int64 = 1; conv = Inf;
     while true #do while loop
         if callback != 0
                 callback(model,iter) #Use a callback method if put by user
         end
+        update_inducing_points!(model)
         updateParameters!(model,iter) #Update all the variational parameters
         reset_prediction_matrices!(model) #Reset predicton matrices
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
             updateHyperParameters!(model) #Do the hyper-parameter optimization
             computeMatrices!(model)
-            title!("$iter")
         end
-        if !isa(model,GPRegression)
-            conv = Convergence(model,iter) #Check for convergence
-        else
-            if model.VerboseLevel > 2
-                # warn("GPRegression does not need any convergence criteria")
-            end
-            conv = Inf
-        end
+        # conv = Convergence(model,iter) #Check for convergence
         ### Print out informations about the convergence
-        if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
-            print("Iteration : $iter, convergence = $conv \n")
-            println("Neg. ELBO is : $(ELBO(model))")
-        end
+        # if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
+            # print("Iteration : $iter, convergence = $conv \n")
+            # println("Neg. ELBO is : $(ELBO(model))")
+        # end
         # (iter < model.nEpochs) || break; #Verify if any condition has been broken
-        (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
+        # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         iter += 1;
     end
     if model.VerboseLevel > 0
