@@ -313,6 +313,7 @@ function initOnline!(model,alg::KMeansAlg,m::Int64)
     model.kmeansalg = alg
     model.MBIndices = StatsBase.sample(1:model.nSamples,model.m,replace=false) #Sample nSamplesUsed indices for the minibatches
     init!(model.kmeansalg,model.X[model.MBIndices,:],model.m)
+    model.m = model.kmeansalg.k
     model.indpoints_updated = true
 end
 
