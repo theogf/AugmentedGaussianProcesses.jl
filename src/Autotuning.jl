@@ -37,7 +37,6 @@ function updateHyperParameters!(model::SparseModel)
     Jmm = derivativekernelmatrix(model.kernel,model.inducingPoints)
     Jnm = derivativekernelmatrix(model.kernel,model.X[model.MBIndices,:],model.inducingPoints)
     Jnn = derivativediagkernelmatrix(model.kernel,model.X[model.MBIndices,:])
-    return moving_apple(model,Jmm,Jnm,Jnn)
     apply_gradients!(model.kernel,compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jmm,Jnm,Jnn]))
     if model.OptimizeInducingPoints
         inducingpoints_gradients = inducingpoints_gradient(model)

@@ -403,7 +403,7 @@ end
 mutable struct Matern3_2Kernel{T} <: Kernel{T}
     @kernelfunctionfields
     function Matern3_2Kernel{T}(θ::Float64=1.0;weight::Float64=1.0) where {T<:Real}
-        return new("Matern3_2Kernel",HyperParameter(weight,interval(OpenBound{T}(zero(T)),NullBound{T}())),
+        return new("Matern3_2Kernel",HyperParameter(weight,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=true),
                                     HyperParameters([θ],[interval(OpenBound{T}(zero(T)),NullBound{T}())]),
                                     length(θ),SquaredEuclidean)
     end

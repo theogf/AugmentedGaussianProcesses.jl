@@ -22,8 +22,8 @@ mutable struct OnlineGPRegression <: OnlineGPModel
             initOnline!(this,kmeansalg,m)
             initFunctions!(this);
             initStochastic!(this,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow);
-            initKernel!(this,kernel);
             initGaussian!(this,μ_init);
+            initKernel!(this,kernel); this.nFeatures = this.m
             return this;
     end
 end

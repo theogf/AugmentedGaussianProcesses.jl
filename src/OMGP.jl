@@ -54,6 +54,7 @@ export GPModel, OnlineGPModel, OfflineGPModel, SparseModel, NonLinearModel, Line
 #Useful functions
 export getLog, getMultiClassLog
 export Kernel, diagkernelmatrix, kernelmatrix, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
+export Matern3_2Kernel, Matern5_2Kernel
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 export setvalue!,getvalue,setfixed!,setfree!
 export KMeansInducingPoints

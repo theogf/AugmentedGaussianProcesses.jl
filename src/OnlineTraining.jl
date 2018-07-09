@@ -90,6 +90,7 @@ function update_points!(model::OnlineGPModel)
         η_2temp[1:model.m,1:model.m] = model.η_2
         model.η_2 = η_2temp
         model.m = NCenters
+        model.nFeatures = model.m
     end
     model.indpoints_updated = true
 end

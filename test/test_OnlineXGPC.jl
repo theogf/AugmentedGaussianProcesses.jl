@@ -104,7 +104,7 @@ kernel = OMGP.RBFKernel(0.5)
 # kernel = OMGP.Matern5_2Kernel(0.5)
 # kernel = OMGP.LaplaceKernel(0.5)
 ##Basic Offline KMeans
-t_off = @elapsed offgp = OMGP.SparseGPRegression(X,f,m=k,Stochastic=true,Autotuning=false,BatchSize=b,VerboseLevel=0,kernel=kernel)
+t_off = @elapsed offgp = OMGP.SparseXGPC(X,f,m=k,Stochastic=true,Autotuning=false,BatchSize=b,VerboseLevel=0,kernel=kernel)
 t_off += @elapsed offgp.train(iterations=500)
 y_off = offgp.predict(X_test)
 y_indoff = offgp.predict(offgp.inducingPoints)

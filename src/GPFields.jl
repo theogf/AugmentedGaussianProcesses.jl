@@ -168,11 +168,11 @@ function initGaussian!(model::GPModel,μ_init)
       if model.VerboseLevel > 2
         warn("Initial mean of the variational distribution is sampled from a multivariate normal distribution")
       end
-      model.μ = randn(model.m)
+      model.μ = randn(model.nFeatures)
     else
       model.μ = μ_init
     end
-    model.ζ = eye(model.m)
+    model.ζ = eye(model.nFeatures)
     model.η_2 = -0.5*inv(model.ζ)
     model.η_1 = -2.0*model.η_2*model.μ
 end
@@ -314,6 +314,7 @@ function initOnline!(model,alg::KMeansAlg,m::Int64)
     model.MBIndices = StatsBase.sample(1:model.nSamples,model.m,replace=false) #Sample nSamplesUsed indices for the minibatches
     init!(model.kmeansalg,model.X[model.MBIndices,:],model.m)
     model.m = model.kmeansalg.k
+    model.nFeatures = model.m
     model.indpoints_updated = true
 end
 
