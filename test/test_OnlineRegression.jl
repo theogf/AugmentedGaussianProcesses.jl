@@ -48,7 +48,7 @@ end
 
 function plotting2D(X,f,ind_points,pred_ind,x1_test,x2_test,pred,minf,maxf,title;full=false)
     N_test = size(x1_test,1)
-    p = plot(x1_test,x2_test,reshape(pred,N_test,N_test),t=:contour,fill=true,lab="",title=title)
+    p = plot(x1_test,x2_test,reshape(pred,N_test,N_test),t=:contour,clim=(minf,maxf),fill=true,lab="",title=title)
     p = plot!(X[:,1],X[:,2],zcolor=f,t=:scatter,lab="",alpha=0.8,markerstrokewidth=0)
     if !full
         p = plot!(ind_points[:,1],ind_points[:,2],zcolor=pred_ind,t=:scatter,lab="",color=:red)
