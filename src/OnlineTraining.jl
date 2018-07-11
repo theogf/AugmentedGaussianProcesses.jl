@@ -5,7 +5,7 @@
 
 function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
     if model.VerboseLevel > 0
-      println("Starting training of online training of data with $(model.semi_online?model.nSamples:"?") samples with $(size(model.X,2)) features :, using the "*model.Name*" model")
+      println("Starting training of online training of data with $(model.nSamples) samples with $(size(model.X,2)) features :, using the "*model.Name*" model")
     end
 
     if iterations > 0 #&& iterations < model.nEpochs
@@ -37,7 +37,7 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,Convergenc
             # println("Neg. ELBO is : $(ELBO(model))")
         end
         # (iter < model.nEpochs) || break; #Verify if any condition has been broken
-         (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
+         ((iter < model.nEpochs && !model.alldataparsed) && conv > model.ϵ) || break; #Verify if any condition has been broken
         iter += 1;
     end
     if model.VerboseLevel > 0
@@ -59,8 +59,19 @@ end
 
 function updateParameters!(model::OnlineGPModel,iter::Integer)
 #Function to update variational parameters
-    model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
-    update_points!(model)
+    if model.Sequential
+        newbatchsize = min(model.nSamplesUsed-1,model.nSamples-model.lastindex)
+        model.MBIndices = model.lastindex:(model.lastindex+newbatchsize) #Sample nSamplesUsed indices for the minibatches
+        model.lastindex += newbatchsize
+        if newbatchsize < (model.nSamplesUsed-1)
+            model.alldataparsed=true
+        end
+    else
+        model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
+    end
+    # if iter!= 1
+        update_points!(model)
+    # end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     if model.ModelType == BSVM
         variablesUpdate_BSVM!(model,iter)
@@ -78,7 +89,6 @@ function update_points!(model::OnlineGPModel)
     update!(model.kmeansalg,model.X[model.MBIndices,:])
     NCenters = model.kmeansalg.k
     Nnewpoints = NCenters-model.m
-
     #Make the latent variables larger #TODO Preallocating them might be a better option
     if Nnewpoints!=0
         model.μ = vcat(model.μ, zeros(Nnewpoints))
@@ -161,42 +171,4 @@ function MCInit!(model::OnlineGPModel)
             println("MCMC estimation of the gradient completed")
         end
     end
-end
-
-function computeLearningRate_Stochastic!(model::GPModel,iter::Integer,grad_1,grad_2)
-    if model.Stochastic
-        if model.AdaptiveLearningRate
-            #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)
-            model.g = (1-1/model.τ)*model.g + vcat(grad_1-model.η_1,reshape(grad_2-model.η_2,size(grad_2,1)^2))./model.τ
-            model.h = (1-1/model.τ)*model.h + norm(vcat(grad_1-model.η_1,reshape(grad_2-model.η_2,size(grad_2,1)^2)))^2/model.τ
-            model.ρ_s = norm(model.g)^2/model.h
-            model.τ = (1.0 - model.ρ_s)*model.τ + 1.0
-        else
-            #Simple model of time decreasing learning rate
-            model.ρ_s = (iter+model.τ_s)^(-model.κ_s)
-        end
-    else
-      #Non-Stochastic case
-      model.ρ_s = 1.0
-    end
-end
-
-function computeLearningRate_Stochastic!(model::MultiClassGPModel,iter::Integer,grad_1,grad_2)
-    if model.Stochastic
-        if model.AdaptiveLearningRate
-            #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)
-            model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->(1-1/tau)*g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_1,model.η_1,grad_2,model.η_2)
-            model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->(1-1/tau)*h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_1,model.η_1,grad_2,model.η_2)
-            # println("G : $(norm(model.g[1])), H : $(model.h[1])")
-            model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
-            model.τ = broadcast((rho,tau)->(1.0 - rho)*tau + 1.0,model.ρ_s,model.τ)
-        else
-            #Simple model of time decreasing learning rate
-            model.ρ_s = [(iter+model.τ_s)^(-model.κ_s) for i in 1:model.K]
-        end
-    else
-      #Non-Stochastic case
-      model.ρ_s = [1.0 for i in 1:model.K]
-    end
-    # println("rho : $(model.ρ_s[1])")
 end
