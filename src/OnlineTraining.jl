@@ -86,7 +86,7 @@ end
 
 
 function update_points!(model::OnlineGPModel)
-    update!(model.kmeansalg,model.X[model.MBIndices,:])
+    update!(model.kmeansalg,model.X[model.MBIndices,:],model)
     NCenters = model.kmeansalg.k
     Nnewpoints = NCenters-model.m
     #Make the latent variables larger #TODO Preallocating them might be a better option

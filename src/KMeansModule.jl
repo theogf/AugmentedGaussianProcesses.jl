@@ -7,24 +7,11 @@ using Clustering
 using OMGP.KernelFunctions
 
 export KMeansInducingPoints
-export KMeansAlg, StreamOnline, Webscale
+export KMeansAlg, StreamOnline, Webscale, CircleKMeans
 export total_cost
 export init!, update!
 
-function find_nearest_center(X,C)
-    nC = size(C,1)
-    best = Int64(1); best_val = Inf
-    for i in 1:nC
-        val = distance(X,C[i,:])
-        if val < best_val
-            best_val = val
-            best = i
-        end
-    end
-    return best,best_val
-end
-
-function find_nearest_center(X,C,kernel::Kernel)
+function find_nearest_center(X,C,kernel=0)
     nC = size(C,1)
     best = Int64(1); best_val = Inf
     for i in 1:nC
@@ -37,16 +24,7 @@ function find_nearest_center(X,C,kernel::Kernel)
     return best,best_val
 end
 
-function total_cost(X,C)
-    n = size(X,1)
-    tot = 0
-    for i in 1:n
-        tot += find_nearest_center(X[i,:],C)[2]
-    end
-    return tot
-end
-
-function total_cost(X,C,kernel::Kernel)
+function total_cost(X,C,kernel)
     n = size(X,1)
     tot = 0
     for i in 1:n
@@ -55,21 +33,21 @@ function total_cost(X,C,kernel::Kernel)
     return tot
 end
 
-function distance(X,C)
-    return norm(X-C,2)^2
-end
-
-function distance(X,C,kernel::Kernel)
-    return compute(kernel,X,X)+compute(kernel,C,C)-2*compute(kernel,X,C)
+function distance(X,C,kernel=0)
+    if kernel == 0
+        return norm(X-C,2)^2
+    else
+        return compute(kernel,X,X)+compute(kernel,C,C)-2*compute(kernel,X,C)
+    end
 end
 
 abstract type KMeansAlg end;
 
-function total_cost(X::Array{Float64,2},alg::KMeansAlg)
+function total_cost(X::Array{Float64,2},alg::KMeansAlg,kernel=0)
     n = size(X,1)
     tot = 0
     for i in 1:n
-        tot += find_nearest_center(X[i,:],alg.centers)[2]
+        tot += find_nearest_center(X[i,:],alg.centers,kernel)[2]
     end
     return tot
 end
@@ -83,12 +61,12 @@ mutable struct OfflineKmeans <: KMeansAlg
     end
 end
 
-function init!(alg::OfflineKmeans,X,k::Int64)
+function init!(alg::OfflineKmeans,X,model,k::Int64)
     @assert size(X,1)>=k "Input data not big enough given $k"
     alg.k = k
 end
 
-function update!(alg::OfflineKmeans,X)
+function update!(alg::OfflineKmeans,X,model)
     results = kmeans(X',alg.k)
     alg.centers = results.centers'
     return results
@@ -104,14 +82,14 @@ mutable struct Webscale <: KMeansAlg
 end
 
 
-function init!(alg::Webscale,X,k::Int64)
+function init!(alg::Webscale,X,model,k::Int64)
     @assert size(X,1)>=k "Input data not big enough given $k"
     alg.k = k;
     alg.v = zeros(Int64,k);
     alg.centers = X[sample(1:size(X,1),k),:];
 end
 
-function update!(alg::Webscale,X)
+function update!(alg::Webscale,X,model)
     b = size(X,1)
     d = zeros(Int64,b)
     for i in 1:b
@@ -137,7 +115,7 @@ mutable struct StreamOnline <: KMeansAlg
 end
 
 
-function init!(alg::StreamOnline,X,k::Int64)
+function init!(alg::StreamOnline,X,model,k::Int64)
     @assert size(X,1)>=10 "The first batch of data should be bigger than 10 samples"
     alg.k_target = k;
     alg.k_efficient = max(1,ceil(Int64,(k-15)/5))
@@ -156,7 +134,7 @@ function init!(alg::StreamOnline,X,k::Int64)
     alg.q = 0
 end
 
-function update!(alg::StreamOnline,X)
+function update!(alg::StreamOnline,X,model)
     b = size(X,1)
     new_centers = Matrix(0,size(X,2))
     for i in 1:b
@@ -178,33 +156,38 @@ end
 
 
 mutable struct CircleKMeans <: KMeansAlg
-    k::Int64
     lim::Float64
+    k::Int64
     centers::Array{Float64,2}
-    function CircleKMeans()
-        return new()
+    function CircleKMeans(;lim=0.9)
+        return new(lim)
     end
 end
 
 
-function init!(alg::CircleKMeans,X,k::Int64;lim=0.9)
+function init!(alg::CircleKMeans,X,model,k::Int64;lim=0.9)
     @assert lim < 1.0 && lim > 0 "lim should be between 0 and 1"
     @assert size(X,1)>=10 "The first batch of data should be bigger than 10 samples"
-    alg.centers = X[1,:]
+    alg.centers = reshape(X[1,:],1,size(X,2))
     alg.k = 1
-    update!(alg,X[2:end,:])
+    update!(alg,X[2:end,:],model)
 end
 
-function update!(alg::CircleKMeans,X)
+function update!(alg::CircleKMeans,X,model)
     b = size(X,1)
     for i in 1:b
-        d = find_nearest_center(X[i,:],alg.centers)[2]
-        if d>2*(1-lim)
+        d = find_nearest_center(X[i,:],alg.centers,model.kernel)[2]
+        if d>2*(1-alg.lim)
             alg.centers = vcat(alg.centers,X[i,:]')
             alg.k += 1
         end
     end
 end
+
+
+
+#-----------------------------------------------------#
+
 
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
 function KMeansInducingPoints(X,K,m;weights=0)

@@ -39,11 +39,13 @@ function generate_gaussian_data(N,dim,variance=1.0)
     X = rand(d,N)
 end
 
-function plotting1D(X,f,ind_points,pred_ind,X_test,pred,title;full=false)
+function plotting1D(X,f,ind_points,pred_ind,X_test,pred,sig_pred,title;full=false)
     p = plot(X[:,1],f,t=:scatter,lab="",alpha=0.3,markerstrokewidth=0)
     if !full
         p = plot!(ind_points[:,1],pred_ind,t=:scatter,lab="",color=:red)
     end
+    n_sig = 3
+    p = plot!(X_test,pred+n_sig*sqrt.(sig_pred),fill=(pred-n_sig*sqrt.(sig_pred)),alpha=0.3,lab="")
     p =  plot!(X_test,pred,lab="",title=title)
     return p
 end
@@ -129,21 +131,21 @@ end
 ##Basic Offline KMeans
 t_off = @elapsed offgp = OMGP.SparseGPRegression(X,y,m=k,Stochastic=true,Autotuning=false,BatchSize=b,VerboseLevel=0,kernel=kernel)
 t_off += @elapsed offgp.train(iterations=500)
-y_off = offgp.predict(X_test)
+y_off, sig_off = offgp.predictproba(X_test)
 y_indoff = offgp.predict(offgp.inducingPoints)
 if dim == 1
-    p1 = plotting1D(X,y,offgp.inducingPoints,y_indoff,X_test,y_off,"Sparse GP")
+    p1 = plotting1D(X,y,offgp.inducingPoints,y_indoff,X_test,y_off,sig_off,"Sparse GP")
 elseif dim == 2
     p1 = plotting2D(X,y,offgp.inducingPoints,y_indoff,x1_test,x2_test,y_off,minf,maxf,"Sparse GP")
 end
 println("Offline KMeans ($t_off s)\n\tRMSE (train) : $(RMSE(offgp.predict(X),y))\n\tRMSE (test) : $(RMSE(y_off,y_test))")
 ###Online KMeans with Webscale
 t_web = @elapsed onwebgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.Webscale(),Sequential=false,m=k,BatchSize=b,VerboseLevel=0,kernel=kernel)
-t_web = @elapsed onwebgp.train(iterations=10,callback=plotthisshit)
-y_web = onwebgp.predict(X_test)
+t_web = @elapsed onwebgp.train(iterations=10)#,callback=plotthisshit)
+y_web, sig_web = onwebgp.predictproba(X_test)
 y_indweb = onwebgp.predict(onwebgp.kmeansalg.centers)
 if dim == 1
-    p2 = plotting1D(X,y,onwebgp.kmeansalg.centers,y_indweb,X_test,y_web,"Webscale KMeans (k=$(onwebgp.m))")
+    p2 = plotting1D(X,y,onwebgp.kmeansalg.centers,y_indweb,X_test,y_web,sig_web,"Webscale KMeans (k=$(onwebgp.m))")
 elseif dim == 2
     p2 = plotting2D(X,y,onwebgp.kmeansalg.centers,y_indweb,x1_test,x2_test,y_web,minf,maxf,"Webscale KMeans (k=$(onwebgp.m))")
 end
@@ -152,26 +154,39 @@ println("Webscale KMeans ($t_web s)\n\tRMSE (train) : $(RMSE(onwebgp.predict(X),
 
 ###Online KMeans with Streaming
 t_str = @elapsed onstrgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.StreamOnline(),Sequential=sequential,m=k,BatchSize=b,VerboseLevel=0,kernel=kernel)
-t_str = @elapsed onstrgp.train(iterations=1000,callback=plotthisshit)
-y_str = onstrgp.predict(X_test)
+t_str = @elapsed onstrgp.train(iterations=1000)#,callback=plotthisshit)
+y_str,sig_str = onstrgp.predictproba(X_test)
 y_indstr = onstrgp.predict(onstrgp.kmeansalg.centers)
 
 if dim == 1
-    p3 = plotting1D(X,y,onstrgp.kmeansalg.centers,y_indstr,X_test,y_str,"Streaming KMeans (m=$(onstrgp.m))")
+    p3 = plotting1D(X,y,onstrgp.kmeansalg.centers,y_indstr,X_test,y_str,sig_str,"Streaming KMeans (m=$(onstrgp.m))")
 elseif dim == 2
     p3 = plotting2D(X,y,onstrgp.kmeansalg.centers,y_indstr,x1_test,x2_test,y_str,minf,maxf,"Streaming KMeans (m=$(onstrgp.m))")
 end
 println("Streaming KMeans ($t_str s)\n\tRMSE (train) : $(RMSE(onstrgp.predict(X),y))\n\tRMSE (test) : $(RMSE(y_str,y_test))")
 
-#### Custom K finding method
+#### Custom K finding method with constant limit
+t_const = @elapsed onconstgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.CircleKMeans(lim=0.95),Sequential=sequential,m=k,BatchSize=b,VerboseLevel=0,kernel=kernel)
+t_const = @elapsed onconstgp.train(iterations=1000,callback=plotthisshit)
+y_const,sig_const = onconstgp.predictproba(X_test)
+y_indconst = onconstgp.predict(onconstgp.kmeansalg.centers)
+
+if dim == 1
+    pconst = plotting1D(X,y,onconstgp.kmeansalg.centers,y_indconst,X_test,y_const,sig_const,"Constant lim (m=$(onconstgp.m))")
+elseif dim == 2
+    pcpnst = plotting2D(X,y,onconstgp.kmeansalg.centers,y_indconst,x1_test,x2_test,y_const,minf,maxf,"Constant lim (m=$(onconstgp.m))")
+end
+println("Constant Lim ($t_str s)\n\tRMSE (train) : $(RMSE(onconstgp.predict(X),y))\n\tRMSE (test) : $(RMSE(y_const,y_test))")
+
+
 
 
 ### Non sparse GP :
 t_full = @elapsed fullgp = OMGP.GPRegression(X,y,kernel=kernel)
 t_full = @elapsed fullgp.train()
-y_full = fullgp.predict(X_test)
+y_full,sig_full = fullgp.predictproba(X_test)
 if dim == 1
-    p4 = plotting1D(X,y,[0],[0],X_test,y_full,"Full batch GP",full=true)
+    p4 = plotting1D(X,y,[0],[0],X_test,y_full,sig_full,"Full batch GP",full=true)
 elseif dim == 2
     p4 = plotting2D(X,y,[0 0],0,x1_test,x2_test,y_full,minf,maxf,"Full batch GP",full=true)
 end

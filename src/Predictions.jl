@@ -194,6 +194,11 @@ function regpredictproba(model::SparseModel,X_test)
     return fstar(model,X_test)
 end
 
+function regpredictproba(model::OnlineGPRegression,X_test)
+    return fstar(model,X_test)
+end
+
+
 function multiclasspredict(model::MultiClass,X_test,all_class=false)
     n = size(X_test,1)
     m_f = fstar(model,X_test,covf=false)

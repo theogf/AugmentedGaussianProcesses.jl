@@ -321,16 +321,16 @@ function initOnline!(model,alg::KMeansAlg,Sequential::Bool,m::Int64)
             # newbatchsize = min(max(15,floor(Int64,(model.m-15)/5.0))-1,model.nSamples-model.lastindex)
             newbatchsize = min(model.nSamplesUsed-1,model.nSamples-model.lastindex)
             model.MBIndices = model.lastindex:(model.lastindex+newbatchsize)
-            init!(model.kmeansalg,model.X[model.MBIndices,:],model.m)
+            init!(model.kmeansalg,model.X[model.MBIndices,:],model,model.m)
         else
             @assert model.nSamples >= model.m
             newbatchsize = min(model.m-1,model.nSamples-model.lastindex)
             model.MBIndices = model.lastindex:(model.lastindex+newbatchsize)
-            init!(model.kmeansalg,model.X[model.MBIndices,:],model.m)
+            init!(model.kmeansalg,model.X[model.MBIndices,:],model,model.m)
         end
     else
         model.MBIndices = StatsBase.sample(1:model.nSamples,model.m,replace=false) #Sample nSamplesUsed indices for the minibatches
-        init!(model.kmeansalg,model.X,model.m)
+        init!(model.kmeansalg,model.X,model,model.m)
     end
     model.m = model.kmeansalg.k
     model.nFeatures = model.m
