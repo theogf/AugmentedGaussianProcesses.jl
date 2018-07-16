@@ -4,6 +4,7 @@ module KMeansModule
 using Distributions
 using StatsBase
 using Clustering
+using OMGP.KernelFunctions
 
 export KMeansInducingPoints
 export KMeansAlg, StreamOnline, Webscale
@@ -22,6 +23,20 @@ function find_nearest_center(X,C)
     end
     return best,best_val
 end
+
+function find_nearest_center(X,C,kernel::Kernel)
+    nC = size(C,1)
+    best = Int64(1); best_val = Inf
+    for i in 1:nC
+        val = distance(X,C[i,:],kernel)
+        if val < best_val
+            best_val = val
+            best = i
+        end
+    end
+    return best,best_val
+end
+
 function total_cost(X,C)
     n = size(X,1)
     tot = 0
@@ -31,9 +46,21 @@ function total_cost(X,C)
     return tot
 end
 
+function total_cost(X,C,kernel::Kernel)
+    n = size(X,1)
+    tot = 0
+    for i in 1:n
+        tot += find_nearest_center(X[i,:],C,kernel)[2]
+    end
+    return tot
+end
+
 function distance(X,C)
-    # return norm(X-C,2)^2
-    return 2*(1-exp(-0.5*norm(X-C)^2/(0.5^2)))
+    return norm(X-C,2)^2
+end
+
+function distance(X,C,kernel::Kernel)
+    return compute(kernel,X,X)+compute(kernel,C,C)-2*compute(kernel,X,C)
 end
 
 abstract type KMeansAlg end;
@@ -48,6 +75,7 @@ function total_cost(X::Array{Float64,2},alg::KMeansAlg)
 end
 
 mutable struct OfflineKmeans <: KMeansAlg
+    kernel::Kernel
     k::Int64
     centers::Array{Float64,2}
     function OfflineKmeans()
@@ -145,6 +173,37 @@ function update!(alg::StreamOnline,X)
         end
     end
     # alg.centers = vcat(alg.centers,new_centers)
+end
+
+
+
+mutable struct CircleKMeans <: KMeansAlg
+    k::Int64
+    lim::Float64
+    centers::Array{Float64,2}
+    function CircleKMeans()
+        return new()
+    end
+end
+
+
+function init!(alg::CircleKMeans,X,k::Int64;lim=0.9)
+    @assert lim < 1.0 && lim > 0 "lim should be between 0 and 1"
+    @assert size(X,1)>=10 "The first batch of data should be bigger than 10 samples"
+    alg.centers = X[1,:]
+    alg.k = 1
+    update!(alg,X[2:end,:])
+end
+
+function update!(alg::CircleKMeans,X)
+    b = size(X,1)
+    for i in 1:b
+        d = find_nearest_center(X[i,:],alg.centers)[2]
+        if d>2*(1-lim)
+            alg.centers = vcat(alg.centers,X[i,:]')
+            alg.k += 1
+        end
+    end
 end
 
 #Return K inducing points from X, m being the number of Markov iterations for the seeding

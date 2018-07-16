@@ -103,7 +103,7 @@ elseif dim == 2
     y = randomf(X)+rand(Normal(0,noise),size(X,1))
     x1_test = linspace(minimum(X[:,1]),maximum(X[:,1]),N_test)
     x2_test = linspace(minimum(X[:,2]),maximum(X[:,2]),N_test)
-    X_test = hcat([j for i in x1_test, j in x2_test][:],[i for i in x1_test, j in x2_test][:])
+    X_test = hcat([i for i in x1_test, j in x2_test][:],[j for i in x1_test, j in x2_test][:])
     minf=minimum(randomf(X_test)); maxf=maximum(randomf(X_test))
 end
 if dim == 1
@@ -163,6 +163,7 @@ elseif dim == 2
 end
 println("Streaming KMeans ($t_str s)\n\tRMSE (train) : $(RMSE(onstrgp.predict(X),y))\n\tRMSE (test) : $(RMSE(y_str,y_test))")
 
+#### Custom K finding method
 
 
 ### Non sparse GP :

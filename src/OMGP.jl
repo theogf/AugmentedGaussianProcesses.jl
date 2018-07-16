@@ -45,6 +45,7 @@ using GradDescent
 using ValueHistories
 using Gallium #TODO remove for published version
 #Exported models
+export KMeansModule
 export LinearBSVM, BatchBSVM, SparseBSVM
 export BatchXGPC, SparseXGPC, OnlineXGPC, GibbsSamplerGPC
 export GPRegression, SparseGPRegression, OnlineGPRegression
