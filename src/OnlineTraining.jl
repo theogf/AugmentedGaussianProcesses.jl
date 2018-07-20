@@ -69,9 +69,7 @@ function updateParameters!(model::OnlineGPModel,iter::Integer)
     else
         model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
     end
-    # if iter!= 1
-        update_points!(model)
-    # end
+    update_points!(model)
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     if model.ModelType == BSVM
         variablesUpdate_BSVM!(model,iter)
@@ -86,7 +84,7 @@ end
 
 
 function update_points!(model::OnlineGPModel)
-    update!(model.kmeansalg,model.X[model.MBIndices,:],model)
+    update!(model.kmeansalg,model.X[model.MBIndices,:],model.y[model.MBIndices],model)
     NCenters = model.kmeansalg.k
     Nnewpoints = NCenters-model.m
     #Make the latent variables larger #TODO Preallocating them might be a better option

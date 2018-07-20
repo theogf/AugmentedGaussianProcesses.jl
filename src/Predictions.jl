@@ -6,7 +6,6 @@ File treating all the prediction functions
 #### Computation of predictions with and without variance using the probit and logit link ####
 # function fstar(model::LinearModel,X_test,cov::Bool=true)
 # end
-
 function fstar(model::FullBatchModel,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.μ
@@ -49,6 +48,23 @@ function fstar(model::OnlineGPModel,X_test;covf::Bool=true)
       model.DownMatrixForPrediction = (model.invKmm*(eye(model.nFeatures)-model.ζ*model.invKmm))
     end
     k_star = kernelmatrix(X_test,model.kmeansalg.centers,model.kernel)
+    mean_fstar = k_star*model.TopMatrixForPrediction
+    if !covf
+        return mean_fstar
+    else
+        cov_fstar = diagkernelmatrix(X_test,model.kernel) - sum((k_star*model.DownMatrixForPrediction).*k_star,2)[:]
+        return mean_fstar,cov_fstar
+    end
+end
+
+function fstar(model::GPRegression,X_test;covf::Bool=true)
+    if model.TopMatrixForPrediction == 0
+        model.TopMatrixForPrediction = model.invK*model.y
+    end
+    if covf && model.DownMatrixForPrediction == 0
+      model.DownMatrixForPrediction = model.invK
+    end
+    k_star = kernelmatrix(X_test,model.X,model.kernel)
     mean_fstar = k_star*model.TopMatrixForPrediction
     if !covf
         return mean_fstar

@@ -61,12 +61,35 @@ function getMultiClassLog(model,X_test=0,y_test=0,iter_points=vcat(1:99,100:10:9
     return metrics,SaveLog
 end
 
-function plotting1D(iter,indices,X,f,ind_points,pred_ind,X_test,pred,title)
-    p = plot(X[1:(indices[1]-1),1],f[1:(indices[1]-1)],t=:scatter,lab="",color=:blue,alpha=0.4,markerstrokewidth=0)
-    p = plot!(X[indices,1],f[indices],t=:scatter,lab="",alpha=0.6,color=:green,markerstrokewidth=0)
-    p = plot!(X[(indices[1]+1):end,1],f[(indices[1]+1):end],t=:scatter,lab="",color=:blue,alpha=0.1,markerstrokewidth=0)
-    p = plot!(ind_points[:,1],pred_ind,t=:scatter,lab="",color=:red)
-     display(plot!(X_test,pred,lab="",title="Iteration $iter"))
+function KLGP(mu,sig,f,sig_f)
+    N = length(f)
+    tot = 0.5*N*(-log.(sig_f)-1)
+    tot += 0.5*sum(log.(sig)+(sig_f+(mu-f).^2)./sig)
+    return tot
+end
+
+function JSGP(mu,sig,f,sig_f)
+    N = length(f)
+    tot = -N*0.25
+    tot += 0.125*sum(sig./(sig_f)+(sig_f)./(sig) + (1./(sig_f)+1./(sig)).*((mu-f).^2))
+end
+
+function plotting1D(iter,indices,X,f,sig_f,ind_points,pred_ind,X_test,pred,sig_pred,y_train,sig_train,title,sequential=false)
+    if sequential
+        p = plot!(X[indices,1],f[indices],t=:scatter,lab="",alpha=0.6,color=:red,markerstrokewidth=0)
+        p = plot(X[1:(indices[1]-1),1],f[1:(indices[1]-1)],t=:scatter,lab="",color=:blue,alpha=0.4,markerstrokewidth=0)
+        p = plot!(X[(indices[1]+1):end,1],f[(indices[1]+1):end],t=:scatter,lab="",color=:blue,alpha=0.1,markerstrokewidth=0)
+    else
+        p = plot(X,f,t=:scatter,lab="",color=:blue,alpha=0.1,markerstrokewidth=0)
+        p = plot!(X[indices,1],f[indices],t=:scatter,lab="",alpha=1.0,color=:red,markerstrokewidth=0)
+    end
+    p = plot!(ind_points[:,1],pred_ind,t=:scatter,lab="",color=:green)
+    p = plot!(X_test,pred+3*sqrt.(sig_pred),fill=(pred-3*sqrt.(sig_pred)),alpha=0.3,linewidth=0,lab="")
+    display(plot!(X_test,pred,lab="",title="Iteration $iter, k: $(size(ind_points,1))"))
+    # p = plot!(X_test,pred,lab="",title="Iteration $iter, k: $(size(ind_points,1))")
+    # KL = KLGP.(y_train,sig_train,f,sig_f)
+    # JS = JSGP.(y_train,sig_train,f,sig_f)
+    # display(plot!(twinx(),X,[KL JS],lab=["KL" "JS"]))
     return p
 end
 
@@ -83,9 +106,10 @@ end
 function IntermediatePlotting(X_test,x1_test,x2_test,y_test)
     return function plotevolution(model,iter)
         y_ind = model.predict(model.kmeansalg.centers)
-        y_pred = model.predict(X_test)
+        y_pred,sig_pred = model.predictproba(X_test)
+        y_train,sig_train = model.predictproba(X_test)
         if size(X_test,2) == 1
-            display(plotting1D(iter,model.MBIndices,model.X,model.y,model.kmeansalg.centers,y_ind,X_test,y_pred,model.Name))
+            display(plotting1D(iter,model.MBIndices,model.X,model.y,model.noise,model.kmeansalg.centers,y_ind,X_test,y_pred,sig_pred,y_train,sig_train,model.Name))
         else
             display(plotting2D(iter,model.MBIndices,model.X,model.y,model.kmeansalg.centers,y_ind,x1_test,x2_test,y_pred,minimum(model.y),maximum(model.y),model.Name))
         end

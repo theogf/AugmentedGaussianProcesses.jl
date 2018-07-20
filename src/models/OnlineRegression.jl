@@ -20,11 +20,11 @@ mutable struct OnlineGPRegression <: OnlineGPModel
             this.Name = "Online Sparse Gaussian Process Regression";
             initCommon!(this,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
             this.nSamplesUsed = BatchSize
-            initOnline!(this,kmeansalg,Sequential,m)
+            initKernel!(this,kernel);
             initFunctions!(this);
+            initOnline!(this,kmeansalg,Sequential,m)
             initStochastic!(this,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow);
             initGaussian!(this,μ_init);
-            initKernel!(this,kernel); this.nFeatures = this.m
             return this;
     end
 end

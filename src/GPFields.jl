@@ -182,6 +182,7 @@ end
 @def functionfields begin
     #Functions
     train::Function #Model train for a certain number of iterations
+    fstar::Function #Return the parameters of the latent variable f for a prediction point x
     predict::Function
     predictproba::Function
     elbo::Function
@@ -222,6 +223,9 @@ function initFunctions!(model::GPModel)
     #Initialize all functions according to the type of models
     model.train = function(;iterations::Integer=0,callback=0,convergence=DefaultConvergence)
         train!(model;iterations=iterations,callback=callback,Convergence=convergence)
+    end
+    model.fstar = function(X_test;covf=true)
+        return fstar(model,X_test,covf=covf)
     end
     model.predict = function(X_test)
         if !model.Trained
@@ -317,20 +321,20 @@ function initOnline!(model,alg::KMeansAlg,Sequential::Bool,m::Int64)
     model.alldataparsed = false
     model.lastindex=1
     if Sequential
-        if typeof(alg) <: StreamOnline
+        if typeof(alg) <: StreamOnline || typeof(alg) <: DataSelection
             # newbatchsize = min(max(15,floor(Int64,(model.m-15)/5.0))-1,model.nSamples-model.lastindex)
             newbatchsize = min(model.nSamplesUsed-1,model.nSamples-model.lastindex)
             model.MBIndices = model.lastindex:(model.lastindex+newbatchsize)
-            init!(model.kmeansalg,model.X[model.MBIndices,:],model,model.m)
+            init!(model.kmeansalg,model.X[model.MBIndices,:],model.y[model.MBIndices],model,model.m)
         else
             @assert model.nSamples >= model.m
             newbatchsize = min(model.m-1,model.nSamples-model.lastindex)
             model.MBIndices = model.lastindex:(model.lastindex+newbatchsize)
-            init!(model.kmeansalg,model.X[model.MBIndices,:],model,model.m)
+            init!(model.kmeansalg,model.X[model.MBIndices,:],model.y[model.MBIndices],model,model.m)
         end
     else
         model.MBIndices = StatsBase.sample(1:model.nSamples,model.m,replace=false) #Sample nSamplesUsed indices for the minibatches
-        init!(model.kmeansalg,model.X,model,model.m)
+        init!(model.kmeansalg,model.X,model.y,model,model.m)
     end
     model.m = model.kmeansalg.k
     model.nFeatures = model.m
