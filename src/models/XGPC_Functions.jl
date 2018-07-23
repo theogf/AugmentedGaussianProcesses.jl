@@ -20,18 +20,18 @@ end
 # end
 
 function variablesUpdate_XGPC!(model::SparseXGPC,iter)
-    model.α[model.MBIndices] = sqrt.(model.Ktilde+sum(model.κ.*transpose(model.ζ*model.κ.'),2)+(model.κ*model.μ).^2)
-    θs = 0.5*tanh.(0.5*model.α[model.MBIndices])./model.α[model.MBIndices]
-    (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
+    model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,2)[:]+(model.κ*model.μ).^2)
+    θ = 0.5*tanh.(0.5*model.α)./model.α
+    (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θ,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
     model.ζ = -0.5*Symmetric(inv(model.η_2)); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
 function variablesUpdate_XGPC!(model::OnlineXGPC,iter)
-    model.α[model.MBIndices] = sqrt.(model.Ktilde+sum(model.κ.*transpose(model.ζ*model.κ.'),2)+(model.κ*model.μ).^2)
-    θs = 0.5*tanh.(0.5*model.α[model.MBIndices])./model.α[model.MBIndices]
-    (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
+    model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,2)[:]+(model.κ*model.μ).^2)
+    θ = 0.5*tanh.(0.5*model.α)./model.α
+    (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θ,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
     model.ζ = -0.5*Symmetric(inv(model.η_2)); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
@@ -50,12 +50,12 @@ end
 function ELBO(model::SparseXGPC)
     model.StochCoeff = model.nSamples/model.nSamplesUsed
     ELBO_v = -model.nSamples*log(2)+model.m/2.0
-    θ = 1./(2*model.α[model.MBIndices]).*tanh.(model.α[model.MBIndices]/2.0)
+    θ = 1./(2*model.α).*tanh.(model.α/2.0)
     ELBO_v += 0.5*(logdet(model.ζ)+logdet(model.invKmm))
     ELBO_v += -0.5*(sum((model.invKmm+model.StochCoeff*model.κ'*Diagonal(θ)*model.κ).*transpose(model.ζ+model.μ*transpose(model.μ))))
     ELBO_v += model.StochCoeff*0.5*dot(model.y[model.MBIndices],model.κ*model.μ)
     ELBO_v += -0.5*model.StochCoeff*dot(θ,model.Ktilde)
-    ELBO_v += model.StochCoeff*sum(0.5*(model.α[model.MBIndices].^2).*θ-log.(cosh.(0.5*model.α[model.MBIndices])))
+    ELBO_v += model.StochCoeff*sum(0.5*(model.α.^2).*θ-log.(cosh.(0.5*model.α)))
     return -ELBO_v
 end
 
@@ -77,7 +77,7 @@ function hyperparameter_gradient_function(model::SparseXGPC)
     #General values used for all gradients
     B = model.μ*transpose(model.μ) + model.ζ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
-    Θ = Diagonal(0.25./model.α[model.MBIndices].*tanh.(0.5*model.α[model.MBIndices]))
+    Θ = Diagonal(0.25./model.α.*tanh.(0.5*model.α))
     return function(Js)
                 Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
@@ -91,7 +91,7 @@ function inducingpoints_gradient(model::SparseXGPC)
     gradients_inducing_points = zeros(model.inducingPoints)
     B = model.μ*transpose(model.μ) + model.ζ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
-    Θ = Diagonal(0.25./model.α[model.MBIndices].*tanh.(0.5*model.α[model.MBIndices]))
+    Θ = Diagonal(0.25./model.α.*tanh.(0.5*model.α))
     for i in 1:model.m #Iterate over the points
         Jnm,Jmm = computeIndPointsJ(model,i)
         for j in 1:model.nDim #Compute the gradient over the dimensions

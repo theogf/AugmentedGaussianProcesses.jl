@@ -28,7 +28,6 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
             updateHyperParameters!(model) #Do the hyper-parameter optimization
             computeMatrices!(model)
-            title!("$iter")
         end
         if !isa(model,GPRegression)
             conv = Convergence(model,iter) #Check for convergence
@@ -212,12 +211,12 @@ function MCInit!(model::GPModel)
             # local_updates!(model)
             if model.ModelType==BSVM
                 Z = Diagonal(model.y[model.MBIndices])*model.κ;
-                model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,2),2)+model.Ktilde;
-                (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invKmm, model.StochCoeff)
+                model.α = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,2),2)+model.Ktilde;
+                (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α,Z, model.invKmm, model.StochCoeff)
             elseif model.ModelType==XGPC
-                model.α[model.MBIndices] = sqrt.(model.Ktilde+diag(model.κ*model.ζ*model.κ')+(model.κ*model.μ).^2)
-                θs = (1.0./(2.0*model.α[model.MBIndices])).*tanh.(model.α[model.MBIndices]./2.0)
-                (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
+                model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,2)[:]+(model.κ*model.μ).^2)
+                θ = (1.0./(2.0*model.α)).*tanh.(model.α./2.0)
+                (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θ,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
             elseif model.ModelType==Regression
                 (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.StochCoeff)
             end

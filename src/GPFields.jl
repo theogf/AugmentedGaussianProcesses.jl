@@ -290,9 +290,13 @@ end
     α::Array{Float64,1}
 end
 
-function initLatentVariables!(model)
-    #Initialize the latent variables
+#Initialize the latent variables
+function initLatentVariables!(model::FullBatchModel)
     model.α = abs.(rand(model.nSamples))*2;
+end
+
+function initLatentVariables!(model::SparseModel)
+    model.α = abs.(rand(model.nSamplesUsed))*2;
 end
 
 """

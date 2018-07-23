@@ -5,8 +5,8 @@
 function variablesUpdate_BSVM!(model::LinearBSVM,iter)
 #Compute the updates for the linear BSVM
     Z = Diagonal(model.y[model.MBIndices])*model.X[model.MBIndices,:];
-    model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((-0.5*Z/model.η_2).*Z,2),2);
-    (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invΣ, model.Stochastic ? model.StochCoeff : 1)
+    model.α = (1 - Z*model.μ).^2 +  squeeze(sum((-0.5*Z/model.η_2).*Z,2),2);
+    (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α,Z, model.invΣ, model.Stochastic ? model.StochCoeff : 1)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
     model.μ = -0.5*model.η_2\model.η_1 #Back to the distribution parameters (needed for α updates)
@@ -23,8 +23,8 @@ end
 
 function variablesUpdate_BSVM!(model::SparseBSVM,iter)
     Z = Diagonal(model.y[model.MBIndices])*model.κ;
-    model.α[model.MBIndices] = (1 - Z*model.μ).^2 + sum((-0.5*Z/model.η_2).*Z,2)[:] + model.Ktilde;
-    (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invKmm, model.Stochastic ? model.StochCoeff : 1.0)
+    model.α = (1 - Z*model.μ).^2 + sum((-0.5*Z/model.η_2).*Z,2)[:] + model.Ktilde;
+    (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α,Z, model.invKmm, model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
     model.μ = -0.5*model.η_2\model.η_1 #Back to the distribution parameters (needed for α updates)
@@ -42,18 +42,14 @@ end
 function ELBO(model::LinearBSVM)
     Z = Diagonal(model.y[model.MBIndices])*model.X[model.MBIndices,:]
     ELBO = 0.5*(logdet(model.ζ)+logdet(model.invΣ)-trace(model.invΣ*(model.ζ+model.μ*transpose(model.μ))));
-    for i in 1:length(model.MBIndices)
-        ELBO += model.StochCoeff*(2.0*log.(model.α[model.MBIndices[i]]) + log.(besselk.(0.5,model.α[MBIndices[i]]))
-        + dot(vec(Z[i,:]),model.μ) + 0.5/model.α[MBIndices[i]]*(model.α[MBIndices[i]]^2-(1-dot(vec(Z[i,:]),model.μ))^2 - dot(vec(Z[i,:]),model.ζ*vec(Z[i,:]))))
-    end
+    ELBO += sum(model.StochCoeff*(2.0*log.(model.α) + log.(besselk.(0.5,model.α))
+        + dot(vec(Z[i,:]),model.μ) + 0.5./model.α.*(model.α.^2-(1-dot(vec(Z[i,:]),model.μ))^2 - dot(vec(Z[i,:]),model.ζ*vec(Z[i,:])))))
     return -ELBO
 end
 
 function ELBO(model::BatchBSVM) #TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
     ELBO = 0.5*(logdet(model.ζ)+logdet(model.invK)-sum(model.invK.*transpose(model.ζ+model.μ*transpose(model.μ))))
-    for i in 1:model.nSamples
-      ELBO += 0.25*log.(model.α[i])+log.(besselk.(0.5,sqrt.(model.α[i])))+model.y[i]*model.μ[i]+(model.α[i]-(1-model.y[i]*model.μ[i])^2-model.ζ[i,i])/(2*sqrt.(model.α[i]))
-    end
+    ELBO += sum(0.25*log.(model.α[i])+log.(besselk.(0.5,sqrt.(model.α)))+model.y.*model.μ+(model.α-(1-model.y.*model.μ[i]).^2-diag(model.ζ))./(2*sqrt.(model.α)))
     return -ELBO
 end
 
@@ -63,9 +59,7 @@ function ELBO(model::SparseBSVM)#TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATI
     ELBO += model.StochCoeff*dot(model.y[model.MBIndices],model.κ*model.μ)
     ELBO += model.StochCoeff*sum(0.25*log.(model.α[model.MBIndices]) + log.(besselk.(0.5,sqrt.(model.α[model.MBIndices]))))
     ζtilde = model.κ*model.ζ*transpose(model.κ)
-    for i in 1:length(model.MBIndices)
-      ELBO += 0.5*model.StochCoeff/sqrt.(model.α[model.MBIndices[i]])*(model.α[model.MBIndices[i]]-(1-model.y[model.MBIndices[i]]*dot(model.κ[i,:],model.μ))^2-(ζtilde[i,i]+model.Ktilde[i]))
-    end
+    ELBO += 0.5*model.StochCoeff/sqrt.(model.α).*(model.α[model.MBIndices[i]]-(1-model.y.*dot(model.κ[i,:],model.μ)).^2-(diag(ζtilde)+model.Ktilde))
     return -ELBO
 end
 
@@ -73,7 +67,7 @@ function hyperparameter_gradient_function(model::SparseBSVM)
     #General values used for all gradients
     B = model.μ*transpose(model.μ) + model.ζ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
-    A = Diagonal(1.0./sqrt.(model.α[model.MBIndices]))
+    A = Diagonal(1.0./sqrt.(model.α))
     return function(Js)
                 Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3]
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
