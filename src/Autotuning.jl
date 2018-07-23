@@ -53,75 +53,9 @@ function hyperparameter_gradient_function(model::FullBatchModel)
             end
 end
 
-function apple(model::MultiClass)
-    model.HyperParametersUpdated = true
-    computeMatrices!(model)
-    return -ELBO(model)
-    # return 0.5*sum([-logdet(model.Knn)-trace(model.invK*(model.ζ[i]+model.μ[i]*transpose(model.μ[i]))) for i in 1:model.K])
-end
-
-function apple(model::GPModel)
-    model.HyperParametersUpdated = true
-    computeMatrices!(model)
-    return -ELBO(model)
-end
-
-function acc(model,X_test,y_test)
-    y_sparse, = model.predict(X_test)
-    sparse_score=0
-    for (i,pred) in enumerate(y_sparse)
-        if pred == y_test[i]
-            sparse_score += 1
-        end
-    end
-    return sparse_score/length(y_sparse)
-end
-function moving_apple(model,Jmm,Jnm,Jnn)
-    orig_param = copy(getvalue(model.kernel.param[1]))
-    first_value=apple(model)
-    hyper = (-0.1:0.01:0.1)+1; est= zeros(hyper); accu=zeros(hyper)
-     for i in 1:length(hyper)
-         setvalue!(model.kernel.param[1],orig_param*hyper[i])
-         est[i]=apple(model)
-         accu[i]=acc(model,X_test,y_test)
-     end
-    plot(hyper*orig_param,est)
-    plot!(hyper*orig_param,accu)
-    plot!([orig_param],[first_value],t=:scatter,color=:red)
-    setvalue!(model.kernel.param[1],orig_param)
-    apple(model)
-    grads = compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jmm,Jnm,Jnn])
-    apply_gradients!(model.kernel,grads)#compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jnn]))
-    display(plot!([getvalue(model.kernel.param)],[apple(model)],t=:scatter,color=:green))
-end
 function updateHyperParameters!(model::MultiClass)
     Jnn = derivativekernelmatrix(model.kernel,model.X)
-    first_value = apple(model)
-    orig_param = copy(getvalue(model.kernel.param[1]))
-    var_param = 1.001*orig_param
-    diff = var_param-orig_param
-    setvalue!(model.kernel.param[1],var_param)
-    second_value = apple(model)
-    println("FEM : $second_value -> $first_value, $diff")
-    FEM = (second_value-first_value)/diff
-    hyper = (-0.1:0.01:0.1)+1; est= zeros(hyper);
-     for i in 1:length(hyper)
-         setvalue!(model.kernel.param[1],orig_param*hyper[i])
-         est[i]=apple(model)
-         # accu[i]=acc(model,X_test,y_test)
-     end
-    plot(hyper*orig_param,est)
-    plot!([orig_param],[first_value],t=:scatter,color=:red)
-    setvalue!(model.kernel.param[1],orig_param)
-    apple(model)
     grads = compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jnn])
-    println("Gradients : $grads vs $FEM")
-    println("Kernel before : $(getvalue(model.kernel.param))")
-    println("Before hyper : $(apple(model))")
-    apply_gradients!(model.kernel,grads)#compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jnn]))
-    println("After hyper : $(apple(model))")
-    println("Kernel after : $(getvalue(model.kernel.param))")
-    display(plot!([getvalue(model.kernel.param)],[apple(model)],t=:scatter,color=:green))
 end
 
 
@@ -134,31 +68,8 @@ function updateHyperParameters!(model::SparseMultiClass)
         Jnm = derivativekernelmatrix(model.kernel,model.X[model.MBIndices,:],model.inducingPoints[1])
     end
     Jnn = derivativediagkernelmatrix(model.kernel,model.X[model.MBIndices,:])
-    first_value = apple(model)
-    orig_param = copy(getvalue(model.kernel.param[1]))
-    var_param = 1.001*orig_param
-    diff = var_param-orig_param
-    setvalue!(model.kernel.param[1],var_param)
-    second_value = apple(model)
-    println("FEM : $second_value -> $first_value, $diff")
-    FEM = (second_value-first_value)/diff
-    hyper = (-0.1:0.01:0.1)+1; est= zeros(hyper)
-     for i in 1:length(hyper)
-         setvalue!(model.kernel.param[1],orig_param*hyper[i])
-         est[i]=apple(model)
-     end
-    plot(hyper*orig_param,est)
-    plot!([orig_param],[first_value],t=:scatter,color=:red)
-    setvalue!(model.kernel.param[1],orig_param)
-    apple(model)
     grads = compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jmm,Jnm,Jnn])
-    println("Gradients : $grads vs $FEM")
-    println("Kernel before : $(getvalue(model.kernel.param))")
-    println("Before hyper : $(apple(model))")
     apply_gradients!(model.kernel,grads)#compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jmm,Jnm,Jnn]))
-    println("After hyper : $(apple(model))")
-    println("Kernel after : $(getvalue(model.kernel.param))")
-    display(plot!([getvalue(model.kernel.param)],[apple(model)],t=:scatter,color=:green))
     if model.OptimizeInducingPoints
         inducingpoints_gradients = inducingpoints_gradient(model)
         model.inducingPoints += GradDescent.update(model.optimizer,inducingpoints_gradients)
