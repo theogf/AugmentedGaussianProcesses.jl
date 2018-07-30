@@ -6,10 +6,10 @@ mutable struct SparseMultiClass <: MultiClassGPModel
     @functionfields
     @multiclassfields
     @multiclassstochasticfields
-    @kernelfields
+    @multiclasskernelfields
     @multiclass_sparsefields
     function SparseMultiClass(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,KStochastic::Bool=false,AdaptiveLearningRate::Bool=true,
-                                    Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false, KIndPoints::Bool=false,
+                                    Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false, IndependentGPs::Bool=false,
                                     nEpochs::Integer = 10000,KSize::Int64=-1,BatchSize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
                                     kernel=0,noise::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=2,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
@@ -20,12 +20,12 @@ mutable struct SparseMultiClass <: MultiClassGPModel
             this.Name = "Sparse MultiClass Gaussian Process Classifier"
             initCommon!(this,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
-            initKernel!(this,kernel);
             initMultiClass!(this,Y,y_class,y_map);
+            initMultiClassKernel!(this,kernel,IndependentGPs);
             if this.VerboseLevel > 2
                 println("$(now()): Classes data treated")
             end
-            initMultiClassSparse!(this,m,OptimizeIndPoints,KIndPoints)
+            initMultiClassSparse!(this,m,OptimizeIndPoints)
             if Stochastic
                 initMultiClassStochastic!(this,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow);
             else

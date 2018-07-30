@@ -1,5 +1,34 @@
 
 """
+    Parameters for the kernel parameters, including the covariance matrix of the prior
+"""
+@def multiclasskernelfields begin
+    IndependentGPs::Bool
+    kernel::Array{Kernel,1} #Kernels function used
+    Knn::Array{Array{Float64,2},1} #Kernel matrix of the GP prior
+    invK::Array{Array{Float64,2},1} #Inverse Kernel Matrix for the nonlinear case
+end
+"""
+Function initializing the kernelfields
+"""
+function initMultiClassKernel!(model::GPModel,kernel,IndependentGPs)
+    #Initialize parameters common to all models containing kernels and check for consistency
+    if kernel == 0
+      warn("No kernel indicated, a rbf kernel function with lengthscale 1 is used")
+      kernel = RBFKernel(1.0)
+    end
+    model.IndependentGPs = IndependentGPs
+    if model.IndependentGPs
+        model.kernel = [deepcopy(kernel) for i in 1:model.K]
+    else
+        model.kernel = [deepcopy(kernel)]
+    end
+    model.nFeatures = model.nSamples
+end
+
+
+
+"""
     Parameters for multiclass stochastic optimization
 """
 @def multiclassstochasticfields begin
@@ -115,7 +144,6 @@ end
 @def multiclass_sparsefields begin
     m::Int64 #Number of inducing points
     inducingPoints::Array{Array{Float64,2},1} #Inducing points coordinates for the Big Data GP
-    KInducingPoints::Bool
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
     optimizer::Optimizer #Optimizer for the inducing points
     nInnerLoops::Int64 #Number of updates for converging α and γ
@@ -127,7 +155,7 @@ end
 """
 Function initializing the multiclass sparsefields parameters
 """
-function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool,KIndPoints::Bool)
+function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool)
     #Initialize parameters for the sparse model and check consistency
     minpoints = 56;
     if m > model.nSamples
@@ -138,7 +166,6 @@ function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool,K
         m = min(minpoints,model.nSamples÷10)
     end
     model.m = m; model.nFeatures = model.m;
-    model.KInducingPoints = KIndPoints
     model.OptimizeInducingPoints = optimizeIndPoints
     model.optimizer = Adam();
     model.nInnerLoops = 1;
@@ -147,7 +174,7 @@ function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool,K
     if model.VerboseLevel>2
         println("$(now()): Starting determination of inducing points through KMeans algorithm")
     end
-    if model.KInducingPoints
+    if model.IndependentGPs
         for k in 1:model.K
             K_corr = model.nSamples/Ninst_per_K[model.class_mapping[k]]-1.0
             weights = [model.Y[k]...].*(K_corr-1.0).+(1.0)

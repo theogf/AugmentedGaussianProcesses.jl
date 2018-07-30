@@ -55,7 +55,9 @@ function getMultiClassLog(model,X_test=0,y_test=0,iter_points=vcat(1:99,100:10:9
                 push!(metrics,:ELBO,iter,model.elbo())
                 push!(metrics,:mu,iter,model.μ)
                 push!(metrics,:sigma,iter,diag.(model.ζ))
-                push!(metrics,:kernel_param,iter,getindex(model.kernel.param[1].value))
+                push!(metrics,:kernel_param_1,iter,getindex(model.kernel[1].param[1].value))
+                push!(metrics,:kernel_param_2,iter,getindex(model.kernel[2].param[1].value))
+                push!(metrics,:kernel_param_3,iter,getindex(model.kernel[3].param[1].value))
         end
     end #end SaveLog
     return metrics,SaveLog

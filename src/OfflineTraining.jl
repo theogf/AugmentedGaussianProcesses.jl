@@ -26,8 +26,11 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
         updateParameters!(model,iter) #Update all the variational parameters
         reset_prediction_matrices!(model) #Reset predicton matrices
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
-            updateHyperParameters!(model) #Do the hyper-parameter optimization
-            computeMatrices!(model)
+            for j in 1:model.AutotuningFrequency
+                updateHyperParameters!(model) #Do the hyper-parameter optimization
+                computeMatrices!(model)
+                println("ELBO : $(ELBO(model))")
+            end
         end
         if !isa(model,GPRegression)
             conv = Convergence(model,iter) #Check for convergence
@@ -132,31 +135,35 @@ end
 
 function computeMatrices!(model::MultiClass)
     if model.HyperParametersUpdated
-        model.Knn = Symmetric(kernelmatrix(model.X,model.kernel) + model.noise*eye(model.nFeatures))
-        model.invK = inv(model.Knn)
+        if model.IndependentGPs
+            model.Knn = [Symmetric(kernelmatrix(model.X,model.kernel[i]) + model.noise*eye(model.nFeatures)) for i in 1:model.K]
+        else
+            model.Knn = [Symmetric(kernelmatrix(model.X,model.kernel[1]) + model.noise*eye(model.nFeatures))]
+        end
+        model.invK = inv.(model.Knn)
         model.HyperParametersUpdated = false
     end
 end
 
 function computeMatrices!(model::SparseMultiClass)
     if model.HyperParametersUpdated
-        if model.KInducingPoints
-            model.Kmm = broadcast(points->Symmetric(kernelmatrix(points,model.kernel)+model.noise*eye(model.nFeatures)),model.inducingPoints)
+        if model.IndependentGPs
+            model.Kmm = broadcast((points,kernel)->Symmetric(kernelmatrix(points,kernel)+model.noise*eye(model.nFeatures)),model.inducingPoints,model.kernel)
         else
-            model.Kmm = [Symmetric(kernelmatrix(model.inducingPoints[1],model.kernel)+model.noise*eye(model.nFeatures))]
+            model.Kmm = [Symmetric(kernelmatrix(model.inducingPoints[1],model.kernel[1])+model.noise*eye(model.nFeatures))]
         end
         model.invKmm = inv.(model.Kmm)
     end
     #If change of hyperparameters or if stochatic
     if model.HyperParametersUpdated || model.Stochastic
-        if model.KInducingPoints
-            Knm = broadcast(points->kernelmatrix(model.X[model.MBIndices,:],points,model.kernel),model.inducingPoints)
+        if model.IndependentGPs
+            Knm = broadcast((points,kernel)->kernelmatrix(model.X[model.MBIndices,:],points,kernel),model.inducingPoints,model.kernel)
             model.κ = Knm./model.Kmm
-            model.Ktilde = broadcast((knm,kappa)->diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(kappa.*knm,2)[:],Knm,model.κ)
+            model.Ktilde = broadcast((knm,kappa,kernel)->diagkernelmatrix(model.X[model.MBIndices,:],kernel) - sum(kappa.*knm,2)[:],Knm,model.κ,model.kernel)
         else
-            Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel)
+            Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1])
             model.κ = [Knm/model.Kmm[1]]
-            model.Ktilde = [diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ[1].*Knm,2)[:]]
+            model.Ktilde = [diagkernelmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*Knm,2)[:]]
         end
         @assert sum(count.(broadcast(x->x.<0,model.Ktilde)))==0 "Ktilde has negative values"
     end

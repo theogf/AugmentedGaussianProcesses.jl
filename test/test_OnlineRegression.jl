@@ -210,7 +210,7 @@ println("Full GP ($t_full s)\n\tRMSE (train) : $(RMSE(fullgp.predict(X),y))\n\tR
 
 #### Custom K finding method with constant limit
 t_const = @elapsed onconstgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.CircleKMeans(lim=0.90),Sequential=sequential,m=k,BatchSize=b,VerboseLevel=0,kernel=kernel)
-t_const = @elapsed onconstgp.train(iterations=50)#,callback=plotthisshit)
+t_const = @elapsed onconstgp.train(iterations=50,callback=plotthisshit)
 y_const,sig_const = onconstgp.predictproba(X_test)
 y_indconst = onconstgp.predict(onconstgp.kmeansalg.centers)
 y_trainconst, sig_trainconst = onconstgp.predictproba(X)

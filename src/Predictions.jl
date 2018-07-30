@@ -76,18 +76,26 @@ end
 
 function fstar(model::MultiClass,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = broadcast(x->model.invK*x,model.μ)
+        model.TopMatrixForPrediction = broadcast((mu,invK)->invK*mu,model.μ,model.invK)
     end
     if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = broadcast(var->model.invK*(eye(model.nSamples)-var*model.invK),model.ζ)
+      model.DownMatrixForPrediction = broadcast((var,invK)->invK*(eye(model.nSamples)-var*invK),model.ζ,model.invK)
     end
-    k_star = kernelmatrix(X_test,model.X,model.kernel)
-    mean_fstar = broadcast(x->k_star*x,model.TopMatrixForPrediction)
+    if model.IndependentGPs
+        k_star = [kernelmatrix(X_test,model.X,model.kernel[i]) for i in 1:model.K]
+    else
+        k_star = [kernelmatrix(X_test,model.X,model.kernel[1])]
+    end
+    mean_fstar = broadcast((k_s,m)->k_s*m,k_star,model.TopMatrixForPrediction)
     if !covf
         return mean_fstar
     else
-        k_starstar = diagkernelmatrix(X_test,model.kernel)
-        cov_fstar = broadcast(x->(k_starstar - sum((k_star*x).*k_star,2)),model.DownMatrixForPrediction)
+        if model.IndependentGPs
+            k_starstar = [diagkernelmatrix(X_test,model.kernel[i]) for i in 1:model.K]
+        else
+            k_starstar = [diagkernelmatrix(X_test,model.kernel[1])]
+        end
+        cov_fstar = broadcast((k_ss,k_s,x)->(k_ss - sum((k_s*x).*k_s,2)[:]),k_starstar,k_star,model.DownMatrixForPrediction)
         return mean_fstar,cov_fstar
     end
 end
@@ -95,20 +103,20 @@ end
 
 function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
-        if model.KInducingPoints
+        if model.IndependentGPs
             model.TopMatrixForPrediction = broadcast((k,mu)->k\mu,model.Kmm,model.μ)
         else
             model.TopMatrixForPrediction = broadcast((mu)->model.Kmm[1]\mu,model.μ)
         end
     end
     if covf && model.DownMatrixForPrediction == 0
-        if model.KInducingPoints
+        if model.IndependentGPs
             model.DownMatrixForPrediction = broadcast((var,Kmm)->(Kmm\(eye(model.nFeatures)-var/Kmm)),model.ζ,model.Kmm)
         else
             model.DownMatrixForPrediction = broadcast((var)->(model.Kmm[1]\(eye(model.nFeatures)-var/model.Kmm[1])),model.ζ)
         end
     end
-    if model.KInducingPoints
+    if model.IndependentGPs
         k_star = broadcast(points->kernelmatrix(X_test,points,model.kernel),model.inducingPoints)
     else
         k_star = [kernelmatrix(X_test,model.inducingPoints[1],model.kernel)]

@@ -5,8 +5,9 @@ mutable struct HyperParameter{T<:Real}
     interval::Interval{T}
     opt::Optimizer
     fixed::Bool
-    # function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=Momentum(η=0.5)) where {T<:Real}
-    function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=Adam(α=0.01)) where {T<:Real}
+    # function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=Momentum(η=0.01)) where {T<:Real}
+    function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=Adam(α=0.1)) where {T<:Real}
+    # function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=VanillaGradDescent(η=0.001)) where {T<:Real}
         checkvalue(I, x) || error("Value $(x) must be in range " * string(I))
         new{T}(Ref(x), I, opt, fixed)
     end

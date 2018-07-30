@@ -155,31 +155,31 @@ end
 """
 
 
-function compute_hyperparameter_gradient(k::KernelSum,gradient_function::Function,Js,weight::Bool=true)
+function compute_hyperparameter_gradient(k::KernelSum,gradient_function::Function,weight::Bool,Js,index)
     gradients = Array{Any,1}()
-    for (i,kernel) in enumerate(k.kernel_array)
-        push!(gradients,compute_hyperparameter_gradient(kernel,gradient_function,broadcast(x->x[i],Js),true))
+    for (j,kernel) in enumerate(k.kernel_array)
+        push!(gradients,compute_hyperparameter_gradient(kernel,gradient_function,true,broadcast(x->x[j],Js),index))
     end
     return gradients
 end
 
-function compute_hyperparameter_gradient(k::KernelProduct,gradient_function::Function,Js,weight::Bool=true)
+function compute_hyperparameter_gradient(k::KernelProduct,gradient_function::Function,weight::Bool,Js,index)
     gradients = Array{Any,1}()
-    for (i,kernel) in enumerate(k.kernel_array)
-        push!(gradients,compute_hyperparameter_gradient(kernel,gradient_function,broadcast(x->x[i],Js),false))
+    for (j,kernel) in enumerate(k.kernel_array)
+        push!(gradients,compute_hyperparameter_gradient(kernel,gradient_function,false,broadcast(x->x[j],Js),index))
     end
     if weight
-        push!(gradients,[gradient_function(broadcast(x->x[end][1],Js))])
+        push!(gradients,[gradient_function(broadcast(x->x[end][1],Js),index)])
     end
     return gradients
 end
-function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,Js,weight::Bool=true)
+function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,weight::Bool,Js,index)
     gradients = Array{Float64,1}()
-    for i in 1:k.Nparam
-        push!(gradients,gradient_function(broadcast(x->x[i],Js)))
+    for j in 1:k.Nparam
+        push!(gradients,gradient_function(broadcast(x->x[j],Js),index))
     end
     if weight
-        push!(gradients,gradient_function(broadcast(x->x[end],Js)))
+        push!(gradients,gradient_function(broadcast(x->x[end],Js),index))
     end
     return gradients
 end
