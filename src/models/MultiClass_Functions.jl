@@ -71,10 +71,10 @@ end
 
 function ELBO(model::MultiClass)
     C = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.ζ),model.μ)
-    ELBO_v = model.nSamples*(0.5*model.K-log(2))-sum(model.α./model.β)+dot(model.α-2,-model.α+log.(model.β)-log.(gamma.(model.α))-(1-model.α).*digamma.(model.α))
+    ELBO_v = model.nSamples*(0.5*model.K-log(2))-sum(model.α./model.β)+sum(model.α-log.(model.β)+log.(gamma.(model.α))+(1-model.α).*digamma.(model.α))
     ELBO_v += sum([-log.(cosh.(0.5*C[model.y_class[i]][i]))+0.5*model.θ[1][i]*(C[model.y_class[i]][i]^2) for i in 1:model.nSamples])
     ELBO_v += 0.5*sum(broadcast((invK,y,gam,mu,theta,sigma)->logdet(invK)+logdet(sigma)+dot(y-gam,mu)-sum((Diagonal(y.*model.θ[1]+theta)+invK).*transpose(sigma+mu*(mu'))),model.invK,model.Y,model.γ,model.μ,model.θ[2:end],model.ζ))
-    ELBO_v += sum(broadcast((gam,c,theta)->dot(gam,-log(2.0)-log.(gam)+1.0-log.(cosh.(0.5*c)))+0.5*dot(c,c.*theta),model.γ,C,model.θ[2:end]))
+    ELBO_v += sum(broadcast((gam,c,theta)->dot(gam,-(model.α-log.(model.β)+log.(gamma.(model.α))+(1-model.α).*digamma.(model.α))-log(2.0)-log.(gam)+1.0-log.(cosh.(0.5*c)))+0.5*dot(c,c.*theta),model.γ,C,model.θ[2:end]))
     return -ELBO_v
 end
 

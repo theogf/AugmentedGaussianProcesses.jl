@@ -81,7 +81,7 @@ OMGP.setvalue!(kernel.weight,10.0)
 # OMGP.setfree!(kernel.weight)
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 if full
-    fmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true)
+    fmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=5,IndependentGPs=true)
     metrics, callback = OMGP.getMultiClassLog(fmodel,X_test,y_test)
     # full_model.AutotuningFrequency=1
     t_full = @elapsed fmodel.train(iterations=100,callback=callback)
