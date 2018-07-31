@@ -8,8 +8,9 @@ function local_updates!(model::MultiClass)
     C = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.ζ),model.μ)
     model.θ[1] = [0.5./sqrt(C[model.y_class[i]][i])*tanh(0.5*C[model.y_class[i]][i]) for i in 1:model.nSamples ];
     # println(mean(model.α),broadcast(mean,model.γ))
-    for i in 1:10
-        model.γ = broadcast((c,μ)->1.0./(2.0*model.β.*cosh.(0.5.*c)).*exp.(digamma.(model.α).-0.5.*μ),C,model.μ)
+    for i in 1:2
+        model.γ = broadcast((c,μ)->model.β./(2.0*gamma.(model.α).*cosh.(0.5.*c)).*exp.(-model.α-(1-model.α).*digamma.(model.α).-0.5.*μ),C,model.μ)
+        # model.γ = broadcast((c,μ)->1.0./(2.0*model.β.*cosh.(0.5.*c)).*exp.(digamma.(model.α).-0.5.*μ),C,model.μ)
         model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamples]
     end
     model.θ[2:end] = broadcast((γ,c)->0.5.*γ./c.*tanh.(0.5.*c),model.γ,C)
@@ -31,14 +32,16 @@ function local_updates!(model::SparseMultiClass)
         C = broadcast((m,var,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,2)[:]+(kappa*m).^2),model.μ,model.ζ,model.κ,model.Ktilde)
         model.θ[1] = [0.5./C[model.y_class[i]][iter]*tanh(0.5*C[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices) ];
         for l in 1:model.nInnerLoops
-            model.γ = broadcast((c,kappa,μ)->0.5./(cosh.(0.5.*c).*model.β).*exp.(digamma.(model.α).-0.5.*kappa*μ),C,model.κ,model.μ)
+            # model.γ = broadcast((c,kappa,μ)->0.5./(cosh.(0.5.*c).*model.β).*exp.(digamma.(model.α).-0.5.*kappa*μ),C,model.κ,model.μ)
+            model.γ = broadcast((c,kappa,μ)->0.5.*model.β./(cosh.(0.5.*c).*gamma.(model.α)).*exp.(-model.α-(1-model.α).*digamma.(model.α).-0.5.*kappa*μ),C,model.κ,model.μ)
             model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamplesUsed]
         end
     else
         C = broadcast((m,var)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*var).*model.κ[1],2)[:]+(model.κ[1]*m).^2),model.μ,model.ζ)
         model.θ[1] = [0.5./C[model.y_class[i]][iter]*tanh(0.5*C[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices) ];
         for l in 1:model.nInnerLoops
-            model.γ = broadcast((c,μ)->0.5./(cosh.(0.5.*c).*model.β).*exp.(digamma.(model.α).-0.5.*model.κ[1]*μ),C,model.μ)
+            # model.γ = broadcast((c,μ)->0.5./(cosh.(0.5.*c).*model.β).*exp.(digamma.(model.α).-0.5.*model.κ[1]*μ),C,model.μ)
+            model.γ = broadcast((c,μ)->0.5.*model.β./(cosh.(0.5.*c).*gamma.(model.α)).*exp.(-model.α-(1-model.α).*digamma.(model.α).-0.5.*model.κ[1]*μ),C,model.μ)
             model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamplesUsed]
         end
     end
@@ -120,22 +123,22 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
     #General values used for all gradients
     B = broadcast((mu,sigma)->mu*transpose(mu) + sigma,model.μ,model.ζ)
     if model.IndependentGPs
-        Kmn = [kernelmatrix(model.inducingPoints[i],model.X[model.MBIndices,:],model.kernel) for i in 1:model.K]
+        Kmn = [kernelmatrix(model.inducingPoints[i],model.X[model.MBIndices,:],model.kernel[i]) for i in 1:model.K]
         return function(Js,index)
-            println(size(Js))
-                    Jmm = [x->Js[1][i] for i in 1:model.K]; Jnm = [x->Js[2][i] for i in 1:model.K]; Jnn = Js[3];
-                    println("Sizes")
-                    print(size(Jmm),size(Jnm),size(Jnn))
-                    ι = [(Jnm[i]-model.κ[i]*Jmm[i])*model.invKmm[i] for i in 1:model.K]
-                    Jtilde = [Jnn - sum(ι[i].*(Kmn[i].'),2) - sum(model.κ[i].*Jnm[i],2) for i in 1:model.K]
-                    V = model.invKmm.*Jmm
-                    return 0;#TODO copy the formula from down#sum( broadcast((v,invK,iota,theta,kappa,b,jtilde,y,gam)->
-                    # 0.5*sum((v*invK-model.StochCoeff*(iota'*theta*kappa+kappa'*theta*iota)).*b')-trace(v)-model.StochCoeff*dot(model.θ[1][model.MBIndices].*y[model.MBIndices],jtilde)
-                        # + model.StochCoeff*(dot(y[model.MBIndices]-gam,iota*mu)),
-                        # V,model.invKmm,ι,model.θ[2:end],model.κ,B,Jtilde,model.y,model.γ)) #arugments
+                    Jmm = Js[1]; Jnm =Js[2]; Jnn = Js[3];
+                    ι = (Jnm-model.κ[index]*Jmm)*model.invKmm[index]
+                    Jtilde = Jnn - sum(ι.*(Kmn[index].'),2) - sum(model.κ[index].*Jnm,2)
+                    V = model.invKmm[index]*Jmm
+                    # println("$index, $(mean(diag(V*model.invKmm[index])))")
+                    # println("$index, $(sum((V*model.invKmm[index]).*B[index]))")
+                    return 0.5*sum( (V*model.invKmm[index]
+                            -model.StochCoeff*(ι'*Diagonal(model.θ[index+1])*model.κ[index]
+                                                - model.κ[index]'*Diagonal(model.θ[index+1])*ι)).*B[index]')
+                            -trace(V)-model.StochCoeff*dot(model.θ[1].*model.Y[index][model.MBIndices],Jtilde)
+                            + model.StochCoeff*dot(model.Y[index][model.MBIndices]-model.γ[index],ι*model.μ[index])
          end #end of function(Js)
     else
-        Kmn = kernelmatrix(model.inducingPoints[1],model.X[model.MBIndices,:],model.kernel)
+        Kmn = kernelmatrix(model.inducingPoints[1],model.X[model.MBIndices,:],model.kernel[1])
         return function(Js,index)
             #matrices L: [1]Kmm, [2]invKmm, [3]κ
                     Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];

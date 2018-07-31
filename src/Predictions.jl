@@ -117,16 +117,20 @@ function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
         end
     end
     if model.IndependentGPs
-        k_star = broadcast(points->kernelmatrix(X_test,points,model.kernel),model.inducingPoints)
+        k_star = broadcast((points,kernel)->kernelmatrix(X_test,points,kernel),model.inducingPoints,model.kernel)
     else
-        k_star = [kernelmatrix(X_test,model.inducingPoints[1],model.kernel)]
+        k_star = [kernelmatrix(X_test,model.inducingPoints[1],model.kernel[1])]
     end
     mean_fstar = k_star.*model.TopMatrixForPrediction
     if !covf
         return mean_fstar
     else
-        k_starstar = diagkernelmatrix(X_test,model.kernel)
-        cov_fstar = broadcast((x,k)->(k_starstar - sum((k*x).*k,2)),model.DownMatrixForPrediction,k_star)
+        if model.IndependentGPs
+            k_starstar = diagkernelmatrix.(X_test,model.kernel)
+        else
+            k_starstar = [diagkernelmatrix(X_test,model.kernel[1])]
+        end
+        cov_fstar = broadcast((x,ks,kss)->(kss - sum((ks*x).*ks,2)),model.DownMatrixForPrediction,k_star,k_starstar)
         return mean_fstar,cov_fstar
     end
 end

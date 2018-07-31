@@ -69,19 +69,24 @@ end
 
 
 function updateHyperParameters!(model::SparseMultiClass)
-    # if model.IndependentGPs
+    if model.IndependentGPs
         matrix_derivatives = [[derivativekernelmatrix(model.kernel[i],model.inducingPoints[i]),
                             derivativekernelmatrix(model.kernel[i],model.X[model.MBIndices,:],model.inducingPoints[i]),
                             derivativediagkernelmatrix(model.kernel[i],model.X[model.MBIndices,:])] for i in 1:model.K]
+                            grads = compute_hyperparameter_gradient.(model.kernel,hyperparameter_gradient_function(model),true,matrix_derivatives,1:model.K)
+
         # Jmm = [derivativekernelmatrix(model.kernel[i],model.inducingPoints[i]) for i in 1:model.K]
         # Jnm = [derivativekernelmatrix(model.kernel[i],model.X[model.MBIndices,:],model.inducingPoints[i]) for i in 1:model.K]
         # Jnn = [derivativediagkernelmatrix(model.kernel[i],model.X[model.MBIndices,:]) for i in 1:model.K]
-    # else
+    else
+        matrix_derivatives = [[derivativekernelmatrix(model.kernel[1],model.inducingPoints[1]),
+                            derivativekernelmatrix(model.kernel[1],model.X[model.MBIndices,:],model.inducingPoints[1]),
+                            derivativediagkernelmatrix(model.kernel[1],model.X[model.MBIndices,:])]]
+        grads = compute_hyperparameter_gradient.(model.kernel,hyperparameter_gradient_function(model),true,matrix_derivatives,1)
     #     Jmm = derivativekernelmatrix(model.kernel[1],model.inducingPoints[1])
     #     Jnm = derivativekernelmatrix(model.kernel[1],model.X[model.MBIndices,:],model.inducingPoints[1])
     #     Jnn = derivativediagkernelmatrix(model.kernel[1],model.X[model.MBIndices,:])
-    # end
-    grads = compute_hyperparameter_gradient.(model.kernel,hyperparameter_gradient_function(model),matrix_derivatives,model.Kmm,model.invKmm,model.κ)
+    end
     println("grads : $grads")
     apply_gradients!.(model.kernel,grads)#compute_hyperparameter_gradient(model.kernel,hyperparameter_gradient_function(model),Any[Jmm,Jnm,Jnn]))
     if model.OptimizeInducingPoints
