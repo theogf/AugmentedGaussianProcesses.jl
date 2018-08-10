@@ -29,7 +29,7 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
             for j in 1:model.AutotuningFrequency
                 updateHyperParameters!(model) #Do the hyper-parameter optimization
                 computeMatrices!(model)
-                println("ELBO : $(ELBO(model))")
+                # println("ELBO : $(ELBO(model))")
             end
         end
         if !isa(model,GPRegression)
