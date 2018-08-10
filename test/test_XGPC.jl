@@ -23,14 +23,14 @@ import OMGP
     y_test = sign.(latent(X_test)+rand(Normal(0,noise),size(X_test,1)))
 
 ### TESTING WITH BANANA DATASET ###
-    X=readdlm("data/banana_X_train")
-    y=readdlm("data/banana_Y_train")[:]
-    maxs = [3.65,3.4]
-    mins = [-3.25,-2.85]
-    x1_test = linspace(mins[1],maxs[1],N_test)
-    x2_test = linspace(mins[2],maxs[2],N_test)
-    X_test = hcat([j for i in x1_test, j in x2_test][:],[i for i in x1_test, j in x2_test][:])
-    y_test = ones(size(X_test,1))
+    # X=readdlm("data/banana_X_train")
+    # y=readdlm("data/banana_Y_train")[:]
+    # maxs = [3.65,3.4]
+    # mins = [-3.25,-2.85]
+    # x1_test = linspace(mins[1],maxs[1],N_test)
+    # x2_test = linspace(mins[2],maxs[2],N_test)
+    # X_test = hcat([j for i in x1_test, j in x2_test][:],[i for i in x1_test, j in x2_test][:])
+    # y_test = ones(size(X_test,1))
 
 (nSamples,nFeatures) = (N_data,1)
 kernel = OMGP.RBFKernel(1.0)

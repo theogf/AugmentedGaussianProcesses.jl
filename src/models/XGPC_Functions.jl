@@ -78,7 +78,7 @@ function hyperparameter_gradient_function(model::SparseXGPC)
     B = model.μ*transpose(model.μ) + model.ζ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     Θ = Diagonal(0.25./model.α.*tanh.(0.5*model.α))
-    return function(Js)
+    return function(Js,i)
                 Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
                 Jtilde = Jnn - sum(ι.*(Kmn.'),2) - sum(model.κ.*Jnm,2)

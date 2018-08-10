@@ -3,8 +3,9 @@ import OMGP
 using Distributions
 using StatsBase
 using Gallium
-using MLDataUtils
+using MLDatasets
 using PyCall
+
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
 N_data = 300
@@ -12,10 +13,10 @@ N_class = 3
 N_test = 50
 minx=-5.0
 maxx=5.0
-noise = 1e-3
-truthknown = true
+noise = 1.0
+truthknown = false
 doMCCompare = false
-dolikelihood = true
+dolikelihood = false
 println("$(now()): Starting testing multiclass")
 
 function latent(X)
@@ -31,9 +32,15 @@ X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_tes
 y = min.(max.(1,floor.(Int64,latent(X)+rand(Normal(0,noise),size(X,1)))),N_class)
 y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 
-# X,y = sk.make_classification(n_samples=N_data,n_features=dim,n_classes=N_class,n_clusters_per_class=1,n_informative=dim,n_redundant=0)
-# y+=1
-# X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
+X,y = sk.make_classification(n_samples=N_data,n_features=dim,n_classes=N_class,n_clusters_per_class=1,n_informative=dim,n_redundant=0)
+y+=1
+X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
+
+X,y = MNIST.traindata()
+X=Float64.(reshape(X,28*28,60000)')
+X_test,y_test = MNIST.testdata()
+X_test=Float64.(reshape(X_test,28*28,10000)')
+
 #Test on the Iris dataet
 # train = readdlm("data/iris-X")
 # X = train[1:100,:]; X_test=train[101:end,:]
@@ -76,12 +83,12 @@ sparse = true
 sharedInd = true
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
- l = 1.0
+ l = 3.5
 
  kernel = OMGP.RBFKernel(l)
 # kernel = OMGP.ARDKernel(l*ones(size(X,2)))
 OMGP.setvalue!(kernel.weight,10.0)
-# OMGP.setfree!(kernel.weight)
+OMGP.setfixed!(kernel.weight)
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 if full
     fmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=5,IndependentGPs=true)
@@ -103,11 +110,11 @@ if full
 end
 # end #End for loop on kernel lengthscale
 if sparse
-    smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=40,Autotuning=true,AutotuningFrequency=5,Stochastic=false,BatchSize=100,IndependentGPs=false)
+    smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=200,Autotuning=false,AutotuningFrequency=5,Stochastic=true,BatchSize=200,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
     metrics, callback = OMGP.getMultiClassLog(smodel)#,X_test,y_test)
     # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    t_sparse = @elapsed smodel.train(iterations=40,callback=callback)
+    t_sparse = @elapsed smodel.train(iterations=1000,callback=callback)
     y_sparse, = smodel.predict(X_test)
     y_strain, = smodel.predict(X)
     y_sall = OMGP.multiclasspredict(smodel,X_test,true)
