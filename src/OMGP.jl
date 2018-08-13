@@ -36,7 +36,6 @@ using StatsBase
 using QuadGK
 using GradDescent
 using ValueHistories
-using Gallium
 #Exported models
 export LinearBSVM, BatchBSVM, SparseBSVM
 export BatchXGPC, SparseXGPC, GibbsSamplerGPC

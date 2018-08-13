@@ -17,8 +17,6 @@ macro kernelfunctionfields()
 end
 
 using GradDescent
-using Plots;
-pyplot();
 
 
 
@@ -27,7 +25,7 @@ export Kernel, KernelSum, KernelProduct
 export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 export kernelmatrix,kernelmatrix!,diagkernelmatrix,diagkernelmatrix!
 export derivativekernelmatrix,derivativediagkernelmatrix,compute_hyperparameter_gradient,apply_gradients!
-export compute,plotkernel
+export compute
 
 
 
@@ -520,31 +518,6 @@ function apply_gradients!(kernel::KernelProduct,gradients,weight::Bool=true)
     end
     if weight
         update!(kernel.weight,gradients[end][1]);
-    end
-end
-
-function plotkernel(kernel::Kernel;range=[-3.0,3.0],npoints::Int64=100)
-    if kernel.pairwisefunction == InnerProduct
-        X1 = ones(npoints);
-        X2 = collect(linspace(range[1],range[2],npoints));
-        value = zeros(npoints);
-        for i in 1:npoints
-            value[i] = compute(kernel,X1[i],X2[i])
-        end
-        plot(X2,value,lab="k(x)",xlabel="x")
-    elseif kernel.pairwisefunction == SquaredEuclidean
-        X1 = zeros(npoints);
-        X2 = collect(linspace(range[1],range[2],npoints));
-        value = zeros(npoints);
-        for i in 1:npoints
-            value[i] = compute(kernel,X1[i],X2[i])
-        end
-        plot(X2,value,lab="k(x)",xlabel="x")
-    elseif kernel.pairwisefunction == Identity
-        plotlyjs()
-        x = collect(linspace(range[1],range[2],npoints));
-        value = broadcast((x,y)->compute(kernel,x,y),[i for i in x, j in x],[j for i in x, j in x])
-        display(plot(x,x,value,t=:contour,fill=true,cbar=true,xlabel="X",ylabel="Y",title="k(X,Y)"))
     end
 end
 
