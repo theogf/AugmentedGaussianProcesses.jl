@@ -66,7 +66,7 @@ function hyperparameter_gradient_function(model::SparseGPRegression)
     return function(Js)
             Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
             ι = (Jnm-model.κ*Jmm)*model.invKmm
-            Jtilde = Jnn - sum(ι.*(Kmn.'),2) - sum(model.κ.*Jnm,2)
+            Jtilde = Jnn - sum(ι.*transpose(Kmn),2) - sum(model.κ.*Jnm,2)
             V = model.invKmm*Jmm
             return 0.5*(sum( (V*model.invKmm - model.StochCoeff/model.noise*(ι'*model.κ + model.κ'*ι)) .* transpose(B)) - trace(V) - model.StochCoeff/model.noise*sum(Jtilde)
              + 2*model.StochCoeff/model.noise*dot(model.y[model.MBIndices],ι*model.μ))
@@ -79,7 +79,7 @@ function inducingpoints_gradient(model::SparseGPRegression)
             Jnm,Jmm = computeIndPointsJ(model,i)
             for j in 1:dim #iterate over the dimensions
                 ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
-                Jtilde = -sum(ι.*(Kmn.'),2)-sum(model.κ.*Jnm[j,:,:],2)
+                Jtilde = -sum(ι.*transpose(Kmn),2)-sum(model.κ.*Jnm[j,:,:],2)
                 V = model.invKmm*Jmm[j,:,:]
                 gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff/model.noise*(ι'*model.κ+model.κ'*ι)).*transpose(B))-trace(V)-model.StochCoeff/model.noise*Jtilde
                  + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))

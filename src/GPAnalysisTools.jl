@@ -77,7 +77,7 @@ end
 function JSGP(mu,sig,f,sig_f)
     N = length(f)
     tot = -N*0.25
-    tot += 0.125*sum(sig./(sig_f)+(sig_f)./(sig) + (1./(sig_f)+1./(sig)).*((mu-f).^2))
+    tot += 0.125*sum(sig./(sig_f)+(sig_f)./(sig) + (1.0./sig_f+1.0./sig).*((mu-f).^2))
 end
 
 function plotting1D(iter,indices,X,f,sig_f,ind_points,pred_ind,X_test,pred,sig_pred,y_train,sig_train,title,sequential=false)

@@ -43,6 +43,7 @@ using StatsBase
 using QuadGK
 using GradDescent
 using ValueHistories
+using SparseArrays
 # using Gallium #TODO remove for published version
 #Exported models
 export KMeansModule

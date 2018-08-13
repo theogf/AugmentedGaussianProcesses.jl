@@ -127,7 +127,7 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
         return function(Js,index)
                     Jmm = Js[1]; Jnm =Js[2]; Jnn = Js[3];
                     ι = (Jnm-model.κ[index]*Jmm)*model.invKmm[index]
-                    Jtilde = Jnn - sum(ι.*(Kmn[index].'),2) - sum(model.κ[index].*Jnm,2)
+                    Jtilde = Jnn - sum(ι.*transpose(Kmn[index]),2) - sum(model.κ[index].*Jnm,2)
                     V = model.invKmm[index]*Jmm
                     # println("$index, $(mean(diag(V*model.invKmm[index])))")
                     # println("$index, $(sum((V*model.invKmm[index]).*B[index]))")
@@ -143,7 +143,7 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
             #matrices L: [1]Kmm, [2]invKmm, [3]κ
                     Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
                     ι = (Jnm-model.κ[1]*Jmm)/model.Kmm[1]
-                    Jtilde = Jnn - sum(ι.*(Kmn.'),2) - sum(model.κ[1].*Jnm,2)
+                    Jtilde = Jnn - sum(ι.*transpose(Kmn),2) - sum(model.κ[1].*Jnm,2)
                     V = model.Kmm[1]\Jmm
                     return sum(broadcast((theta,b,y,gam,mu)->
                         0.5*(sum((V/model.Kmm[1]-model.StochCoeff*(ι'*theta*model.κ[1]+model.κ[1]'*theta*ι)).*b')

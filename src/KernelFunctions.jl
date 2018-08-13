@@ -70,7 +70,7 @@ mutable struct KernelSum{T<:AbstractFloat} <: Kernel{T}
     @kernelfunctionfields()
     kernel_array::Vector{Kernel{T}} #Array of summed kernels
     Nkernels::Int64
-    #Constructors
+    #Constructor
     function KernelSum{T}(kernels::AbstractArray) where {T<:AbstractFloat}
         this = new("Sum of kernels")
         this.kernel_array = deepcopy(Vector{Kernel{T}}(kernels))
@@ -116,19 +116,21 @@ end
 function Base.getindex(a::KernelSum{T},i::Int64) where T
     return a.kernel_array[i]
 end
-
+"""
+Class for kernel combinations
+"""
 mutable struct KernelProduct{T<:AbstractFloat} <: Kernel{T}
     @kernelfunctionfields
     kernel_array::Vector{Kernel{T}} #Array of multiplied kernels
     Nkernels::Int64
-    function KernelProduct(kernels::Vector{Kernel{T}}) where {T<:AbstractFloat}
+    #Constructor
+    function KernelProduct{T}(kernels::Vector{Kernel{T}}) where {T<:AbstractFloat}
         this = new("Product of kernels",
-                HyperParameter{T}(1.0,interval(OpenBound(zero(T)),nothing),fixed=true),
-                nothing,0,Identity)
-        # this.kernel_array = deepcopy(Vector{Kernel}(kernels))
-        # this.Nkernels = length(this.kernel_array)
-        # this.distance = Identity
-        # return this
+                HyperParameter{T}(1.0,interval(OpenBound(zero(T)),nothing),fixed=true))
+        this.kernel_array = deepcopy(Vector{Kernel}(kernels))
+        this.Nkernels = length(this.kernel_array)
+        this.distance = Identity
+        return this
     end
 end
 
@@ -274,7 +276,7 @@ end
 """
 mutable struct SigmoidKernel{T} <: Kernel{T}
     @kernelfunctionfields
-    function SigmoidKernel(θ::Vector{T}=[1.0,0.0];weight::Float64=1.0) where {T<:Real}
+    function SigmoidKernel{T}(θ::Vector{T}=[1.0,0.0];weight::Float64=1.0) where {T<:Real}
         return new("Sigmoid",
         HyperParameter{T}(weight,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=true),
         HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()), interval(NullBound{T}(),NullBound{T}())]),
@@ -310,7 +312,7 @@ end
 """
 mutable struct PolynomialKernel{T} <: Kernel{T}
     @kernelfunctionfields
-    function PolynomialKernel(θ::Vector{T}=[1.0,0.0,2.0];weight::T=1.0) where {T<:Real}
+    function PolynomialKernel{T}(θ::Vector{T}=[1.0,0.0,2.0];weight::T=1.0) where {T<:Real}
         return new("Polynomial",HyperParameter{T}(weight,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=true),
                                 HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()) for i in 1:length(θ)]),
                                 length(θ),InnerProduct)
@@ -344,7 +346,7 @@ end
 """
 mutable struct ARDKernel{T} <: Kernel{T}
     @kernelfunctionfields
-    function ARDKernel(θ::Vector{T}=[1.0];dim::Int64=0,weight::T=1.0) where {T<:Real}
+    function ARDKernel{T}(θ::Vector{T}=[1.0];dim::Int64=0,weight::T=1.0) where {T<:Real}
         if length(θ)==1 && dim ==0
             error("You defined an ARD kernel without precising the number of dimensions
                              Please set dim in your kernel initialization or use ARDKernel(X,θ)")

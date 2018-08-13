@@ -1,11 +1,8 @@
-"""
-File treating all the prediction functions
-"""
+#File treating all the prediction functions
 
-
-#### Computation of predictions with and without variance using the probit and logit link ####
-# function fstar(model::LinearModel,X_test,cov::Bool=true)
-# end
+"""
+Computation of the predicted latent f with or without variance
+"""
 function fstar(model::FullBatchModel,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.μ
@@ -172,7 +169,7 @@ function probitpredictproba(model::SparseModel,X_test)
 end
 
 function logit(x)
-    return 1./(1+exp.(-x))
+    return 1.0./(1+exp.(-x))
 end
 
 function logitpredict(model::GPModel,X_test)

@@ -103,7 +103,6 @@ end
 """
     Initialise the parameters of the multiclass model
 """
-
 function initMultiClass!(model,Y,y_class,y_mapping)
     model.K = length(y_mapping)
     model.Y = Y

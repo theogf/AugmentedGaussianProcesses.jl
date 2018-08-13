@@ -1,6 +1,7 @@
 julia 0.7
 Distributions
 StatsBase
+SparseArrays
 Clustering
 GradDescent
 QuadGK
