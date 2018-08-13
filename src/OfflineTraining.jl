@@ -45,8 +45,8 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
             print("Iteration : $iter, convergence = $conv \n")
             println("Neg. ELBO is : $(ELBO(model))")
         end
-        # (iter < model.nEpochs) || break; #Verify if any condition has been broken
-        (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
+        (iter < model.nEpochs) || break; #Verify if any condition has been broken
+        # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         iter += 1;
     end
     if model.VerboseLevel > 0
