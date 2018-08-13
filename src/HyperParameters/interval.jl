@@ -1,4 +1,4 @@
-immutable Interval{T<:Real,A<:Bound{T},B<:Bound{T}}
+struct Interval{T<:Real,A<:Bound{T},B<:Bound{T}}
     a::A
     b::B
     function Interval{T}(a::A, b::B) where {T<:Real,A<:Bound{T},B<:Bound{T}}
@@ -16,18 +16,18 @@ immutable Interval{T<:Real,A<:Bound{T},B<:Bound{T}}
 end
 Interval(a::Bound{T}, b::Bound{T}) where {T<:Real} = Interval{T}(a,b)
 
-eltype{T}(::Interval{T}) = T
+eltype(::Interval{T}) where {T} = T
 
-interval(a::Void, b::Void) = Interval(NullBound{Float64}(), NullBound{Float64}())
-interval(a::Bound{T}, b::Void) where {T<:Real} = Interval(a, NullBound{T}())
-interval(a::Void, b::Bound{T}) where {T<:Real} = Interval(NullBound{T}(), b)
+interval(a::Nothing, b::Nothing) = Interval(NullBound{Float64}(), NullBound{Float64}())
+interval(a::Bound{T}, b::Nothing) where {T<:Real} = Interval(a, NullBound{T}())
+interval(a::Nothing, b::Bound{T}) where {T<:Real} = Interval(NullBound{T}(), b)
 interval(a::Bound{T}, b::Bound{T}) where {T<:Real} = Interval(a,b)
 interval(::Type{T}) where {T<:Real} = Interval(NullBound{T}(), NullBound{T}())
 
 
 checkvalue(I::Interval, x::Real) = checkvalue(I.a, x) && checkvalue(x, I.b)
 
-function theta{T<:AbstractFloat,A,B}(I::Interval{T,A,B}, x::T)
+function theta(I::Interval{T,A,B}, x::T) where {T<:AbstractFloat,A,B}
     checkvalue(I,x) || throw(DomainError())
     if A <: OpenBound
         return B <: OpenBound ? log(x-I.a.value) - log(I.b.value-x) : log(x-I.a.value)
@@ -36,7 +36,7 @@ function theta{T<:AbstractFloat,A,B}(I::Interval{T,A,B}, x::T)
     end
 end
 
-function deriv_theta{T<:AbstractFloat,A,B}(I::Interval{T,A,B}, x::T)
+function deriv_theta(I::Interval{T,A,B}, x::T) where {T<:AbstractFloat,A,B}
     checkvalue(I,x) || throw(DomainError())
     if A <: OpenBound
         return B <: OpenBound ? one(T)/(x-I.a.value) + one(T)/(I.b.value-x) : one(T)/(x-I.a.value)
@@ -45,7 +45,7 @@ function deriv_theta{T<:AbstractFloat,A,B}(I::Interval{T,A,B}, x::T)
     end
 end
 
-function upperboundtheta{T<:AbstractFloat,A,B}(I::Interval{T,A,B})
+function upperboundtheta(I::Interval{T,A,B}) where {T<:AbstractFloat,A,B}
     if B <: ClosedBound
         return A <: OpenBound ? log(I.b.value - I.a.value) : I.b.value
     elseif B <: OpenBound
@@ -55,15 +55,15 @@ function upperboundtheta{T<:AbstractFloat,A,B}(I::Interval{T,A,B})
     end
 end
 
-function lowerboundtheta{T<:AbstractFloat,A,B}(I::Interval{T,A,B})
+function lowerboundtheta(I::Interval{T,A,B}) where {T<:AbstractFloat,A,B}
     A <: ClosedBound && !(B <: OpenBound) ? I.a.value : convert(T,-Inf)
 end
 
-function checktheta{T<:AbstractFloat}(I::Interval{T}, x::T)
+function checktheta(I::Interval{T}, x::T) where {T<:AbstractFloat}
     lowerboundtheta(I) <= x <= upperboundtheta(I)
 end
 
-function eta{T<:AbstractFloat,A,B}(I::Interval{T,A,B}, x::T)
+function eta(I::Interval{T,A,B}, x::T) where {T<:AbstractFloat,A,B}
     checktheta(I,x) || throw(DomainError())
     if A <: OpenBound
         if B <: OpenBound
@@ -76,7 +76,7 @@ function eta{T<:AbstractFloat,A,B}(I::Interval{T,A,B}, x::T)
     end
 end
 
-function deriv_eta{T<:AbstractFloat,A,B}(I::Interval{T,A,B}, x::T)
+function deriv_eta(I::Interval{T,A,B}, x::T) where {T<:AbstractFloat,A,B}
     checktheta(I,x) || throw(DomainError())
     if A <: OpenBound
         if B <: OpenBound
@@ -89,7 +89,7 @@ function deriv_eta{T<:AbstractFloat,A,B}(I::Interval{T,A,B}, x::T)
     end
 end
 
-function string{T1,T2,T3}(I::Interval{T1,T2,T3})
+function string(I::Interval{T1,T2,T3}) where {T1,T2,T3}
     if T2 <: NullBound
         if T3 <: NullBound
             string("interval(", T1, ")")

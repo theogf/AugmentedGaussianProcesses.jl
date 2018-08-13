@@ -1,6 +1,6 @@
 module HyperParametersMod
 using GradDescent
-import Base: convert, eltype, promote_type, show, string, ==, *, /, +, -, ^, isless
+import Base: convert, eltype, promote_type, show, string, ==, *, /, +, -, ^, isless;
 
 export
     Bound,

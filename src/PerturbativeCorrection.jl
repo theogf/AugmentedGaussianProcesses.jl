@@ -36,7 +36,7 @@ export VarCorrection
 
 
 function logit(x)
-    return 1./(1+exp.(-x))
+    return 1.0 ./(1+exp.(-x))
 end
 
 function correctedpredict(model,X_test)
@@ -63,19 +63,19 @@ function correctedlatent(model)
     mean_corr = model.μ .+ meancorrection(model.μ,model.ζ,model.α,model.ζ)
     var_corr = diag(model.ζ)
     # correction = model.μ.^2 - mean_corr.^2
-    correction = 0.5*(model.ζ).^2*((model.μ.^2+diag(model.ζ)).^2.*var_c)
+    correction = 0.5*(model.ζ).^2 *((model.μ.^2+diag(model.ζ)).^2 .*var_c)
     var_corr += correction
     return mean_corr,var_corr
 end
 
 function meancorrection(μ,Σ,c,covfefe)
-    var_c = (tanh.(c.*0.5).^2-1.0)./(4.*c.^2)+(tanh.(c.*0.5))./(2.*c.^3)
+    var_c = (tanh.(c.*0.5).^2-1.0)./(4.0 .*c.^2)+(tanh.(c.*0.5))./(2.0 .*c.^3)
     correction = covfefe*(diag(Σ).*μ.*var_c)
     return correction
 end
 
 function varcorrection(fstar,μ,Σ,c,covfefe;fstar_corr=0)
-    var_c = (tanh.(c.*0.5).^2-1.0)./(4.*c.^2)+(tanh.(c.*0.5))./(2.*c.^3)
+    var_c = (tanh.(c.*0.5).^2-1.0)./(4.0 .*c.^2)+(tanh.(c.*0.5))./(2.0 .*c.^3)
     if fstar_corr ==0
         fstar_corr = fstar + meancorrection(μ,Σ,c,covfefe)
     end

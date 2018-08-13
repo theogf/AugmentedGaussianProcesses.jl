@@ -5,7 +5,7 @@ using Distributions
 __TRUNC = 0.64;
 __TRUNC_RECIP = 1.0 / __TRUNC;
 export PolyaGammaDist
-type PolyaGammaDist
+mutable struct PolyaGammaDist
   # For sum of Gammas.
   T::Int64;
   bvec::Array{Float64,1}

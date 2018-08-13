@@ -219,7 +219,7 @@ end
 
 function JSGP(mu,sig,f,sig_f)
     tot = -0.25*length(f)
-    tot += 0.125*sum(sig./(sig_f)+(sig_f)./(sig) + (1./(sig_f)+1./(sig)).*((mu-f).^2))
+    tot += 0.125*sum(sig./(sig_f)+(sig_f)./(sig) + (1.0 ./(sig_f)+1.0 ./(sig)).*((mu-f).^2))
 end
 function RandomAccept_Mean(alg,model,mu,sig,X,y)
     diff_f = 1-exp(-0.5*(mu-y)[1]^2/sig[1])

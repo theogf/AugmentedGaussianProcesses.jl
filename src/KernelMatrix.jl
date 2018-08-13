@@ -18,6 +18,7 @@ function kernelmatrix(X1,X2,kernel)
     K = zeros(n1,n2)
     return kernelmatrix!(K,X1,X2,kernel)
 end
+
 """
     Create a symmetric kernel matrix from training data
 """
@@ -40,7 +41,6 @@ end
 """
     Only compute the variance (diagonal elements)
 """
-
 function diagkernelmatrix!(k,X,kernel)
     n = size(k,1)
     for i in 1:n
@@ -58,8 +58,6 @@ end
 """
     Compute derivative of the kernel matrix given kernel hyperparameters
 """
-
-
 function derivativekernelmatrix(kernel,X1,X2)
     return compute_J(kernel,compute_unmappedJ(kernel,X1,X2),size(X1,1),size(X2,1))
 end
@@ -153,8 +151,6 @@ end
 """
     Compute the gradients using a gradient function and matrices Js
 """
-
-
 function compute_hyperparameter_gradient(k::KernelSum,gradient_function::Function,weight::Bool,Js,index)
     gradients = Array{Any,1}()
     for (j,kernel) in enumerate(k.kernel_array)
@@ -188,7 +184,6 @@ end
 """
     Compute derivative matrices given the data points
 """
-
 function CreateColumnRowMatrix(n,iter,gradient)
     K = zeros(n,n)
     K[iter,:] = gradient; K[:,iter] = gradient;
