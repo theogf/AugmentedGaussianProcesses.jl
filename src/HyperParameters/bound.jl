@@ -1,6 +1,6 @@
 abstract type Bound{T} end
 
-eltype{T}(::Bound{T}) = T
+eltype(::Bound{T}) = T where T
 
 struct OpenBound{T<:Real} <: Bound{T}
     value::T
@@ -13,7 +13,7 @@ struct OpenBound{T<:Real} <: Bound{T}
         new{T}(x)
     end
 end
-OpenBound{T<:Real}(x::T) = OpenBound{T}(x)
+OpenBound(x::T) = OpenBound{T}(x) where T<:Real
 
 convert{T<:Real}(::Type{OpenBound{T}}, b::OpenBound{T}) = b
 convert{T<:Real}(::Type{OpenBound{T}}, b::OpenBound) = OpenBound{T}(b.value)

@@ -58,7 +58,6 @@ abstract type Kernel{T<:AbstractFloat} end;
 """
     Distance functions
 """
-
 function compute(k::Kernel,X1::T,X2::T) where {T<:Real}
     compute(k,[X1],[X2])
 end
@@ -104,17 +103,17 @@ function compute_point_deriv{T}(k::KernelSum{T},X1,X2)
     return deriv_values
 end
 
-function Base.:+{T}(a::Kernel{T},b::Kernel{T})
+function Base.:+(a::Kernel{T},b::Kernel{T}) where T
     return KernelSum{T}([a,b])
 end
-function Base.:+{T}(a::KernelSum{T},b::Kernel{T})
+function Base.:+(a::KernelSum{T},b::Kernel{T}) where T
     return KernelSum{T}(vcat(a.kernel_array,b))
 end
-function Base.:+{T}(a::KernelSum{T},b::KernelSum{T})
+function Base.:+(a::KernelSum{T},b::KernelSum{T}) where T
     return KernelSum{T}(vcat(a.kernel_array,b.kernel_array))
 end
 
-function Base.getindex{T}(a::KernelSum{T},i::Int64)
+function Base.getindex(a::KernelSum{T},i::Int64) where T
     return a.kernel_array[i]
 end
 
@@ -122,7 +121,7 @@ mutable struct KernelProduct{T<:AbstractFloat} <: Kernel{T}
     @kernelfunctionfields
     kernel_array::Vector{Kernel{T}} #Array of multiplied kernels
     Nkernels::Int64
-    function KernelProduct{T}(kernels::Vector{Kernel{T}}) where {T<:AbstractFloat}
+    function KernelProduct(kernels::Vector{Kernel{T}}) where {T<:AbstractFloat}
         this = new("Product of kernels",
         HyperParameter(1.0,interval(OpenBound(zero(Float64)),nothing),fixed=true))
         this.kernel_array = deepcopy(Vector{Kernel}(kernels))
@@ -132,15 +131,15 @@ mutable struct KernelProduct{T<:AbstractFloat} <: Kernel{T}
     end
 end
 
-function compute{T}(k::KernelProduct{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
+function compute(k::KernelProduct{T},X1::Vector{T},X2::Vector{T},weight::Bool=true) where T
     product = 1.0
     for kernel in k.kernel_array
         product *= compute(kernel,X1,X2,false)
     end
-    return (weight?getvalue(k.weight):1.0)*product
+    return (weight ? getvalue(k.weight) : 1.0) * product
 end
 
-function compute_deriv{T}(k::KernelProduct{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
+function compute_deriv(k::KernelProduct{T},X1::Vector{T},X2::Vector{T},weight::Bool=true) where T
     tot = compute(k,X1,X2)
     deriv_values = Vector{Vector{Any}}()
     for kernel in k.kernel_array
@@ -152,7 +151,7 @@ function compute_deriv{T}(k::KernelProduct{T},X1::Vector{T},X2::Vector{T},weight
     return deriv_values
 end
 
-function compute_point_deriv{T}(k::KernelProduct{T},X1::Vector{T},X2::Vector{T})
+function compute_point_deriv(k::KernelProduct{T},X1::Vector{T},X2::Vector{T}) where T
     tot = compute(k,X1,X2)
     deriv_values = zeros(X1)
     for kernel in k.kernel_array
@@ -162,16 +161,16 @@ function compute_point_deriv{T}(k::KernelProduct{T},X1::Vector{T},X2::Vector{T})
     return deriv_values
 end
 
-function Base.:*{T}(a::Kernel{T},b::Kernel{T})
+function Base.:*(a::Kernel{T},b::Kernel{T}) where T
     return KernelProduct{T}([a,b])
 end
-function Base.:*{T}(a::KernelProduct{T},b::Kernel{T})
+function Base.:*(a::KernelProduct{T},b::Kernel{T}) where T
     return KernelProduct{T}(vcat(a.kernel_array,b))
 end
-function Base.:*{T}(a::KernelProduct{T},b::KernelSum{T})
+function Base.:*(a::KernelProduct{T},b::KernelSum{T}) where T
     return KernelProduct{T}(vcat(a.kernel_array,b.kernel_array))
 end
-function Base.getindex{T}(a::KernelProduct{T},i::Int64)
+function Base.getindex(a::KernelProduct{T},i::Int64) where T
     return a.kernel_array[i]
 end
 function floattype(T_i::DataType...)
@@ -196,10 +195,10 @@ function RBFKernel(θ::T1=1.0;weight::T2=one(T1)) where {T1<:Real,T2<:Real}
  end
 function compute{T}(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     if X1 == X2
-      return (weight?getvalue(k.weight):1.0)
+      return (weight ? getvalue(k.weight) : 1.0)
     end
-    @assert k.distance(X1,X2)>0  "Problem with distance computation"
-    return (weight?getvalue(k.weight):1.0)*exp(-0.5*(k.distance(X1,X2))^2/(k.param[1]^2))
+    @assert k.distance(X1,X2) > 0  "Problem with distance computation"
+    return (weight ? getvalue(k.weight) : 1.0)*exp(-0.5*(k.distance(X1,X2))^2/(k.param[1]^2))
 end
 #
 function compute_deriv{T}(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
@@ -224,7 +223,6 @@ end
 """
     Laplace Kernel
 """
-
 mutable struct LaplaceKernel{T} <: Kernel{T}
     @kernelfunctionfields
     function LaplaceKernel{T}(θ::T=1.0;weight::T=1.0) where {T<:AbstractFloat}
@@ -234,15 +232,16 @@ mutable struct LaplaceKernel{T} <: Kernel{T}
         1,SquaredEuclidean)
     end
 end
+
 function LaplaceKernel(θ::T1=1.0;weight::T2=one(T1)) where {T1<:Real,T2<:Real}
      LaplaceKernel{floattype(T1,T2)}(θ,weight=weight)
  end
 
 function compute{T}(k::LaplaceKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     if X1 == X2
-      return (weight?getvalue(k.weight):1.0)
+      return (weight ? getvalue(k.weight) : 1.0)
     end
-    return (weight?getvalue(k.weight):1.0)*exp(-k.distance(X1,X2)/(k.param[1]))
+    return (weight ? getvalue(k.weight) : 1.0)*exp(-k.distance(X1,X2)/(k.param[1]))
 end
 #
 function compute_deriv{T}(k::LaplaceKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
@@ -272,7 +271,6 @@ end
     Sigmoid Kernel
     tanh(p1*d+p2)
 """
-
 mutable struct SigmoidKernel{T} <: Kernel{T}
     @kernelfunctionfields
     function SigmoidKernel{T}(θ::Vector{T}=[1.0,0.0];weight::Float64=1.0) where {T<:Real}
@@ -287,7 +285,7 @@ function SigmoidKernel(θ::Vector{T1}=[1.0,0.0];weight::T2=one(T1)) where {T1<:R
  end
 
 function compute{T}(k::SigmoidKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
-    return (weight?getvalue(k.weight):1.0)*tanh(k.param[1]*k.distance(X1,X2)+k.param[2])
+    return (weight ? getvalue(k.weight) : 1.0)*tanh(k.param[1]*k.distance(X1,X2)+k.param[2])
 end
 #
 function compute_deriv{T}(k::SigmoidKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
@@ -309,7 +307,6 @@ end
     Polynomial Kernel
     (p1*d+p2)^p3
 """
-
 mutable struct PolynomialKernel{T} <: Kernel{T}
     @kernelfunctionfields
     function PolynomialKernel{T}(θ::Vector{T}=[1.0,0.0,2.0];weight::T=1.0) where {T<:Real}
@@ -323,7 +320,7 @@ function PolynomialKernel(θ::Vector{T1}=[1.0,0.0,2.0];weight::T2=one(T1)) where
  end
 
 function compute{T}(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
-    return (weight?getvalue(k.weight):1.0)*(k.param[1]*k.distance(X1,X2)+k.param[2])^getvalue(k.param[3])
+    return (weight ? getvalue(k.weight) : 1.0)*(k.param[1]*k.distance(X1,X2)+k.param[2])^getvalue(k.param[3])
 end
 #
 function compute_deriv{T}(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
@@ -344,7 +341,6 @@ end
 """
     ARD Kernel
 """
-
 mutable struct ARDKernel{T} <: Kernel{T}
     @kernelfunctionfields
     function ARDKernel{T}(θ::Vector{T}=[1.0];dim::Int64=0,weight::T=1.0) where {T<:Real}
@@ -371,7 +367,7 @@ function compute{T}(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=tru
     if X1==X2
         return 1.0
     end
-    return (weight?getvalue(k.weight):1.0)*exp(-0.5*norm((X1-X2)./k.param.hyperparameters)^2)
+    return (weight ? getvalue(k.weight) : 1.0)*exp(-0.5*norm((X1-X2)./k.param.hyperparameters)^2)
 end
 #
 function compute_deriv{T}(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
@@ -399,7 +395,6 @@ end
     d= ||X1-X2||^2
     (1+\frac{√(3)d}{ρ})exp(-\frac{√(3)d}{ρ})
 """
-
 mutable struct Matern3_2Kernel{T} <: Kernel{T}
     @kernelfunctionfields
     function Matern3_2Kernel{T}(θ::Float64=1.0;weight::Float64=1.0) where {T<:Real}
@@ -413,7 +408,7 @@ function Matern3_2Kernel(θ::T1=1.0;weight::T2=one(T1)) where {T1<:Real,T2<:Real
  end
 function compute{T}(k::Matern3_2Kernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     d = sqrt(3.0)*k.distance(X1,X2)
-    return (weight?getvalue(k.weight):1.0)*(1.0+d/k.param[1])*exp(-d/k.param[1])
+    return (weight ? getvalue(k.weight) : 1.0)*(1.0+d/k.param[1])*exp(-d/k.param[1])
 end
 #
 function compute_deriv{T}(k::Matern3_2Kernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
@@ -435,7 +430,6 @@ end
     d= ||X1-X2||^2
     (1+\frac{√(5)d}{ρ}+\frac{5d^2}{3ρ^2})exp(-\frac{-√(5)d}{ρ})
 """
-
 mutable struct Matern5_2Kernel{T} <: Kernel{T}
     @kernelfunctionfields
     function Matern5_2Kernel{T}(θ::T=1.0;weight::T=1.0) where {T<:Real}
@@ -451,7 +445,7 @@ function Matern5_2Kernel(θ::T1=1.0;weight::T2=one(T1)) where {T1<:Real,T2<:Real
 
 function compute{T}(k::Matern5_2Kernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
     d = sqrt(5.0)*k.distance(X1,X2)
-    return (weight?getvalue(k.weight):1.0)*(1.0+d/k.param[1]+d^2/(3.0*k.param[1]^2))*exp(-d/k.param[1])
+    return (weight ? getvalue(k.weight) : 1.0)*(1.0+d/k.param[1]+d^2/(3.0*k.param[1]^2))*exp(-d/k.param[1])
 end
 #
 function compute_deriv{T}(k::Matern5_2Kernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true)
