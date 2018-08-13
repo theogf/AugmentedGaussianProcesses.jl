@@ -43,7 +43,7 @@ using StatsBase
 using QuadGK
 using GradDescent
 using ValueHistories
-using Gallium #TODO remove for published version
+# using Gallium #TODO remove for published version
 #Exported models
 export KMeansModule
 export LinearBSVM, BatchBSVM, SparseBSVM

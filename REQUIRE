@@ -5,3 +5,6 @@ Clustering
 GradDescent
 QuadGK
 ValueHistories
+Plots
+PyPlot
+LaTeXStrings
