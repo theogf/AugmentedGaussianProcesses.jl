@@ -18,7 +18,7 @@ gr()
 function plotkernel(kernel::OMGP.Kernel;range=[-1.5,1.5],npoints::Int64=100)
     if kernel.distance == OMGP.InnerProduct
         X1 = ones(npoints);
-        X2 = collect(linspace(range[1],range[2],npoints));
+        X2 = collect(range(range[1],range[2],npoints));
         value = zeros(npoints);
         for i in 1:npoints
             value[i] = OMGP.compute(kernel,X1[i],X2[i])
@@ -26,7 +26,7 @@ function plotkernel(kernel::OMGP.Kernel;range=[-1.5,1.5],npoints::Int64=100)
         plot(X2,value,lab="k(x)",xlabel="x")
     elseif kernel.distance == OMGP.SquaredEuclidean
         X1 = zeros(npoints);
-        X2 = collect(linspace(range[1],range[2],npoints));
+        X2 = collect(range(range[1],range[2],npoints));
         value = zeros(npoints);
         for i in 1:npoints
             value[i] = OMGP.compute(kernel,X1[i],X2[i])
@@ -34,7 +34,7 @@ function plotkernel(kernel::OMGP.Kernel;range=[-1.5,1.5],npoints::Int64=100)
         plot(X2,value,lab="k(x)",xlabel="x")
     elseif kernel.distance == OMGP.Identity
         plotlyjs()
-        x = collect(linspace(range[1],range[2],npoints));
+        x = collect(range(range[1],range[2],npoints));
         value = broadcast((x,y)->OMGP.compute(kernel,x,y),[i for i in x, j in x],[j for i in x, j in x])
         display(plot(x,x,value,t=:contour,fill=true,cbar=true,xlabel="X",ylabel="Y",title="k(X,Y)"))
     end

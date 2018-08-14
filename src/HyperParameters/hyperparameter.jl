@@ -9,7 +9,7 @@ mutable struct HyperParameter{T<:Real}
     function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=Adam(α=0.1)) where {T<:Real}
     # function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=VanillaGradDescent(η=0.001)) where {T<:Real}
         checkvalue(I, x) || error("Value $(x) must be in range " * string(I))
-        new{T}(Ref(x), I, opt, fixed)
+        new{T}(Ref(x), I, fixed, opt)
     end
 end
 HyperParameter(x::T, I::Interval{T} = interval(T); fixed::Bool = false, opt::Optimizer = Adam(α=0.01)) where {T<:Real} = HyperParameter{T}(x, I, fixed, opt)
@@ -26,7 +26,7 @@ end
 
 checkvalue(θ::HyperParameter{T}, x::T) where {T} = checkvalue(θ.interval, x)
 
-convert(::Type{HyperParameter{T}}, θ::HyperParameter{T}) where {T<:Real}= θ
+convert(::Type{HyperParameter{T}}, θ::HyperParameter{T}) where {T<:Real} = θ
 function convert(::Type{HyperParameter{T}}, θ::HyperParameter) where {T<:Real}
     HyperParameter{T}(convert(T, getvalue(θ)), convert(Interval{T}, θ.bounds))
 end

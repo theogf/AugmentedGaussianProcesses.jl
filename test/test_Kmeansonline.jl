@@ -34,7 +34,7 @@ kernel = KernelFunctions.RBFKernel(l)
 
 function sample_gaussian_process(X,noise)
     N = size(X,1)
-    K = KernelFunctions.kernelmatrix(X,kernel)+noise*eye(N)
+    K = KernelFunctions.kernelmatrix(X,kernel)+noise*Diagonal{Float64}(I,N)
     return rand(MvNormal(zeros(N),K))
 end
 dim = 2
@@ -55,8 +55,8 @@ if dorand
 end
 
 N_test = 50
-x1_grid = linspace(minimum(X[:,1]),maximum(X[:,1]),N_test)
-x2_grid = linspace(minimum(X[:,2]),maximum(X[:,2]),N_test)
+x1_grid = range(minimum(X[:,1]),stop=maximum(X[:,1]),length=N_test)
+x2_grid = range(minimum(X[:,2]),stop=maximum(X[:,2]),length=N_test)
 X_test = hcat([i for i in x1_grid, j in x2_grid][:],[j for i in x1_grid, j in x2_grid][:])
 
 ###Basic Offline KMeans
@@ -145,7 +145,7 @@ for i in 2:size(X,1)
     # s_d[i]=1-0.5*d
     K_star = KernelFunctions.kernelmatrix(reshape(X[i,:],1,2),C,kernel)
     k_starstar = KernelFunctions.diagkernelmatrix(reshape(X[i,:],1,2),kernel)
-    invK = inv(K_C+noise*eye(k))
+    invK = inv(K_C+noise*Diagonal(I,k))
     σ = (k_starstar[1]-((K_star*invK)*transpose(K_star))[1])/(k_starstar[1])
     μ = K_star*invK*f[ind_C]
     diff_f = 1-exp(-0.5*(μ[1]-f[i])^2/σ)
@@ -193,7 +193,7 @@ function get_sigma(k_starstar,centers,X_test,kernel,noise)
 # centers = offkmeans.centers
     k_star = KernelFunctions.kernelmatrix(X_test,centers,kernel)
     K = KernelFunctions.kernelmatrix(centers,kernel)
-    return k_starstar-sum((k_star*inv(K+noise*eye(K))).*k_star,2)
+    return k_starstar-sum((k_star*inv(K+noise*Diagonal{Float64}(I,K))).*k_star,2)
 end
 
 σ_off = get_sigma(k_starstar,offkmeans.centers,X_test,kernel,noise)

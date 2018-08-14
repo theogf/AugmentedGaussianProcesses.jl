@@ -34,7 +34,7 @@ function generate_gaussian_data(N,dim,variance=1.0)
     if dim == 1
         d = Normal(0,1)
     else
-        d = MvNormal(zeros(dim),variance*eye(dim))
+        d = MvNormal(zeros(dim),variance*Diagonal{Float64}(I,dim))
     end
     X = rand(d,N)
 end
@@ -83,10 +83,10 @@ if dim == 2
 end
 X = (X-mean(X))/sqrt(var(X))
 if dim == 1
-    X_test = linspace(minimum(X[:,1]),maximum(X[:,1]),N_test)
+    X_test = range(minimum(X[:,1]),maximum(X[:,1]),N_test)
 elseif dim == 2
-    x1_test = linspace(minimum(X[:,1]),maximum(X[:,1]),N_test)
-    x2_test = linspace(minimum(X[:,2]),maximum(X[:,2]),N_test)
+    x1_test = range(minimum(X[:,1]),maximum(X[:,1]),N_test)
+    x2_test = range(minimum(X[:,2]),maximum(X[:,2]),N_test)
     X_test = hcat([j for i in x1_test, j in x2_test][:],[i for i in x1_test, j in x2_test][:])
 end
 k = 100

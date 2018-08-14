@@ -22,15 +22,15 @@ mutable struct SparseBSVM <: SparseModel
             this.Name = "Sparse Nonlinear Bayesian SVM"
             initCommon!(this,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
-            initKernel!(this,kernel);
-            initSparse!(this,m,OptimizeIndPoints);
-            initGaussian!(this,μ_init);
-            initLatentVariables!(this);
             if Stochastic
                 initStochastic!(this,AdaptiveLearningRate,BatchSize,κ_s,τ_s,SmoothingWindow);
             else
                 this.MBIndices = 1:this.nSamples; this.nSamplesUsed = this.nSamples;this.StochCoeff=1.0;
             end
+            initKernel!(this,kernel);
+            initSparse!(this,m,OptimizeIndPoints);
+            initGaussian!(this,μ_init);
+            initLatentVariables!(this);
             return this;
     end
 end

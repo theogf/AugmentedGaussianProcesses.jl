@@ -91,10 +91,10 @@ function update_points!(model::OnlineGPModel)
     if Nnewpoints!=0
         model.μ = vcat(model.μ, zeros(Nnewpoints))
         model.η_1 = vcat(model.η_1, zeros(Nnewpoints))
-        ζ_temp = eye(NCenters)
+        ζ_temp = Matrix{Float64}(I,NCenters,NCenters)
         ζ_temp[1:model.m,1:model.m] = model.ζ
         model.ζ = ζ_temp
-        η_2temp = -0.5*eye(NCenters)
+        η_2temp = Matrix{Float64}(-0.5*I,NCenters,NCenters)
         η_2temp[1:model.m,1:model.m] = model.η_2
         model.η_2 = η_2temp
         model.m = NCenters
@@ -106,11 +106,11 @@ end
 #### Computations of the kernel matrices for the different type of models ####
 function computeMatrices!(model::OnlineGPModel)
     if model.HyperParametersUpdated || model.indpoints_updated
-        model.Kmm = Symmetric(kernelmatrix(model.kmeansalg.centers,model.kernel)+model.noise*eye(model.m))
+        model.Kmm = Symmetric(kernelmatrix(model.kmeansalg.centers,model.kernel)+Diagonal{Float64}(model.noise*I,model.m))
         model.invKmm = inv(model.Kmm)
         Knm = kernelmatrix(model.X[model.MBIndices,:],model.kmeansalg.centers,model.kernel)
         model.κ = Knm/model.Kmm
-        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*Knm,2)[:]
+        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*Knm,dims=2)[:]
         @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
     end
     model.HyperParametersUpdated = false;
@@ -152,7 +152,7 @@ function MCInit!(model::OnlineGPModel)
             # local_updates!(model)
             if model.ModelType==BSVM
                 Z = Diagonal(model.y[model.MBIndices])*model.κ;
-                model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,2),2)+model.Ktilde;
+                model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,dims=2),2)+model.Ktilde;
                 (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invKmm, model.StochCoeff)
             elseif model.ModelType==XGPC
                 model.α[model.MBIndices] = sqrt.(model.Ktilde+diag(model.κ*model.ζ*model.κ')+(model.κ*model.μ).^2)

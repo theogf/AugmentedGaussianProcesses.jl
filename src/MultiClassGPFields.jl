@@ -14,7 +14,7 @@ Function initializing the kernelfields
 function initMultiClassKernel!(model::GPModel,kernel,IndependentGPs)
     #Initialize parameters common to all models containing kernels and check for consistency
     if kernel == 0
-      warn("No kernel indicated, a rbf kernel function with lengthscale 1 is used")
+      @warn "No kernel indicated, a rbf kernel function with lengthscale 1 is used"
       kernel = RBFKernel(1.0)
     end
     model.IndependentGPs = IndependentGPs
@@ -55,7 +55,7 @@ function initMultiClassStochastic!(model::GPModel,AdaptiveLearningRate,BatchSize
     model.κ_s = κ_s; model.τ_s = τ_s; model.SmoothingWindow = SmoothingWindow;
     if (model.nSamplesUsed <= 0 || model.nSamplesUsed > model.nSamples)
 ################### TODO MUST DECIDE FOR DEFAULT VALUE OR STOPPING STOCHASTICITY ######
-        warn("Invalid value for the BatchSize : $BatchSize, assuming a full batch method")
+        @warn "Invalid value for the BatchSize : $BatchSize, assuming a full batch method"
         model.nSamplesUsed = model.nSamples; model.Stochastic = false;
     end
     model.StochCoeff = model.nSamples/model.nSamplesUsed
@@ -114,13 +114,13 @@ end
 function initMultiClassVariables!(model,μ_init)
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
       if model.VerboseLevel > 2
-        warn("Initial mean of the variational distribution is sampled from a multivariate normal distribution")
+        @warn "Initial mean of the variational distribution is sampled from a multivariate normal distribution"
       end
       model.μ = [randn(model.nFeatures) for i in 1:model.K]
     else
       model.μ = [μ_init for i in 1:model.K]
     end
-    model.ζ = [eye(model.nFeatures) for i in 1:model.K]
+    model.ζ = [Matrix{Float64}(I,model.nFeatures,model.nFeatures) for i in 1:model.K]
     model.η_2 = broadcast(x->-0.5*inv(x),model.ζ)
     model.η_1 = -2.0*model.η_2.*model.μ
     if model.Stochastic
@@ -158,10 +158,10 @@ function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool)
     #Initialize parameters for the sparse model and check consistency
     minpoints = 56;
     if m > model.nSamples
-        warn("There are more inducing points than actual points, setting it to 10%")
+        @warn "There are more inducing points than actual points, setting it to 10%"
         m = min(minpoints,model.nSamples÷10)
     elseif m == 0
-        warn("Number of inducing points was not manually set, setting it to 10% of the datasize (minimum of $minpoints points)")
+        @warn "Number of inducing points was not manually set, setting it to 10% of the datasize (minimum of $minpoints points)"
         m = min(minpoints,model.nSamples÷10)
     end
     model.m = m; model.nFeatures = model.m;

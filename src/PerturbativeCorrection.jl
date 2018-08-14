@@ -46,7 +46,7 @@ function correctedpredict(model,X_test)
     A = kstar*model.invK
     meanfstar = A*model.μ
     meanfstar_corr = meanfstar + meancorrection(model.μ,model.ζ,model.α,A*model.ζ)
-    covfstar = kstarstar + diag(A*(model.ζ*model.invK-eye(model.nSamples))*transpose(kstar))
+    covfstar = kstarstar + diag(A*(model.ζ*model.invK-Diagonal{Float64}(I,model.nSamples))*transpose(kstar))
     covfstar_corr = covfstar + varcorrection(meanfstar,model.μ,model.ζ,model.α;fstar_corr=meanfstar_corr)
     predic = zeros(n)
     for i in 1:n

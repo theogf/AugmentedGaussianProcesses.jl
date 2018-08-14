@@ -1,8 +1,7 @@
 include("../src/OMGP.jl")
-import OMGP
 using Distributions
 using StatsBase
-using Gallium
+# using Gallium
 using MLDatasets
 using PyCall
 
@@ -23,23 +22,23 @@ function latent(X)
     return sqrt.(X[:,1].^2+X[:,2].^2)
 end
 dim=2
-X = (rand(N_data,dim)*(maxx-minx))+minx
+X = (rand(N_data,dim)*(maxx-minx)).+minx
 trunc_d = Truncated(Normal(0,3),minx,maxx)
 X = rand(trunc_d,N_data,dim)
-x_test = linspace(minx,maxx,N_test)
+x_test = range(minx,stop=maxx,length=N_test)
 X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
 # X_test = rand(trunc_d,N_test^dim,dim)
 y = min.(max.(1,floor.(Int64,latent(X)+rand(Normal(0,noise),size(X,1)))),N_class)
 y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 
 X,y = sk.make_classification(n_samples=N_data,n_features=dim,n_classes=N_class,n_clusters_per_class=1,n_informative=dim,n_redundant=0)
-y+=1
+y.+=1
 X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 
-X,y = MNIST.traindata()
-X=Float64.(reshape(X,28*28,60000)')
-X_test,y_test = MNIST.testdata()
-X_test=Float64.(reshape(X_test,28*28,10000)')
+# X,y = MNIST.traindata()
+# X=Float64.(reshape(X,28*28,60000)')
+# X_test,y_test = MNIST.testdata()
+# X_test=Float64.(reshape(X_test,28*28,10000)')
 
 #Test on the Iris dataet
 # train = readdlm("data/iris-X")
@@ -53,13 +52,13 @@ X_test=Float64.(reshape(X_test,28*28,10000)')
 # X = data[1:150,1:(end-1)]; y=data[1:150,end]
 # X_test = data[151:end,1:(end-1)]; y_test=data[151:end,end]
 
-function norm_data(input_df)
-    for i in 1:size(input_df,2)
-        input_df[:,i] = (input_df[:,i] - mean(input_df[:,i])) ./
-            (var(input_df[:,i])==0?1:sqrt(var(input_df[:,i])))
-    end
-    return input_df
-end
+# function norm_data(input_df)
+#     for i in 1:size(input_df,2)
+#         input_df[:,i] = (input_df[:,i] - mean(input_df[:,i])) ./
+#             (var(input_df[:,i])==0?1:sqrt(var(input_df[:,i])))
+#     end
+#     return input_df
+# end
 
 #### Test on the mnist dataset
 # X = readdlm("data/mnist_train")
@@ -103,7 +102,7 @@ if full
     full_score = 0
     for (i,pred) in enumerate(y_full)
         if pred == y_test[i]
-            full_score += 1
+            global full_score += 1
         end
     end
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s for l = $l")
@@ -130,7 +129,7 @@ if sparse
     end
     for (i,pred) in enumerate(y_sparse)
         if pred == y_test[i]
-            sparse_score += 1
+            global sparse_score += 1
         end
     end
     println("Sparse model Accuracy is $(sparse_score/length(y_test)) in $t_sparse s")
@@ -146,7 +145,7 @@ if doMCCompare
 end
 println("Sampling done")
 function logit(x)
-    return 1./(1+exp.(-x))
+    return 1.0./(1.0.+exp.(-x))
 end
 #
 if true

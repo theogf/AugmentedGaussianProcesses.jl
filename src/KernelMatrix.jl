@@ -74,7 +74,7 @@ end
 function compute_unmappedJ(kernel,X1,X2)
     n1 = size(X1,1)
     n2 = size(X2,1)
-    J = Array{Any,2}(n1,n2)
+    J = Array{Any,2}(undef,n1,n2)
     for i in 1:n1
         for j in 1:n2
             J[i,j] = compute_deriv(kernel,X1[i,:],X2[j,:],true)
@@ -85,7 +85,7 @@ end
 
 function compute_unmappedJ(kernel,X)
     n = size(X,1)
-    J = Array{Any,2}(n,n)
+    J = Array{Any,2}(undef,n,n)
     for i in 1:n
         for j in 1:i
             J[i,j] = compute_deriv(kernel,X[i,:],X[j,:],true)
@@ -99,7 +99,7 @@ end
 
 function compute_unmappeddiagJ(kernel,X)
     n = size(X,1)
-    J = Array{Any,1}(n)
+    J = Array{Any,1}(undef,n)
     for i in 1:n
         J[i] = compute_deriv(kernel,X[i,:],X[i,:],true)
     end

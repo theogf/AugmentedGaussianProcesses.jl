@@ -85,7 +85,7 @@ function initStochastic!(model::GPModel,AdaptiveLearningRate,BatchSize,κ_s,τ_s
     model.κ_s = κ_s; model.τ_s = τ_s; model.SmoothingWindow = SmoothingWindow;
     if (model.nSamplesUsed <= 0 || model.nSamplesUsed > model.nSamples)
 ################### TODO MUST DECIDE FOR DEFAULT VALUE OR STOPPING STOCHASTICITY ######
-        warn("Invalid value for the BatchSize : $BatchSize, assuming a full batch method")
+        @warn "Invalid value for the BatchSize : $BatchSize, assuming a full batch method"
         model.nSamplesUsed = model.nSamples; model.Stochastic = false;
     end
     model.StochCoeff = model.nSamples/model.nSamplesUsed
@@ -107,7 +107,7 @@ Function initializing the kernelfields
 function initKernel!(model::GPModel,kernel)
     #Initialize parameters common to all models containing kernels and check for consistency
     if kernel == 0
-      warn("No kernel indicated, a rbf kernel function with lengthscale 1 is used")
+      @warn "No kernel indicated, a rbf kernel function with lengthscale 1 is used"
       kernel = RBFKernel(1.0)
     end
     model.kernel = deepcopy(kernel)
@@ -133,10 +133,10 @@ function initSparse!(model::GPModel,m,optimizeIndPoints)
     #Initialize parameters for the sparse model and check consistency
     minpoints = 64;
     if m > model.nSamples
-        warn("There are more inducing points than actual points, setting it to min($minpoints,10%)")
+        @warn "There are more inducing points than actual points, setting it to min($minpoints,10%)"
         m = min(minpoints,model.nSamples÷10)
     elseif m == 0
-        warn("Number of inducing points was not manually set, setting it to min($minpoints,10%)")
+        @warn "Number of inducing points was not manually set, setting it to min($minpoints,10%)"
         m = min(minpoints,model.nSamples÷10)
     end
     model.m = m; model.nFeatures = model.m;
@@ -166,13 +166,13 @@ function initGaussian!(model::GPModel,μ_init)
     #Initialize gaussian parameters and check for consistency
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
       if model.VerboseLevel > 2
-        warn("Initial mean of the variational distribution is sampled from a multivariate normal distribution")
+        @warn "Initial mean of the variational distribution is sampled from a multivariate normal distribution"
       end
       model.μ = randn(model.nFeatures)
     else
       model.μ = μ_init
     end
-    model.ζ = eye(model.nFeatures)
+    model.ζ = Matrix{Float64}(I,model.nFeatures,model.nFeatures)
     model.η_2 = -0.5*inv(model.ζ)
     model.η_1 = -2.0*model.η_2*model.μ
 end

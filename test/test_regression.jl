@@ -1,7 +1,7 @@
 
 using Distributions
 include("../src/OMGP.jl")
-import OMGP
+# import OMGP
 
 N_data = 200
 N_test = 20
@@ -12,8 +12,8 @@ maxx=5.0
 function latent(x)
     return x[:,1].*sin.(x[:,2])
 end
-X = rand(N_data,N_dim)*(maxx-minx)+minx
-x_test = linspace(minx,maxx,N_test)
+X = rand(N_data,N_dim)*(maxx-minx).+minx
+x_test = range(minx,stop=maxx,length=N_test)
 X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
 y = latent(X)+rand(Normal(0,noise),size(X,1))
 y_test = latent(X_test)

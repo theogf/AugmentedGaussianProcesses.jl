@@ -29,15 +29,15 @@ end
 
 function local_updates!(model::SparseMultiClass)
     if model.IndependentGPs
-        C = broadcast((m,var,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,2)[:]+(kappa*m).^2),model.μ,model.ζ,model.κ,model.Ktilde)
+        C = broadcast((m,var,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,dims=2)[:]+(kappa*m).^2),model.μ,model.ζ,model.κ,model.Ktilde)
         model.θ[1] = [0.5./C[model.y_class[i]][iter]*tanh(0.5*C[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices) ];
         for l in 1:model.nInnerLoops
             # model.γ = broadcast((c,kappa,μ)->0.5./(cosh.(0.5.*c).*model.β).*exp.(digamma.(model.α).-0.5.*kappa*μ),C,model.κ,model.μ)
-            model.γ = broadcast((c,kappa,μ)->0.5.*model.β./(cosh.(0.5.*c).*gamma.(model.α)).*exp.(-model.α-(1-model.α).*digamma.(model.α).-0.5.*kappa*μ),C,model.κ,model.μ)
+            model.γ = broadcast((c,kappa,μ)->0.5.*model.β./(cosh.(0.5.*c).*gamma.(model.α)).*exp.(-model.α-(1.0.-model.α).*digamma.(model.α).-0.5.*kappa*μ),C,model.κ,model.μ)
             model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamplesUsed]
         end
     else
-        C = broadcast((m,var)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*var).*model.κ[1],2)[:]+(model.κ[1]*m).^2),model.μ,model.ζ)
+        C = broadcast((m,var)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*var).*model.κ[1],dims=2)[:]+(model.κ[1]*m).^2),model.μ,model.ζ)
         model.θ[1] = [0.5./C[model.y_class[i]][iter]*tanh(0.5*C[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices) ];
         for l in 1:model.nInnerLoops
             # model.γ = broadcast((c,μ)->0.5./(cosh.(0.5.*c).*model.β).*exp.(digamma.(model.α).-0.5.*model.κ[1]*μ),C,model.μ)
@@ -49,7 +49,7 @@ function local_updates!(model::SparseMultiClass)
 end
 
 function global_updates!(model::SparseMultiClass,grad_1,grad_2)
-    model.η_1 = (1.0-model.ρ_s).*model.η_1 + model.ρ_s.*grad_1; model.η_2 = (1.0-model.ρ_s).*model.η_2 + model.ρ_s.*grad_2 #Update of the natural parameters with noisy/full natural gradient
+    model.η_1 = (1.0.-model.ρ_s).*model.η_1 + model.ρ_s.*grad_1; model.η_2 = (1.0.-model.ρ_s).*model.η_2 + model.ρ_s.*grad_2 #Update of the natural parameters with noisy/full natural gradient
     model.ζ = broadcast(x->-0.5*inv(x),model.η_2); model.μ = model.ζ.*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
@@ -66,7 +66,7 @@ function naturalGradientELBO_MultiClass(Y,θ_0,θ,invK,γ;stoch_coeff=1.0,MBIndi
     else
         #Varying inducing points
         grad_1 = broadcast((y,kappa,gamma)->0.5*stoch_coeff*kappa'*(y[MBIndices]-gamma),Y,κ,γ)
-        grad_2 = broadcast((y,kappa,theta,invKmm)->-0.5*(stoch_coeff*kappa'*(diagm(y[MBIndices].*θ_0+theta))*kappa+invKmm),Y,κ,θ,invK)
+        grad_2 = broadcast((y,kappa,theta,invKmm)->-0.5*(stoch_coeff*kappa'*(Diagonal(y[MBIndices].*θ_0+theta))*kappa+invKmm),Y,κ,θ,invK)
     end
     return grad_1,grad_2
 end
@@ -82,22 +82,22 @@ function ELBO(model::MultiClass)
 end
 
 function ELBO(model::SparseMultiClass)
-    ELBO_v = -model.nSamples*log(2.0)+0.5*model.K*model.m+model.StochCoeff*(sum(model.α-log.(model.β)+log.(gamma.(model.α)))+dot(1-model.α,digamma.(model.α)))
+    ELBO_v = -model.nSamples*log(2.0)+0.5*model.K*model.m+model.StochCoeff*(sum(model.α-log.(model.β)+log.(gamma.(model.α)))+dot(1.0.-model.α,digamma.(model.α)))
     if model.IndependentGPs
-        C = broadcast((var,m,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,2)+(kappa*m).^2),model.ζ,model.μ,model.κ,model.Ktilde)
+        C = broadcast((var,m,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,dims=2)+(kappa*m).^2),model.ζ,model.μ,model.κ,model.Ktilde)
         ELBO_v += 0.5*sum(broadcast((y,gam,mu,theta,sigma,invK,kappa,ktilde)->model.StochCoeff*dot(y[model.MBIndices]-gam,kappa*mu)-
                       sum((model.StochCoeff*kappa'*Diagonal(y[model.MBIndices].*model.θ[1]+theta)*kappa+invK).*(sigma+mu*(mu')))-
                       model.StochCoeff*dot(y[model.MBIndices].*model.θ[1]+theta,ktilde),model.Y,model.γ,model.μ,model.θ[2:end],
                       model.ζ,model.invKmm,model.κ,model.Ktilde))
     else
-        C = broadcast((var,m)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*var).*model.κ[1],2)+(model.κ[1]*m).^2),model.ζ,model.μ)
+        C = broadcast((var,m)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*var).*model.κ[1],dims=2)+(model.κ[1]*m).^2),model.ζ,model.μ)
         ELBO_v += 0.5*sum(broadcast((y,gam,mu,theta,sigma)->model.StochCoeff*dot(y[model.MBIndices]-gam,model.κ[1]*mu)-
                       sum((model.StochCoeff*model.κ[1]'*Diagonal(y[model.MBIndices].*model.θ[1]+theta)*model.κ[1]+model.invKmm[1]).*(sigma+mu*(mu')))-
                       model.StochCoeff*dot(y[model.MBIndices].*model.θ[1]+theta,model.Ktilde[1]),
                       model.Y,model.γ,model.μ,model.θ[2:end],model.ζ))
     end
     ELBO_v += 0.5*sum(logdet.(model.invKmm).+logdet.(model.ζ))
-    ELBO_v += model.StochCoeff*sum(broadcast((gam,c,theta)->dot(gam,-log(2)-log.(gam)+1.0+digamma.(model.α)-log.(model.β))-sum(log.(cosh.(0.5*c)))+0.5*dot(c,c.*theta),model.γ,C,model.θ[2:end]))
+    ELBO_v += model.StochCoeff*sum(broadcast((gam,c,theta)->dot(gam,-log(2).-log.(gam).+1.0.+digamma.(model.α)-log.(model.β))-sum(log.(cosh.(0.5*c)))+0.5*dot(c,c.*theta),model.γ,C,model.θ[2:end]))
     ELBO_v += model.StochCoeff*sum([-log.(cosh.(0.5*C[model.y_class[i]][iter]))-0.5*model.θ[1][iter]*(C[model.y_class[i]][iter]^2) for (iter,i) in enumerate(model.MBIndices)])
     return -ELBO_v
 end
@@ -105,13 +105,13 @@ end
 #Return the negative gradient of the ELBO
 function hyperparameter_gradient_function(model::MultiClass)
     if model.IndependentGPs
-        A = [model.invK[i]*(model.ζ[i]+model.µ[i]*model.μ[i]')-eye(model.nSamples) for i in 1:model.K]
+        A = [model.invK[i]*(model.ζ[i]+model.µ[i]*model.μ[i]')-Diagonal{Float64}(I,model.nSamples) for i in 1:model.K]
         return function(Js,index)
                     V = model.invK[index].*Js[1] #invK*Js
                     return 0.5*sum(V.*transpose(A[index]))
                 end
     else
-        A = [model.invK[1]*(model.ζ[i]+model.µ[i]*model.μ[i]')-eye(model.nSamples) for i in 1:model.K]
+        A = [model.invK[1]*(model.ζ[i]+model.µ[i]*model.μ[i]')-Diagonal{Float64}(I,model.nSamples) for i in 1:model.K]
         return function(Js,index)
             V = matrices[1].*Js[1] #invK*Js
             return 0.5*sum([sum(V.*transpose(A[i])) for i in 1:model.K])
@@ -127,14 +127,14 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
         return function(Js,index)
                     Jmm = Js[1]; Jnm =Js[2]; Jnn = Js[3];
                     ι = (Jnm-model.κ[index]*Jmm)*model.invKmm[index]
-                    Jtilde = Jnn - sum(ι.*transpose(Kmn[index]),2) - sum(model.κ[index].*Jnm,2)
+                    Jtilde = Jnn - sum(ι.*transpose(Kmn[index]),dims=2) - sum(model.κ[index].*Jnm,dims=2)
                     V = model.invKmm[index]*Jmm
                     # println("$index, $(mean(diag(V*model.invKmm[index])))")
                     # println("$index, $(sum((V*model.invKmm[index]).*B[index]))")
                     return 0.5*sum( (V*model.invKmm[index]
                             -model.StochCoeff*(ι'*Diagonal(model.θ[index+1])*model.κ[index]
                                                 - model.κ[index]'*Diagonal(model.θ[index+1])*ι)).*B[index]')
-                            -trace(V)-model.StochCoeff*dot(model.θ[1].*model.Y[index][model.MBIndices],Jtilde)
+                            -tr(V)-model.StochCoeff*dot(model.θ[1].*model.Y[index][model.MBIndices],Jtilde)
                             + model.StochCoeff*dot(model.Y[index][model.MBIndices]-model.γ[index],ι*model.μ[index])
          end #end of function(Js)
     else
@@ -143,11 +143,11 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
             #matrices L: [1]Kmm, [2]invKmm, [3]κ
                     Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
                     ι = (Jnm-model.κ[1]*Jmm)/model.Kmm[1]
-                    Jtilde = Jnn - sum(ι.*transpose(Kmn),2) - sum(model.κ[1].*Jnm,2)
+                    Jtilde = Jnn - sum(ι.*transpose(Kmn),dims=2) - sum(model.κ[1].*Jnm,dims=2)
                     V = model.Kmm[1]\Jmm
                     return sum(broadcast((theta,b,y,gam,mu)->
                         0.5*(sum((V/model.Kmm[1]-model.StochCoeff*(ι'*theta*model.κ[1]+model.κ[1]'*theta*ι)).*b')
-                        -trace(V)-model.StochCoeff*dot(model.θ[1].*y[model.MBIndices],Jtilde)
+                        -tr(V)-model.StochCoeff*dot(model.θ[1].*y[model.MBIndices],Jtilde)
                         + model.StochCoeff*dot(y[model.MBIndices]-gam,ι*mu)),
                         Diagonal.(model.θ[2:end]),B,model.Y,model.γ,model.μ)) #arguments
         end#end of function(Js)

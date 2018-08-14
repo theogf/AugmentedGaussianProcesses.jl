@@ -39,6 +39,9 @@ include("GPAnalysisTools.jl")
 using .GPAnalysisTools
 #General modules
 using Distributions
+using LinearAlgebra
+using SpecialFunctions
+using Dates
 using StatsBase
 using QuadGK
 using GradDescent

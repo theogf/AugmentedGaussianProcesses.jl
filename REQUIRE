@@ -1,5 +1,7 @@
 julia 0.7
 Distributions
+SpecialFunctions
+Dates
 StatsBase
 SparseArrays
 Clustering
@@ -7,3 +9,4 @@ GradDescent
 QuadGK
 ValueHistories
 LaTeXStrings
+LinearAlgebra

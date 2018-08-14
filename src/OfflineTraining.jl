@@ -100,7 +100,7 @@ end
 #### Computations of the kernel matrices for the different type of models ####
 function computeMatrices!(model::FullBatchModel)
     if model.HyperParametersUpdated
-        model.Knn = Symmetric(kernelmatrix(model.X,model.kernel) + model.noise*eye(model.nFeatures))
+        model.Knn = Symmetric(kernelmatrix(model.X,model.kernel) + Diagonal{Float64}(model.noise*I,model.nFeatures))
         model.invK = inv(model.Knn)
         model.HyperParametersUpdated = false
     end
@@ -108,7 +108,7 @@ end
 
 function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated
-        model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+model.noise*eye(model.nFeatures))
+        model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+Diagonal{Float64}(model.noise*I,model.nFeatures))
         model.invKmm = inv(model.Kmm)
     end
     #If change of hyperparameters or if stochatic
@@ -116,8 +116,8 @@ function computeMatrices!(model::SparseModel)
         Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
         model.κ = Knm/model.Kmm
         #println( diagkernelmatrix(model.X[model.MBIndices,:],model.kernel))
-        #println(sum(model.κ.*Knm,2)[:])
-        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*Knm,2)[:]
+        #println(sum(model.κ.*Knm,dims=2)[:])
+        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*Knm,dims=2)[:]
         #println(model.Ktilde)
         #+ model.noise*ones(length(model.MBIndices))
         @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
@@ -128,7 +128,7 @@ end
 
 function computeMatrices!(model::LinearModel)
     if model.HyperParametersUpdated
-        model.invΣ =  (1.0/model.noise)*eye(model.nFeatures)
+        model.invΣ = Matrix{Float64}(I/model.noise,model.nFeatures,model.nFeatures)
         model.HyperParametersUpdated = false
     end
 end
@@ -136,9 +136,9 @@ end
 function computeMatrices!(model::MultiClass)
     if model.HyperParametersUpdated
         if model.IndependentGPs
-            model.Knn = [Symmetric(kernelmatrix(model.X,model.kernel[i]) + model.noise*eye(model.nFeatures)) for i in 1:model.K]
+            model.Knn = [Symmetric(kernelmatrix(model.X,model.kernel[i]) + Diagonal{Float64}(model.noise*I,model.nFeatures)) for i in 1:model.K]
         else
-            model.Knn = [Symmetric(kernelmatrix(model.X,model.kernel[1]) + model.noise*eye(model.nFeatures))]
+            model.Knn = [Symmetric(kernelmatrix(model.X,model.kernel[1]) + Diagonal{Float64}(model.noise*I,model.nFeatures))]
         end
         model.invK = inv.(model.Knn)
         model.HyperParametersUpdated = false
@@ -148,9 +148,9 @@ end
 function computeMatrices!(model::SparseMultiClass)
     if model.HyperParametersUpdated
         if model.IndependentGPs
-            model.Kmm = broadcast((points,kernel)->Symmetric(kernelmatrix(points,kernel)+model.noise*eye(model.nFeatures)),model.inducingPoints,model.kernel)
+            model.Kmm = broadcast((points,kernel)->Symmetric(kernelmatrix(points,kernel)+Diagonal{Float64}(model.noise*I,model.nFeatures)),model.inducingPoints,model.kernel)
         else
-            model.Kmm = [Symmetric(kernelmatrix(model.inducingPoints[1],model.kernel[1])+model.noise*eye(model.nFeatures))]
+            model.Kmm = [Symmetric(kernelmatrix(model.inducingPoints[1],model.kernel[1])+Diagonal{Float64}(model.noise*I,model.nFeatures))]
         end
         model.invKmm = inv.(model.Kmm)
     end
@@ -159,11 +159,11 @@ function computeMatrices!(model::SparseMultiClass)
         if model.IndependentGPs
             Knm = broadcast((points,kernel)->kernelmatrix(model.X[model.MBIndices,:],points,kernel),model.inducingPoints,model.kernel)
             model.κ = Knm./model.Kmm
-            model.Ktilde = broadcast((knm,kappa,kernel)->diagkernelmatrix(model.X[model.MBIndices,:],kernel) - sum(kappa.*knm,2)[:],Knm,model.κ,model.kernel)
+            model.Ktilde = broadcast((knm,kappa,kernel)->diagkernelmatrix(model.X[model.MBIndices,:],kernel) - sum(kappa.*knm,dims=2)[:],Knm,model.κ,model.kernel)
         else
             Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1])
             model.κ = [Knm/model.Kmm[1]]
-            model.Ktilde = [diagkernelmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*Knm,2)[:]]
+            model.Ktilde = [diagkernelmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*Knm,dims=2)[:]]
         end
         @assert sum(count.(broadcast(x->x.<0,model.Ktilde)))==0 "Ktilde has negative values"
     end
@@ -218,10 +218,10 @@ function MCInit!(model::GPModel)
             # local_updates!(model)
             if model.ModelType==BSVM
                 Z = Diagonal(model.y[model.MBIndices])*model.κ;
-                model.α = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,2),2)+model.Ktilde;
+                model.α = (1 .- Z*model.μ).^2 +  dropdims(sum((Z*model.ζ).*Z,dims=2),dims=2)+model.Ktilde;
                 (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α,Z, model.invKmm, model.StochCoeff)
             elseif model.ModelType==XGPC
-                model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,2)[:]+(model.κ*model.μ).^2)
+                model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
                 θ = (1.0./(2.0*model.α)).*tanh.(model.α./2.0)
                 (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θ,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
             elseif model.ModelType==Regression

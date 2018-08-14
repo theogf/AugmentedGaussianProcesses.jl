@@ -30,7 +30,7 @@ else
         return sin.(2*x)
     end
     X_data = reshape(sort(rand(N_data))*10.0,:,1)
-    X_test = collect(linspace(0,10.0,N_test))
+    X_test = collect(range(0,stop=10.0,length=N_test))
     y_data = sign.(1.0./(1.0+exp.(-latent(X_data)+rand(Normal(0,noise),length(X_data))))-0.5)
     y_test = sign.(1.0./(1.0+exp.(-latent(X_test)+rand(Normal(0,noise),length(X_test))))-0.5)
     X=X_data; y=y_data

@@ -53,8 +53,8 @@ end
 
 
 function hyper_parameter_gradient_function(model::GPRegression)
-    A = model.invK*(model.y*transpose(model.y))-eye(model.nSamples)
-    return function(Js)
+    A = model.invK*(model.y*transpose(model.y))-Diagonal{Float64}(I,model.nSamples)
+    return function(Js,iter)
                 V = model.invK*Js[1]
                 return 0.5*sum(V_param.*transpose(A))
             end
@@ -63,12 +63,12 @@ end
 function hyperparameter_gradient_function(model::SparseGPRegression)
     B = model.μ*transpose(model.μ) + model.ζ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
-    return function(Js)
+    return function(Js,iter)
             Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
             ι = (Jnm-model.κ*Jmm)*model.invKmm
-            Jtilde = Jnn - sum(ι.*transpose(Kmn),2) - sum(model.κ.*Jnm,2)
+            Jtilde = Jnn - sum(ι.*transpose(Kmn),dims=2) - sum(model.κ.*Jnm,dims=2)
             V = model.invKmm*Jmm
-            return 0.5*(sum( (V*model.invKmm - model.StochCoeff/model.noise*(ι'*model.κ + model.κ'*ι)) .* transpose(B)) - trace(V) - model.StochCoeff/model.noise*sum(Jtilde)
+            return 0.5*(sum( (V*model.invKmm - model.StochCoeff/model.noise*(ι'*model.κ + model.κ'*ι)) .* transpose(B)) - tr(V) - model.StochCoeff/model.noise*sum(Jtilde)
              + 2*model.StochCoeff/model.noise*dot(model.y[model.MBIndices],ι*model.μ))
         end
 end
@@ -79,9 +79,9 @@ function inducingpoints_gradient(model::SparseGPRegression)
             Jnm,Jmm = computeIndPointsJ(model,i)
             for j in 1:dim #iterate over the dimensions
                 ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
-                Jtilde = -sum(ι.*transpose(Kmn),2)-sum(model.κ.*Jnm[j,:,:],2)
+                Jtilde = -sum(ι.*transpose(Kmn),dims=2)-sum(model.κ.*Jnm[j,:,:],dims=2)
                 V = model.invKmm*Jmm[j,:,:]
-                gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff/model.noise*(ι'*model.κ+model.κ'*ι)).*transpose(B))-trace(V)-model.StochCoeff/model.noise*Jtilde
+                gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff/model.noise*(ι'*model.κ+model.κ'*ι)).*transpose(B))-tr(V)-model.StochCoeff/model.noise*Jtilde
                  + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
             end
         end

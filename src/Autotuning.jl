@@ -2,7 +2,7 @@
 
 #### Optimization of the hyperparameters #### #TODO
 function updateHyperParameters!(model::LinearModel,iter::Integer)
-    grad_noise = 0.5*((trace(model.ζ)+norm(model.μ))/(model.noise^2.0)-model.nFeatures/model.noise);
+    grad_noise = 0.5*((tr(model.ζ)+norm(model.μ))/(model.noise^2.0)-model.nFeatures/model.noise);
     if model.VerboseLevel > 2
         println("Grad noise : $(grad_noise)")
     end
@@ -46,7 +46,7 @@ function updateHyperParameters!(model::SparseModel)
 end
 
 function hyperparameter_gradient_function(model::FullBatchModel)
-    A = model.invK*(model.ζ+model.µ*transpose(model.μ))-eye(model.nSamples)
+    A = model.invK*(model.ζ+model.µ*transpose(model.μ))-Diagonal{Float64}(I,model.nSamples)
     return function(Js)
                 V = model.invK*Js[1]
                 return 0.5*sum(V.*transpose(A))

@@ -5,7 +5,7 @@
 
 module KernelFunctions
 
-
+using LinearAlgebra
 include("HyperParameters/HyperParametersMod.jl")
 using .HyperParametersMod:
     Bound,
@@ -201,12 +201,12 @@ function compute(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true) 
       return (weight ? getvalue(k.weight) : 1.0)
     end
     @assert k.distance(X1,X2) > 0  "Problem with distance computation"
-    return (weight ? getvalue(k.weight) : 1.0)*exp(-0.5*(k.distance(X1,X2))^2/(k.param[1]^2))
+    return (weight ? getvalue(k.weight) : 1.0)*exp(-0.5*(k.distance(X1,X2))^2/(getvalue(k.param[1])^2))
 end
 #
 function compute_deriv(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},weight::Bool=true) where T
     a = k.distance(X1,X2)
-    grad = a^2/((k.param[1])^3)*compute(k,X1,X2,false)
+    grad = a^2/(getvalue(k.param[1])^3)*compute(k,X1,X2,false)
     if weight
         return [getvalue(k.weight)*grad,compute(k,X1,X2)]
     else
@@ -351,7 +351,7 @@ mutable struct ARDKernel{T} <: Kernel{T}
             error("You defined an ARD kernel without precising the number of dimensions
                              Please set dim in your kernel initialization or use ARDKernel(X,θ)")
         elseif dim!=0 && (length(θ)!=dim && length(θ)!=1)
-            warn("You did not use the same dimension for your params and dim, using the first value of params for all dimensions")
+            @warn "You did not use the same dimension for your params and dim, using the first value of params for all dimensions"
             θ = ones(dim,T=T)*θ[1]
         elseif length(θ)==1 && dim!=0
             θ = ones(dim)*θ[1]
@@ -489,7 +489,7 @@ end
 #                 error("You defined an ARD kernel without precising the number of dimensions
 #                 Please set dim in your kernel initialization")
 #             elseif dim!=0 && (length(params)!=dim && length(params)!=1)
-#                 warn("You did not use the same dimension for your params and dim, using the first value of params for all dimensions")
+#                 @warn "You did not use the same dimension for your params and dim, using the first value of params for all dimensions"
 #                 this.param = ones(dim)*params[1]
 #             elseif length(params)==1 && dim!=0
 #                 this.param = ones(dim)*params[1]

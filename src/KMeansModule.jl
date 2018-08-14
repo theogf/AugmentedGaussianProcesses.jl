@@ -3,6 +3,7 @@ module KMeansModule
 
 using Distributions
 using StatsBase
+using LinearAlgebra
 using Clustering
 using OMGP.KernelFunctions
 
@@ -57,10 +58,10 @@ function update_model!(model,new_centers,new_vals)
         model.μ = vcat(model.μ, new_vals)
         model.η_1 = vcat(model.η_1, -0.5*new_vals)
         m_ζ = mean(diag(model.ζ))
-        ζ_temp = 1.0*eye(model.m+size(new_centers,1))
+        ζ_temp = 1.0*Matrix{Float64}(I,model.m+size(new_centers,1),model.m+size(new_centers,1))
         ζ_temp[1:model.m,1:model.m] = model.ζ
         model.ζ = ζ_temp
-        η_2temp = -0.5/m_ζ*eye(model.m+size(new_centers,1))
+        η_2temp = -0.5/m_ζ*Matrix{Float64}(I,model.m+size(new_centers,1),model.m+size(new_centers,1))
         η_2temp[1:model.m,1:model.m] = model.η_2
         model.η_2 = η_2temp
         model.m = length(model.μ)
@@ -70,7 +71,7 @@ function update_model!(model,new_centers,new_vals)
 end
 
 function update_matrices!(model,new_centers)
-    model.Kmm = Symmetric(kernelmatrix(model.kmeansalg.centers,model.kernel)+model.noise*eye(model.m))
+    model.Kmm = Symmetric(kernelmatrix(model.kmeansalg.centers,model.kernel)+model.noise*Diagonal{Float64}(I,model.m))
     model.invKmm = inv(model.Kmm)
     Knm = kernelmatrix(model.X[model.MBIndices,:],model.kmeansalg.centers,model.kernel)
     model.κ = Knm/model.Kmm
@@ -278,13 +279,13 @@ end
 
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
 function KMeansInducingPoints(X,K,m;weights=0)
-    C = (KmeansSeed(X,K,m))'
+    C = copy(transpose(KmeansSeed(X,K,m)))
     if weights!=0
-        kmeans!(X',C,weights=weights)
+        Clustering.kmeans!(copy(transpose(X)),C,weights=weights,tol=1e-3)
     else
-        kmeans!(X',C)
+        Clustering.kmeans!(copy(transpose(X)),C)
     end
-return C'
+return copy(transpose(C))
 end
 #Fast and efficient seeding for KMeans
 function KmeansSeed(X,K,m) #X is the data, K the number of centers wanted, m the number of Markov iterations
@@ -295,10 +296,10 @@ function KmeansSeed(X,K,m) #X is the data, K the number of centers wanted, m the
   C[1,:] = X[init,:]
   q = zeros(N)
   for i in 1:N
-    q[i] = 0.5*norm(X[i,:]-C[1])^2
+    q[i] = 0.5*norm(X[i,:].-C[1])^2
   end
   sumq = sum(q)
-  q = Weights(q/sumq + 1.0/(2*N),1)
+  q = Weights(q/sumq .+ 1.0/(2*N),1)
   uniform = Distributions.Uniform(0,1)
   for i in 2:K
     x = X[StatsBase.sample(1:N,q,1),:] #weighted sampling,
@@ -319,7 +320,7 @@ end
 function mindistance(x,C,K) #Point to look for, collection of centers, number of centers computed
   mindist = Inf
   for i in 1:K
-    mindist = min.(norm(x-C[i])^2,mindist)
+    mindist = min.(norm(x.-C[i])^2,mindist)
   end
   return mindist
 end

@@ -20,7 +20,7 @@ end
 # end
 
 function variablesUpdate_XGPC!(model::SparseXGPC,iter)
-    model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,2)[:]+(model.κ*model.μ).^2)
+    model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
     θ = 0.5*tanh.(0.5*model.α)./model.α
     (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θ,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
@@ -29,7 +29,7 @@ function variablesUpdate_XGPC!(model::SparseXGPC,iter)
 end
 
 function variablesUpdate_XGPC!(model::OnlineXGPC,iter)
-    model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,2)[:]+(model.κ*model.μ).^2)
+    model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
     θ = 0.5*tanh.(0.5*model.α)./model.α
     (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θ,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
@@ -81,9 +81,9 @@ function hyperparameter_gradient_function(model::SparseXGPC)
     return function(Js,i)
                 Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
-                Jtilde = Jnn - sum(ι.*(transpose(Kmn)),2) - sum(model.κ.*Jnm,2)
+                Jtilde = Jnn - sum(ι.*(transpose(Kmn)),dims=2) - sum(model.κ.*Jnm,dims=2)
                 V = model.invKmm*Jmm
-                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*Θ*model.κ + model.κ'*Θ*ι)) .* transpose(B)) - trace(V) - model.StochCoeff*dot(diag(Θ),Jtilde)
+                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*Θ*model.κ + model.κ'*Θ*ι)) .* transpose(B)) - tr(V) - model.StochCoeff*dot(diag(Θ),Jtilde)
                     + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
      end
 end
@@ -96,9 +96,9 @@ function inducingpoints_gradient(model::SparseXGPC)
         Jnm,Jmm = computeIndPointsJ(model,i)
         for j in 1:model.nDim #Compute the gradient over the dimensions
             ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])/model.Kmm
-            Jtilde = -sum(ι.*(transpose(Kmn)),2)[:]-sum(model.κ.*Jnm[j,:,:],2)[:]
+            Jtilde = -sum(ι.*(transpose(Kmn)),dims=2)[:]-sum(model.κ.*Jnm[j,:,:],dims=2)[:]
             V = model.Kmm\Jmm[j,:,:]
-            gradients_inducing_points[i,j] = 0.5*(sum( (V/model.Kmm - model.StochCoeff*(ι'*Θ*model.κ + model.κ'*Θ*ι)) .* transpose(B)) - trace(V) - model.StochCoeff*dot(diag(Θ),Jtilde)
+            gradients_inducing_points[i,j] = 0.5*(sum( (V/model.Kmm - model.StochCoeff*(ι'*Θ*model.κ + model.κ'*Θ*ι)) .* transpose(B)) - tr(V) - model.StochCoeff*dot(diag(Θ),Jtilde)
                 + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
         end
     end

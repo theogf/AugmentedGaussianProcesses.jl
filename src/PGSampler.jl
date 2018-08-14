@@ -47,7 +47,7 @@ end
 function set_trunc(pg::PolyaGammaDist,trunc::Int64)
 
   if trunc < 1
-    warn("PolyaGamma(int trunc): trunc < 1. Set trunc=1.");
+    @warn "PolyaGamma(int trunc): trunc < 1. Set trunc=1."
     trunc = 1;
   end
 
@@ -137,7 +137,7 @@ end
 
 function draw(n::Float64, z::Float64)
   if n < 1
-    warn( "PolyaGamma::draw: n < 1.  Set n = 1.");
+    @warn "PolyaGamma::draw: n < 1.  Set n = 1."
     n = 1;
   end
   sum = 0.0;

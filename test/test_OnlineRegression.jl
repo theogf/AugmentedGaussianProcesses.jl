@@ -34,7 +34,7 @@ function generate_gaussian_data(N,dim,variance=1.0)
     if dim == 1
         d = Normal(0,1)
     else
-        d = MvNormal(zeros(dim),variance*eye(dim))
+        d = MvNormal(zeros(dim),variance*Diagonal{Float64}(I,dim))
     end
     X = rand(d,N)
 end
@@ -105,7 +105,7 @@ kernel = OMGP.RBFKernel(0.05)
 
 function sample_gaussian_process(X,noise)
     N = size(X,1)
-    K = OMGP.kernelmatrix(X,kernel)+noise*eye(N)
+    K = OMGP.kernelmatrix(X,kernel)+noise*Diagonal{Float64}(I,N)
     return rand(MvNormal(zeros(N),K))
 end
 
@@ -125,12 +125,12 @@ if dim == 1
     ind = shuffle(1:n); ind_test = sort(ind[1:mid]); ind = sort(ind[(mid+1):end]);
     X_test = X[ind_test,:]; y_test = y[ind_test]
     X = X[ind,:]; y = y[ind]
-    X_grid = linspace(minimum(X[:,1]),maximum(X[:,1]),N_test)
+    X_grid = range(minimum(X[:,1]),maximum(X[:,1]),N_test)
     x1_test= X_test; x2_test =X_test
 elseif dim == 2
     y = randomf(X)+rand(Normal(0,noise),size(X,1))
-    x1_test = linspace(minimum(X[:,1]),maximum(X[:,1]),N_test)
-    x2_test = linspace(minimum(X[:,2]),maximum(X[:,2]),N_test)
+    x1_test = range(minimum(X[:,1]),maximum(X[:,1]),N_test)
+    x2_test = range(minimum(X[:,2]),maximum(X[:,2]),N_test)
     X_test = hcat([i for i in x1_test, j in x2_test][:],[j for i in x1_test, j in x2_test][:])
     minf=minimum(randomf(X_test)); maxf=maximum(randomf(X_test))
 end

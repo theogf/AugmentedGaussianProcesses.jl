@@ -17,7 +17,7 @@ import OMGP
     end
 
     X = rand(N_data,N_dim)*(maxx-minx)+minx
-    x_test = linspace(minx,maxx,N_test)
+    x_test = range(minx,stop=maxx,length=N_test)
     X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
     y = sign.(latent(X)+rand(Normal(0,noise),size(X,1)))
     y_test = sign.(latent(X_test)+rand(Normal(0,noise),size(X_test,1)))
@@ -27,8 +27,8 @@ import OMGP
     # y=readdlm("data/banana_Y_train")[:]
     # maxs = [3.65,3.4]
     # mins = [-3.25,-2.85]
-    # x1_test = linspace(mins[1],maxs[1],N_test)
-    # x2_test = linspace(mins[2],maxs[2],N_test)
+    # x1_test = range(mins[1],maxs[1],N_test)
+    # x2_test = range(mins[2],maxs[2],N_test)
     # X_test = hcat([j for i in x1_test, j in x2_test][:],[i for i in x1_test, j in x2_test][:])
     # y_test = ones(size(X_test,1))
 
