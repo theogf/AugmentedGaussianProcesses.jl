@@ -227,8 +227,9 @@ function MCInit!(model::GPModel)
             elseif model.ModelType==Regression
                 (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.StochCoeff)
             end
-            model.g = model.g + 1/model.τ*vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
-            model.h = model.h + 1/model.τ*norm(vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2)))^2
+            grads = vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
+            model.g = model.g + grads/model.τ
+            model.h = model.h + norm(grads)^2/model.τ
         end
         model.ρ_s = norm(model.g)^2/model.h
         if model.VerboseLevel > 2

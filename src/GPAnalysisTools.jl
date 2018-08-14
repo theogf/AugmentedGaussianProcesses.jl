@@ -1,7 +1,7 @@
 module GPAnalysisTools
 using ValueHistories
-using Plots
-export getLog, getMultiClassLog, IntermediatePlotting
+# using Plots
+export getLog, getMultiClassLog#, IntermediatePlotting
 function getLog(model;X_test=0,y_test=0,iter_points=vcat(1:99,100:10:999,1000:100:9999))
     metrics = MVHistory()
     function SaveLog(model,iter;hyper=false)
@@ -80,46 +80,46 @@ function JSGP(mu,sig,f,sig_f)
     tot += 0.125*sum(sig./(sig_f)+(sig_f)./(sig) + (1.0./sig_f+1.0./sig).*((mu-f).^2))
 end
 
-function plotting1D(iter,indices,X,f,sig_f,ind_points,pred_ind,X_test,pred,sig_pred,y_train,sig_train,title,sequential=false)
-    if sequential
-        p = plot!(X[indices,1],f[indices],t=:scatter,lab="",alpha=0.6,color=:red,markerstrokewidth=0)
-        p = plot(X[1:(indices[1]-1),1],f[1:(indices[1]-1)],t=:scatter,lab="",color=:blue,alpha=0.4,markerstrokewidth=0)
-        p = plot!(X[(indices[1]+1):end,1],f[(indices[1]+1):end],t=:scatter,lab="",color=:blue,alpha=0.1,markerstrokewidth=0)
-    else
-        p = plot(X,f,t=:scatter,lab="",color=:blue,alpha=0.1,markerstrokewidth=0)
-        p = plot!(X[indices,1],f[indices],t=:scatter,lab="",alpha=1.0,color=:red,markerstrokewidth=0)
-    end
-    p = plot!(ind_points[:,1],pred_ind,t=:scatter,lab="",color=:green)
-    p = plot!(X_test,pred+3*sqrt.(sig_pred),fill=(pred-3*sqrt.(sig_pred)),alpha=0.3,linewidth=0,lab="")
-    display(plot!(X_test,pred,lab="",title="Iteration $iter, k: $(size(ind_points,1))"))
-    # p = plot!(X_test,pred,lab="",title="Iteration $iter, k: $(size(ind_points,1))")
-    # KL = KLGP.(y_train,sig_train,f,sig_f)
-    # JS = JSGP.(y_train,sig_train,f,sig_f)
-    # display(plot!(twinx(),X,[KL JS],lab=["KL" "JS"]))
-    return p
-end
-
-function plotting2D(iter,indices,X,f,ind_points,pred_ind,x1_test,x2_test,pred,minf,maxf,title;full=false)
-    N_test = size(x1_test,1)
-    p = plot(x1_test,x2_test,reshape(pred,N_test,N_test),t=:contour,clim=(minf,maxf),fill=true,lab="",title="Iteration $iter")
-    p = plot!(X[:,1],X[:,2],zcolor=f,t=:scatter,lab="",alpha=0.8,markerstrokewidth=0)
-    # if !full
-    #     p = plot!(ind_points[:,1],ind_points[:,2],zcolor=pred_ind,t=:scatter,lab="",color=:red)
-    # end
-    return p
-end
-
-function IntermediatePlotting(X_test,x1_test,x2_test,y_test)
-    return function plotevolution(model,iter)
-        y_ind = model.predict(model.kmeansalg.centers)
-        y_pred,sig_pred = model.predictproba(X_test)
-        y_train,sig_train = model.predictproba(X_test)
-        if size(X_test,2) == 1
-            display(plotting1D(iter,model.MBIndices,model.X,model.y,model.noise,model.kmeansalg.centers,y_ind,X_test,y_pred,sig_pred,y_train,sig_train,model.Name))
-        else
-            display(plotting2D(iter,model.MBIndices,model.X,model.y,model.kmeansalg.centers,y_ind,x1_test,x2_test,y_pred,minimum(model.y),maximum(model.y),model.Name))
-        end
-        sleep(0.05)
-    end
-end
+# function plotting1D(iter,indices,X,f,sig_f,ind_points,pred_ind,X_test,pred,sig_pred,y_train,sig_train,title,sequential=false)
+#     if sequential
+#         p = plot!(X[indices,1],f[indices],t=:scatter,lab="",alpha=0.6,color=:red,markerstrokewidth=0)
+#         p = plot(X[1:(indices[1]-1),1],f[1:(indices[1]-1)],t=:scatter,lab="",color=:blue,alpha=0.4,markerstrokewidth=0)
+#         p = plot!(X[(indices[1]+1):end,1],f[(indices[1]+1):end],t=:scatter,lab="",color=:blue,alpha=0.1,markerstrokewidth=0)
+#     else
+#         p = plot(X,f,t=:scatter,lab="",color=:blue,alpha=0.1,markerstrokewidth=0)
+#         p = plot!(X[indices,1],f[indices],t=:scatter,lab="",alpha=1.0,color=:red,markerstrokewidth=0)
+#     end
+#     p = plot!(ind_points[:,1],pred_ind,t=:scatter,lab="",color=:green)
+#     p = plot!(X_test,pred+3*sqrt.(sig_pred),fill=(pred-3*sqrt.(sig_pred)),alpha=0.3,linewidth=0,lab="")
+#     display(plot!(X_test,pred,lab="",title="Iteration $iter, k: $(size(ind_points,1))"))
+#     # p = plot!(X_test,pred,lab="",title="Iteration $iter, k: $(size(ind_points,1))")
+#     # KL = KLGP.(y_train,sig_train,f,sig_f)
+#     # JS = JSGP.(y_train,sig_train,f,sig_f)
+#     # display(plot!(twinx(),X,[KL JS],lab=["KL" "JS"]))
+#     return p
+# end
+#
+# function plotting2D(iter,indices,X,f,ind_points,pred_ind,x1_test,x2_test,pred,minf,maxf,title;full=false)
+#     N_test = size(x1_test,1)
+#     p = plot(x1_test,x2_test,reshape(pred,N_test,N_test),t=:contour,clim=(minf,maxf),fill=true,lab="",title="Iteration $iter")
+#     p = plot!(X[:,1],X[:,2],zcolor=f,t=:scatter,lab="",alpha=0.8,markerstrokewidth=0)
+#     # if !full
+#     #     p = plot!(ind_points[:,1],ind_points[:,2],zcolor=pred_ind,t=:scatter,lab="",color=:red)
+#     # end
+#     return p
+# end
+#
+# function IntermediatePlotting(X_test,x1_test,x2_test,y_test)
+#     return function plotevolution(model,iter)
+#         y_ind = model.predict(model.kmeansalg.centers)
+#         y_pred,sig_pred = model.predictproba(X_test)
+#         y_train,sig_train = model.predictproba(X_test)
+#         if size(X_test,2) == 1
+#             display(plotting1D(iter,model.MBIndices,model.X,model.y,model.noise,model.kmeansalg.centers,y_ind,X_test,y_pred,sig_pred,y_train,sig_train,model.Name))
+#         else
+#             display(plotting2D(iter,model.MBIndices,model.X,model.y,model.kmeansalg.centers,y_ind,x1_test,x2_test,y_pred,minimum(model.y),maximum(model.y),model.Name))
+#         end
+#         sleep(0.05)
+#     end
+# end
 end
