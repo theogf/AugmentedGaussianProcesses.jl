@@ -62,7 +62,7 @@ export setvalue!,getvalue,setfixed!,setfree!
 export KMeansInducingPoints
 
 
-using Plots
+#using Plots
 
 include("GPFields.jl")
 include("MultiClassGPFields.jl")

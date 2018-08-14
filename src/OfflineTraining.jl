@@ -32,19 +32,19 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
                 # println("ELBO : $(ELBO(model))")
             # end
         end
-        if !isa(model,GPRegression)
-            conv = Convergence(model,iter) #Check for convergence
-        else
-            if model.VerboseLevel > 2
-                # warn("GPRegression does not need any convergence criteria")
-            end
-            conv = Inf
-        end
+        # if !isa(model,GPRegression)
+        #     conv = Convergence(model,iter) #Check for convergence
+        # else
+        #     if model.VerboseLevel > 2
+        #         # warn("GPRegression does not need any convergence criteria")
+        #     end
+        #     conv = Inf
+        # end
         ### Print out informations about the convergence
-        if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
-            print("Iteration : $iter, convergence = $conv \n")
-            println("Neg. ELBO is : $(ELBO(model))")
-        end
+        # if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
+        #     print("Iteration : $iter, convergence = $conv \n")
+        #     println("Neg. ELBO is : $(ELBO(model))")
+        # end
         (iter < model.nEpochs) || break; #Verify if any condition has been broken
         # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         iter += 1;
