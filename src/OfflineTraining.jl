@@ -41,11 +41,12 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
         #     conv = Inf
         # end
         ### Print out informations about the convergence
-        # if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
+        if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
+            println("Iteration : $iter")
         #     print("Iteration : $iter, convergence = $conv \n")
         #     println("Neg. ELBO is : $(ELBO(model))")
-        # end
-        (iter < model.nEpochs) || break; #Verify if any condition has been broken
+         end
+        (iter < model.nEpochs) || break; #Verify if the number of maximum iterations has been reached
         # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         iter += 1;
     end
@@ -205,7 +206,7 @@ function MCInit!(model::GPModel)
             model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η_1,model.η_1,grad_η_2,model.η_2)
         end
         model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
-        if model.VerboseLevel > 2
+        if model.VerboseLevel > 1
             println("$(now()): MCMC estimation of the gradient completed")
         end
     else
@@ -232,7 +233,7 @@ function MCInit!(model::GPModel)
             model.h = model.h + norm(grads)^2/model.τ
         end
         model.ρ_s = norm(model.g)^2/model.h
-        if model.VerboseLevel > 2
+        if model.VerboseLevel > 1
             println("MCMC estimation of the gradient completed")
         end
     end
