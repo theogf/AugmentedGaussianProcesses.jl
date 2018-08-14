@@ -26,11 +26,11 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
         updateParameters!(model,iter) #Update all the variational parameters
         reset_prediction_matrices!(model) #Reset predicton matrices
         if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
-            # for j in 1:model.AutotuningFrequency
+            for j in 1:model.AutotuningFrequency
                 updateHyperParameters!(model) #Do the hyper-parameter optimization
                 computeMatrices!(model)
                 # println("ELBO : $(ELBO(model))")
-            # end
+            end
         end
         # if !isa(model,GPRegression)
         #     conv = Convergence(model,iter) #Check for convergence
