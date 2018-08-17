@@ -183,10 +183,15 @@ function logitpredictproba(model::GPModel,X_test)
     n_test = size(X_test,1)
     @assert minimum(cov_f)>0  error("Covariance under 0")
     predic = zeros(n_test)
+    # t_Inf = 0.0; t_cov = 0.0
+    # err = 0.0
     for i in 1:n_test
         d = Normal(m_f[i],sqrt(cov_f[i]))
-        predic[i] = quadgk(x->logit(x)*pdf(d,x),m_f[i]-10*sqrt(cov_f[i]),m_f[i]+10*sqrt(cov_f[i]))[1]
+        predic[i] = quadgk(x->logit(x)*pdf(d,x),-Inf,Inf)[1]
+        # t_cov += @elapsed v = quadgk(x->logit(x)*pdf(d,x),m_f[i]-10*sqrt(cov_f[i]),m_f[i]+10*sqrt(cov_f[i]))[1]
+        # err += abs(v-predic[i])
     end
+    # println("T_inf = $t_Inf, for t_cov = $t_cov gives err = $err")
     return predic
 end
 
