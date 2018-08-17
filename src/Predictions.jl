@@ -184,11 +184,8 @@ function logitpredictproba(model::GPModel,X_test)
     @assert minimum(cov_f)>0  error("Covariance under 0")
     predic = zeros(n_test)
     for i in 1:n_test
-        d= Normal(m_f[i],cov_f[i])
-        f=function(x)
-            return logit(x)*pdf(d,x)
-        end
-        predic[i] = quadgk(f,m_f[i]-10*cov_f[i],m_f[i]+10*cov_f[i])[1]
+        d = Normal(m_f[i],sqrt(cov_f[i]))
+        predic[i] = quadgk(x->logit(x)*pdf(d,x),m_f[i]-10*sqrt(cov_f[i]),m_f[i]+10*sqrt(cov_f[i]))[1]
     end
     return predic
 end
