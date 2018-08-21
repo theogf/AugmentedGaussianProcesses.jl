@@ -2,57 +2,71 @@
 # "Bayesian Nonlinear Support Vector Machines for Big Data"
 # Wenzel, Galy-Fajou, Deutsch and Kloft ECML 2017
 
-function variablesUpdate_BSVM!(model::LinearBSVM,iter)
-#Compute the updates for the linear BSVM
-    Z = Diagonal(model.y[model.MBIndices])*model.X[model.MBIndices,:];
+"Update the local variational parameters of the linear BSVM"
+function local_update!(model::LinearBSVM,Z::Matrix)
     model.α = (1.0 .- Z*model.μ).^2 +  dropdims(sum((-0.5*Z/model.η_2).*Z,dims=2),dims=2);
-    (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α,Z, model.invΣ, model.Stochastic ? model.StochCoeff : 1)
+end
+
+"Compute the variational updates for the linear BSVM"
+function variational_updates!(model::LinearBSVM,iter::Integer)
+    Z = Diagonal{Float64}(model.y[model.MBIndices])*model.X[model.MBIndices,:];
+    local_update!(model,Z)
+    (grad_η_1,grad_η_2) = natural_gradient_BSVM(model.α,Z, model.invΣ, model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
-    model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
-    model.μ = -0.5*model.η_2\model.η_1 #Back to the distribution parameters (needed for α updates)
-    model.ζ = -0.5*inv(model.η_2);
+    global_update!(model,grad_η_1,grad_η_2)
 end
 
-function variablesUpdate_BSVM!(model::BatchBSVM,iter)
-    Z = Diagonal(model.y);
+"Update the local variational parameters of full batch GP BSVM"
+function local_update!(model::BatchBSVM,Z::Diagonal{Float64})
     model.α = (1.0 .- Z*model.μ).^2 +  dropdims(sum((-0.5*Z/model.η_2).*Z,dims=2),dims=2);
-    (model.η_1,model.η_2) = naturalGradientELBO_BSVM(model.α,Z, model.invK, 1.0)
-    model.μ = -0.5*model.η_2\model.η_1 #Back to the distribution parameters (needed for α updates)
-    model.ζ = -0.5*inv(model.η_2);
 end
 
-function variablesUpdate_BSVM!(model::SparseBSVM,iter)
-    Z = Diagonal(model.y[model.MBIndices])*model.κ;
+"Compute the variational updates for the full GP BSVM"
+function variational_updates!(model::BatchBSVM,iter::Integer)
+    Z = Diagonal{Float64}(model.y);
+    local_update!(model,Z)
+    (model.η_1,model.η_2) = natural_gradient_BSVM(model.α,Z,model.invK, 1.0)
+    global_update!(model)
+end
+
+"Update the local variational parameters of the sparse GP BSVM"
+function local_update!(model::SparseBSVM,Z::Matrix)
     model.α = (1 .- Z*model.μ).^2 + sum((-0.5*Z/model.η_2).*Z,dims=2)[:] + model.Ktilde;
-    (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α,Z, model.invKmm, model.Stochastic ? model.StochCoeff : 1.0)
-    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
-    model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
-    model.μ = -0.5*model.η_2\model.η_1 #Back to the distribution parameters (needed for α updates)
-    model.ζ = -0.5*inv(model.η_2);
 end
 
+"Compute the variational updates for the sparse GP BSVM"
+function variational_updates!(model::SparseBSVM,iter::Integer)
+    Z = Diagonal{Float64}(model.y[model.MBIndices])*model.κ;
+    local_update!(model,Z)
+    (grad_η_1,grad_η_2) = natural_gradient_BSVM(model.α,Z, model.invKmm, model.Stochastic ? model.StochCoeff : 1.0)
+    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
+    global_update!(model,grad_η_1,grad_η_2)
+end
 
-function naturalGradientELBO_BSVM(α,Z,invPrior,stoch_coef)
+"Return the natural gradients of the ELBO given the natural parameters"
+function natural_gradient_BSVM(α::Vector{Float64},Z::AbstractArray{Float64,2},invPrior::Matrix{Float64},stoch_coef::Float64)
   grad_1 =  stoch_coef*transpose(Z)*(1.0./sqrt.(α).+1.0)
   grad_2 = -0.5*(stoch_coef*transpose(Z)*Diagonal(1.0./sqrt.(α))*Z + invPrior)
-  (grad_1,grad_2)
+  return (grad_1,grad_2)
 end
 
-
+"Compute the negative ELBO for the linear BSVM Model"
 function ELBO(model::LinearBSVM)
-    Z = Diagonal(model.y[model.MBIndices])*model.X[model.MBIndices,:]
+    Z = Diagonal{Float64}(model.y[model.MBIndices])*model.X[model.MBIndices,:]
     ELBO = 0.5*(logdet(model.ζ)+logdet(model.invΣ)-tr(model.invΣ*(model.ζ+model.μ*transpose(model.μ))));
     ELBO += sum(model.StochCoeff*(2.0*log.(model.α) + log.(besselk.(0.5,model.α))
         + dot(vec(Z[i,:]),model.μ) + 0.5./model.α.*(model.α.^2-(1-dot(vec(Z[i,:]),model.μ))^2 - dot(vec(Z[i,:]),model.ζ*vec(Z[i,:])))))
     return -ELBO
 end
 
+"Compute the ELBO for the full batch GP BSVM Model"
 function ELBO(model::BatchBSVM) #TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
     ELBO = 0.5*(logdet(model.ζ)+logdet(model.invK)-sum(model.invK.*transpose(model.ζ+model.μ*transpose(model.μ))))
     ELBO += sum(0.25*log.(model.α[i])+log.(besselk.(0.5,sqrt.(model.α)))+model.y.*model.μ+(model.α-(1-model.y.*model.μ[i]).^2-diag(model.ζ))./(2*sqrt.(model.α)))
     return -ELBO
 end
 
+"Compute the ELBO for the sparse GP BSVM Model"
 function ELBO(model::SparseBSVM)#TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
     ELBO = 0.5*(logdet(model.ζ)+logdet(model.invKmm))
     ELBO += -0.5*(tr(model.invKmm*(model.ζ+model.μ*transpose(model.μ)))) #trace replaced by sum
@@ -63,8 +77,8 @@ function ELBO(model::SparseBSVM)#TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATI
     return -ELBO
 end
 
+"Return a function computing the gradient of the ELBO given the kernel hyperparameters for a BSVM Model"
 function hyperparameter_gradient_function(model::SparseBSVM)
-    #General values used for all gradients
     B = model.μ*transpose(model.μ) + model.ζ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     A = Diagonal(1.0./sqrt.(model.α))
@@ -78,8 +92,9 @@ function hyperparameter_gradient_function(model::SparseBSVM)
             end
 end
 
+"Return a function computing the gradient of the ELBO given the kernel hyperparameters"
 function inducingpoints_gradient(model::SparseBSVM)
-    gradients_inducing_points = zeros(model.inducingPoints)
+    gradients_inducing_points = zero(model.inducingPoints)
     for i in 1:model.m #Iterate over the points
         Jnm,Jmm = computeIndPointsJ(model,i)
         for j in 1:dim #iterate over the dimensions

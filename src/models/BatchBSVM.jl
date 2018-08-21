@@ -1,6 +1,4 @@
-
-#Batch Bayesian Support Vector Machine (no sparse inducing points)
-
+"Batch Bayesian Support Vector Machine (no sparse inducing points)"
 mutable struct BatchBSVM <: FullBatchModel
     @commonfields
     @functionfields
@@ -8,7 +6,7 @@ mutable struct BatchBSVM <: FullBatchModel
     @gaussianparametersfields
     @kernelfields
 
-    #Constructor
+    "BatchBSVM Constructor"
     function BatchBSVM(X::AbstractArray,y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 100,
                                     kernel=0,noise::Real=1e-3,AutotuningFrequency::Integer=2,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],VerboseLevel::Integer=0)

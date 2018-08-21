@@ -1,7 +1,7 @@
 using Plots
 using Distributions
-# include("../src/OMGP.jl")
-import OMGP
+include("../src/OMGP.jl")
+# import OMGP
 
 ### TESTING WITH TOY XOR DATASET
     N_data = 1000
@@ -57,7 +57,7 @@ plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter
 
 # #### STOCH. MODEL EVALUATION ####
 println("Creation of Stochastic Sparse BSVM")
-t_stoch = @elapsed stochmodel = OMGP.SparseBSVM(X,y,Stochastic=true,BatchSize=10,Autotuning=true,VerboseLevel=3,m=20,noise=1e-3,kernel=kernel)
+t_stoch = @elapsed stochmodel = OMGP.SparseBSVM(X,y,Stochastic=true,BatchSize=10,Autotuning=true,VerboseLevel=3,m=20,noise=noise,kernel=kernel)
 OMGP.setfixed!(stochmodel.kernel.weight)
 t_stoch += @elapsed stochmodel.train(iterations=1000)
 y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))

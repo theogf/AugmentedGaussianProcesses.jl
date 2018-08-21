@@ -40,14 +40,12 @@ using .GPAnalysisTools
 #General modules
 using Distributions
 using LinearAlgebra
+using StatsBase
 using SpecialFunctions
 using Dates
-using StatsBase
 using QuadGK
 using GradDescent
-using ValueHistories
 using SparseArrays
-# using Gallium #TODO remove for published version
 #Exported models
 export KMeansModule
 export LinearBSVM, BatchBSVM, SparseBSVM
@@ -87,6 +85,7 @@ include("OnlineTraining.jl")
 include("OfflineTraining.jl")
 include("Autotuning.jl")
 include("Predictions.jl")
+include("models/General_Functions.jl")
 include("models/BSVM_Functions.jl")
 include("models/XGPC_Functions.jl")
 include("models/Reg_Functions.jl")

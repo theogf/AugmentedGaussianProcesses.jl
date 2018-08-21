@@ -1,61 +1,69 @@
 
-#Train function used to update the variational parameters given the training data X and y
-#Possibility to put a callback function, taking the model and the iteration number as an argument
-#Also one can change the convergence function
-
+"""
+Function to train the given GP model, there are options to change the number of max iterations,
+give a callback function that will take the model and the actual step as arguments
+and give a convergence method to stop the algorithm given specific criteria
+"""
 function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
     if model.VerboseLevel > 0
       println("Starting training of data of $(model.nSamples) samples with $(size(model.X,2)) features $(typeof(model)<:MultiClassGPModel ? "and $(model.K) classes" : ""), using the "*model.Name*" model")
     end
 
-    if iterations > 0 #&& iterations < model.nEpochs
+    if iterations > 0 #Reset the number of iterations to a new one
         model.nEpochs = iterations
     end
-    model.evol_conv = []
-    if model.Stochastic && model.AdaptiveLearningRate && !model.Trained
-            #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC (if restarting training, avoid this part)
+    model.evol_conv = [] #Array to check on the evolution of convergence
+    if model.Stochastic && model.AdaptiveLearningRate && !model.Trained #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC (if restarting training, avoid this part)
             MCInit!(model)
     end
     computeMatrices!(model)
     model.Trained = true
     iter::Int64 = 1; conv = Inf;
-    while true #do while loop
-        if callback != 0
-                callback(model,iter) #Use a callback method if put by user
-        end
-        updateParameters!(model,iter) #Update all the variational parameters
-        reset_prediction_matrices!(model) #Reset predicton matrices
-        if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
-            for j in 1:model.AutotuningFrequency
-                updateHyperParameters!(model) #Do the hyper-parameter optimization
-                computeMatrices!(model)
-                # println("ELBO : $(ELBO(model))")
+    while true #loop until one condition is matched
+        try #Allow for keyboard interruption without losing the model
+            if callback != 0
+                    callback(model,iter) #Use a callback method if put by user
+            end
+            updateParameters!(model,iter) #Update all the variational parameters
+            reset_prediction_matrices!(model) #Reset predicton matrices
+            if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
+                for j in 1:model.AutotuningFrequency
+                    updateHyperParameters!(model) #Update the hyperparameters
+                    computeMatrices!(model)
+                    # println("ELBO : $(ELBO(model))")
+                end
+            end
+            # if !isa(model,GPRegression)
+            #     conv = Convergence(model,iter) #Check for convergence
+            # else
+            #     if model.VerboseLevel > 2
+            #         # warn("GPRegression does not need any convergence criteria")
+            #     end
+            #     conv = Inf
+            # end
+            ### Print out informations about the convergence
+            if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
+                println("Iteration : $iter")
+            #     print("Iteration : $iter, convergence = $conv \n")
+            #     println("Neg. ELBO is : $(ELBO(model))")
+             end
+            (iter < model.nEpochs) || break; #Verify if the number of maximum iterations has been reached
+            # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
+            iter += 1;
+        catch e
+            if isa(e,InterruptException)
+                println("Training interrupted by user");
+                break;
+            else
+                rethrow(e)
             end
         end
-        # if !isa(model,GPRegression)
-        #     conv = Convergence(model,iter) #Check for convergence
-        # else
-        #     if model.VerboseLevel > 2
-        #         # warn("GPRegression does not need any convergence criteria")
-        #     end
-        #     conv = Inf
-        # end
-        ### Print out informations about the convergence
-        if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
-            println("Iteration : $iter")
-        #     print("Iteration : $iter, convergence = $conv \n")
-        #     println("Neg. ELBO is : $(ELBO(model))")
-         end
-        (iter < model.nEpochs) || break; #Verify if the number of maximum iterations has been reached
-        # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
-        iter += 1;
     end
     if model.VerboseLevel > 0
       println("Training ended after $iter iterations")
     end
-    computeMatrices!(model)
-    #Compute final version of the matrices for prediction
-    if isa(model,GibbsSamplerGPC) #Compute the average of the samples
+    computeMatrices!(model) #Compute final version of the matrices for prediction
+    if isa(model,GibbsSamplerGPC) #Compute the mean and covariance of the samples
         model.μ = squeeze(mean(hcat(model.estimate...),2),2)
         model.ζ = cov(hcat(model.estimate...),2)
     elseif isa(model,MultiClass) || isa(model,SparseMultiClass)
@@ -63,10 +71,10 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
     elseif !isa(model,GPRegression)
         model.ζ = -0.5*inv(model.η_2);
     end
-    computeMatrices!(model)
     model.Trained = true
 end
 
+"Update all variational parameters of the GP Model"
 function updateParameters!(model::GPModel,iter::Integer)
 #Function to update variational parameters
     if model.Stochastic
@@ -74,31 +82,10 @@ function updateParameters!(model::GPModel,iter::Integer)
         #No replacement means one points cannot be twice in the same minibatch
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    if model.ModelType == BSVM
-        variablesUpdate_BSVM!(model,iter)
-    elseif model.ModelType == XGPC
-        variablesUpdate_XGPC!(model,iter)
-    elseif model.ModelType == Regression
-        variablesUpdate_Regression!(model,iter)
-    elseif typeof(model) <: MultiClassGPModel
-        variablesUpdate_MultiClass!(model,iter)
-    end
+    variational_updates!(model,iter);
 end
 
-function updateParameters!(model::GibbsSamplerGPC,iter::Integer)
-#Sample for every parameter
-    computeMatrices!(model)
-    model.α = broadcast(model.pgsampler.draw,1.0,model.μ)
-    push!(model.samplehistory,:ω,iter,model.α)
-    C = Matrix(Symmetric(inv(diagm(model.α)+model.invK),:U))
-    model.μ = rand(MvNormal(0.5*C*model.y,C))
-    push!(model.samplehistory,:f,iter,model.μ)
-    if iter > model.burninsamples && (iter-model.burninsamples)%model.samplefrequency==0
-        push!(model.estimate,model.μ)
-    end
-end
-
-#### Computations of the kernel matrices for the different type of models ####
+"Compute of kernel matrices for the full batch GPs"
 function computeMatrices!(model::FullBatchModel)
     if model.HyperParametersUpdated
         model.Knn = Symmetric(kernelmatrix(model.X,model.kernel) + Diagonal{Float64}(model.noise*I,model.nFeatures))
@@ -107,26 +94,22 @@ function computeMatrices!(model::FullBatchModel)
     end
 end
 
+"Computate of kernel matrices for the sparse GPs"
 function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated
         model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+Diagonal{Float64}(model.noise*I,model.nFeatures))
         model.invKmm = inv(model.Kmm)
     end
-    #If change of hyperparameters or if stochatic
-    if model.HyperParametersUpdated || model.Stochastic
+    if model.HyperParametersUpdated || model.Stochastic #Also when batches change
         Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
         model.κ = Knm/model.Kmm
-        #println( diagkernelmatrix(model.X[model.MBIndices,:],model.kernel))
-        #println(sum(model.κ.*Knm,dims=2)[:])
         model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*Knm,dims=2)[:]
-        #println(model.Ktilde)
-        #+ model.noise*ones(length(model.MBIndices))
         @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
     end
     model.HyperParametersUpdated=false
 end
 
-
+"Computate of kernel matrices for the linear model"
 function computeMatrices!(model::LinearModel)
     if model.HyperParametersUpdated
         model.invΣ = Matrix{Float64}(I/model.noise,model.nFeatures,model.nFeatures)
@@ -134,6 +117,7 @@ function computeMatrices!(model::LinearModel)
     end
 end
 
+"Compute of kernel matrices for the fullbatch multiclass GPs"
 function computeMatrices!(model::MultiClass)
     if model.HyperParametersUpdated
         if model.IndependentGPs
@@ -146,6 +130,7 @@ function computeMatrices!(model::MultiClass)
     end
 end
 
+"Compute of kernel matrices for the sparse multiclass GPs"
 function computeMatrices!(model::SparseMultiClass)
     if model.HyperParametersUpdated
         if model.IndependentGPs
@@ -171,11 +156,11 @@ function computeMatrices!(model::SparseMultiClass)
     model.HyperParametersUpdated=false
 end
 
+
 function reset_prediction_matrices!(model::GPModel)
     model.TopMatrixForPrediction=0;
     model.DownMatrixForPrediction=0;
 end
-#### Get Functions ####
 
 function getInversePrior(model::LinearModel)
     return model.invΣ
@@ -219,14 +204,14 @@ function MCInit!(model::GPModel)
             # local_updates!(model)
             if model.ModelType==BSVM
                 Z = Diagonal(model.y[model.MBIndices])*model.κ;
-                model.α = (1 .- Z*model.μ).^2 +  dropdims(sum((Z*model.ζ).*Z,dims=2),dims=2)+model.Ktilde;
-                (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α,Z, model.invKmm, model.StochCoeff)
+                local_update!(model,Z)
+                (grad_η_1,grad_η_2) = natural_gradient_BSVM(model.α,Z, model.invKmm, model.StochCoeff)
             elseif model.ModelType==XGPC
-                model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
+                local_update!(model)
                 θ = (1.0./(2.0*model.α)).*tanh.(model.α./2.0)
-                (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θ,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
+                (grad_η_1,grad_η_2) = natural_gradient_XGPC(θ,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
             elseif model.ModelType==Regression
-                (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.StochCoeff)
+                (grad_η_1,grad_η_2) = natural_gradient_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.StochCoeff)
             end
             grads = vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
             model.g = model.g + grads/model.τ

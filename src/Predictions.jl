@@ -1,7 +1,8 @@
 #File treating all the prediction functions
 
 """
-Computation of the predicted latent f with or without variance
+Compute the mean of the predicted latent distribution of f on X_test for full GP models
+Return also the variance if `covf=true`
 """
 function fstar(model::FullBatchModel,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
@@ -19,7 +20,10 @@ function fstar(model::FullBatchModel,X_test;covf::Bool=true)
         return mean_fstar,cov_fstar
     end
 end
-
+"""
+Compute the mean of the predicted latent distribution of f on X_test for sparse GP models
+Return also the variance if `covf=true`
+"""
 function fstar(model::SparseModel,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invKmm*model.μ
@@ -37,6 +41,10 @@ function fstar(model::SparseModel,X_test;covf::Bool=true)
     end
 end
 
+"""
+Compute the mean of the predicted latent distribution of f on X_test for online GP models
+Return also the variance if `covf=true`
+"""
 function fstar(model::OnlineGPModel,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invKmm*model.μ
@@ -54,6 +62,10 @@ function fstar(model::OnlineGPModel,X_test;covf::Bool=true)
     end
 end
 
+"""
+Compute the mean of the predicted latent distribution of f on X_test for GP regression
+Return also the variance if `covf=true`
+"""
 function fstar(model::GPRegression,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.y
@@ -71,6 +83,10 @@ function fstar(model::GPRegression,X_test;covf::Bool=true)
     end
 end
 
+"""
+Compute the mean of the predicted latent distribution of f on X_test for Multiclass GP models
+Return also the variance if `covf=true`
+"""
 function fstar(model::MultiClass,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = broadcast((mu,invK)->invK*mu,model.μ,model.invK)
@@ -97,7 +113,10 @@ function fstar(model::MultiClass,X_test;covf::Bool=true)
     end
 end
 
-
+"""
+Compute the mean of the predicted latent distribution of f on X_test for multiclass sparse GP models
+Return also the variance if `covf=true`
+"""
 function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         if model.IndependentGPs
@@ -132,19 +151,17 @@ function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
     end
 end
 
-
+"Return the predicted class {-1,1} with a linear model via the probit link"
 function probitpredict(model::LinearModel,X_test)
-    return model.Intercept ? [ones(Float64,size(X_test,1)) X_test]*model.μ : X_test*model.μ
+    return sign.((model.Intercept ? [ones(Float64,size(X_test,1)) X_test]*model.μ : X_test*model.μ).-0.5)
 end
 
-function probitpredict(model::FullBatchModel,X_test)
-    return fstar(model,X_test,covf=false)
+"Return the predicted class {-1,1} with a GP model via the probit link"
+function probitpredict(model::GPModel,X_test)
+    return sign.(fstar(model,X_test,covf=false).-0.5)
 end
 
-function probitpredict(model::SparseModel,X_test)
-    return fstar(model,X_test,covf=false)
-end
-
+"Return the mean of likelihood p(y*=1|X,x*) via the probit link with a linear model"
 function probitpredictproba(model::LinearModel,X_test)
     if model.Intercept
       X_test = [ones(Float64,size(X_test,1)) X_test]
@@ -157,44 +174,39 @@ function probitpredictproba(model::LinearModel,X_test)
     return predic
 end
 
-function probitpredictproba(model::FullBatchModel,X_test)
+"Return the mean of likelihood p(y*=1|X,x*) via the probit link with a GP model"
+function probitpredictproba(model::GPModel,X_test)
     m_f,cov_f = fstar(model,X_test,covf=true)
     return broadcast((m,c)->cdf(Normal(),m/(c+1)),m_f,cov_f)
 end
 
-function probitpredictproba(model::SparseModel,X_test)
-    m_f,cov_f = fstar(model,X_test,covf=true)
-    predic = broadcast((m,c)->cdf(Normal(),m/(c+1)),m_f,cov_f)
-    return predic
-end
-
+"Return logit(x)"
 function logit(x)
     return 1.0./(1.0.+exp.(-x))
 end
 
+
+"Return the predicted class {-1,1} with a GP model via the logit link"
 function logitpredict(model::GPModel,X_test)
-    y_predic = logitpredictproba(model,X_test)
-    y_predic[y_predic.>0.5] = 1; y_predic[y_predic.<=0.5] = -1
-    return y_predic
+    return sign.(fstar(model,X_test,covf=false).-0.5)
 end
 
+"Return the mean of likelihood p(y*=1|X,x*) via the logit link with a GP model"
 function logitpredictproba(model::GPModel,X_test)
     m_f,cov_f = fstar(model,X_test,covf=true)
     n_test = size(X_test,1)
     @assert minimum(cov_f)>0  error("Covariance under 0")
-    predic = zeros(n_test)
-    # t_Inf = 0.0; t_cov = 0.0
-    # err = 0.0
+    predic = zeros(Float64,n_test)
     for i in 1:n_test
         d = Normal(m_f[i],sqrt(cov_f[i]))
         predic[i] = quadgk(x->logit(x)*pdf(d,x),-Inf,Inf)[1]
-        # t_cov += @elapsed v = quadgk(x->logit(x)*pdf(d,x),m_f[i]-10*sqrt(cov_f[i]),m_f[i]+10*sqrt(cov_f[i]))[1]
+        # predic[i] = quadgk(x->logit(x)*pdf(d,x),m_f[i]-10*sqrt(cov_f[i]),m_f[i]+10*sqrt(cov_f[i]))[1]
         # err += abs(v-predic[i])
     end
-    # println("T_inf = $t_Inf, for t_cov = $t_cov gives err = $err")
     return predic
 end
 
+"""Return the mean of the predictive distribution of f"""
 function regpredict(model::GPRegression,X_test)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.y
@@ -203,25 +215,13 @@ function regpredict(model::GPRegression,X_test)
     return k_star*model.TopMatrixForPrediction
 end
 
-function regpredict(model::SparseGPRegression,X_test)
+"""Return the mean of the predictive distribution of f"""
+function regpredict(model::GPModel,X_test)
     return fstar(model,X_test,covf=false)
 end
 
-function regpredict(model::OnlineGPRegression,X_test)
-    return fstar(model,X_test,covf=false)
-end
-
-#Return the mean and variance of the predictive distribution of f*
-function regpredictproba(model::FullBatchModel,X_test)
-    return fstar(model,X_test)
-end
-
-#Return the mean and variance of the predictive distribution of f*
-function regpredictproba(model::SparseModel,X_test)
-    return fstar(model,X_test)
-end
-
-function regpredictproba(model::OnlineGPRegression,X_test)
+"""Return the mean and variance of the predictive distribution of f"""
+function regpredictproba(model::GPModel,X_test)
     return fstar(model,X_test)
 end
 
@@ -310,20 +310,25 @@ function multiclasspredictprobamcmc(model::MultiClass,X_test,NSamples=100)
     return m_pred_mc,sig_pred_mc
 end
 
-function mod_soft_max(σ,normsig)
-    return σ./normsig
+
+"Return the modified softmax likelihood given the array of 'σ' and their sum (can be given via sumsig)"
+function mod_soft_max(σ::Array{Float64,1},sumsig::Float64=0.0)
+    return sumsig == 0 ? σ./(sum(σ)) : σ./sumsig
 end
 
-function grad_mod_soft_max(σ,normsig)
-    short_sum = normsig-σ
-    norm_square = normsig^2
-    base_grad = (σ-(σ.^2))./norm_square
+
+"Return the gradient of the modified softmax likelihood given 'σ' and their sum (can be given via sumsig)"
+function grad_mod_soft_max(σ::Array{Float64,1},sumsig::Float64=0.0)
+    sumsig = sumsig == 0 ? sum(σ) : sumsig
+    shortened_sum = sumsig.-σ
+    sum_square = sumsig^2
+    base_grad = (σ-(σ.^2))./sum_square
     n = size(σ,1)
     grad = zeros(n,n)
     for i in 1:n
         for j in 1:n
             if i==j
-                grad[i,i] = short_sum[i]*base_grad[i]
+                grad[i,i] = shortened_sum[i]*base_grad[i]
             else
                 grad[i,j] = -σ[i]*base_grad[j]
             end
@@ -332,17 +337,19 @@ function grad_mod_soft_max(σ,normsig)
     return grad
 end
 
-function hessian_mod_soft_max(σ,normsig)
-    short_sum = normsig-σ
-    norm_square = normsig^2
-    norm_cube = normsig^3
-    base_grad = (σ-σ.^2).*((1.0-2.0.*σ).*norm_square-2.0.*(σ-σ.^2)*normsig)./norm_cube
+"Return the hessian of the modified softmax likelihood given 'σ' and their sum (can be given via sumsig)"
+function hessian_mod_soft_max(σ::Array{Float64,1},summsig::Float64=0.0)
+    sumsig = sumsig == 0 ? sum(σ) : sumsig
+    shortened_sum = sumsig.-σ
+    sum_square = sumsig^2
+    sum_cube = sumsig^3
+    base_grad = (σ-σ.^2).*((1.0.-2.0.*σ).*sum_square-2.0.*(σ-σ.^2)*sumsig)./sum_cube
     n = size(σ,1)
     grad = zeros(n,n)
     for i in 1:n
         for j in 1:n
             if i==j
-                grad[i,i] = short_sum[i]*base_grad[i]
+                grad[i,i] = shortened_sum[i]*base_grad[i]
             else
                 grad[i,j] = -σ[i]*base_grad[j]
             end

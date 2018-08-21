@@ -290,18 +290,19 @@ end
     α::Array{Float64,1}
 end
 
-#Initialize the latent variables
+"Initialize the latent variables"
 function initLatentVariables!(model::FullBatchModel)
     model.α = abs.(rand(model.nSamples))*2;
 end
 
+"Initialize the latent variables"
 function initLatentVariables!(model::SparseModel)
     model.α = abs.(rand(model.nSamplesUsed))*2;
 end
 
 """
     Parameters for online setting
-        """
+"""
 @def onlinefields begin
     Sequential::Bool #Defines if we know how many point will be treated at the beginning
     alldataparsed::Bool #Check if all data has been treated
@@ -351,7 +352,8 @@ end
 @def samplingfields begin
     burninsamples::Integer
     samplefrequency::Integer
-    samplehistory::MVHistory
+    samplehistory_α::Array{Array{Float64,1},1}
+    samplehistory_f::Array{Array{Float64,1},1}
     estimate::Array{Array{Float64,1},1}
     pgsampler::PolyaGammaDist
 end
@@ -359,7 +361,7 @@ end
 function initSampling!(model,burninsamples,samplefrequency)
     model.burninsamples = burninsamples
     model.samplefrequency = samplefrequency
-    model.samplehistory = MVHistory()
+    model.samplehistory = Array{Array{Float64,1},1}()
     model.estimate = Array{Array{Float64,1},1}()
     model.pgsampler = PolyaGammaDist()
 end

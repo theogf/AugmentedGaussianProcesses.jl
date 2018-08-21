@@ -1,9 +1,10 @@
 
-#Train function used to update the variational parameters given the training data X and y
-#Possibility to put a callback function, taking the model and the iteration number as an argument
-#Also one can change the convergence function
-
-function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
+"""
+Function to train the given Online GP model, there are options to change the number of max iterations,
+give a callback function that will take the model and the actual step as arguments
+and give a convergence method to stop the algorithm given specific criteria
+"""
+function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,convergence=DefaultConvergence)
     if model.VerboseLevel > 0
       println("Starting training of online training of data with $(model.nSamples) samples with $(size(model.X,2)) features :, using the "*model.Name*" model")
     end
@@ -30,7 +31,7 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,Convergenc
             updateHyperParameters!(model) #Do the hyper-parameter optimization
             computeMatrices!(model)
         end
-        # conv = Convergence(model,iter) #Check for convergence
+        # conv = convergence(model,iter) #Check for convergence
         ### Print out informations about the convergence
          if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
             print("Iteration : $iter, convergence = $conv \n")
@@ -43,7 +44,7 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,Convergenc
     if model.VerboseLevel > 0
       println("Training ended after $iter iterations")
     end
-    computeMatrices!(model)
+    computeMatrices!(model) #Recompute matrices if hyperparameters have been changed
     #Compute final version of the matrices for prediction
     if isa(model,GibbsSamplerGPC) #Compute the average of the samples
         model.μ = squeeze(mean(hcat(model.estimate...),2),2)
@@ -57,20 +58,24 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,Convergenc
     model.Trained = true
 end
 
+"""
+    Subfunction to update all the parameters (except for hyperparameters of the model)
+"""
 function updateParameters!(model::OnlineGPModel,iter::Integer)
-#Function to update variational parameters
+    #Select a new batch of data given the method choice
     if model.Sequential
         newbatchsize = min(model.nSamplesUsed-1,model.nSamples-model.lastindex)
-        model.MBIndices = model.lastindex:(model.lastindex+newbatchsize) #Sample nSamplesUsed indices for the minibatches
+        model.MBIndices = model.lastindex:(model.lastindex+newbatchsize) #Sample the next nSamplesUsed points
         model.lastindex += newbatchsize
         if newbatchsize < (model.nSamplesUsed-1)
-            model.alldataparsed=true
+            model.alldataparsed=true #Indicate all data has been visited
         end
     else
-        model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
+        model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed points randomly
     end
-    update_points!(model)
-    computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    update_points!(model) #Update the location of the inducing points
+    computeMatrices!(model); #Recompute the matrices given the new batch of data and inducing points
+    #Update the variational parameters given the type of model
     if model.ModelType == BSVM
         variablesUpdate_BSVM!(model,iter)
     elseif model.ModelType == XGPC
@@ -82,7 +87,9 @@ function updateParameters!(model::OnlineGPModel,iter::Integer)
     end
 end
 
-
+"""
+Subfunction to update the inducing points in an online manner
+"""
 function update_points!(model::OnlineGPModel)
     update!(model.kmeansalg,model.X[model.MBIndices,:],model.y[model.MBIndices],model)
     NCenters = model.kmeansalg.k
@@ -103,7 +110,9 @@ function update_points!(model::OnlineGPModel)
     model.indpoints_updated = true
 end
 
-#### Computations of the kernel matrices for the different type of models ####
+"""
+Computate all necessary kernel matrices
+"""
 function computeMatrices!(model::OnlineGPModel)
     if model.HyperParametersUpdated || model.indpoints_updated
         model.Kmm = Symmetric(kernelmatrix(model.kmeansalg.centers,model.kernel)+Diagonal{Float64}(model.noise*I,model.m))
@@ -117,14 +126,18 @@ function computeMatrices!(model::OnlineGPModel)
     model.indpoints_updated = false;
 end
 
+"""
+Reset prediction matrices when any model parameter has been changed
+"""
 function reset_prediction_matrices!(model::OnlineGPModel)
     model.TopMatrixForPrediction=0;
     model.DownMatrixForPrediction=0;
 end
 
 
-#### Computations of the learning rates ###
-
+"""
+TODO, Compute a MCMC estimation of the natural gradient at the initialization of the model for an optimal learning rate
+"""
 function MCInit!(model::OnlineGPModel)
     if typeof(model) <: MultiClassGPModel
         model.g = [zeros(model.m*(model.m+1)) for i in 1:model.K]

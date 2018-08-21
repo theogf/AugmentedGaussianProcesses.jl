@@ -45,13 +45,7 @@ function updateHyperParameters!(model::SparseModel)
     model.HyperParametersUpdated = true
 end
 
-function hyperparameter_gradient_function(model::FullBatchModel)
-    A = model.invK*(model.ζ+model.µ*transpose(model.μ))-Diagonal{Float64}(I,model.nSamples)
-    return function(Js)
-                V = model.invK*Js[1]
-                return 0.5*sum(V.*transpose(A))
-            end
-end
+
 
 function updateHyperParameters!(model::MultiClass)
     if model.IndependentGPs

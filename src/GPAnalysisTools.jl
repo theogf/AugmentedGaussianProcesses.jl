@@ -3,6 +3,12 @@ using ValueHistories
 using LinearAlgebra
 # using Plots
 export getLog, getMultiClassLog#, IntermediatePlotting
+
+"""
+    Return a a MVHistory object and callback function for the training of binary classification problems
+    The callback will store the ELBO and the variational parameters at every iterations included in iter_points
+    If X_test and y_test are provided it will also store the test accuracy and the mean and median test loglikelihood
+"""
 function getLog(model;X_test=0,y_test=0,iter_points=vcat(1:99,100:10:999,1000:100:9999))
     metrics = MVHistory()
     function SaveLog(model,iter;hyper=false)
@@ -37,6 +43,11 @@ function getLog(model;X_test=0,y_test=0,iter_points=vcat(1:99,100:10:999,1000:10
     return metrics,SaveLog
 end
 
+"""
+    Return a a MVHistory object and callback function for the training of multiclass classification problems
+    The callback will store the ELBO and the variational parameters at every iterations included in iter_points
+    If X_test and y_test are provided it will also store the test accuracy
+"""
 function getMultiClassLog(model,X_test=0,y_test=0,iter_points=vcat(1:99,100:10:999,1000:100:9999))
     metrics = MVHistory()
     function SaveLog(model,iter;hyper=false)

@@ -33,22 +33,25 @@ include("../src/OMGP.jl")
     # y_test = ones(size(X_test,1))
 
 (nSamples,nFeatures) = (N_data,1)
-kernel = OMGP.RBFKernel(1.0)
+kernel = OMGP.RBFKernel(3.0)
+ps = []
 # #### FULL MODEL EVALUATION ####
-t_full = @elapsed fullmodel = OMGP.BatchXGPC(X,y,noise=noise,kernel=kernel,VerboseLevel=3)
-t_full += @elapsed fullmodel.train()
-y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
-p2=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="XGPC")
-#
+# t_full = @elapsed fullmodel = OMGP.BatchXGPC(X,y,noise=noise,kernel=kernel,VerboseLevel=3)
+# t_full += @elapsed fullmodel.train(iterations=10)
+# y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
+# p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="XGPC")
+# push!(ps,p1)
+
 # #### SPARSE MODEL EVALUATION ####
 t_sparse = @elapsed sparsemodel = OMGP.SparseXGPC(X,y,Stochastic=false,Autotuning=true,ϵ=1e-6,VerboseLevel=3,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
 metrics,savelog = OMGP.getLog(sparsemodel,X_test=X_test,y_test=y_test)
 sparsemodel.kernel.weight.fixed=true
 # OMGP.setfixed!(sparsemodel.kernel.param[1])
-t_sparse += @elapsed sparsemodel.train(iterations=1000)#,callback=savelog)
+t_sparse += @elapsed sparsemodel.train(iterations=100)#,callback=savelog)
 y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
-p3=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Sparse XGPC")
+p2=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Sparse XGPC")
 plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
+push!(ps,p2)
 
 #### STOCH. SPARSE MODEL EVALUATION ###
 t_stoch = @elapsed stochmodel = OMGP.SparseXGPC(X,y,Stochastic=true,BatchSize=40,Autotuning=true,VerboseLevel=2,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
@@ -56,16 +59,17 @@ metrics,savelog = OMGP.getLog(stochmodel,X_test=X_test,y_test=y_test)
 OMGP.setfixed!(stochmodel.kernel.weight)
 t_stoch += @elapsed stochmodel.train(iterations=1000)#,callback=savelog)
 y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))
-p4=plot(x_test,x_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse XGPC")
+p3=plot(x_test,x_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse XGPC")
 plot!(stochmodel.inducingPoints[:,1],stochmodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
+push!(ps,p3)
 
 #### RESULTS OF THE ACCURACY ####
-println("Full model : Acc=$(acc_full), time=$t_full")
-println("Sparse model : Acc=$(acc_sparse), time=$t_sparse")
-println("Stoch. Sparse model : Acc=$(acc_stoch), time=$t_stoch")
+println("Full model : Acc=$(acc_full), time=$t_full s")
+# println("Sparse model : Acc=$(acc_sparse), time=$t_sparse s")
+# println("Stoch. Sparse model : Acc=$(acc_stoch), time=$t_stoch s")
 
 #### PRINTING RESULTS ####
-p1=plot(x_test,x_test,reshape(y_test,N_test,N_test),t=:contour,cbar=false,fill=:true)
+ptrue=plot(x_test,x_test,reshape(y_test,N_test,N_test),t=:contour,cbar=false,fill=:true)
 plot!(X[y.==1,1],X[y.==1,2],color=:red,t=:scatter,lab="y=1",title="Truth",xlims=(-5,5),ylims=(-5,5))
 plot!(X[y.==-1,1],X[y.==-1,2],color=:blue,t=:scatter,lab="y=-1")
-display(plot(p1,p2,p3,p4));
+display(plot(ptrue,ps...));
