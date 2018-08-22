@@ -1,17 +1,18 @@
 # OMGP!
 
-Oh My GP! is a Julia package in development for **extremely efficient Gaussian Processes algorithms**. It contains for the moment only two classifiers : the Bayesian SVM, and a state-of-the-art algorithm for classification using the logit link called X-GPC and a regression model . It is planned to implement more complex likelihoods, including the multi-class classification.
+Oh My GP! is a Julia package in development for **extremely efficient Gaussian Processes algorithms**. It contains for the moment only two classifiers : the Bayesian SVM, and a state-of-the-art algorithm for classification using the logit link called X-GPC and a regression model. It is planned to implement more complex likelihoods, such as the multi-class classification problem.
 
 ## Install the package
 
-Run in Julia `Pkg.clone("git://github.com/theogf/OMGP.jl.git")`, it will install the package and all its requirements
+The package requires Julia 0.7
+Run in Julia press `]` and type `add https://github.com/theogf/OMGP.jl`, it will install the package and all its requirements
 
 
 ## Use the package
 
 A complete documentation is currently being written, for now you can use this very basic example where `X_train` is a matrix ``N x D`` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs.
 
-```
+```julia
 using OMGPC
 model = SparseXGPC(X_train,Y_train;Stochastic=true,BatchSize=100,m=64,kernel=RBFKernel(1.0)) #Parameters after ; are optional
 model.train(iterations=100)
