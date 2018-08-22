@@ -45,7 +45,11 @@ using SpecialFunctions
 using Dates
 using QuadGK
 using GradDescent
+<<<<<<< HEAD
 using SparseArrays
+=======
+using ValueHistories
+>>>>>>> cf43b28a426b82b075d1dacb0fdce1030724f7cb
 #Exported models
 export KMeansModule
 export LinearBSVM, BatchBSVM, SparseBSVM

@@ -82,7 +82,6 @@ function varcorrection(fstar,μ,Σ,c,covfefe;fstar_corr=0)
     corr_mean = fstar_corr - fstar
     # correction = fstar.^2 - fstar_corr.^2
     correction = 0.5*(covfefe.^2*((μ.^2-diag(Σ)).*var_c))
-    # display(Plots.plot(covfstar,correction,t=:scatter))
 
     println(correction)
     return correction

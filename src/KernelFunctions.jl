@@ -47,14 +47,25 @@ macro kernelfunctionfields()
     end)
 end
 
+<<<<<<< HEAD
+=======
+using GradDescent
+
+
+
+>>>>>>> cf43b28a426b82b075d1dacb0fdce1030724f7cb
 import Base: *, +, getindex
 export Kernel, KernelSum, KernelProduct
 export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2Kernel, Matern5_2Kernel
 export kernelmatrix,kernelmatrix!,diagkernelmatrix,diagkernelmatrix!,computeIndPointsJ
 export derivativekernelmatrix,derivativediagkernelmatrix,compute_hyperparameter_gradient,apply_gradients!
+<<<<<<< HEAD
 export InnerProduct, SquaredEuclidean, Identity
 export compute,plotkernel
 export getvalue,setvalue!,setfixed!,setfree!
+=======
+export compute
+>>>>>>> cf43b28a426b82b075d1dacb0fdce1030724f7cb
 
 
 "Abstract type for all kernels"
@@ -648,8 +659,13 @@ function apply_gradients!(kernel::KernelProduct,gradients,variance::Bool=true)
     for i in 1:kernel.Nkernels
         apply_gradients!(kernel.kernel_array[i],gradients[i],false);
     end
+<<<<<<< HEAD
     if variance
         update!(kernel.variance,gradients[end][1]);
+=======
+    if weight
+        update!(kernel.weight,gradients[end][1]);
+>>>>>>> cf43b28a426b82b075d1dacb0fdce1030724f7cb
     end
 end
 

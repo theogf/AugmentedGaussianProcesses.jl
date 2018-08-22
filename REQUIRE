@@ -8,5 +8,9 @@ Clustering
 GradDescent
 QuadGK
 ValueHistories
+<<<<<<< HEAD
 LaTeXStrings
 LinearAlgebra
+=======
+Plots
+>>>>>>> cf43b28a426b82b075d1dacb0fdce1030724f7cb
