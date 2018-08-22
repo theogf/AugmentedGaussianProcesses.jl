@@ -65,11 +65,11 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
     computeMatrices!(model) #Compute final version of the matrices for prediction
     if isa(model,GibbsSamplerGPC) #Compute the mean and covariance of the samples
         model.μ = squeeze(mean(hcat(model.estimate...),2),2)
-        model.ζ = cov(hcat(model.estimate...),2)
+        model.Σ = cov(hcat(model.estimate...),2)
     elseif isa(model,MultiClass) || isa(model,SparseMultiClass)
-        model.ζ = broadcast(x->(-0.5*inv(x)),model.η_2)
+        model.Σ = broadcast(x->(-0.5*inv(x)),model.η_2)
     elseif !isa(model,GPRegression)
-        model.ζ = -0.5*inv(model.η_2);
+        model.Σ = -0.5*inv(model.η_2);
     end
     model.Trained = true
 end

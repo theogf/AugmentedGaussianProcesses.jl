@@ -73,7 +73,7 @@ function StoreIt(model::OMGP.GPModel,iter;hyper=false)#;iter_points=[],LogArrays
             push!(metrics,:end_time,iter,time_ns()*1e-9)
             println("Iteration $iter : Accuracy is $(1-sum(1-y_test.*sign.(y_p-0.5))/(2*length(y_test))), ELBO is $(DAM.ELBO(model)), θ is $(model.Kernels[1].param)")
             push!(Parameters,:μ,iter,model.μ)
-            push!(Parameters,:diag_ζ,iter,diag(model.ζ))
+            push!(Parameters,:diag_Σ,iter,diag(model.Σ))
             push!(Parameters,:kernel_params,iter,getfield.(model.Kernels,:param))
             push!(Parameters,:kernel_coeffs,iter,getfield.(model.Kernels,:coeff))
         else

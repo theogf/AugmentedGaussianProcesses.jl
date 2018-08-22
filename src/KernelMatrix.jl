@@ -106,7 +106,7 @@ function compute_unmappeddiagJ(kernel,X)
     return J
 end
 
-function compute_J(k::KernelSum,J,n1,n2,weight::Bool=true;diag::Bool=false)
+function compute_J(k::KernelSum,J,n1,n2,variance::Bool=true;diag::Bool=false)
     J_mat = Array{Any,1}()
     for (i,kernel) in enumerate(k.kernel_array)
         push!(J_mat,compute_J(kernel,broadcast(x->x[i],J),n1,n2,true,diag=diag))
@@ -114,12 +114,12 @@ function compute_J(k::KernelSum,J,n1,n2,weight::Bool=true;diag::Bool=false)
     return J_mat
 end
 
-function compute_J(k::KernelProduct,J,n1,n2,weight::Bool=true;diag::Bool=false)
+function compute_J(k::KernelProduct,J,n1,n2,variance::Bool=true;diag::Bool=false)
     J_mat = Array{Any,1}()
     for (i,kernel) in enumerate(k.kernel_array)
         push!(J_mat,compute_J(kernel,broadcast(x->x[i],J),n1,n2,false,diag=diag))
     end
-    if weight
+    if variance
         if diag
             push!(J_mat,broadcast(x->x[end][1],J))
         else
@@ -129,7 +129,7 @@ function compute_J(k::KernelProduct,J,n1,n2,weight::Bool=true;diag::Bool=false)
     return J_mat
 end
 
-function compute_J(k::Kernel,J,n1,n2,weight::Bool=true;diag::Bool=false)
+function compute_J(k::Kernel,J,n1,n2,variance::Bool=true;diag::Bool=false)
     J_mat = Array{Any,1}()
     for i in 1:k.Nparam
         if diag
@@ -138,7 +138,7 @@ function compute_J(k::Kernel,J,n1,n2,weight::Bool=true;diag::Bool=false)
             push!(J_mat,reshape(broadcast(x->x[i],J),n1,n2))
         end
     end
-    if weight
+    if variance
         if diag
             push!(J_mat,broadcast(x->x[end],J))
         else
@@ -151,7 +151,7 @@ end
 """
     Compute the gradients using a gradient function and matrices Js
 """
-function compute_hyperparameter_gradient(k::KernelSum,gradient_function::Function,weight::Bool,Js,index)
+function compute_hyperparameter_gradient(k::KernelSum,gradient_function::Function,variance::Bool,Js,index)
     gradients = Array{Any,1}()
     for (j,kernel) in enumerate(k.kernel_array)
         push!(gradients,compute_hyperparameter_gradient(kernel,gradient_function,true,broadcast(x->x[j],Js),index))
@@ -159,22 +159,22 @@ function compute_hyperparameter_gradient(k::KernelSum,gradient_function::Functio
     return gradients
 end
 
-function compute_hyperparameter_gradient(k::KernelProduct,gradient_function::Function,weight::Bool,Js,index)
+function compute_hyperparameter_gradient(k::KernelProduct,gradient_function::Function,variance::Bool,Js,index)
     gradients = Array{Any,1}()
     for (j,kernel) in enumerate(k.kernel_array)
         push!(gradients,compute_hyperparameter_gradient(kernel,gradient_function,false,broadcast(x->x[j],Js),index))
     end
-    if weight
+    if variance
         push!(gradients,[gradient_function(broadcast(x->x[end][1],Js),index)])
     end
     return gradients
 end
-function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,weight::Bool,Js,index)
+function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,variance::Bool,Js,index)
     gradients = Array{Float64,1}()
     for j in 1:k.Nparam
         push!(gradients,gradient_function(broadcast(x->x[j],Js),index))
     end
-    if weight
+    if variance
         push!(gradients,gradient_function(broadcast(x->x[end],Js),index))
     end
     return gradients

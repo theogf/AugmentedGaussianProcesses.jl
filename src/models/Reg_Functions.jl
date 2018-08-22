@@ -17,9 +17,9 @@ function ELBO(model::SparseGPRegression)
     ELBO = -0.5*model.nSamples*(log(model.noise)+log(2*pi))
     ELBO += -0.5*model.StochCoeff*sum((model.y[model.MBIndices] - model.κ*model.μ).^2)/model.noise
     ELBO += -0.5*model.StochCoeff*sum(model.Ktilde)./model.noise
-    ELBO += -0.5*model.StochCoeff/model.noise*sum((model.κ*model.ζ).*model.κ)
-    ELBO += 0.5*(logdet(model.ζ)+logdet(model.invKmm))
-    ELBO += -0.5*(sum(model.invKmm.*transpose(model.ζ+model.μ*transpose(model.μ))))
+    ELBO += -0.5*model.StochCoeff/model.noise*sum((model.κ*model.Σ).*model.κ)
+    ELBO += 0.5*(logdet(model.Σ)+logdet(model.invKmm))
+    ELBO += -0.5*(sum(model.invKmm.*transpose(model.Σ+model.μ*transpose(model.μ))))
     return -ELBO
 end
 
@@ -35,14 +35,14 @@ function variablesUpdate_Regression!(model::SparseGPRegression,iter)
     (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
-    model.ζ = -0.5*inv(model.η_2); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
+    model.Σ = -0.5*inv(model.η_2); model.μ = model.Σ*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
 function variablesUpdate_Regression!(model::OnlineGPRegression,iter)
     (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.Stochastic ? model.StochCoeff : 1.0)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
-    model.ζ = -0.5*inv(model.η_2); model.μ = model.ζ*model.η_1 #Back to the distribution parameters (needed for α updates)
+    model.Σ = -0.5*inv(model.η_2); model.μ = model.Σ*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
 function naturalGradientELBO_Regression(y,κ,noise;stoch_coeff=1.0)
@@ -61,7 +61,7 @@ function hyper_parameter_gradient_function(model::GPRegression)
 end
 
 function hyperparameter_gradient_function(model::SparseGPRegression)
-    B = model.μ*transpose(model.μ) + model.ζ
+    B = model.μ*transpose(model.μ) + model.Σ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     return function(Js,iter)
             Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];

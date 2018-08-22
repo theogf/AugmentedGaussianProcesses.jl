@@ -48,11 +48,11 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,convergenc
     #Compute final version of the matrices for prediction
     if isa(model,GibbsSamplerGPC) #Compute the average of the samples
         model.μ = squeeze(mean(hcat(model.estimate...),2),2)
-        model.ζ = cov(hcat(model.estimate...),2)
+        model.Σ = cov(hcat(model.estimate...),2)
     elseif isa(model,MultiClass) || isa(model,SparseMultiClass)
-        model.ζ = broadcast(x->(-0.5*inv(x)),model.η_2)
+        model.Σ = broadcast(x->(-0.5*inv(x)),model.η_2)
     elseif !isa(model,GPRegression)
-        model.ζ = -0.5*inv(model.η_2);
+        model.Σ = -0.5*inv(model.η_2);
     end
     computeMatrices!(model)
     model.Trained = true
@@ -98,9 +98,9 @@ function update_points!(model::OnlineGPModel)
     if Nnewpoints!=0
         model.μ = vcat(model.μ, zeros(Nnewpoints))
         model.η_1 = vcat(model.η_1, zeros(Nnewpoints))
-        ζ_temp = Matrix{Float64}(I,NCenters,NCenters)
-        ζ_temp[1:model.m,1:model.m] = model.ζ
-        model.ζ = ζ_temp
+        Σ_temp = Matrix{Float64}(I,NCenters,NCenters)
+        Σ_temp[1:model.m,1:model.m] = model.Σ
+        model.Σ = Σ_temp
         η_2temp = Matrix{Float64}(-0.5*I,NCenters,NCenters)
         η_2temp[1:model.m,1:model.m] = model.η_2
         model.η_2 = η_2temp
@@ -165,10 +165,10 @@ function MCInit!(model::OnlineGPModel)
             # local_updates!(model)
             if model.ModelType==BSVM
                 Z = Diagonal(model.y[model.MBIndices])*model.κ;
-                model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.ζ).*Z,dims=2),2)+model.Ktilde;
+                model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.Σ).*Z,dims=2),2)+model.Ktilde;
                 (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invKmm, model.StochCoeff)
             elseif model.ModelType==XGPC
-                model.α[model.MBIndices] = sqrt.(model.Ktilde+diag(model.κ*model.ζ*model.κ')+(model.κ*model.μ).^2)
+                model.α[model.MBIndices] = sqrt.(model.Ktilde+diag(model.κ*model.Σ*model.κ')+(model.κ*model.μ).^2)
                 θs = (1.0./(2.0*model.α[model.MBIndices])).*tanh.(model.α[model.MBIndices]./2.0)
                 (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
             elseif model.ModelType==Regression

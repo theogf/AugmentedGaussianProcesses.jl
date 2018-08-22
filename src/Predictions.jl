@@ -9,7 +9,7 @@ function fstar(model::FullBatchModel,X_test;covf::Bool=true)
         model.TopMatrixForPrediction = model.invK*model.μ
     end
     if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = (model.invK*(Diagonal{Float64}(I,model.nSamples)-model.ζ*model.invK))
+      model.DownMatrixForPrediction = (model.invK*(Diagonal{Float64}(I,model.nSamples)-model.Σ*model.invK))
     end
     k_star = kernelmatrix(X_test,model.X,model.kernel)
     mean_fstar = k_star*model.TopMatrixForPrediction
@@ -29,7 +29,7 @@ function fstar(model::SparseModel,X_test;covf::Bool=true)
         model.TopMatrixForPrediction = model.invKmm*model.μ
     end
     if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = (model.invKmm*(Diagonal{Float64}(I,model.nFeatures)-model.ζ*model.invKmm))
+      model.DownMatrixForPrediction = (model.invKmm*(Diagonal{Float64}(I,model.nFeatures)-model.Σ*model.invKmm))
     end
     k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
     mean_fstar = k_star*model.TopMatrixForPrediction
@@ -50,7 +50,7 @@ function fstar(model::OnlineGPModel,X_test;covf::Bool=true)
         model.TopMatrixForPrediction = model.invKmm*model.μ
     end
     if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = (model.invKmm*(Diagonal{Float64}(I,model.nFeatures)-model.ζ*model.invKmm))
+      model.DownMatrixForPrediction = (model.invKmm*(Diagonal{Float64}(I,model.nFeatures)-model.Σ*model.invKmm))
     end
     k_star = kernelmatrix(X_test,model.kmeansalg.centers,model.kernel)
     mean_fstar = k_star*model.TopMatrixForPrediction
@@ -92,7 +92,7 @@ function fstar(model::MultiClass,X_test;covf::Bool=true)
         model.TopMatrixForPrediction = broadcast((mu,invK)->invK*mu,model.μ,model.invK)
     end
     if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = broadcast((var,invK)->invK*(Diagonal{Float64}(I,model.nSamples)-var*invK),model.ζ,model.invK)
+      model.DownMatrixForPrediction = broadcast((var,invK)->invK*(Diagonal{Float64}(I,model.nSamples)-var*invK),model.Σ,model.invK)
     end
     if model.IndependentGPs
         k_star = [kernelmatrix(X_test,model.X,model.kernel[i]) for i in 1:model.K]
@@ -127,9 +127,9 @@ function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
     end
     if covf && model.DownMatrixForPrediction == 0
         if model.IndependentGPs
-            model.DownMatrixForPrediction = broadcast((var,Kmm)->(Kmm\(Diagonal{Float64}(I,model.nFeatures)-var/Kmm)),model.ζ,model.Kmm)
+            model.DownMatrixForPrediction = broadcast((var,Kmm)->(Kmm\(Diagonal{Float64}(I,model.nFeatures)-var/Kmm)),model.Σ,model.Kmm)
         else
-            model.DownMatrixForPrediction = broadcast((var)->(model.Kmm[1]\(Diagonal{Float64}(I,model.nFeatures)-var/model.Kmm[1])),model.ζ)
+            model.DownMatrixForPrediction = broadcast((var)->(model.Kmm[1]\(Diagonal{Float64}(I,model.nFeatures)-var/model.Kmm[1])),model.Σ)
         end
     end
     if model.IndependentGPs
@@ -169,7 +169,7 @@ function probitpredictproba(model::LinearModel,X_test)
     n = size(X_test,1)
     predic = zeros(n)
     for i in 1:n
-      predic[i] = cdf(Normal(),(dot(X_test[i,:],model.μ))/(dot(X_test[i,:],model.ζ*X_test[i,:])+1))
+      predic[i] = cdf(Normal(),(dot(X_test[i,:],model.μ))/(dot(X_test[i,:],model.Σ*X_test[i,:])+1))
     end
     return predic
 end

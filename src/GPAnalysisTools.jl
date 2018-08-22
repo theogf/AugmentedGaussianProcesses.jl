@@ -35,8 +35,8 @@ function getLog(model;X_test=0,y_test=0,iter_points=vcat(1:99,100:10:999,1000:10
                 end
                 push!(metrics,:ELBO,iter,model.elbo())
                 push!(metrics,:mu,iter,model.μ)
-                push!(metrics,:sigma,iter,diag(model.ζ))
-                push!(metrics,:kernel_weight,iter,getindex(model.kernel.weight.value))
+                push!(metrics,:sigma,iter,diag(model.Σ))
+                push!(metrics,:kernel_variance,iter,getindex(model.kernel.variance.value))
                 push!(metrics,:kernel_param,iter,getindex(model.kernel.param[1].value))
         end
     end #end SaveLog
@@ -66,7 +66,7 @@ function getMultiClassLog(model,X_test=0,y_test=0,iter_points=vcat(1:99,100:10:9
                 end
                 push!(metrics,:ELBO,iter,model.elbo())
                 push!(metrics,:mu,iter,model.μ)
-                push!(metrics,:sigma,iter,diag.(model.ζ))
+                push!(metrics,:sigma,iter,diag.(model.Σ))
                 if model.IndependentGPs
                     push!(metrics,:kernel_param_1,iter,getindex(model.kernel[1].param[1].value))
                     push!(metrics,:kernel_param_2,iter,getindex(model.kernel[2].param[1].value))
@@ -79,6 +79,7 @@ function getMultiClassLog(model,X_test=0,y_test=0,iter_points=vcat(1:99,100:10:9
     return metrics,SaveLog
 end
 
+"Return the KL divergence for a series of points given the true GPs and predicted ones"
 function KLGP(mu,sig,f,sig_f)
     N = length(f)
     tot = 0.5*N*(-log.(sig_f)-1)

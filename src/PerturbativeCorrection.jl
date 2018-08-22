@@ -27,7 +27,7 @@ export VarCorrection
 #         kerns = [Kernel("rbf",kernel_param,param=kernel_coeff)]
 #         models[i] = SparseXGPC(X,y;optimizer=Adam(α=0.5),OptimizeIndPoints=true,Stochastic=true,ϵ=1e-4,nEpochs=MaxIter,SmoothingWindow=10,Kernels=kerns,Autotuning=true,AutotuningFrequency=2,VerboseLevel=2,AdaptiveLearningRate=true,BatchSize=BatchSize,m=Ninducingpoints)
 #         models[i].μ = μ
-#         models[i].ζ = Σ
+#         models[i].Σ = Σ
 #         models[i].m = m
 #         models[i].α = c
 #     end
@@ -45,9 +45,9 @@ function correctedpredict(model,X_test)
     kstarstar = kernelmatrix(X_test,model.kernel)
     A = kstar*model.invK
     meanfstar = A*model.μ
-    meanfstar_corr = meanfstar + meancorrection(model.μ,model.ζ,model.α,A*model.ζ)
-    covfstar = kstarstar + diag(A*(model.ζ*model.invK-Diagonal{Float64}(I,model.nSamples))*transpose(kstar))
-    covfstar_corr = covfstar + varcorrection(meanfstar,model.μ,model.ζ,model.α;fstar_corr=meanfstar_corr)
+    meanfstar_corr = meanfstar + meancorrection(model.μ,model.Σ,model.α,A*model.Σ)
+    covfstar = kstarstar + diag(A*(model.Σ*model.invK-Diagonal{Float64}(I,model.nSamples))*transpose(kstar))
+    covfstar_corr = covfstar + varcorrection(meanfstar,model.μ,model.Σ,model.α;fstar_corr=meanfstar_corr)
     predic = zeros(n)
     for i in 1:n
         d= Normal(meanfstar_corr[i],covfstar_corr[i])
@@ -60,10 +60,10 @@ function correctedpredict(model,X_test)
 end
 
 function correctedlatent(model)
-    mean_corr = model.μ .+ meancorrection(model.μ,model.ζ,model.α,model.ζ)
-    var_corr = diag(model.ζ)
+    mean_corr = model.μ .+ meancorrection(model.μ,model.Σ,model.α,model.Σ)
+    var_corr = diag(model.Σ)
     # correction = model.μ.^2 - mean_corr.^2
-    correction = 0.5*(model.ζ).^2 *((model.μ.^2+diag(model.ζ)).^2 .*var_c)
+    correction = 0.5*(model.Σ).^2 *((model.μ.^2+diag(model.Σ)).^2 .*var_c)
     var_corr += correction
     return mean_corr,var_corr
 end

@@ -1,7 +1,8 @@
 using Distributions
 using Plots
-using LinearAlgebra
+using ProfileView
 pyplot()
+using LinearAlgebra
 include("../src/OMGP.jl")
 
 ### TESTING WITH TOY XOR DATASET
@@ -43,9 +44,11 @@ ps = []
 # push!(ps,p1)
 
 # #### SPARSE MODEL EVALUATION ####
-t_sparse = @elapsed sparsemodel = OMGP.SparseXGPC(X,y,Stochastic=false,Autotuning=true,ϵ=1e-6,VerboseLevel=3,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
+# t_sparse = @elapsed
+OMGP.SparseXGPC(X,y,Stochastic=false,Autotuning=true,ϵ=1e-6,VerboseLevel=3,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
+Profile.clear()
+sparsemodel = @profile OMGP.SparseXGPC(X,y,Stochastic=false,Autotuning=true,ϵ=1e-6,VerboseLevel=3,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
 metrics,savelog = OMGP.getLog(sparsemodel,X_test=X_test,y_test=y_test)
-sparsemodel.kernel.weight.fixed=true
 # OMGP.setfixed!(sparsemodel.kernel.param[1])
 t_sparse += @elapsed sparsemodel.train(iterations=100)#,callback=savelog)
 y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
@@ -54,14 +57,13 @@ plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter
 push!(ps,p2)
 
 #### STOCH. SPARSE MODEL EVALUATION ###
-t_stoch = @elapsed stochmodel = OMGP.SparseXGPC(X,y,Stochastic=true,BatchSize=40,Autotuning=true,VerboseLevel=2,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
-metrics,savelog = OMGP.getLog(stochmodel,X_test=X_test,y_test=y_test)
-OMGP.setfixed!(stochmodel.kernel.weight)
-t_stoch += @elapsed stochmodel.train(iterations=1000)#,callback=savelog)
-y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))
-p3=plot(x_test,x_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse XGPC")
-plot!(stochmodel.inducingPoints[:,1],stochmodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
-push!(ps,p3)
+# t_stoch = @elapsed stochmodel = OMGP.SparseXGPC(X,y,Stochastic=true,BatchSize=40,Autotuning=true,VerboseLevel=2,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
+# metrics,savelog = OMGP.getLog(stochmodel,X_test=X_test,y_test=y_test)
+# t_stoch += @elapsed stochmodel.train(iterations=1000)#,callback=savelog)
+# y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))
+# p3=plot(x_test,x_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse XGPC")
+# plot!(stochmodel.inducingPoints[:,1],stochmodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
+# push!(ps,p3)
 
 #### RESULTS OF THE ACCURACY ####
 println("Full model : Acc=$(acc_full), time=$t_full s")

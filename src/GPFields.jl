@@ -156,7 +156,7 @@ Parameters for the variational multivariate gaussian distribution
 @def gaussianparametersfields begin
     μ::Array{Float64,1} # Mean for variational distribution
     η_1::Array{Float64,1} #Natural Parameter #1
-    ζ::Array{Float64,2} # Covariance matrix of variational distribution
+    Σ::Array{Float64,2} # Covariance matrix of variational distribution
     η_2::Array{Float64,2} #Natural Parameter #2
 end
 """
@@ -172,8 +172,8 @@ function initGaussian!(model::GPModel,μ_init)
     else
       model.μ = μ_init
     end
-    model.ζ = Matrix{Float64}(I,model.nFeatures,model.nFeatures)
-    model.η_2 = -0.5*inv(model.ζ)
+    model.Σ = Matrix{Float64}(I,model.nFeatures,model.nFeatures)
+    model.η_2 = -0.5*inv(model.Σ)
     model.η_1 = -2.0*model.η_2*model.μ
 end
 """
@@ -195,17 +195,17 @@ function DefaultConvergence(model::GPModel,iter::Integer)
     #Default convergence function
     if iter == 1
         if typeof(model) <: MultiClassGPModel
-            model.prev_params = vcat(broadcast((μ,diagζ)->[μ;diagζ],model.μ,diag.(model.ζ))...)
+            model.prev_params = vcat(broadcast((μ,diagΣ)->[μ;diagΣ],model.μ,diag.(model.Σ))...)
         else
-            model.prev_params = [model.μ;diag(model.ζ)]
+            model.prev_params = [model.μ;diag(model.Σ)]
         end
         push!(model.evol_conv,Inf)
         return Inf
     end
     if typeof(model) <: MultiClassGPModel
-        new_params = vcat(broadcast((μ,diagζ)->[μ;diagζ],model.μ,diag.(model.ζ))...)
+        new_params = vcat(broadcast((μ,diagΣ)->[μ;diagΣ],model.μ,diag.(model.Σ))...)
     else
-        new_params = [model.μ;diag(model.ζ)]
+        new_params = [model.μ;diag(model.Σ)]
     end
     push!(model.evol_conv,mean(abs.(new_params-model.prev_params)./((abs.(model.prev_params)+abs.(new_params))./2.0)))
     model.prev_params = new_params;

@@ -73,7 +73,7 @@ Parameters for the multiclass version of the classifier based of softmax
     class_mapping::Array{Any,1} # Classes labels mapping
     μ::Array{Array{Float64,1}} #Mean for each class
     η_1::Array{Array{Float64,1}} #Natural parameter #1 for each class
-    ζ::Array{Array{Float64,2}} #Covariance matrix for each class
+    Σ::Array{Array{Float64,2}} #Covariance matrix for each class
     η_2::Array{Array{Float64,2}} #Natural parameter #2 for each class
     α::Array{Float64,1} #Gamma shape parameters
     β::Array{Float64,1} #Gamma rate parameters
@@ -120,8 +120,8 @@ function initMultiClassVariables!(model,μ_init)
     else
       model.μ = [μ_init for i in 1:model.K]
     end
-    model.ζ = [Matrix{Float64}(I,model.nFeatures,model.nFeatures) for i in 1:model.K]
-    model.η_2 = broadcast(x->-0.5*inv(x),model.ζ)
+    model.Σ = [Matrix{Float64}(I,model.nFeatures,model.nFeatures) for i in 1:model.K]
+    model.η_2 = broadcast(x->-0.5*inv(x),model.Σ)
     model.η_1 = -2.0*model.η_2.*model.μ
     if model.Stochastic
         model.α = 0.5*ones(model.nSamplesUsed)

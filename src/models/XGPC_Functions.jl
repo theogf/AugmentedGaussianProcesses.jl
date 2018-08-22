@@ -2,7 +2,7 @@
 # https://arxiv.org/abs/1802.06383
 "Update the local variational parameters of the full batch GP XGPC"
 function local_update!(model::BatchXGPC)
-    model.α = sqrt.(diag(model.ζ)+model.μ.^2)
+    model.α = sqrt.(diag(model.Σ)+model.μ.^2)
 end
 
 "Compute the variational updates for the full GP XGPC"
@@ -15,7 +15,7 @@ end
 
 "Update the local variational parameters of the full batch GP XGPC"
 function local_update!(model::SparseXGPC)
-    model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
+    model.α = sqrt.(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
 end
 
 "Compute the variational updates for the sparse GP XGPC"
@@ -29,7 +29,7 @@ end
 
 "Update the local variational parameters of the online GP XGPC"
 function local_update!(model::OnlineXGPC)
-    model.α = sqrt.(model.Ktilde+sum((model.κ*model.ζ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
+    model.α = sqrt.(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
 end
 
 "Compute the variational updates for the online GP XGPC"
@@ -57,8 +57,8 @@ end
 function ELBO(model::BatchXGPC)
     ELBO_v = model.nSamples*(0.5-log.(2.0)) #Constant
     θ = 1.0./(2*model.α).*tanh.(model.α/2.0) #Computation of mean of ω
-    ELBO_v += 0.5*(logdet(model.ζ)+logdet(model.invK)) #Logdet computations
-    ELBO_v += -0.5*sum((model.invK+Diagonal(θ)).*transpose(model.ζ+model.μ*transpose(model.μ))) #Computation of the trace
+    ELBO_v += 0.5*(logdet(model.Σ)+logdet(model.invK)) #Logdet computations
+    ELBO_v += -0.5*sum((model.invK+Diagonal(θ)).*transpose(model.Σ+model.μ*transpose(model.μ))) #Computation of the trace
     ELBO_v += 0.5*dot(model.y,model.μ)
     ELBO_v += sum(0.5*(model.α.^2).*θ-log.(cosh.(0.5*model.α)))
     return -ELBO_v
@@ -69,8 +69,8 @@ function ELBO(model::SparseXGPC)
     model.StochCoeff = model.nSamples/model.nSamplesUsed
     ELBO_v = -model.nSamples*log(2)+model.m/2.0
     θ = 1.0./(2*model.α).*tanh.(model.α/2.0)
-    ELBO_v += 0.5*(logdet(model.ζ)+logdet(model.invKmm))
-    ELBO_v += -0.5*(sum((model.invKmm+model.StochCoeff*model.κ'*Diagonal(θ)*model.κ).*transpose(model.ζ+model.μ*transpose(model.μ))))
+    ELBO_v += 0.5*(logdet(model.Σ)+logdet(model.invKmm))
+    ELBO_v += -0.5*(sum((model.invKmm+model.StochCoeff*model.κ'*Diagonal(θ)*model.κ).*transpose(model.Σ+model.μ*transpose(model.μ))))
     ELBO_v += model.StochCoeff*0.5*dot(model.y[model.MBIndices],model.κ*model.μ)
     ELBO_v += -0.5*model.StochCoeff*dot(θ,model.Ktilde)
     ELBO_v += model.StochCoeff*sum(0.5*(model.α.^2).*θ-log.(cosh.(0.5*model.α)))
@@ -82,8 +82,8 @@ function ELBO(model::OnlineXGPC)
     model.StochCoeff = model.nSamples/model.nSamplesUsed
     ELBO_v = -model.nSamples*log(2)+model.m/2.0
     θ = 1.0./(2*model.α).*tanh.(model.α/2.0)
-    ELBO_v += 0.5*(logdet(model.ζ)+logdet(model.invKmm))
-    ELBO_v += -0.5*(sum((model.invKmm+model.StochCoeff*model.κ'*Diagonal(θ)*model.κ).*transpose(model.ζ+model.μ*transpose(model.μ))))
+    ELBO_v += 0.5*(logdet(model.Σ)+logdet(model.invKmm))
+    ELBO_v += -0.5*(sum((model.invKmm+model.StochCoeff*model.κ'*Diagonal(θ)*model.κ).*transpose(model.Σ+model.μ*transpose(model.μ))))
     ELBO_v += model.StochCoeff*0.5*dot(model.y[model.MBIndices],model.κ*model.μ)
     ELBO_v += -0.5*model.StochCoeff*dot(θ,model.Ktilde)
     ELBO_v += model.StochCoeff*sum(0.5*(model.α.^2).*θ-log.(cosh.(0.5*model.α)))
@@ -92,7 +92,7 @@ end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters for a XGPC Model"
 function hyperparameter_gradient_function(model::SparseXGPC)
-    B = model.μ*transpose(model.μ) + model.ζ
+    B = model.μ*transpose(model.μ) + model.Σ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     Θ = Diagonal(0.25./model.α.*tanh.(0.5*model.α))
     return function(Js,i)
@@ -108,7 +108,7 @@ end
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters"
 function inducingpoints_gradient(model::SparseXGPC)
     gradients_inducing_points = zeros(model.inducingPoints)
-    B = model.μ*transpose(model.μ) + model.ζ
+    B = model.μ*transpose(model.μ) + model.Σ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     Θ = Diagonal(0.25./model.α.*tanh.(0.5*model.α))
     for i in 1:model.m #Iterate over the points

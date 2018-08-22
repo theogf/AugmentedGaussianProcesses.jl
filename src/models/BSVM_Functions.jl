@@ -53,33 +53,33 @@ end
 "Compute the negative ELBO for the linear BSVM Model"
 function ELBO(model::LinearBSVM)
     Z = Diagonal{Float64}(model.y[model.MBIndices])*model.X[model.MBIndices,:]
-    ELBO = 0.5*(logdet(model.ζ)+logdet(model.invΣ)-tr(model.invΣ*(model.ζ+model.μ*transpose(model.μ))));
+    ELBO = 0.5*(logdet(model.Σ)+logdet(model.invΣ)-tr(model.invΣ*(model.Σ+model.μ*transpose(model.μ))));
     ELBO += sum(model.StochCoeff*(2.0*log.(model.α) + log.(besselk.(0.5,model.α))
-        + dot(vec(Z[i,:]),model.μ) + 0.5./model.α.*(model.α.^2-(1-dot(vec(Z[i,:]),model.μ))^2 - dot(vec(Z[i,:]),model.ζ*vec(Z[i,:])))))
+        + dot(vec(Z[i,:]),model.μ) + 0.5./model.α.*(model.α.^2-(1-dot(vec(Z[i,:]),model.μ))^2 - dot(vec(Z[i,:]),model.Σ*vec(Z[i,:])))))
     return -ELBO
 end
 
 "Compute the ELBO for the full batch GP BSVM Model"
 function ELBO(model::BatchBSVM) #TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
-    ELBO = 0.5*(logdet(model.ζ)+logdet(model.invK)-sum(model.invK.*transpose(model.ζ+model.μ*transpose(model.μ))))
-    ELBO += sum(0.25*log.(model.α[i])+log.(besselk.(0.5,sqrt.(model.α)))+model.y.*model.μ+(model.α-(1-model.y.*model.μ[i]).^2-diag(model.ζ))./(2*sqrt.(model.α)))
+    ELBO = 0.5*(logdet(model.Σ)+logdet(model.invK)-sum(model.invK.*transpose(model.Σ+model.μ*transpose(model.μ))))
+    ELBO += sum(0.25*log.(model.α[i])+log.(besselk.(0.5,sqrt.(model.α)))+model.y.*model.μ+(model.α-(1-model.y.*model.μ[i]).^2-diag(model.Σ))./(2*sqrt.(model.α)))
     return -ELBO
 end
 
 "Compute the ELBO for the sparse GP BSVM Model"
 function ELBO(model::SparseBSVM)#TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
-    ELBO = 0.5*(logdet(model.ζ)+logdet(model.invKmm))
-    ELBO += -0.5*(tr(model.invKmm*(model.ζ+model.μ*transpose(model.μ)))) #trace replaced by sum
+    ELBO = 0.5*(logdet(model.Σ)+logdet(model.invKmm))
+    ELBO += -0.5*(tr(model.invKmm*(model.Σ+model.μ*transpose(model.μ)))) #trace replaced by sum
     ELBO += model.StochCoeff*dot(model.y[model.MBIndices],model.κ*model.μ)
     ELBO += model.StochCoeff*sum(0.25*log.(model.α[model.MBIndices]) + log.(besselk.(0.5,sqrt.(model.α[model.MBIndices]))))
-    ζtilde = model.κ*model.ζ*transpose(model.κ)
-    ELBO += 0.5*model.StochCoeff/sqrt.(model.α).*(model.α[model.MBIndices[i]]-(1-model.y.*dot(model.κ[i,:],model.μ)).^2-(diag(ζtilde)+model.Ktilde))
+    Σtilde = model.κ*model.Σ*transpose(model.κ)
+    ELBO += 0.5*model.StochCoeff/sqrt.(model.α).*(model.α[model.MBIndices[i]]-(1-model.y.*dot(model.κ[i,:],model.μ)).^2-(diag(Σtilde)+model.Ktilde))
     return -ELBO
 end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters for a BSVM Model"
 function hyperparameter_gradient_function(model::SparseBSVM)
-    B = model.μ*transpose(model.μ) + model.ζ
+    B = model.μ*transpose(model.μ) + model.Σ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     A = Diagonal(1.0./sqrt.(model.α))
     return function(Js,iter)

@@ -35,42 +35,39 @@ include("../src/OMGP.jl")
 
 
 kernel = OMGP.RBFKernel(1.0)
-
-
-
-
+ps = []
 #### FULL MODEL EVALUATION ####
 println("Creation of Full Batch BSVM")
 t_full = @elapsed fullmodel = OMGP.BatchBSVM(X,y,noise=noise,kernel=kernel,VerboseLevel=3)
 t_full += @elapsed fullmodel.train(iterations=20)
 y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
-p2=plot(x1_test,x2_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Regression")
+p1=plot(x1_test,x2_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Regression")
+push!(ps,p1)
 
 # #### SPARSE MODEL EVALUATION ####
 println("Creation of Sparse BSVM")
 t_sparse = @elapsed sparsemodel = OMGP.SparseBSVM(X,y,Stochastic=false,Autotuning=true,VerboseLevel=3,m=20,noise=noise,kernel=kernel)
-OMGP.setfixed!(sparsemodel.kernel.weight)
 t_sparse += @elapsed sparsemodel.train(iterations=200)
 y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
-p3=plot(x1_test,x2_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Sparse Regression")
+p2=plot(x1_test,x2_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Sparse Regression")
 plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
+push!(ps,p2)
 
 # #### STOCH. MODEL EVALUATION ####
 println("Creation of Stochastic Sparse BSVM")
 t_stoch = @elapsed stochmodel = OMGP.SparseBSVM(X,y,Stochastic=true,BatchSize=10,Autotuning=true,VerboseLevel=3,m=20,noise=noise,kernel=kernel)
-OMGP.setfixed!(stochmodel.kernel.weight)
 t_stoch += @elapsed stochmodel.train(iterations=1000)
 y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))
-p4=plot(x1_test,x2_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse Regression")
+p3=plot(x1_test,x2_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse Regression")
 plot!(stochmodel.inducingPoints[:,1],stochmodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
-
+push!(ps,p3)
 
 println("Full model : Acc=$(acc_full), time=$t_full")
 println("Sparse model : Acc=$(acc_sparse), time=$t_sparse")
 println("Stoch. Sparse model : Acc=$(acc_stoch), time=$t_stoch")
 
-
-p1=plot(x1_test,x2_test,reshape(y_test,N_test,N_test),t=:contour,cbar=false,fill=:true)
+### Plot the computed predictions ###
+ptrue=plot(x1_test,x2_test,reshape(y_test,N_test,N_test),t=:contour,cbar=false,fill=:true)
 plot!(X[y.==1,1],X[y.==1,2],color=:red,t=:scatter,lab="y=1",title="Truth",xlims=(-5,5),ylims=(-5,5))
 plot!(X[y.==-1,1],X[y.==-1,2],color=:blue,t=:scatter,lab="y=-1")
-display(plot(p1,p2,p3,p4));
+display(plot(ptrue,ps...));

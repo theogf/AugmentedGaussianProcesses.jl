@@ -1,4 +1,6 @@
-#File for the Assumption Free K MC2 algorithm (KMeans)
+"""
+    Module for computing the Kmeans approximation for finding inducing points, it is based on the k-means++ algorithm
+"""
 module KMeansModule
 
 using Distributions
@@ -12,6 +14,9 @@ export KMeansAlg, StreamOnline, Webscale, CircleKMeans, DataSelection
 export total_cost
 export init!, update!
 
+"Abstract type for kmeans algorithm"
+abstract type KMeansAlg end;
+"Find the closest center to X among C, return the index and the distance"
 function find_nearest_center(X,C,kernel=0)
     nC = size(C,1)
     best = Int64(1); best_val = Inf
@@ -25,6 +30,7 @@ function find_nearest_center(X,C,kernel=0)
     return best,best_val
 end
 
+"Return the total cost of the current dataset given a set of centers"
 function total_cost(X,C,kernel)
     n = size(X,1)
     tot = 0
@@ -34,16 +40,7 @@ function total_cost(X,C,kernel)
     return tot
 end
 
-function distance(X,C,kernel=0)
-    if kernel == 0
-        return norm(X-C,2)^2
-    else
-        return compute(kernel,X,X)+compute(kernel,C,C)-2*compute(kernel,X,C)
-    end
-end
-
-abstract type KMeansAlg end;
-
+"Return the total cost of the current algorithm"
 function total_cost(X::Array{Float64,2},alg::KMeansAlg,kernel=0)
     n = size(X,1)
     tot = 0
@@ -52,16 +49,29 @@ function total_cost(X::Array{Float64,2},alg::KMeansAlg,kernel=0)
     end
     return tot
 end
+
+"Compute the distance (kernel if included) between a point and a find_nearest_center"
+function distance(X,C,kernel=0)
+    if kernel == 0
+        return norm(X-C,2)^2
+    else
+        return compute(kernel,X,X)+compute(kernel,C,C)-2*compute(kernel,X,C)
+    end
+end
+
+
+
+
 #TODO CAN BE CONSIDERABLY OPTIMIZED
 function update_model!(model,new_centers,new_vals)
     if size(new_centers,1) > 0
         model.μ = vcat(model.μ, new_vals)
         model.η_1 = vcat(model.η_1, -0.5*new_vals)
-        m_ζ = mean(diag(model.ζ))
-        ζ_temp = 1.0*Matrix{Float64}(I,model.m+size(new_centers,1),model.m+size(new_centers,1))
-        ζ_temp[1:model.m,1:model.m] = model.ζ
-        model.ζ = ζ_temp
-        η_2temp = -0.5/m_ζ*Matrix{Float64}(I,model.m+size(new_centers,1),model.m+size(new_centers,1))
+        m_Σ = mean(diag(model.Σ))
+        Σ_temp = 1.0*Matrix{Float64}(I,model.m+size(new_centers,1),model.m+size(new_centers,1))
+        Σ_temp[1:model.m,1:model.m] = model.Σ
+        model.Σ = Σ_temp
+        η_2temp = -0.5/m_Σ*Matrix{Float64}(I,model.m+size(new_centers,1),model.m+size(new_centers,1))
         η_2temp[1:model.m,1:model.m] = model.η_2
         model.η_2 = η_2temp
         model.m = length(model.μ)

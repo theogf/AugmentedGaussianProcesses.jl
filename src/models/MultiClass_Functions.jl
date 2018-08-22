@@ -5,7 +5,7 @@ function variablesUpdate_MultiClass!(model::MultiClass,iter)
 end
 
 function local_updates!(model::MultiClass)
-    C = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.ζ),model.μ)
+    C = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.Σ),model.μ)
     model.θ[1] = [0.5./sqrt(C[model.y_class[i]][i])*tanh(0.5*C[model.y_class[i]][i]) for i in 1:model.nSamples ];
     # println(mean(model.α),broadcast(mean,model.γ))
     for i in 1:2
@@ -17,7 +17,7 @@ function local_updates!(model::MultiClass)
 end
 
 function global_updates!(model::MultiClass,grad_1,grad_2)
-    model.ζ = broadcast(x->-0.5*inv(x),model.η_2); model.μ = model.ζ.*model.η_1 #Back to the distribution parameters (needed for α updates)
+    model.Σ = broadcast(x->-0.5*inv(x),model.η_2); model.μ = model.Σ.*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
 function variablesUpdate_MultiClass!(model::SparseMultiClass,iter)
@@ -29,7 +29,7 @@ end
 
 function local_updates!(model::SparseMultiClass)
     if model.IndependentGPs
-        C = broadcast((m,var,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,dims=2)[:]+(kappa*m).^2),model.μ,model.ζ,model.κ,model.Ktilde)
+        C = broadcast((m,var,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,dims=2)[:]+(kappa*m).^2),model.μ,model.Σ,model.κ,model.Ktilde)
         model.θ[1] = [0.5./C[model.y_class[i]][iter]*tanh(0.5*C[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices) ];
         for l in 1:model.nInnerLoops
             # model.γ = broadcast((c,kappa,μ)->0.5./(cosh.(0.5.*c).*model.β).*exp.(digamma.(model.α).-0.5.*kappa*μ),C,model.κ,model.μ)
@@ -37,7 +37,7 @@ function local_updates!(model::SparseMultiClass)
             model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamplesUsed]
         end
     else
-        C = broadcast((m,var)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*var).*model.κ[1],dims=2)[:]+(model.κ[1]*m).^2),model.μ,model.ζ)
+        C = broadcast((m,var)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*var).*model.κ[1],dims=2)[:]+(model.κ[1]*m).^2),model.μ,model.Σ)
         model.θ[1] = [0.5./C[model.y_class[i]][iter]*tanh(0.5*C[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices) ];
         for l in 1:model.nInnerLoops
             # model.γ = broadcast((c,μ)->0.5./(cosh.(0.5.*c).*model.β).*exp.(digamma.(model.α).-0.5.*model.κ[1]*μ),C,model.μ)
@@ -50,7 +50,7 @@ end
 
 function global_updates!(model::SparseMultiClass,grad_1,grad_2)
     model.η_1 = (1.0.-model.ρ_s).*model.η_1 + model.ρ_s.*grad_1; model.η_2 = (1.0.-model.ρ_s).*model.η_2 + model.ρ_s.*grad_2 #Update of the natural parameters with noisy/full natural gradient
-    model.ζ = broadcast(x->-0.5*inv(x),model.η_2); model.μ = model.ζ.*model.η_1 #Back to the distribution parameters (needed for α updates)
+    model.Σ = broadcast(x->-0.5*inv(x),model.η_2); model.μ = model.Σ.*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
 
@@ -73,10 +73,10 @@ end
 
 
 function ELBO(model::MultiClass)
-    C = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.ζ),model.μ)
+    C = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.Σ),model.μ)
     ELBO_v = model.nSamples*(0.5*model.K-log(2))-sum(model.α./model.β)+sum(model.α-log.(model.β)+log.(gamma.(model.α))+(1-model.α).*digamma.(model.α))
     ELBO_v += sum([-log.(cosh.(0.5*C[model.y_class[i]][i]))+0.5*model.θ[1][i]*(C[model.y_class[i]][i]^2) for i in 1:model.nSamples])
-    ELBO_v += 0.5*sum(broadcast((invK,y,gam,mu,theta,sigma)->logdet(invK)+logdet(sigma)+dot(y-gam,mu)-sum((Diagonal(y.*model.θ[1]+theta)+invK).*transpose(sigma+mu*(mu'))),model.invK,model.Y,model.γ,model.μ,model.θ[2:end],model.ζ))
+    ELBO_v += 0.5*sum(broadcast((invK,y,gam,mu,theta,sigma)->logdet(invK)+logdet(sigma)+dot(y-gam,mu)-sum((Diagonal(y.*model.θ[1]+theta)+invK).*transpose(sigma+mu*(mu'))),model.invK,model.Y,model.γ,model.μ,model.θ[2:end],model.Σ))
     ELBO_v += sum(broadcast((gam,c,theta)->dot(gam,-(model.α-log.(model.β)+log.(gamma.(model.α))+(1-model.α).*digamma.(model.α))-log(2.0)-log.(gam)+1.0-log.(cosh.(0.5*c)))+0.5*dot(c,c.*theta),model.γ,C,model.θ[2:end]))
     return -ELBO_v
 end
@@ -84,19 +84,19 @@ end
 function ELBO(model::SparseMultiClass)
     ELBO_v = -model.nSamples*log(2.0)+0.5*model.K*model.m+model.StochCoeff*(sum(model.α-log.(model.β)+log.(gamma.(model.α)))+dot(1.0.-model.α,digamma.(model.α)))
     if model.IndependentGPs
-        C = broadcast((var,m,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,dims=2)+(kappa*m).^2),model.ζ,model.μ,model.κ,model.Ktilde)
+        C = broadcast((var,m,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,dims=2)+(kappa*m).^2),model.Σ,model.μ,model.κ,model.Ktilde)
         ELBO_v += 0.5*sum(broadcast((y,gam,mu,theta,sigma,invK,kappa,ktilde)->model.StochCoeff*dot(y[model.MBIndices]-gam,kappa*mu)-
                       sum((model.StochCoeff*kappa'*Diagonal(y[model.MBIndices].*model.θ[1]+theta)*kappa+invK).*(sigma+mu*(mu')))-
                       model.StochCoeff*dot(y[model.MBIndices].*model.θ[1]+theta,ktilde),model.Y,model.γ,model.μ,model.θ[2:end],
-                      model.ζ,model.invKmm,model.κ,model.Ktilde))
+                      model.Σ,model.invKmm,model.κ,model.Ktilde))
     else
-        C = broadcast((var,m)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*var).*model.κ[1],dims=2)+(model.κ[1]*m).^2),model.ζ,model.μ)
+        C = broadcast((var,m)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*var).*model.κ[1],dims=2)+(model.κ[1]*m).^2),model.Σ,model.μ)
         ELBO_v += 0.5*sum(broadcast((y,gam,mu,theta,sigma)->model.StochCoeff*dot(y[model.MBIndices]-gam,model.κ[1]*mu)-
                       sum((model.StochCoeff*model.κ[1]'*Diagonal(y[model.MBIndices].*model.θ[1]+theta)*model.κ[1]+model.invKmm[1]).*(sigma+mu*(mu')))-
                       model.StochCoeff*dot(y[model.MBIndices].*model.θ[1]+theta,model.Ktilde[1]),
-                      model.Y,model.γ,model.μ,model.θ[2:end],model.ζ))
+                      model.Y,model.γ,model.μ,model.θ[2:end],model.Σ))
     end
-    ELBO_v += 0.5*sum(logdet.(model.invKmm).+logdet.(model.ζ))
+    ELBO_v += 0.5*sum(logdet.(model.invKmm).+logdet.(model.Σ))
     ELBO_v += model.StochCoeff*sum(broadcast((gam,c,theta)->dot(gam,-log(2).-log.(gam).+1.0.+digamma.(model.α)-log.(model.β))-sum(log.(cosh.(0.5*c)))+0.5*dot(c,c.*theta),model.γ,C,model.θ[2:end]))
     ELBO_v += model.StochCoeff*sum([-log.(cosh.(0.5*C[model.y_class[i]][iter]))-0.5*model.θ[1][iter]*(C[model.y_class[i]][iter]^2) for (iter,i) in enumerate(model.MBIndices)])
     return -ELBO_v
@@ -105,13 +105,13 @@ end
 #Return the negative gradient of the ELBO
 function hyperparameter_gradient_function(model::MultiClass)
     if model.IndependentGPs
-        A = [model.invK[i]*(model.ζ[i]+model.µ[i]*model.μ[i]')-Diagonal{Float64}(I,model.nSamples) for i in 1:model.K]
+        A = [model.invK[i]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{Float64}(I,model.nSamples) for i in 1:model.K]
         return function(Js,index)
                     V = model.invK[index].*Js[1] #invK*Js
                     return 0.5*sum(V.*transpose(A[index]))
                 end
     else
-        A = [model.invK[1]*(model.ζ[i]+model.µ[i]*model.μ[i]')-Diagonal{Float64}(I,model.nSamples) for i in 1:model.K]
+        A = [model.invK[1]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{Float64}(I,model.nSamples) for i in 1:model.K]
         return function(Js,index)
             V = matrices[1].*Js[1] #invK*Js
             return 0.5*sum([sum(V.*transpose(A[i])) for i in 1:model.K])
@@ -121,7 +121,7 @@ end
 #Return the negative gradient of the ELBO
 function hyperparameter_gradient_function(model::SparseMultiClass)
     #General values used for all gradients
-    B = broadcast((mu,sigma)->mu*transpose(mu) + sigma,model.μ,model.ζ)
+    B = broadcast((mu,sigma)->mu*transpose(mu) + sigma,model.μ,model.Σ)
     if model.IndependentGPs
         Kmn = [kernelmatrix(model.inducingPoints[i],model.X[model.MBIndices,:],model.kernel[i]) for i in 1:model.K]
         return function(Js,index)
