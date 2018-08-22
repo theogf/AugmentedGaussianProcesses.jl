@@ -1,5 +1,7 @@
 using OMGP
-using Base.Test
+using Test
 
 # write your own tests here
-@test 1 == 2
+
+@test include("test_XGPC.jl")
+@test include("test_BSVM.jl")
