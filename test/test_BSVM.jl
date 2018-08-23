@@ -52,10 +52,10 @@ end
 # #### SPARSE MODEL EVALUATION ####
 println("Testing the sparse model")
 t_sparse = @elapsed sparsemodel = OMGP.SparseBSVM(X,y,Stochastic=false,Autotuning=true,VerboseLevel=3,m=20,noise=noise,kernel=kernel)
-t_sparse += @elapsed sparsemodel.train(iterations=200)
+t_sparse += @elapsed sparsemodel.train(iterations=100)
 y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
-p2=plot(x1_test,x2_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Sparse Regression")
 if doPlots
+    p2=plot(x1_test,x2_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Sparse Regression")
     plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
     push!(ps,p2)
 end

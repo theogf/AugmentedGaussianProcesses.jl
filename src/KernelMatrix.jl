@@ -1,7 +1,7 @@
 """
     Create the kernel matrix from the training data or the correlation matrix one of set of vectors
 """
-function kernelmatrix!(K,X1,X2,kernel)
+function kernelmatrix!(K::Matrix{Float64},X1,X2,kernel)
     @assert size(K,1)==size(X1,1)
     @assert size(K,2)==size(X2,1)
     (n1,n2) = size(K)

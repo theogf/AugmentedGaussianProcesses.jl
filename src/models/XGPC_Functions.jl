@@ -13,7 +13,7 @@ function variational_updates!(model::BatchXGPC,iter)
     global_update!(model)
 end
 
-"Update the local variational parameters of the full batch GP XGPC"
+"Update the local variational parameters of the sparse GP XGPC"
 function local_update!(model::SparseXGPC)
     model.α = sqrt.(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
 end
@@ -42,7 +42,7 @@ function variational_updates!(model::OnlineXGPC,iter::Integer)
 end
 
 "Return the natural gradients of the ELBO given the natural parameters"
-function natural_gradient_XGPC(θ::Vector,y::Vector,invPrior::Matrix;κ::Matrix=Matrix(undef,0,0),stoch_coef::Float64=1.0)
+function natural_gradient_XGPC(θ::Vector{Float64},y::Vector{Float64},invPrior::Matrix{Float64};κ::Matrix=Matrix{Float64}(undef,0,0),stoch_coef::Float64=1.0)
     if length(κ) == 0 #Full batch case
         grad_1 =  0.5*y
         grad_2 = -0.5*(Diagonal{Float64}(θ) + invPrior)

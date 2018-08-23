@@ -1,38 +1,36 @@
-function variablesUpdate_MultiClass!(model::MultiClass,iter)
-    local_updates!(model)
-    (model.η_1, model.η_2) = naturalGradientELBO_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invK,model.γ)
-    global_updates!(model,nothing,nothing)
-end
+#Set of functions for the multiclass model
 
-function local_updates!(model::MultiClass)
+"Update the local variational parameters of the full batch GP Multiclass"
+function local_update!(model::MultiClass)
     C = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.Σ),model.μ)
     model.θ[1] = [0.5./sqrt(C[model.y_class[i]][i])*tanh(0.5*C[model.y_class[i]][i]) for i in 1:model.nSamples ];
-    # println(mean(model.α),broadcast(mean,model.γ))
-    for i in 1:2
+    for i in 1:model.nInnerLoops
         model.γ = broadcast((c,μ)->model.β./(2.0*gamma.(model.α).*cosh.(0.5.*c)).*exp.(-model.α-(1-model.α).*digamma.(model.α).-0.5.*μ),C,model.μ)
-        # model.γ = broadcast((c,μ)->1.0./(2.0*model.β.*cosh.(0.5.*c)).*exp.(digamma.(model.α).-0.5.*μ),C,model.μ)
         model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamples]
     end
     model.θ[2:end] = broadcast((γ,c)->0.5.*γ./c.*tanh.(0.5.*c),model.γ,C)
 end
 
-function global_updates!(model::MultiClass,grad_1,grad_2)
-    model.Σ = broadcast(x->-0.5*inv(x),model.η_2); model.μ = model.Σ.*model.η_1 #Back to the distribution parameters (needed for α updates)
+"Compute the variational updates for the full GP MultiClass"
+function variational_updates!(model::MultiClass,iter::Integer)
+    local_update!(model)
+    (model.η_1, model.η_2) = natural_gradient_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invK,model.γ)
+    global_update!(model)
 end
 
-function variablesUpdate_MultiClass!(model::SparseMultiClass,iter)
-    local_updates!(model)
-    (grad_η_1, grad_η_2) = naturalGradientELBO_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invKmm,model.γ,stoch_coeff=model.StochCoeff,MBIndices=model.MBIndices,κ=model.κ)
-    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
-    global_updates!(model,grad_η_1,grad_η_2)
+
+"Update of the global variational parameter for full batch case"
+function global_update!(model::MultiClass)
+    model.Σ = broadcast(x->-0.5*inv(x),model.η_2);
+    model.μ = model.Σ.*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
-function local_updates!(model::SparseMultiClass)
+"Compute the variational updates for the sparse GP XGPC"
+function local_update!(model::SparseMultiClass)
     if model.IndependentGPs
         C = broadcast((m,var,kappa,ktilde)->sqrt.(ktilde+sum((kappa*var).*kappa,dims=2)[:]+(kappa*m).^2),model.μ,model.Σ,model.κ,model.Ktilde)
         model.θ[1] = [0.5./C[model.y_class[i]][iter]*tanh(0.5*C[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices) ];
         for l in 1:model.nInnerLoops
-            # model.γ = broadcast((c,kappa,μ)->0.5./(cosh.(0.5.*c).*model.β).*exp.(digamma.(model.α).-0.5.*kappa*μ),C,model.κ,model.μ)
             model.γ = broadcast((c,kappa,μ)->0.5.*model.β./(cosh.(0.5.*c).*gamma.(model.α)).*exp.(-model.α-(1.0.-model.α).*digamma.(model.α).-0.5.*kappa*μ),C,model.κ,model.μ)
             model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamplesUsed]
         end
@@ -40,7 +38,6 @@ function local_updates!(model::SparseMultiClass)
         C = broadcast((m,var)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*var).*model.κ[1],dims=2)[:]+(model.κ[1]*m).^2),model.μ,model.Σ)
         model.θ[1] = [0.5./C[model.y_class[i]][iter]*tanh(0.5*C[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices) ];
         for l in 1:model.nInnerLoops
-            # model.γ = broadcast((c,μ)->0.5./(cosh.(0.5.*c).*model.β).*exp.(digamma.(model.α).-0.5.*model.κ[1]*μ),C,model.μ)
             model.γ = broadcast((c,μ)->0.5.*model.β./(cosh.(0.5.*c).*gamma.(model.α)).*exp.(-model.α-(1-model.α).*digamma.(model.α).-0.5.*model.κ[1]*μ),C,model.μ)
             model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamplesUsed]
         end
@@ -48,15 +45,24 @@ function local_updates!(model::SparseMultiClass)
     model.θ[2:end] = broadcast((γ,c)->0.5.*γ./c.*tanh.(0.5.*c),model.γ,C)
 end
 
-function global_updates!(model::SparseMultiClass,grad_1,grad_2)
+"Compute the variational updates for the sparse GP MultiClass"
+function variablesUpdate_MultiClass!(model::SparseMultiClass,iter::Integer)
+    local_update!(model)
+    (grad_η_1, grad_η_2) = naturalGradientELBO_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invKmm,model.γ,stoch_coeff=model.StochCoeff,MBIndices=model.MBIndices,κ=model.κ)
+    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
+    global_update!(model,grad_η_1,grad_η_2)
+end
+
+
+function global_update!(model::SparseMultiClass,grad_1::Array{Array{Float64,1},1},grad_2::Array{Array{Float64,2},1})
     model.η_1 = (1.0.-model.ρ_s).*model.η_1 + model.ρ_s.*grad_1; model.η_2 = (1.0.-model.ρ_s).*model.η_2 + model.ρ_s.*grad_2 #Update of the natural parameters with noisy/full natural gradient
     model.Σ = broadcast(x->-0.5*inv(x),model.η_2); model.μ = model.Σ.*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
 
-function naturalGradientELBO_MultiClass(Y,θ_0,θ,invK,γ;stoch_coeff=1.0,MBIndices=0,κ=0)
+function natura_gradient_MultiClass(Y::Array{Array{Float64,1},1},θ_0::Vector{Float64},θ::Vector{Vector},invK::Vector{Matrix},γ::Vector{Vector};stoch_coeff=1.0,MBIndices=0,κ=0)
     if κ == 0
-        #No inducing points
+        #No shared inducing points
         grad_1 = broadcast((y,gamma)->0.5*(y-gamma),Y,γ)
         grad_2 = broadcast((y,theta,invKnn)->-0.5*(diagm(y.*θ_0+theta)+invKnn),Y,θ,invK)
     elseif size(κ,1) == 1

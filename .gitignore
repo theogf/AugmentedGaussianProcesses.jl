@@ -7,10 +7,7 @@ cluster_results/*
 examples/.ipynb_checkpoints/*
 test/main_testing.jl
 test/results/*
-<<<<<<< HEAD
 docs/build/
 docs/site/
 data/*
 build/*
-=======
->>>>>>> cf43b28a426b82b075d1dacb0fdce1030724f7cb

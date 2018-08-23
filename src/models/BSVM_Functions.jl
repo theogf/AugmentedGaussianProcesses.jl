@@ -3,7 +3,7 @@
 # Wenzel, Galy-Fajou, Deutsch and Kloft ECML 2017
 
 "Update the local variational parameters of the linear BSVM"
-function local_update!(model::LinearBSVM,Z::Matrix)
+function local_update!(model::LinearBSVM,Z::Matrix{Float64})
     model.α = (1.0 .- Z*model.μ).^2 +  dropdims(sum((-0.5*Z/model.η_2).*Z,dims=2),dims=2);
 end
 
@@ -30,7 +30,7 @@ function variational_updates!(model::BatchBSVM,iter::Integer)
 end
 
 "Update the local variational parameters of the sparse GP BSVM"
-function local_update!(model::SparseBSVM,Z::Matrix)
+function local_update!(model::SparseBSVM,Z::Matrix{Float64})
     model.α = (1 .- Z*model.μ).^2 + sum((-0.5*Z/model.η_2).*Z,dims=2)[:] + model.Ktilde;
 end
 

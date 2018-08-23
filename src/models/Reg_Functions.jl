@@ -1,17 +1,37 @@
-
 #Specific functions of the Gaussian Process regression models
 
+"Update the variational parameters of the full batch model"
+function variational_updates!(model::GPRegression,iter::Integer)
+    #Nothing to do here
+end
 
-"""
-    ELBO function for the basic GP Regression
-"""
+"Update the variational parameters of the sparse model"
+function variational_updates!(model::SparseGPRegression,iter::Integer)
+    (grad_η_1,grad_η_2) = natural_gradient_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.Stochastic ? model.StochCoeff : 1.0)
+    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
+    global_update!(model,grad_η_1,grad_η_2)
+end
+
+"Update the variational parameters of the online model"
+function variational_updates!(model::OnlineGPRegression,iter::Integer)
+    (grad_η_1,grad_η_2) = natural_gradient_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.Stochastic ? model.StochCoeff : 1.0)
+    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
+    global_update!(model,grad_η_1,grad_η_2)
+end
+
+function natural_gradient_Regression(y::Vector{Float64},κ::Matrix{Float64},noise::Float64;stoch_coeff::Float64=1.0)
+    grad_1 = stoch_coeff*κ'*y./noise
+    grad_2 = -0.5*(stoch_coeff*(κ')*κ./noise)
+    return (grad_1,grad_2)
+end
+
+
+"ELBO function for the basic GP Regression"
 function ELBO(model::GPRegression)
     return -0.5*dot(model.y,model.invK*model.y)+0.5logdet(model.invK)-model.nSamples*log(2*pi)
 end
 
-"""
-    ELBO function for the sparse variational GP Regression
-"""
+"ELBO function for the sparse variational GP Regression"
 function ELBO(model::SparseGPRegression)
     model.StochCoeff = model.nSamples/model.nSamplesUsed
     ELBO = -0.5*model.nSamples*(log(model.noise)+log(2*pi))
@@ -23,35 +43,7 @@ function ELBO(model::SparseGPRegression)
     return -ELBO
 end
 
-
-function variablesUpdate_Regression!(model::GPRegression,iter)
-    #Nothing to do here
-end
-
-"""
-    Update the variational parameters of the model
-"""
-function variablesUpdate_Regression!(model::SparseGPRegression,iter)
-    (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.Stochastic ? model.StochCoeff : 1.0)
-    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
-    model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
-    model.Σ = -0.5*inv(model.η_2); model.μ = model.Σ*model.η_1 #Back to the distribution parameters (needed for α updates)
-end
-
-function variablesUpdate_Regression!(model::OnlineGPRegression,iter)
-    (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.Stochastic ? model.StochCoeff : 1.0)
-    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
-    model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_η_1; model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_η_2 #Update of the natural parameters with noisy/full natural gradient
-    model.Σ = -0.5*inv(model.η_2); model.μ = model.Σ*model.η_1 #Back to the distribution parameters (needed for α updates)
-end
-
-function naturalGradientELBO_Regression(y,κ,noise;stoch_coeff=1.0)
-    grad_1 = stoch_coeff*κ'*y./noise
-    grad_2 = -0.5*(stoch_coeff*(κ')*κ./noise)
-    return (grad_1,grad_2)
-end
-
-
+"Return a function computing the gradient of the ELBO given the kernel hyperparameters for a Regression Model"
 function hyper_parameter_gradient_function(model::GPRegression)
     A = model.invK*(model.y*transpose(model.y))-Diagonal{Float64}(I,model.nSamples)
     return function(Js,iter)
@@ -60,6 +52,7 @@ function hyper_parameter_gradient_function(model::GPRegression)
             end
 end
 
+"Return a function computing the gradient of the ELBO given the kernel hyperparameters for a sparse regression Model"
 function hyperparameter_gradient_function(model::SparseGPRegression)
     B = model.μ*transpose(model.μ) + model.Σ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
@@ -73,6 +66,7 @@ function hyperparameter_gradient_function(model::SparseGPRegression)
         end
 end
 
+"Return a function computing the gradient of the ELBO given the kernel hyperparameters"
 function inducingpoints_gradient(model::SparseGPRegression)
         gradients_inducing_points = zeros(model.inducingPoints)
         for i in 1:model.m #Iterate over the points
