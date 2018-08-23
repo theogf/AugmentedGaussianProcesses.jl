@@ -79,13 +79,13 @@ end
 """
     Function initializing the stochasticfields parameters
 """
-function initStochastic!(model::GPModel,AdaptiveLearningRate::Bool,BatchSize::Integer,κ_s::Real,τ_s::Real,SmoothingWindow::Integer)
+function initStochastic!(model::GPModel,AdaptiveLearningRate::Bool,batchsize::Integer,κ_s::Real,τ_s::Real,SmoothingWindow::Integer)
     #Initialize parameters specific to models using SVI and check for consistency
-    model.Stochastic = true; model.nSamplesUsed = BatchSize; model.AdaptiveLearningRate = AdaptiveLearningRate;
+    model.Stochastic = true; model.nSamplesUsed = batchsize; model.AdaptiveLearningRate = AdaptiveLearningRate;
     model.κ_s = κ_s; model.τ_s = τ_s; model.SmoothingWindow = SmoothingWindow;
     if (model.nSamplesUsed <= 0 || model.nSamplesUsed > model.nSamples)
 ################### TODO MUST DECIDE FOR DEFAULT VALUE OR STOPPING STOCHASTICITY ######
-        @warn "Invalid value for the BatchSize : $BatchSize, assuming a full batch method"
+        @warn "Invalid value for the batchsize : $batchsize, assuming a full batch method"
         model.nSamplesUsed = model.nSamples; model.Stochastic = false;
     end
     model.StochCoeff = model.nSamples/model.nSamplesUsed

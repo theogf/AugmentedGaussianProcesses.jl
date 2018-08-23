@@ -42,7 +42,7 @@ M=100; θ=5.0; ϵ=1e-4; noise=1e-3
 kerns = [Kernel("rbf",1.0;params=θ)]
 # kerns = [Kernel("rbf",1.0;params=θ);Kernel("linear",1.0)]
  # kerns = [Kernel("linear",1.0)]
-BatchSize = 30
+batchsize = 30
 Ninducingpoints = 20
 
  # toc()
@@ -51,7 +51,7 @@ Ninducingpoints = 20
 Profile.clear()
 @profile model = SparseXGPC(X,y;optimizer=Adam(α=0.5),OptimizeIndPoints=true,
 Stochastic=false,ϵ=1e-4,nEpochs=MaxIter,SmoothingWindow=10,Kernels=kerns,Autotuning=false,AutotuningFrequency=2,
-VerboseLevel=2,AdaptiveLearningRate=true,BatchSize=BatchSize,m=Ninducingpoints)
+VerboseLevel=2,AdaptiveLearningRate=true,batchsize=batchsize,m=Ninducingpoints)
 ProfileView.view()
 initPoints = copy(model.inducingPoints)
 # iter_points = vcat(collect(1:1:9),collect(10:10:99))

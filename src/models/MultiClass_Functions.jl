@@ -48,19 +48,20 @@ end
 "Compute the variational updates for the sparse GP MultiClass"
 function variablesUpdate_MultiClass!(model::SparseMultiClass,iter::Integer)
     local_update!(model)
-    (grad_η_1, grad_η_2) = naturalGradientELBO_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invKmm,model.γ,stoch_coeff=model.StochCoeff,MBIndices=model.MBIndices,κ=model.κ)
+    (grad_η_1, grad_η_2) = natural_gradient_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invKmm,model.γ,stoch_coeff=model.StochCoeff,MBIndices=model.MBIndices,κ=model.κ)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     global_update!(model,grad_η_1,grad_η_2)
 end
 
 
-function global_update!(model::SparseMultiClass,grad_1::Array{Array{Float64,1},1},grad_2::Array{Array{Float64,2},1})
+"""Update the global variational parameters for the sparse multiclass model""" global_update!(model::SparseMultiClass,grad_1::Array{Array{Float64,1},1},grad_2::Array{Array{Float64,2},1})
+function
     model.η_1 = (1.0.-model.ρ_s).*model.η_1 + model.ρ_s.*grad_1; model.η_2 = (1.0.-model.ρ_s).*model.η_2 + model.ρ_s.*grad_2 #Update of the natural parameters with noisy/full natural gradient
     model.Σ = broadcast(x->-0.5*inv(x),model.η_2); model.μ = model.Σ.*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
-
-function natura_gradient_MultiClass(Y::Array{Array{Float64,1},1},θ_0::Vector{Float64},θ::Vector{Vector},invK::Vector{Matrix},γ::Vector{Vector};stoch_coeff=1.0,MBIndices=0,κ=0)
+"""Compute the natural gradient of the ELBO given the natural parameters"""
+function natural_gradient_MultiClass(Y::Array{Array{Float64,1},1},θ_0::Vector{Float64},θ::Vector{Vector},invK::Vector{Matrix},γ::Vector{Vector};stoch_coeff=1.0,MBIndices=0,κ=0)
     if κ == 0
         #No shared inducing points
         grad_1 = broadcast((y,gamma)->0.5*(y-gamma),Y,γ)
@@ -77,7 +78,7 @@ function natura_gradient_MultiClass(Y::Array{Array{Float64,1},1},θ_0::Vector{Fl
     return grad_1,grad_2
 end
 
-
+"""Return the negative ELBO for the MultiClass model"""
 function ELBO(model::MultiClass)
     C = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.Σ),model.μ)
     ELBO_v = model.nSamples*(0.5*model.K-log(2))-sum(model.α./model.β)+sum(model.α-log.(model.β)+log.(gamma.(model.α))+(1-model.α).*digamma.(model.α))
@@ -87,6 +88,7 @@ function ELBO(model::MultiClass)
     return -ELBO_v
 end
 
+"""Return the negative ELBO for the sparse MultiClass model"""
 function ELBO(model::SparseMultiClass)
     ELBO_v = -model.nSamples*log(2.0)+0.5*model.K*model.m+model.StochCoeff*(sum(model.α-log.(model.β)+log.(gamma.(model.α)))+dot(1.0.-model.α,digamma.(model.α)))
     if model.IndependentGPs
@@ -108,7 +110,7 @@ function ELBO(model::SparseMultiClass)
     return -ELBO_v
 end
 
-#Return the negative gradient of the ELBO
+"""Return the gradient of the ELBO given the kernel hyperparameters"""
 function hyperparameter_gradient_function(model::MultiClass)
     if model.IndependentGPs
         A = [model.invK[i]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{Float64}(I,model.nSamples) for i in 1:model.K]
@@ -124,7 +126,8 @@ function hyperparameter_gradient_function(model::MultiClass)
         end
     end
 end
-#Return the negative gradient of the ELBO
+
+"""Return the gradient of the ELBO given the kernel hyperparameters"""
 function hyperparameter_gradient_function(model::SparseMultiClass)
     #General values used for all gradients
     B = broadcast((mu,sigma)->mu*transpose(mu) + sigma,model.μ,model.Σ)
