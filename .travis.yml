@@ -26,7 +26,7 @@ git:
 
 ## uncomment the following lines to override the default test script
 script:
-  - julia -e 'if VERSION >= v"0.7.0-" using Pkg; end; Pkg.clone(pwd()); Pkg.build("OMGP"); Pkg.test("OMGP"; coverage=true)';
+  - julia -e 'if VERSION >= v"0.7.0-" using Pkg; end; Pkg.add("LinearAlgebra");Pkg.add("SparseArrays");Pkg.add("Distributions") Pkg.clone(pwd()); Pkg.build("OMGP"); Pkg.test("OMGP"; coverage=true)';
 after_success:
   # push coverage results to Coveralls
   - julia -e 'cd(Pkg.dir("OMGP")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'

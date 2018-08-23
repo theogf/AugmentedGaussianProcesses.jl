@@ -46,7 +46,7 @@ function local_update!(model::SparseMultiClass)
 end
 
 "Compute the variational updates for the sparse GP MultiClass"
-function variablesUpdate_MultiClass!(model::SparseMultiClass,iter::Integer)
+function variational_updates!(model::SparseMultiClass,iter::Integer)
     local_update!(model)
     (grad_η_1, grad_η_2) = natural_gradient_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invKmm,model.γ,stoch_coeff=model.StochCoeff,MBIndices=model.MBIndices,κ=model.κ)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
@@ -54,14 +54,14 @@ function variablesUpdate_MultiClass!(model::SparseMultiClass,iter::Integer)
 end
 
 
-"""Update the global variational parameters for the sparse multiclass model""" global_update!(model::SparseMultiClass,grad_1::Array{Array{Float64,1},1},grad_2::Array{Array{Float64,2},1})
-function
+"""Update the global variational parameters for the sparse multiclass model"""
+function global_update!(model::SparseMultiClass,grad_1::Array{Array{Float64,1},1},grad_2::Array{Array{Float64,2},1})
     model.η_1 = (1.0.-model.ρ_s).*model.η_1 + model.ρ_s.*grad_1; model.η_2 = (1.0.-model.ρ_s).*model.η_2 + model.ρ_s.*grad_2 #Update of the natural parameters with noisy/full natural gradient
     model.Σ = broadcast(x->-0.5*inv(x),model.η_2); model.μ = model.Σ.*model.η_1 #Back to the distribution parameters (needed for α updates)
 end
 
 """Compute the natural gradient of the ELBO given the natural parameters"""
-function natural_gradient_MultiClass(Y::Array{Array{Float64,1},1},θ_0::Vector{Float64},θ::Vector{Vector},invK::Vector{Matrix},γ::Vector{Vector};stoch_coeff=1.0,MBIndices=0,κ=0)
+function natural_gradient_MultiClass(Y::Vector{SparseVector{Int64}},θ_0::Vector{Float64},θ::Vector{Vector{Float64}},invK::Vector{Matrix{Float64}},γ::Vector{Vector{Float64}};stoch_coeff=1.0,MBIndices=0,κ=0)
     if κ == 0
         #No shared inducing points
         grad_1 = broadcast((y,gamma)->0.5*(y-gamma),Y,γ)

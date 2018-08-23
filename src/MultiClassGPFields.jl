@@ -4,9 +4,9 @@
 """
 @def multiclasskernelfields begin
     IndependentGPs::Bool
-    kernel::Array{Kernel,1} #Kernels function used
-    Knn::Array{Array{Float64,2},1} #Kernel matrix of the GP prior
-    invK::Array{Array{Float64,2},1} #Inverse Kernel Matrix for the nonlinear case
+    kernel::Vector{Kernel} #Kernels function used
+    Knn::Vector{Matrix{Float64}} #Kernel matrix of the GP prior
+    invK::Vector{Matrix{Float64}} #Inverse Kernel Matrix for the nonlinear case
 end
 """
 Function initializing the kernelfields
@@ -39,10 +39,10 @@ end
     AdaptiveLearningRate::Bool
       κ_s::Float64 #Parameters for decay of learning rate (iter + κ)^-τ in case adaptative learning rate is not used
       τ_s::Float64
-    ρ_s::Array{Float64,1} #Learning rate for CAVI
-    g::Array{Array{Float64,1},1} # g & h are expected gradient value for computing the adaptive learning rate and τ is an intermediate
-    h::Array{Float64,1}
-    τ::Array{Float64,1}
+    ρ_s::Vector{Float64} #Learning rate for CAVI
+    g::Vector{Vector{Float64}} # g & h are expected gradient value for computing the adaptive learning rate and τ is an intermediate
+    h::Vector{Float64}
+    τ::Vector{Float64}
     SmoothingWindow::Int64
 end
 """
@@ -66,19 +66,19 @@ end
 Parameters for the multiclass version of the classifier based of softmax
 """
 @def multiclassfields begin
-    Y::Array{SparseVector,1} #Mapping from instances to classes
-    y_class::Array{Int64,1}
+    Y::Vector{SparseVector{Int64}} #Mapping from instances to classes
+    y_class::Vector{Int64}
     K::Int64 #Number of classes
     KStochastic::Bool #Stochasticity in the number of classes
-    class_mapping::Array{Any,1} # Classes labels mapping
-    μ::Array{Array{Float64,1}} #Mean for each class
-    η_1::Array{Array{Float64,1}} #Natural parameter #1 for each class
-    Σ::Array{Array{Float64,2}} #Covariance matrix for each class
-    η_2::Array{Array{Float64,2}} #Natural parameter #2 for each class
-    α::Array{Float64,1} #Gamma shape parameters
-    β::Array{Float64,1} #Gamma rate parameters
-    θ::Array{Array{Float64,1}} #Expectations of PG
-    γ::Array{Array{Float64,1}} #Poisson rate parameters
+    class_mapping::Vector{Any} # Classes labels mapping
+    μ::Vector{Vector{Float64}} #Mean for each class
+    η_1::Vector{Vector{Float64}} #Natural parameter #1 for each class
+    Σ::Vector{Matrix{Float64}} #Covariance matrix for each class
+    η_2::Vector{Matrix{Float64}} #Natural parameter #2 for each class
+    α::Vector{Float64} #Gamma shape parameters
+    β::Vector{Float64} #Gamma rate parameters
+    θ::Vector{Vector{Float64}} #Expectations of PG
+    γ::Vector{Vector{Float64}} #Poisson rate parameters
 end
 
 """
@@ -142,14 +142,14 @@ end
 """
 @def multiclass_sparsefields begin
     m::Int64 #Number of inducing points
-    inducingPoints::Array{Array{Float64,2},1} #Inducing points coordinates for the Big Data GP
+    inducingPoints::Vector{Matrix{Float64}} #Inducing points coordinates for the Big Data GP
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
     optimizer::Optimizer #Optimizer for the inducing points
     nInnerLoops::Int64 #Number of updates for converging α and γ
-    Kmm::Array{Array{Float64,2},1} #Kernel matrix
-    invKmm::Array{Array{Float64,2},1} #Inverse Kernel matrix of inducing points
-    Ktilde::Array{Array{Float64,1},1} #Diagonal of the covariance matrix between inducing points and generative points
-    κ::Array{Array{Float64,2},1} #Kmn*invKmm
+    Kmm::Vector{Matrix{Float64}} #Kernel matrix
+    invKmm::Vector{Matrix{Float64}} #Inverse Kernel matrix of inducing points
+    Ktilde::Vector{Vector{Float64}} #Diagonal of the covariance matrix between inducing points and generative points
+    κ::Vector{Matrix{Float64}} #Kmn*invKmm
 end
 """
 Function initializing the multiclass sparsefields parameters

@@ -1,8 +1,10 @@
-include("../src/OMGP.jl")
+# include("../src/OMGP.jl")
+
+import OMGP
 using Distributions
 using StatsBase
 # using Gallium
-using MLDatasets
+using Dates
 using PyCall
 
 @pyimport sklearn.datasets as sk
@@ -77,8 +79,8 @@ X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 
 
 ##Which algorithm are tested
-full = false
-sparse = true
+fullm = false
+sparsem = true
 sharedInd = true
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
@@ -86,10 +88,9 @@ sharedInd = true
 
  kernel = OMGP.RBFKernel(l)
 # kernel = OMGP.ARDKernel(l*ones(size(X,2)))
-OMGP.setvalue!(kernel.weight,10.0)
-OMGP.setfixed!(kernel.weight)
+OMGP.setvalue!(kernel.variance,10.0)
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
-if full
+if fullm
     fmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=5,IndependentGPs=true)
     metrics, callback = OMGP.getMultiClassLog(fmodel,X_test,y_test)
     # full_model.AutotuningFrequency=1
@@ -108,8 +109,8 @@ if full
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s for l = $l")
 end
 # end #End for loop on kernel lengthscale
-if sparse
-    smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=200,Autotuning=false,AutotuningFrequency=5,Stochastic=true,BatchSize=200,IndependentGPs=true)
+if sparsem
+    smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=200,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
     metrics, callback = OMGP.getMultiClassLog(smodel)#,X_test,y_test)
     # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
@@ -171,13 +172,13 @@ if size(X,2)==2
         p2=plot()
         [plot!(X_test[y_test.==i,1],X_test[y_test.==i,2],t=:scatter,lab="y=$i",title="Test Truth") for i in 1:N_class]
         p3=plot()
-        if full
+        if fullm
             [plot!(X[y_ftrain.==i,1],X[y_ftrain.==i,2],t=:scatter,lab="y=$(fmodel.class_mapping[i])",title="Training Prediction") for i in 1:N_class]
         else
             [plot!(X[y_strain.==i,1],X[y_strain.==i,2],t=:scatter,lab="y=$(smodel.class_mapping[i])",title="Training Prediction") for i in 1:N_class]
         end
         p4=plot()
-        if full
+        if fullm
             [plot!(X_test[y_full.==i,1],X_test[y_full.==i,2],t=:scatter,lab="y=$(fmodel.class_mapping[i])",title="Test Prediction") for i in 1:N_class]
         else
             [plot!(X_test[y_sparse.==i,1],X_test[y_sparse.==i,2],t=:scatter,lab="y=$(smodel.class_mapping[i])",title="Test Prediction") for i in 1:N_class]
