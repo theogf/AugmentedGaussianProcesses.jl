@@ -63,8 +63,10 @@ version = "0.16.2"
 
 [[GradDescent]]
 deps = ["LinearAlgebra"]
-path = "/home/theo/.julia/dev/GradDescent"
-uuid = "e1397348-e965-55d8-8fb3-3dd9faf6e4f1"
+git-tree-sha1 = "ca5103e33a602705c4196bf5bede1542a82f9dc2"
+repo-rev = "master"
+repo-url = "https://github.com/theogf/GradDescent.jl"
+uuid = "76767984-a792-11e8-2bb2-77d388f79a09"
 version = "0.1.0"
 
 [[InteractiveUtils]]

@@ -42,7 +42,7 @@ function variational_updates!(model::OnlineXGPC,iter::Integer)
 end
 
 "Return the natural gradients of the ELBO given the natural parameters"
-function natural_gradient_XGPC(θ::Vector{Float64},y::Vector{Float64},invPrior::Matrix{Float64};κ::Matrix=Matrix{Float64}(undef,0,0),stoch_coef::Float64=1.0)
+function natural_gradient_XGPC(θ::Vector{Float64},y::Vector,invPrior::Matrix{Float64};κ::Matrix=Matrix{Float64}(undef,0,0),stoch_coef::Float64=1.0)
     if length(κ) == 0 #Full batch case
         grad_1 =  0.5*y
         grad_2 = -0.5*(Diagonal{Float64}(θ) + invPrior)
