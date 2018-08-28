@@ -191,7 +191,7 @@ function MCInit!(model::GPModel)
         end
         model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
         if model.VerboseLevel > 1
-            println("$(now()): MCMC estimation of the gradient completed")
+            println("$(now()): Estimation of the natural gradient for the adaptive learning rate completed")
         end
     else
         model.g = zeros(model.m*(model.m+1));
