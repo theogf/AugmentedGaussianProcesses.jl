@@ -71,6 +71,7 @@ Parameters for the multiclass version of the classifier based of softmax
     K::Int64 #Number of classes
     KStochastic::Bool #Stochasticity in the number of classes
     class_mapping::Vector{Any} # Classes labels mapping
+    ind_mapping::Dict{Any,Int} # Mapping from label to index
     μ::Vector{Vector{Float64}} #Mean for each class
     η_1::Vector{Vector{Float64}} #Natural parameter #1 for each class
     Σ::Vector{Matrix{Float64}} #Covariance matrix for each class
@@ -97,16 +98,18 @@ function one_of_K_mapping(y)
             end
         end
     end
-    return Y,y_values,y_class
+    ind_values = Dict(value => key for (key,value) in enumerate(y_values))
+    return Y,y_values,ind_values,y_class
 end
 
 """
     Initialise the parameters of the multiclass model
 """
-function initMultiClass!(model,Y,y_class,y_mapping)
+function initMultiClass!(model,Y,y_class,y_mapping,ind_mapping)
     model.K = length(y_mapping)
     model.Y = Y
     model.class_mapping = y_mapping
+    model.ind_mapping = ind_mapping
     model.y_class = y_class
 end
 

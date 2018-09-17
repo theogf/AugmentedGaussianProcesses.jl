@@ -56,7 +56,7 @@ function updateHyperParameters!(model::SparseMultiClass)
                             derivativediagkernelmatrix(model.kernel[1],model.X[model.MBIndices,:])]]
         grads = compute_hyperparameter_gradient.(model.kernel,hyperparameter_gradient_function(model),true,matrix_derivatives,1)
     end
-    println("Hyperparameters grads : $grads")
+    # println("Hyperparameters grads : $grads")
     apply_gradients!.(model.kernel,grads)
     if model.OptimizeInducingPoints
         inducingpoints_gradients = inducingpoints_gradient(model)

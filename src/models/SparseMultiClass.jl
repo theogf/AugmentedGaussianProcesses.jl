@@ -14,13 +14,13 @@ mutable struct SparseMultiClass <: MultiClassGPModel
                                     kernel=0,noise::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=2,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
                                     VerboseLevel::Integer=0)
-            Y,y_map,y_class = one_of_K_mapping(y)
+            Y,y_map,ind_map,y_class = one_of_K_mapping(y)
             this = new()
             this.ModelType = MultiClassGP
             this.Name = "Sparse MultiClass Gaussian Process Classifier"
             initCommon!(this,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
-            initMultiClass!(this,Y,y_class,y_map);
+            initMultiClass!(this,Y,y_class,y_map,ind_map);
             initMultiClassKernel!(this,kernel,IndependentGPs);
             if this.VerboseLevel > 2
                 println("$(now()): Classes data treated")

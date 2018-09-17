@@ -30,6 +30,7 @@ convert(::Type{HyperParameter{T}}, θ::HyperParameter{T}) where {T<:Real} = θ
 function convert(::Type{HyperParameter{T}}, θ::HyperParameter) where {T<:Real}
     HyperParameter{T}(convert(T, getvalue(θ)), convert(Interval{T}, θ.bounds))
 end
+convert(::Type{T}, θ::HyperParameter{T}) where {T<:Number} = T(getindex(θ.value))
 
 function show(io::IO, θ::HyperParameter{T}) where {T}
     print(io, string("HyperParameter(", getvalue(θ), ",", string(θ.interval), ")"))

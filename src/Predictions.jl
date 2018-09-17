@@ -234,7 +234,7 @@ function multiclasspredict(model::MultiClass,X_test,all_class=false)
     normsig = sum.(σ)
     y = mod_soft_max.(σ,normsig)
     if all_class
-        return y
+            return y
     end
     predic = zeros(Int64,n)
     value = zeros(Float64,n)

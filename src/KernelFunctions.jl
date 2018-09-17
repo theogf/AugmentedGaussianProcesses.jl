@@ -388,6 +388,10 @@ end
 function ARDKernel(θ::Vector{T1}=[1.0];dim::Int64=0,variance::T2=one(T1)) where {T1<:Real,T2<:Real}
      ARDKernel{floattype(T1,T2)}(θ,dim=dim,variance=variance)
 end
+function ARDKernel(θ::T1=[1.0];dim::Int64=0,variance::T2=one(T1)) where {T1<:Real,T2<:Real}
+     ARDKernel{floattype(T1,T2)}([θ],dim=dim,variance=variance)
+end
+
 "Apply kernel functions on vector"
 function compute(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
     if X1==X2

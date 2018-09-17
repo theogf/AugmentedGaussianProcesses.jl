@@ -4,10 +4,8 @@
 function local_update!(model::MultiClass)
     C = broadcast((var,m)->sqrt.(var.+m.^2),diag.(model.Σ),model.μ)
     model.θ[1] = [0.5./sqrt(C[model.y_class[i]][i])*tanh(0.5*C[model.y_class[i]][i]) for i in 1:model.nSamples ];
-    for i in 1:model.nInnerLoops
-        model.γ = broadcast((c,μ)->model.β./(2.0*gamma.(model.α).*cosh.(0.5.*c)).*exp.(-model.α-(1-model.α).*digamma.(model.α).-0.5.*μ),C,model.μ)
-        model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamples]
-    end
+    model.γ = broadcast((c,μ)->model.β./(2.0*gamma.(model.α).*cosh.(0.5.*c)).*exp.(-model.α-(1-model.α).*digamma.(model.α).-0.5.*μ),C,model.μ)
+    model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamples]
     model.θ[2:end] = broadcast((γ,c)->0.5.*γ./c.*tanh.(0.5.*c),model.γ,C)
 end
 
@@ -38,7 +36,7 @@ function local_update!(model::SparseMultiClass)
         C = broadcast((m,var)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*var).*model.κ[1],dims=2)[:]+(model.κ[1]*m).^2),model.μ,model.Σ)
         model.θ[1] = [0.5./C[model.y_class[i]][iter]*tanh(0.5*C[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices) ];
         for l in 1:model.nInnerLoops
-            model.γ = broadcast((c,μ)->0.5.*model.β./(cosh.(0.5.*c).*gamma.(model.α)).*exp.(-model.α-(1-model.α).*digamma.(model.α).-0.5.*model.κ[1]*μ),C,model.μ)
+            model.γ = broadcast((c,μ)->0.5.*model.β./(cosh.(0.5.*c).*gamma.(model.α)).*exp.(-model.α-(1.0.-model.α).*digamma.(model.α).-0.5.*model.κ[1]*μ),C,model.μ)
             model.α = [1+sum(broadcast(x->x[i],model.γ)) for i in 1:model.nSamplesUsed]
         end
     end
@@ -69,7 +67,7 @@ function natural_gradient_MultiClass(Y::Vector{SparseVector{Int64}},θ_0::Vector
     elseif size(κ,1) == 1
         #Shared inducing points
         grad_1 = broadcast((y,gamma)->0.5*stoch_coeff*κ[1]'*(y[MBIndices]-gamma),Y,γ)
-        grad_2 = broadcast((y,theta)->-0.5*(stoch_coeff*κ[1]'*(diagm(y[MBIndices].*θ_0+theta))*κ[1]+invK[1]),Y,θ)
+        grad_2 = broadcast((y,theta)->-0.5*(stoch_coeff*κ[1]'*(Diagonal(y[MBIndices].*θ_0+theta))*κ[1]+invK[1]),Y,θ)
     else
         #Varying inducing points
         grad_1 = broadcast((y,kappa,gamma)->0.5*stoch_coeff*kappa'*(y[MBIndices]-gamma),Y,κ,γ)
