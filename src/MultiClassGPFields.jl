@@ -24,6 +24,8 @@ function initMultiClassKernel!(model::GPModel,kernel,IndependentGPs)
         model.kernel = [deepcopy(kernel)]
     end
     model.nFeatures = model.nSamples
+    model.Knn = [Matrix{Float64}(undef,model.nSamples,model.nSamples) for i in 1:model.K]
+    model.invK = [Matrix{Float64}(undef,model.nSamples,model.nSamples) for i in 1:model.K]
 end
 
 
@@ -70,12 +72,17 @@ Parameters for the multiclass version of the classifier based of softmax
     y_class::Vector{Int64}
     K::Int64 #Number of classes
     KStochastic::Bool #Stochasticity in the number of classes
+    nClassesUsed::Int64 #Size of class subset
+    KStochCoeff::Float64 #Scaling factor for updates
+    KIndices::Vector{Int64} #Indices of class subset
+    K_map::Vector{Any} #Mapping from the subset of samples to the subset of classes
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     μ::Vector{Vector{Float64}} #Mean for each class
     η_1::Vector{Vector{Float64}} #Natural parameter #1 for each class
     Σ::Vector{Matrix{Float64}} #Covariance matrix for each class
     η_2::Vector{Matrix{Float64}} #Natural parameter #2 for each class
+    f2::Vector{Vector{Float64}} #Sqrt of the expectation of f^2
     α::Vector{Float64} #Gamma shape parameters
     β::Vector{Float64} #Gamma rate parameters
     θ::Vector{Vector{Float64}} #Expectations of PG
@@ -105,9 +112,22 @@ end
 """
     Initialise the parameters of the multiclass model
 """
-function initMultiClass!(model,Y,y_class,y_mapping,ind_mapping)
+function initMultiClass!(model,Y,y_class,y_mapping,ind_mapping,KStochastic,nClassesUsed)
     model.K = length(y_mapping)
     model.Y = Y
+    model.KStochastic = KStochastic
+    if KStochastic
+        if nClassesUsed >= model.K || nClassesUsed <= 0
+            @warn "The number of classes used is greater or equal to the number of classes or less than 0, setting back to the classical class batch method"
+            model.KStochastic = false; model.KIndices = collect(1:model.K); model.KStochCoeff = 1.0;   model.nClassesUsed = model.K;
+        else
+            model.nClassesUsed = nClassesUsed
+            model.KStochCoeff = model.K/model.nClassesUsed
+        end
+    else
+        model.KIndices = collect(1:model.K); model.KStochCoeff = 1.0
+        model.nClassesUsed = model.K
+    end
     model.class_mapping = y_mapping
     model.ind_mapping = ind_mapping
     model.y_class = y_class
@@ -116,9 +136,6 @@ end
 
 function initMultiClassVariables!(model,μ_init)
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
-      if model.VerboseLevel > 2
-        @warn "Initial mean of the variational distribution is sampled from a multivariate normal distribution"
-      end
       model.μ = [randn(model.nFeatures) for i in 1:model.K]
     else
       model.μ = [μ_init for i in 1:model.K]
@@ -131,12 +148,29 @@ function initMultiClassVariables!(model,μ_init)
         model.β = model.K*ones(model.nSamplesUsed)
         model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.K+1)]
         model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.K]
+        model.f2 = [ones(Float64,model.nSamplesUsed) for i in 1:model.K]
     else
         model.α = 0.5*ones(model.nSamples)
         model.β = model.K*ones(model.nSamples)
         model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.K+1)]
-        # model.γ = [zeros(model.nSamples) for i in 1:model.K]
         model.γ = [abs.(rand(model.nSamples)) for i in 1:model.K]
+        model.f2 = [ones(Float64,model.nSamplesUsed) for i in 1:model.K]
+    end
+end
+
+function reinit_variational_parameters!(model)
+    if model.Stochastic
+        model.α = 0.5*ones(model.nSamplesUsed)
+        model.β = model.K*ones(model.nSamplesUsed)
+        model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.nClassesUsed+1)]
+        model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.nClassesUsed]
+        model.f2 = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
+    else
+        model.α = 0.5*ones(model.nSamples)
+        model.β = model.K*ones(model.nSamples)
+        model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.nClassesUsed+1)]
+        model.γ = [abs.(rand(model.nSamples)) for i in 1:model.nClassesUsed]
+        model.f2 = [ones(Float64,model.nSamples) for i in 1:model.nClassesUsed]
     end
 end
 
@@ -172,20 +206,23 @@ function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool)
     model.optimizer = Adam();
     model.nInnerLoops = 1;
     Ninst_per_K = countmap(model.y)
-    model.inducingPoints= [zeros(model.m,size(model.X,2)) for i in 1:model.K]
+    Ninst_per_K = [Ninst_per_K[model.class_mapping[i]] for i in 1:model.K]
     if model.VerboseLevel>2
         println("$(now()): Starting determination of inducing points through KMeans algorithm")
     end
     if model.IndependentGPs
-        for k in 1:model.K
-            K_corr = model.nSamples/Ninst_per_K[model.class_mapping[k]]-1.0
-            weights = [model.Y[k]...].*(K_corr-1.0).+(1.0)
-            model.inducingPoints[k] = KMeansInducingPoints(model.X,model.m,10,weights=weights)
-        end
+        model.inducingPoints = Ind_KMeans.(model.nSamples,Ninst_per_K,model.Y,[model.X],model.m)
     else
         model.inducingPoints = [KMeansInducingPoints(model.X,model.m,10)]
     end
     if model.VerboseLevel>2
         println("$(now()): Inducing points determined through KMeans algorithm")
     end
+end
+
+"Function to obtain the weighted KMeans for one class"
+function Ind_KMeans(nSamples::Int64,N_inst::Int64,Y::SparseVector{Int64},X,m::Int64)
+    K_corr = nSamples/N_inst-1.0
+    weights = [Y...].*(K_corr-1.0).+(1.0)
+    return KMeansInducingPoints(X,m,10,weights=weights)
 end

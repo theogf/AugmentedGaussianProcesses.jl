@@ -9,8 +9,8 @@ using PyCall
 
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
-N_data = 300
-N_class = 3
+N_data = 3000
+N_class = 150
 N_test = 50
 minx=-5.0
 maxx=5.0
@@ -23,19 +23,32 @@ println("$(now()): Starting testing multiclass")
 function latent(X)
     return sqrt.(X[:,1].^2+X[:,2].^2)
 end
-dim=2
-X = (rand(N_data,dim)*(maxx-minx)).+minx
+N_dim=2
+X = (rand(N_data,N_dim)*(maxx-minx)).+minx
 trunc_d = Truncated(Normal(0,3),minx,maxx)
-X = rand(trunc_d,N_data,dim)
+X = rand(trunc_d,N_data,N_dim)
 x_test = range(minx,stop=maxx,length=N_test)
 X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
 # X_test = rand(trunc_d,N_test^dim,dim)
 y = min.(max.(1,floor.(Int64,latent(X)+rand(Normal(0,noise),size(X,1)))),N_class)
 y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 
-X,y = sk.make_classification(n_samples=N_data,n_features=dim,n_classes=N_class,n_clusters_per_class=1,n_informative=dim,n_redundant=0)
-y.+=1
+# X,y = sk.make_classification(n_samples=N_data,n_features=N_dim,n_classes=N_class,n_clusters_per_class=1,n_informative=N_dim,n_redundant=0)
+# y.+=1
+# X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
+
+for c in 1:N_class
+    global centers = rand(Uniform(-1,1),N_class,N_dim)
+    global variance = 1/N_class*ones(N_class)#rand(Gamma(1.0,0.5),150)
+end
+
+X = zeros(N_data,2)
+y = sample(1:N_class,N_data)
+for i in 1:N_data
+    X[i,:] = rand(MvNormal(centers[y[i],:],variance[y[i]]))
+end
 X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
+
 
 # X,y = MNIST.traindata()
 # X=Float64.(reshape(X,28*28,60000)')
@@ -81,6 +94,7 @@ X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 ##Which algorithm are tested
 fullm = false
 sparsem = true
+ssparsem = true
 sharedInd = true
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
@@ -91,7 +105,7 @@ sharedInd = true
 OMGP.setvalue!(kernel.variance,10.0)
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 if fullm
-    fmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=5,IndependentGPs=true)
+    global fmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=5,IndependentGPs=true)
     metrics, callback = OMGP.getMultiClassLog(fmodel,X_test,y_test)
     # full_model.AutotuningFrequency=1
     t_full = @elapsed fmodel.train(iterations=30)#,callback=callback)
@@ -110,7 +124,7 @@ if fullm
 end
 # end #End for loop on kernel lengthscale
 if sparsem
-    smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=200,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
+    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false, nClassesUsed=20,VerboseLevel=3,kernel=kernel,m=200,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
     metrics, callback = OMGP.getMultiClassLog(smodel)#,X_test,y_test)
     # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
@@ -121,19 +135,32 @@ if sparsem
 
     println("Sparse predictions computed")
     sparse_score=0
-    if sharedInd
-        #writedlm("test/results/sharedIndPoints_acc",metrics[:test_error].values)
-        # writedlm("test/results/sharedIndPoints_ELBO",metrics[:ELBO].values)
-    else
-        # writedlm("test/results/uniqueIndPoints_acc",metrics[:test_error].values)
-        # writedlm("test/results/uniqueIndPoints_ELBO",metrics[:ELBO].values)
-    end
     for (i,pred) in enumerate(y_sparse)
         if pred == y_test[i]
             global sparse_score += 1
         end
     end
     println("Sparse model Accuracy is $(sparse_score/length(y_test)) in $t_sparse s")
+end
+
+if ssparsem
+    global ssmodel = OMGP.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=20,VerboseLevel=3,kernel=kernel,m=200,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
+    # smodel.AutotuningFrequency=5
+    metrics, callback = OMGP.getMultiClassLog(ssmodel)#,X_test,y_test)
+    # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
+    t_ssparse = @elapsed ssmodel.train(iterations=1000,callback=callback)
+    y_ssparse, = ssmodel.predict(X_test)
+    y_sstrain, = ssmodel.predict(X)
+    y_ssall = OMGP.multiclasspredict(ssmodel,X_test,true)
+
+    println("Sparse predictions computed")
+    ssparse_score=0
+    for (i,pred) in enumerate(y_ssparse)
+        if pred == y_test[i]
+            global ssparse_score += 1
+        end
+    end
+    println("Super Sparse model Accuracy is $(ssparse_score/length(y_test)) in $t_ssparse s")
 end
 
 if doMCCompare

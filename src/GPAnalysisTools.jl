@@ -53,28 +53,29 @@ function getMultiClassLog(model,X_test=0,y_test=0,iter_points=vcat(1:99,100:10:9
     metrics = MVHistory()
     function SaveLog(model,iter;hyper=false)
         if in(iter,iter_points)
-                if X_test!=0
-                        y_sparse, = model.predict(X_test)
-                        sparse_score=0
-                        for (i,pred) in enumerate(y_sparse)
-                            if pred == y_test[i]
-                                sparse_score += 1
-                            end
+            push!(metrics,:ELBO,iter,model.elbo())
+            push!(metrics,:mu,iter,model.μ)
+            push!(metrics,:sigma,iter,diag.(model.Σ))
+            if X_test!=0
+                    y_pred, = model.predict(X_test)
+                    score=0
+                    for (i,pred) in enumerate(y_pred)
+                        if pred == y_test[i]
+                            score += 1
                         end
-                    push!(metrics,:test_error,iter,sparse_score/length(y_test))
-                    # push!(metrics,:mean_neg_loglikelihood,iter,mean(-loglike)) #TODO
-                    # push!(metrics,:median_neg_log_likelihood,iter,median(-loglike)) #TODO
-                end
-                push!(metrics,:ELBO,iter,model.elbo())
-                push!(metrics,:mu,iter,model.μ)
-                push!(metrics,:sigma,iter,diag.(model.Σ))
-                if model.IndependentGPs
-                    push!(metrics,:kernel_param_1,iter,getindex(model.kernel[1].param[1].value))
-                    push!(metrics,:kernel_param_2,iter,getindex(model.kernel[2].param[1].value))
-                    push!(metrics,:kernel_param_3,iter,getindex(model.kernel[3].param[1].value))
-                else
-                    push!(metrics,:kernel_param_1,iter,getindex(model.kernel[1].param[1].value))
-                end
+                    end
+                push!(metrics,:test_error,iter,score/length(y_test))
+                # push!(metrics,:mean_neg_loglikelihood,iter,mean(-loglike)) #TODO
+                # push!(metrics,:median_neg_log_likelihood,iter,median(-loglike)) #TODO
+                println("Iteration $iter : acc = $(score/length(y_test))")
+            end
+            if model.IndependentGPs
+                push!(metrics,:kernel_param_1,iter,getindex(model.kernel[1].param[1].value))
+                push!(metrics,:kernel_param_2,iter,getindex(model.kernel[2].param[1].value))
+                push!(metrics,:kernel_param_3,iter,getindex(model.kernel[3].param[1].value))
+            else
+                push!(metrics,:kernel_param_1,iter,getindex(model.kernel[1].param[1].value))
+            end
         end
     end #end SaveLog
     return metrics,SaveLog
