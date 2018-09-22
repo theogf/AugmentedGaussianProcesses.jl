@@ -216,7 +216,7 @@ function compute(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true
       return (variance ? getvalue(k.variance) : 1.0)
     end
     @assert k.distance(X1,X2) > 0  "Problem with distance computation"
-    return (variance ? getvalue(k.variance) : 1.0)*exp(-0.5*(k.distance(X1,X2))^2/(getvalue(k.param[1])^2))
+    return (variance ? getvalue(k.variance) : 1.0)*exp(-0.5*power_by_s(k.distance(X1,X2))^2/(getvalue(k.param[1])^2))
 end
 #
 "Compute kernel gradients given the vectors"
@@ -395,9 +395,9 @@ end
 "Apply kernel functions on vector"
 function compute(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
     if X1==X2
-        return 1.0
+        return (variance ? getvalue(k.variance) : 1.0)
     end
-    return (variance ? getvalue(k.variance) : 1.0)*exp(-0.5*norm((X1-X2)./k.param.hyperparameters)^2)
+    return (variance ? getvalue(k.variance) : 1.0)*exp(-0.5*sum(((X1-X2)./k.param.hyperparameters).^2))
 end
 #
 "Compute kernel gradients given the vectors"
@@ -405,7 +405,7 @@ function compute_deriv(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},variance::Boo
     if X1 == X2
         grad = zeros(k.Nparam)
     else
-        grad = (X1-X2).^2 ./(k.param.hyperparameters.^3)*compute(k,X1,X2,false)
+        grad = (X1-X2).^2 ./(getvalue(k.param).^3).*compute(k,X1,X2,false)
     end
     if variance
         return vcat(getvalue(k.variance)*grad,compute(k,X1,X2,false))

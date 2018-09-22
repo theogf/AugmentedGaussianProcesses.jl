@@ -9,8 +9,8 @@ using PyCall
 
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
-N_data = 3000
-N_class = 150
+N_data = 500
+N_class = 40
 N_test = 50
 minx=-5.0
 maxx=5.0
@@ -84,6 +84,7 @@ X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 #
 # ### Test on the artificial character dataset
 # X = readdlm("data/artificial-characters-train")
+
 # y=  X[:,1]; X= X[:,2:end]
 # X_test = readdlm("data/artificial-characters-test")
 # y_test= X_test[:,1]; X_test=X_test[:,2:end]
@@ -93,26 +94,25 @@ X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 
 ##Which algorithm are tested
 fullm = false
-sparsem = true
+sfullm = false
+sparsem = false
 ssparsem = true
-sharedInd = true
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
- l = 3.5
+ l = 0.1
 
- kernel = OMGP.RBFKernel(l)
-# kernel = OMGP.ARDKernel(l*ones(size(X,2)))
+kernel = OMGP.ARDKernel([l],dim=N_dim)
 OMGP.setvalue!(kernel.variance,10.0)
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 if fullm
-    global fmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=5,IndependentGPs=true)
-    metrics, callback = OMGP.getMultiClassLog(fmodel,X_test,y_test)
+    global fmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true)
+    fmetrics, callback = OMGP.getMultiClassLog(fmodel,X_test,y_test)
     # full_model.AutotuningFrequency=1
-    t_full = @elapsed fmodel.train(iterations=30)#,callback=callback)
+    t_full = @elapsed fmodel.train(iterations=100,callback=callback)
 
-    y_full,sig_full = fmodel.predict(X_test)
-    y_fall = OMGP.multiclasspredict(fmodel,X_test,true)
-    y_ftrain, = fmodel.predict(X)
+    global y_full,sig_full = fmodel.predict(X_test)
+    global y_fall = OMGP.multiclasspredict(fmodel,X_test,true)
+    global y_ftrain, = fmodel.predict(X)
     println("Full predictions computed")
     full_score = 0
     for (i,pred) in enumerate(y_full)
@@ -122,16 +122,36 @@ if fullm
     end
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s for l = $l")
 end
+
+if sfullm
+    global sfmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true,KStochastic=true,nClassesUsed=20)
+    sfmetrics, callback = OMGP.getMultiClassLog(sfmodel,X_test,y_test)
+    # full_model.AutotuningFrequency=1
+    t_sfull = @elapsed sfmodel.train(iterations=200,callback=callback)
+
+    global y_sfull,sig_sfull = sfmodel.predict(X_test)
+    global y_sfall = OMGP.multiclasspredict(sfmodel,X_test,true)
+    global y_sftrain, = sfmodel.predict(X)
+    println("Full predictions computed")
+    sfull_score = 0
+    for (i,pred) in enumerate(y_sfull)
+        if pred == y_test[i]
+            global sfull_score += 1
+        end
+    end
+    println("Full model Accuracy is $(sfull_score/length(y_test)) in $t_sfull s for l = $l")
+end
+
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false, nClassesUsed=20,VerboseLevel=3,kernel=kernel,m=200,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
+    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,VerboseLevel=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
-    metrics, callback = OMGP.getMultiClassLog(smodel)#,X_test,y_test)
+    smetrics, callback = OMGP.getMultiClassLog(smodel,X_test,y_test)
     # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    t_sparse = @elapsed smodel.train(iterations=1000,callback=callback)
-    y_sparse, = smodel.predict(X_test)
-    y_strain, = smodel.predict(X)
-    y_sall = OMGP.multiclasspredict(smodel,X_test,true)
+    t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
+    global y_sparse, = smodel.predict(X_test)
+    global y_strain, = smodel.predict(X)
+    global y_sall = OMGP.multiclasspredict(smodel,X_test,true)
 
     println("Sparse predictions computed")
     sparse_score=0
@@ -144,11 +164,11 @@ if sparsem
 end
 
 if ssparsem
-    global ssmodel = OMGP.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=20,VerboseLevel=3,kernel=kernel,m=200,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
+    global ssmodel = OMGP.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=20,VerboseLevel=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
-    metrics, callback = OMGP.getMultiClassLog(ssmodel)#,X_test,y_test)
+    ssmetrics, callback = OMGP.getMultiClassLog(ssmodel,X_test,y_test)
     # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    t_ssparse = @elapsed ssmodel.train(iterations=1000,callback=callback)
+    t_ssparse = @elapsed ssmodel.train(iterations=200,callback=callback)
     y_ssparse, = ssmodel.predict(X_test)
     y_sstrain, = ssmodel.predict(X)
     y_ssall = OMGP.multiclasspredict(ssmodel,X_test,true)
@@ -163,6 +183,21 @@ if ssparsem
     println("Super Sparse model Accuracy is $(ssparse_score/length(y_test)) in $t_ssparse s")
 end
 
+dim_t = 784
+tkernel = OMGP.ARDKernel([l],dim=dim_t)
+Test = rand(4000,dim_t)
+@elapsed begin
+    A = [Matrix(undef,200,200) for _ in 1:(dim_t+1)];
+    for i in 1:200
+        for j in 1:i
+            global g = OMGP.KernelFunctions.compute_deriv(tkernel,Test[i,:],Test[j,:],true);
+            [a[i,j] = g[iter] for (iter,a) in enumerate(A)]
+        end
+    end
+end
+
+@elapsed OMGP.KernelFunctions.derivativekernelmatrix(tkernel,Test[1:200,:])
+
 if doMCCompare
     full_f_star,full_cov_f_star = OMGP.fstar(fmodel,X_test)
     logit_f = logit.(full_f_star)
@@ -175,6 +210,15 @@ println("Sampling done")
 function logit(x)
     return 1.0./(1.0.+exp.(-x))
 end
+
+callbacktests = true
+if callbacktests
+    plot(fmetrics[:test_error])
+    plot!(sfmetrics[:test_error])
+    plot!(smetrics[:test_error])
+    plot!(ssmetrics[:test_error])
+end
+
 #
 if true
 if size(X,2)==2

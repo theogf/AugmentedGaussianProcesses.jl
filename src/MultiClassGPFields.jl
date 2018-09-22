@@ -24,44 +24,6 @@ function initMultiClassKernel!(model::GPModel,kernel,IndependentGPs)
         model.kernel = [deepcopy(kernel)]
     end
     model.nFeatures = model.nSamples
-    model.Knn = [Matrix{Float64}(undef,model.nSamples,model.nSamples) for i in 1:model.K]
-    model.invK = [Matrix{Float64}(undef,model.nSamples,model.nSamples) for i in 1:model.K]
-end
-
-
-
-"""
-    Parameters for multiclass stochastic optimization
-"""
-@def multiclassstochasticfields begin
-    nSamplesUsed::Int64 #Size of the minibatch used
-    StochCoeff::Float64 #Stochastic Coefficient
-    MBIndices #MiniBatch Indices
-    #Flag for adaptative learning rate for the SVI
-    AdaptiveLearningRate::Bool
-      κ_s::Float64 #Parameters for decay of learning rate (iter + κ)^-τ in case adaptative learning rate is not used
-      τ_s::Float64
-    ρ_s::Vector{Float64} #Learning rate for CAVI
-    g::Vector{Vector{Float64}} # g & h are expected gradient value for computing the adaptive learning rate and τ is an intermediate
-    h::Vector{Float64}
-    τ::Vector{Float64}
-    SmoothingWindow::Int64
-end
-"""
-    Function initializing the stochasticfields parameters
-"""
-function initMultiClassStochastic!(model::GPModel,AdaptiveLearningRate,batchsize,κ_s,τ_s,SmoothingWindow)
-    #Initialize parameters specific to models using SVI and check for consistency
-    model.Stochastic = true; model.nSamplesUsed = batchsize; model.AdaptiveLearningRate = AdaptiveLearningRate;
-    model.nInnerLoops = 10;
-    model.κ_s = κ_s; model.τ_s = τ_s; model.SmoothingWindow = SmoothingWindow;
-    if (model.nSamplesUsed <= 0 || model.nSamplesUsed > model.nSamples)
-################### TODO MUST DECIDE FOR DEFAULT VALUE OR STOPPING STOCHASTICITY ######
-        @warn "Invalid value for the batchsize : $batchsize, assuming a full batch method"
-        model.nSamplesUsed = model.nSamples; model.Stochastic = false;
-    end
-    model.StochCoeff = model.nSamples/model.nSamplesUsed
-    model.τ = 50.0*ones(Float64,model.K);
 end
 
 """
@@ -144,34 +106,29 @@ function initMultiClassVariables!(model,μ_init)
     model.η_2 = broadcast(x->-0.5*inv(x),model.Σ)
     model.η_1 = -2.0*model.η_2.*model.μ
     if model.Stochastic
-        model.α = 0.5*ones(model.nSamplesUsed)
+        model.α = model.K*ones(model.nSamples)
         model.β = model.K*ones(model.nSamplesUsed)
         model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.K+1)]
         model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.K]
         model.f2 = [ones(Float64,model.nSamplesUsed) for i in 1:model.K]
     else
-        model.α = 0.5*ones(model.nSamples)
-        model.β = model.K*ones(model.nSamples)
-        model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.K+1)]
-        model.γ = [abs.(rand(model.nSamples)) for i in 1:model.K]
-        model.f2 = [ones(Float64,model.nSamplesUsed) for i in 1:model.K]
-    end
-end
-
-function reinit_variational_parameters!(model)
-    if model.Stochastic
-        model.α = 0.5*ones(model.nSamplesUsed)
-        model.β = model.K*ones(model.nSamplesUsed)
-        model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.nClassesUsed+1)]
-        model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.nClassesUsed]
-        model.f2 = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
-    else
-        model.α = 0.5*ones(model.nSamples)
+        model.α = model.K*ones(model.nSamples)
         model.β = model.K*ones(model.nSamples)
         model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.nClassesUsed+1)]
         model.γ = [abs.(rand(model.nSamples)) for i in 1:model.nClassesUsed]
         model.f2 = [ones(Float64,model.nSamples) for i in 1:model.nClassesUsed]
     end
+end
+
+"Reinitialize vector size after MCInitialization"
+function reinit_variational_parameters!(model)
+        model.α = model.K*ones(model.nSamples)
+        model.β = model.K*ones(model.nSamplesUsed)
+        model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.nClassesUsed+1)]
+        model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.nClassesUsed]
+        model.f2 = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
+        model.Ktilde = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
+        model.κ = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.nClassesUsed]
 end
 
 """
@@ -218,6 +175,17 @@ function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool)
     if model.VerboseLevel>2
         println("$(now()): Inducing points determined through KMeans algorithm")
     end
+    if model.IndependentGPs
+        model.Kmm = [Matrix{Float64}(undef,model.m,model.m) for i in 1:model.K]
+        model.invKmm = [Matrix{Float64}(undef,model.m,model.m) for i in 1:model.K]
+        model.Ktilde = [ones(Float64,model.nSamplesUsed) for i in 1:model.K]
+        model.κ = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.K]
+    else
+        model.Kmm = [Matrix{Float64}(undef,model.m,model.m)]
+        model.invKmm = [Matrix{Float64}(undef,model.m,model.m)]
+        model.Ktilde = [ones(Float64,model.nSamplesUsed)]
+        model.κ = [Matrix{Float64}(undef,model.nSamplesUsed,model.m)]
+    end
 end
 
 "Function to obtain the weighted KMeans for one class"
@@ -225,4 +193,43 @@ function Ind_KMeans(nSamples::Int64,N_inst::Int64,Y::SparseVector{Int64},X,m::In
     K_corr = nSamples/N_inst-1.0
     weights = [Y...].*(K_corr-1.0).+(1.0)
     return KMeansInducingPoints(X,m,10,weights=weights)
+end
+
+
+"""
+    Parameters for multiclass stochastic optimization
+"""
+@def multiclassstochasticfields begin
+    nSamplesUsed::Int64 #Size of the minibatch used
+    StochCoeff::Float64 #Stochastic Coefficient
+    MBIndices #MiniBatch Indices
+    #Flag for adaptative learning rate for the SVI
+    AdaptiveLearningRate::Bool
+      κ_s::Float64 #Parameters for decay of learning rate (iter + κ)^-τ in case adaptative learning rate is not used
+      τ_s::Float64
+    ρ_s::Vector{Float64} #Learning rate for CAVI
+    g::Vector{Vector{Float64}} # g & h are expected gradient value for computing the adaptive learning rate and τ is an intermediate
+    h::Vector{Float64}
+    τ::Vector{Float64}
+    SmoothingWindow::Int64
+end
+"""
+    Function initializing the stochasticfields parameters
+"""
+function initMultiClassStochastic!(model::GPModel,AdaptiveLearningRate,batchsize,κ_s,τ_s,SmoothingWindow)
+    #Initialize parameters specific to models using SVI and check for consistency
+    model.Stochastic = true; model.nSamplesUsed = batchsize; model.AdaptiveLearningRate = AdaptiveLearningRate;
+    model.nInnerLoops = 10;
+    model.κ_s = κ_s; model.τ_s = τ_s; model.SmoothingWindow = SmoothingWindow;
+    if (model.nSamplesUsed <= 0 || model.nSamplesUsed > model.nSamples)
+################### TODO MUST DECIDE FOR DEFAULT VALUE OR STOPPING STOCHASTICITY ######
+        @warn "Invalid value for the batchsize : $batchsize, setting it to min(10%,50)"
+        model.nSamplesUsed = min(floor(Int64,0.1*model.nSamples),50);
+    end
+    model.StochCoeff = model.nSamples/model.nSamplesUsed
+    if model.IndependentGPs
+        model.τ = 50.0*ones(Float64,model.K);
+    else
+        model.τ = [1.0]
+    end
 end

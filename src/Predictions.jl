@@ -142,7 +142,7 @@ function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
         return mean_fstar
     else
         if model.IndependentGPs
-            k_starstar = diagkernelmatrix.(X_test,model.kernel)
+            k_starstar = diagkernelmatrix.([X_test],model.kernel)
         else
             k_starstar = [diagkernelmatrix(X_test,model.kernel[1])]
         end
@@ -269,7 +269,7 @@ end
 
 
 
-function multiclasspredictproba(model::MultiClass,X_test)
+function multiclasspredictproba(model::MultiClass,X_test,covf=false)
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
     σ = hcat(logit.(m_f)...)
@@ -278,12 +278,54 @@ function multiclasspredictproba(model::MultiClass,X_test)
     cov_f = [cov_f[i,:] for i in 1:n]
     normsig = sum.(σ)
     h = mod_soft_max.(σ,normsig)
-    grad_h = grad_mod_soft_max.(σ,normsig)
     hess_h = hessian_mod_soft_max.(σ,normsig)
     m_predic = h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f)
+    if !covf
+        return m_predic
+    end
+    grad_h = grad_mod_soft_max.(σ,normsig)
     cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov-0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
     return m_predic,cov_predic
 end
+
+function multiclasspredictproba(model::SparseMultiClass,X_test,covf=false)
+    n = size(X_test,1)
+    m_f,cov_f = fstar(model,X_test)
+    σ = hcat(logit.(m_f)...)
+    σ = [σ[i,:] for i in 1:n]
+    cov_f = hcat(cov_f...)
+    cov_f = [cov_f[i,:] for i in 1:n]
+    normsig = sum.(σ)
+    h = mod_soft_max.(σ,normsig)
+    hess_h = hessian_mod_soft_max.(σ,normsig)
+    m_predic = h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f)
+    if !covf
+        return m_predic
+    end
+    grad_h = grad_mod_soft_max.(σ,normsig)
+    cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov-0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
+    return m_predic,cov_predic
+end
+
+function multiclasssoftmax(model::SparseMultiClass,X_test,covf=false)
+    n = size(X_test,1)
+    m_f,cov_f = fstar(model,X_test)
+    σ = hcat(m_f...)
+    σ = [exp.(σ[i,:]) for i in 1:n]
+    cov_f = hcat(cov_f...)
+    cov_f = [cov_f[i,:] for i in 1:n]
+    normsig = sum.(σ)
+    h = mod_soft_max.(σ,normsig)
+    hess_h = hessian_mod_soft_max.(σ,normsig)
+    m_predic = h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f)
+    if !covf
+        return m_predic
+    end
+    grad_h = grad_mod_soft_max.(σ,normsig)
+    cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov-0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
+    return m_predic,cov_predic
+end
+
 function multiclasspredictprobamcmc(model::MultiClass,X_test,NSamples=100)
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
@@ -338,7 +380,7 @@ function grad_mod_soft_max(σ::Array{Float64,1},sumsig::Float64=0.0)
 end
 
 "Return the hessian of the modified softmax likelihood given 'σ' and their sum (can be given via sumsig)"
-function hessian_mod_soft_max(σ::Array{Float64,1},summsig::Float64=0.0)
+function hessian_mod_soft_max(σ::Array{Float64,1},sumsig::Float64=0.0)
     sumsig = sumsig == 0 ? sum(σ) : sumsig
     shortened_sum = sumsig.-σ
     sum_square = sumsig^2

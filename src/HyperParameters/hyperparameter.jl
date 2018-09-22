@@ -1,7 +1,7 @@
 #== HyperParameter Type ==#
 
 mutable struct HyperParameter{T<:Real}
-    value::Base.RefValue{T}
+    value::T
     interval::Interval{T}
     fixed::Bool
     opt::Optimizer
@@ -9,18 +9,18 @@ mutable struct HyperParameter{T<:Real}
     function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=Adam(α=0.1)) where {T<:Real}
     # function HyperParameter{T}(x::T,I::Interval{T};fixed::Bool=false,opt::Optimizer=VanillaGradDescent(η=0.001)) where {T<:Real}
         checkvalue(I, x) || error("Value $(x) must be in range " * string(I))
-        new{T}(Ref(x), I, fixed, opt)
+        new{T}(x, I, fixed, opt)
     end
 end
 HyperParameter(x::T, I::Interval{T} = interval(T); fixed::Bool = false, opt::Optimizer = Adam(α=0.01)) where {T<:Real} = HyperParameter{T}(x, I, fixed, opt)
 
 eltype(::HyperParameter{T}) where {T} = T
 
-@inline getvalue(θ::HyperParameter{T}) where {T}= getindex(θ.value)
+@inline getvalue(θ::HyperParameter{T}) where {T} = θ.value
 
 function setvalue!(θ::HyperParameter{T}, x::T) where {T}
     checkvalue(θ.interval, x) || error("Value $(x) must be in range " * string(θ.interval))
-    setindex!(θ.value, x)
+    θ.value = x
     return θ
 end
 
@@ -30,7 +30,7 @@ convert(::Type{HyperParameter{T}}, θ::HyperParameter{T}) where {T<:Real} = θ
 function convert(::Type{HyperParameter{T}}, θ::HyperParameter) where {T<:Real}
     HyperParameter{T}(convert(T, getvalue(θ)), convert(Interval{T}, θ.bounds))
 end
-convert(::Type{T}, θ::HyperParameter{T}) where {T<:Number} = T(getindex(θ.value))
+convert(::Type{T}, θ::HyperParameter{T}) where {T<:Number} = T(θ.value)
 
 function show(io::IO, θ::HyperParameter{T}) where {T}
     print(io, string("HyperParameter(", getvalue(θ), ",", string(θ.interval), ")"))
@@ -62,8 +62,6 @@ isfree(θ::HyperParameter) = !θ.fixed
 
 setfixed!(θ::HyperParameter) = θ.fixed = true
 
-
-
 setfree!(θ::HyperParameter) = θ.fixed = false
 
 mutable struct HyperParameters{T<:AbstractFloat}
@@ -76,6 +74,7 @@ mutable struct HyperParameters{T<:AbstractFloat}
         return this
     end
 end
+
 function HyperParameters(θ::Vector{T},intervals::Vector{Interval{T,A,B}}) where {A<:Bound{T},B<:Bound{T}} where {T<:Real}
     HyperParameters{T}(θ,intervals)
 end

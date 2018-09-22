@@ -10,7 +10,7 @@ export getLog, getMultiClassLog#, IntermediatePlotting
     The callback will store the ELBO and the variational parameters at every iterations included in iter_points
     If X_test and y_test are provided it will also store the test accuracy and the mean and median test loglikelihood
 """
-function getLog(model;X_test=0,y_test=0,iter_points=vcat(1:99,100:10:999,1000:100:9999))
+function getLog(model;X_test=0,y_test=0,iter_points=vcat(1:1:9,10:5:99,100:50:999,1000:100:9999))
     metrics = MVHistory()
     function SaveLog(model,iter;hyper=false)
         if in(iter,iter_points)
@@ -49,7 +49,7 @@ end
     The callback will store the ELBO and the variational parameters at every iterations included in iter_points
     If X_test and y_test are provided it will also store the test accuracy
 """
-function getMultiClassLog(model,X_test=0,y_test=0,iter_points=vcat(1:99,100:10:999,1000:100:9999))
+function getMultiClassLog(model,X_test=0,y_test=0,iter_points=vcat(1:1:9,10:5:99,100:50:999,1000:100:9999))
     metrics = MVHistory()
     function SaveLog(model,iter;hyper=false)
         if in(iter,iter_points)

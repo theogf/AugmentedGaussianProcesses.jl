@@ -12,7 +12,7 @@ function kernelmatrix!(K::Matrix{Float64},X1,X2,kernel)
     end
     return K
 end
-function kernelmatrix(X1,X2,kernel)
+function kernelmatrix(X1,X2,kernel::Kernel)
     n1 = size(X1,1)
     n2 = size(X2,1)
     K = zeros(n1,n2)
@@ -22,7 +22,7 @@ end
 """
     Create a symmetric kernel matrix from training data
 """
-function kernelmatrix!(K,X,kernel)
+function kernelmatrix!(K,X::Matrix{Float64},kernel::Kernel)
     @assert size(K,1) == size(X,1)
     n = size(K,1)
     for i in 1:n
@@ -32,7 +32,7 @@ function kernelmatrix!(K,X,kernel)
     end
     return Symmetric(K,:L)
 end
-function kernelmatrix(X,kernel)
+function kernelmatrix(X::Matrix{Float64},kernel::Kernel)
     n = size(X,1);
     K = zeros(n,n);
     return kernelmatrix!(K,X,kernel)
@@ -41,7 +41,7 @@ end
 """
     Only compute the variance (diagonal elements)
 """
-function diagkernelmatrix!(k,X,kernel)
+function diagkernelmatrix!(k,X::Matrix{Float64},kernel::Kernel)
     n = size(k,1)
     for i in 1:n
         k[i] = compute(kernel,X[i,:],X[i,:])
@@ -49,7 +49,7 @@ function diagkernelmatrix!(k,X,kernel)
     return k
 end
 
-function diagkernelmatrix(X,kernel)
+function diagkernelmatrix(X::Matrix{Float64},kernel::Kernel)
     n = size(X,1)
     k = zeros(n)
     return diagkernelmatrix!(k,X,kernel)
@@ -58,20 +58,20 @@ end
 """
     Compute derivative of the kernel matrix given kernel hyperparameters
 """
-function derivativekernelmatrix(kernel,X1,X2)
+function derivativekernelmatrix(kernel::Kernel,X1::Matrix{Float64},X2::Matrix{Float64})
     return compute_J(kernel,compute_unmappedJ(kernel,X1,X2),size(X1,1),size(X2,1))
 end
 
-function derivativekernelmatrix(kernel,X)
+function derivativekernelmatrix(kernel::Kernel,X::Matrix{Float64})
     return compute_J(kernel,compute_unmappedJ(kernel,X),size(X,1),size(X,1))
 end
 
-function derivativediagkernelmatrix(kernel,X)
-    return compute_J(kernel,compute_unmappeddiagJ(kernel,X),size(X,1),true,diag=true)
+function derivativediagkernelmatrix(kernel::Kernel,X::Matrix{Float64})
+    return compute_J(kernel,compute_unmappeddiagJ(kernel,X),size(X,1),size(X,1),true,diag=true)
 end
 
 
-function compute_unmappedJ(kernel,X1,X2)
+function compute_unmappedJ(kernel::Kernel,X1::Matrix{Float64},X2::Matrix{Float64})
     n1 = size(X1,1)
     n2 = size(X2,1)
     J = Array{Any,2}(undef,n1,n2)
@@ -83,9 +83,9 @@ function compute_unmappedJ(kernel,X1,X2)
     return J[:]
 end
 
-function compute_unmappedJ(kernel,X)
+function compute_unmappedJ(kernel::Kernel,X::Matrix{Float64})
     n = size(X,1)
-    J = Array{Any,2}(undef,n,n)
+    J = Matrix{Any}(undef,n,n)
     for i in 1:n
         for j in 1:i
             J[i,j] = compute_deriv(kernel,X[i,:],X[j,:],true)
@@ -97,52 +97,48 @@ function compute_unmappedJ(kernel,X)
     return J[:]
 end
 
-function compute_unmappeddiagJ(kernel,X)
+function compute_unmappeddiagJ(kernel::Kernel,X::Matrix{Float64})
     n = size(X,1)
-    J = Array{Any,1}(undef,n)
+    J = Vector{Any}(undef,n)
     for i in 1:n
         J[i] = compute_deriv(kernel,X[i,:],X[i,:],true)
     end
     return J
 end
 
-function compute_J(k::KernelSum,J,n1,n2,variance::Bool=true;diag::Bool=false)
-    J_mat = Array{Any,1}()
+function compute_J(k::KernelSum,J,n1::Int64,n2::Int64,variance::Bool=true;diag::Bool=false)
+    J_mat = Vector{Any}(undef,k.Nkernels)
     for (i,kernel) in enumerate(k.kernel_array)
-        push!(J_mat,compute_J(kernel,broadcast(x->x[i],J),n1,n2,true,diag=diag))
+        J_mat[i] = compute_J(kernel,[j[i] for j in J],n1,n2,true,diag=diag)
     end
     return J_mat
 end
 
-function compute_J(k::KernelProduct,J,n1,n2,variance::Bool=true;diag::Bool=false)
-    J_mat = Array{Any,1}()
+function compute_J(k::KernelProduct,J,n1::Int64,n2::Int64,variance::Bool=true;diag::Bool=false)
+    J_mat = Vector{Any}(undef,k.Nkernels+variance)
     for (i,kernel) in enumerate(k.kernel_array)
-        push!(J_mat,compute_J(kernel,broadcast(x->x[i],J),n1,n2,false,diag=diag))
+        J_mat[i] = compute_J(kernel,[j[i] for j in J],n1,n2,false,diag=diag)
     end
     if variance
-        if diag
-            push!(J_mat,broadcast(x->x[end][1],J))
-        else
-            push!(J_mat,[reshape(broadcast(x->x[end][1],J),n1,n2)])
-        end
+        J_mat[end] = diag ? [j[end][1] for j in J] : [reshape([j[end][1] for j in J],n1,n2)]
     end
     return J_mat
 end
 
-function compute_J(k::Kernel,J,n1,n2,variance::Bool=true;diag::Bool=false)
-    J_mat = Array{Any,1}()
+function compute_J(k::Kernel,J,n1::Int64,n2::Int64,variance::Bool=true;diag::Bool=false)
+    J_mat = diag ? [Vector{Float64}(undef,n1) for i in 1:(k.Nparam+variance)] : [Matrix{Float64}(undef,n1,n2) for i in 1:(k.Nparam+variance)]
     for i in 1:k.Nparam
         if diag
-            push!(J_mat,broadcast(x->x[i],J))
+            J_mat[i] .= [j[i] for j in J]
         else
-            push!(J_mat,reshape(broadcast(x->x[i],J),n1,n2))
+            J_mat[i] .= reshape([j[i] for j in J],n1,n2)
         end
     end
     if variance
         if diag
-            push!(J_mat,broadcast(x->x[end],J))
+            J_mat[end] .= [j[end] for j in J]
         else
-            push!(J_mat,reshape(broadcast(x->x[end],J),n1,n2))
+            J_mat[end] .= reshape([j[end] for j in J],n1,n2)
         end
     end
     return J_mat
@@ -151,31 +147,31 @@ end
 """
     Compute the gradients using a gradient function and matrices Js
 """
-function compute_hyperparameter_gradient(k::KernelSum,gradient_function::Function,variance::Bool,Js,index)
+function compute_hyperparameter_gradient(k::KernelSum,gradient_function::Function,variance::Bool,Js,Kindex,index)
     gradients = Array{Any,1}()
     for (j,kernel) in enumerate(k.kernel_array)
-        push!(gradients,compute_hyperparameter_gradient(kernel,gradient_function,true,broadcast(x->x[j],Js),index))
+        push!(gradients,compute_hyperparameter_gradient(kernel,gradient_function,true,broadcast(x->x[j],Js),Kindex,index))
     end
     return gradients
 end
 
-function compute_hyperparameter_gradient(k::KernelProduct,gradient_function::Function,variance::Bool,Js,index)
+function compute_hyperparameter_gradient(k::KernelProduct,gradient_function::Function,variance::Bool,Js,Kindex,index)
     gradients = Array{Any,1}()
     for (j,kernel) in enumerate(k.kernel_array)
-        push!(gradients,compute_hyperparameter_gradient(kernel,gradient_function,false,broadcast(x->x[j],Js),index))
+        push!(gradients,compute_hyperparameter_gradient(kernel,gradient_function,false,broadcast(x->x[j],Js),Kindex,index))
     end
     if variance
-        push!(gradients,[gradient_function(broadcast(x->x[end][1],Js),index)])
+        push!(gradients,[gradient_function(broadcast(x->x[end][1],Js),Kindex,index)])
     end
     return gradients
 end
-function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,variance::Bool,Js,index)
+function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,variance::Bool,Js,Kindex,index)
     gradients = Array{Float64,1}()
     for j in 1:k.Nparam
-        push!(gradients,gradient_function(broadcast(x->x[j],Js),index))
+        push!(gradients,gradient_function(broadcast(x->x[j],Js),Kindex,index))
     end
     if variance
-        push!(gradients,gradient_function(broadcast(x->x[end],Js),index))
+        push!(gradients,gradient_function(broadcast(x->x[end],Js),Kindex,index))
     end
     return gradients
 end

@@ -16,19 +16,20 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
     if model.Stochastic && model.AdaptiveLearningRate && !model.Trained #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC (if restarting training, avoid this part)
             MCInit!(model)
     end
-    computeMatrices!(model)
+    # computeMatrices!(model)
     model.Trained = true
     iter::Int64 = 1; conv = Inf;
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             updateParameters!(model,iter) #Update all the variational parameters
+            println(mean(model.μ[1]))
             reset_prediction_matrices!(model) #Reset predicton matrices
             if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
-                for j in 1:model.AutotuningFrequency
+                # for j in 1:model.AutotuningFrequency
                     updateHyperParameters!(model) #Update the hyperparameters
                     computeMatrices!(model)
                     # println("ELBO : $(ELBO(model))")
-                end
+                # end
             end
             if callback != 0
                     callback(model,iter) #Use a callback method if put by user
@@ -126,11 +127,11 @@ end
 function computeMatrices!(model::MultiClass)
     if model.HyperParametersUpdated
         if model.IndependentGPs
-            model.Knn = [Symmetric(kernelmatrix(model.X,model.kernel[i]) + Diagonal{Float64}(model.noise*I,model.nFeatures)) for i in 1:model.K]
+            model.Knn .= [Symmetric(kernelmatrix(model.X,model.kernel[i]) + Diagonal{Float64}(model.noise*I,model.nFeatures)) for i in 1:model.K]
         else
-            model.Knn = [Symmetric(kernelmatrix(model.X,model.kernel[1]) + Diagonal{Float64}(model.noise*I,model.nFeatures))]
+            model.Knn .= [Symmetric(kernelmatrix(model.X,model.kernel[1]) + Diagonal{Float64}(model.noise*I,model.nFeatures))]
         end
-        model.invK = inv.(model.Knn)
+        model.invK .= inv.(model.Knn)
         model.HyperParametersUpdated = false
     end
 end
@@ -139,22 +140,22 @@ end
 function computeMatrices!(model::SparseMultiClass)
     if model.HyperParametersUpdated
         if model.IndependentGPs
-            model.Kmm = broadcast((points,kernel)->Symmetric(kernelmatrix(points,kernel)+Diagonal{Float64}(model.noise*I,model.nFeatures)),model.inducingPoints,model.kernel)
+            model.Kmm .= broadcast((points,kernel)->Symmetric(kernelmatrix(points,kernel)+Diagonal{Float64}(model.noise*I,model.nFeatures)),model.inducingPoints,model.kernel)
         else
-            model.Kmm = [Symmetric(kernelmatrix(model.inducingPoints[1],model.kernel[1])+Diagonal{Float64}(model.noise*I,model.nFeatures))]
+            model.Kmm .= [Symmetric(kernelmatrix(model.inducingPoints[1],model.kernel[1])+Diagonal{Float64}(model.noise*I,model.nFeatures))]
         end
-        model.invKmm = inv.(model.Kmm)
+        model.invKmm .= inv.(model.Kmm)
     end
     #If change of hyperparameters or if stochatic
     if model.HyperParametersUpdated || model.Stochastic
         if model.IndependentGPs
-            Knm = broadcast((points,kernel)->kernelmatrix(model.X[model.MBIndices,:],points,kernel),model.inducingPoints,model.kernel)
-            model.κ = Knm./model.Kmm
-            model.Ktilde = broadcast((knm,kappa,kernel)->diagkernelmatrix(model.X[model.MBIndices,:],kernel) - sum(kappa.*knm,dims=2)[:],Knm,model.κ,model.kernel)
+            Knm = broadcast((points,kernel)->kernelmatrix(model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices])
+            model.κ .= Knm./model.Kmm[model.KIndices]
+            model.Ktilde .= broadcast((knm,kappa,kernel)->diagkernelmatrix(model.X[model.MBIndices,:],kernel) - sum(kappa.*knm,dims=2)[:],Knm,model.κ,model.kernel[model.KIndices])
         else
             Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1])
-            model.κ = [Knm/model.Kmm[1]]
-            model.Ktilde = [diagkernelmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*Knm,dims=2)[:]]
+            model.κ .= [Knm/model.Kmm[1]]
+            model.Ktilde .= [diagkernelmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*Knm,dims=2)[:]]
         end
         @assert sum(count.(broadcast(x->x.<0,model.Ktilde)))==0 "Ktilde has negative values"
     end

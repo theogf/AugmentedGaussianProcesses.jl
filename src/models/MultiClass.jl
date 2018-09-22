@@ -17,6 +17,8 @@ mutable struct MultiClass <: MultiClassGPModel
             initFunctions!(this);
             initMultiClass!(this,Y,y_class,y_map,ind_map,KStochastic,nClassesUsed);
             initMultiClassKernel!(this,kernel,IndependentGPs);
+            this.Knn = [Matrix{Float64}(undef,this.nSamples,this.nSamples) for i in 1:this.K]
+            this.invK = [Matrix{Float64}(undef,this.nSamples,this.nSamples) for i in 1:this.K]
             initMultiClassVariables!(this,μ_init)
             return this;
     end
