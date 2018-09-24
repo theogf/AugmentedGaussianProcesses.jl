@@ -144,35 +144,37 @@ end
 """Return the gradient of the ELBO given the kernel hyperparameters"""
 function hyperparameter_gradient_function(model::SparseMultiClass)
     #General values used for all gradients
-    B = broadcast((mu,sigma)->mu*transpose(mu) + sigma,model.μ[model.KIndices],model.Σ[model.KIndices])
+    F2 = broadcast((μ,Σ)->Symmetric(μ*transpose(μ) + Σ),model.μ[model.KIndices],model.Σ[model.KIndices])
     if model.IndependentGPs
         Kmn = [kernelmatrix(model.inducingPoints[i],model.X[model.MBIndices,:],model.kernel[i]) for i in model.KIndices]
         return function(Js,Kindex,index)
+            #matrices Js: [1]Kmm, [2]invKmm, [3]κ
                     Jmm = Js[1]; Jnm =Js[2]; Jnn = Js[3];
                     ι = (Jnm-model.κ[index]*Jmm)*model.invKmm[Kindex]
+                    C = model.Y[Kindex][model.MBIndices].*model.θ[1]+model.θ[index+1]
+                    A = transpose(model.κ[index])*Diagonal(C)*ι
+                    A = Symmetric(A+transpose(A))
                     Jtilde = Jnn - sum(ι.*transpose(Kmn[index]),dims=2) - sum(model.κ[index].*Jnm,dims=2)
                     V = model.invKmm[Kindex]*Jmm
-                    # println("$index, $(mean(diag(V*model.invKmm[index])))")
-                    # println("$index, $(sum((V*model.invKmm[index]).*B[index]))")
-                    return 0.5*sum( (V*model.invKmm[Kindex]
-                            -model.StochCoeff*(ι'*Diagonal(model.θ[index+1])*model.κ[index]
-                                                - model.κ[index]'*Diagonal(model.θ[index+1])*ι)).*B[index]')
-                            -tr(V)-model.StochCoeff*dot(model.θ[1].*model.Y[Kindex][model.MBIndices],Jtilde)
-                            + model.StochCoeff*dot(model.Y[Kindex][model.MBIndices]-model.γ[index],ι*model.μ[Kindex])
+                    return 0.5*(sum( (V*model.invKmm[Kindex]-model.StochCoeff*A) .* transpose(F2[index]) )
+                            - tr(V) - model.StochCoeff*dot(C,Jtilde)
+                            + model.StochCoeff*dot(model.Y[Kindex][model.MBIndices]-model.γ[index],ι*model.μ[Kindex]))
          end #end of function(Js)
     else
         Kmn = kernelmatrix(model.inducingPoints[1],model.X[model.MBIndices,:],model.kernel[1])
         return function(Js,Kindex,index)
-            #matrices L: [1]Kmm, [2]invKmm, [3]κ
+            #matrices Js: [1]Kmm, [2]invKmm, [3]κ
                     Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
                     ι = (Jnm-model.κ[1]*Jmm)/model.Kmm[1]
                     Jtilde = Jnn - sum(ι.*transpose(Kmn),dims=2) - sum(model.κ[1].*Jnm,dims=2)
+                    C = [y[model.MBIndices].*model.θ[1]+model.θ[i] for (i,y) in enumerate(model.Y[model.KIndices])]
+                    A = transpose(model.κ[1]).*Diagonal.(C).*ι
+                    A .= Symmetric(A.+transpose(A))
                     V = model.Kmm[1]\Jmm
-                    return sum(broadcast((theta,b,y,gam,mu)->
-                        0.5*model.KStochCoeff*(sum((V/model.Kmm[1]-model.StochCoeff*(ι'*theta*model.κ[1]+model.κ[1]'*theta*ι)).*b')
-                        -tr(V)-model.StochCoeff*dot(model.θ[1].*y[model.MBIndices],Jtilde)
-                        + model.StochCoeff*dot(y[model.MBIndices]-gam,ι*mu)),
-                        Diagonal.(model.θ[2:end]),B,model.Y[model.KIndices],model.γ,model.μ[model.KIndices])) #arguments
+                    return sum(broadcast((a,c,y,γ,μ)->                0.5*model.KStochCoeff*(sum((V/model.Kmm[1]-model.StochCoeff*a).*f2')
+                        -tr(V)-model.StochCoeff*dot(c,Jtilde)
+                        + model.StochCoeff*dot(y[model.MBIndices]-γ,ι*μ)),
+                        A,C,model.Y[model.KIndices],model.γ,model.μ[model.KIndices])) #arguments
         end#end of function(Js)
     end
 end

@@ -13,22 +13,21 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
         model.nEpochs = iterations
     end
     model.evol_conv = [] #Array to check on the evolution of convergence
-    if model.Stochastic && model.AdaptiveLearningRate && !model.Trained #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC (if restarting training, avoid this part)
-            MCInit!(model)
-    end
+    # if model.Stochastic && model.AdaptiveLearningRate && !model.Trained #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC (if restarting training, avoid this part)
+    #         MCInit!(model)
+    # end
     # computeMatrices!(model)
     model.Trained = true
     iter::Int64 = 1; conv = Inf;
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             updateParameters!(model,iter) #Update all the variational parameters
-            println(mean(model.μ[1]))
+            # println(mean(model.μ[1]))
             reset_prediction_matrices!(model) #Reset predicton matrices
             if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
                 # for j in 1:model.AutotuningFrequency
                     updateHyperParameters!(model) #Update the hyperparameters
                     computeMatrices!(model)
-                    # println("ELBO : $(ELBO(model))")
                 # end
             end
             if callback != 0

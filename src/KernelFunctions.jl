@@ -138,7 +138,7 @@ mutable struct KernelProduct{T<:AbstractFloat} <: Kernel{T}
     "Inner KernelProduct constructor taking an array of kernels"
     function KernelProduct{T}(kernels::Vector{Kernel{T}}) where {T<:AbstractFloat}
         this = new("Product of kernels",
-                HyperParameter{T}(1.0,interval(OpenBound(zero(T)),nothing),fixed=true))
+                HyperParameter{T}(1.0,interval(OpenBound(zero(T)),nothing),fixed=false))
         this.kernel_array = deepcopy(Vector{Kernel}(kernels))
         this.Nkernels = length(this.kernel_array)
         this.distance = Identity
@@ -202,7 +202,7 @@ mutable struct RBFKernel{T<:AbstractFloat} <: Kernel{T}
     @kernelfunctionfields
     function RBFKernel{T}(θ::T=1.0;variance::T=1.0) where {T<:AbstractFloat}
         return new("RBF",
-        HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=true),
+        HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
         HyperParameters([θ],[interval(OpenBound(zero(T)),NullBound{T}())]),
         1,SquaredEuclidean)
     end
@@ -216,7 +216,7 @@ function compute(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true
       return (variance ? getvalue(k.variance) : 1.0)
     end
     @assert k.distance(X1,X2) > 0  "Problem with distance computation"
-    return (variance ? getvalue(k.variance) : 1.0)*exp(-0.5*power_by_s(k.distance(X1,X2))^2/(getvalue(k.param[1])^2))
+    return (variance ? getvalue(k.variance) : 1.0)*exp(-0.5*(k.distance(X1,X2)/getvalue(k.param[1]))^2)
 end
 #
 "Compute kernel gradients given the vectors"
@@ -246,7 +246,7 @@ mutable struct LaplaceKernel{T} <: Kernel{T}
     @kernelfunctionfields
     function LaplaceKernel{T}(θ::T=1.0;variance::T=1.0) where {T<:AbstractFloat}
         return new("Laplace",
-        HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=true),
+        HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
         HyperParameters{T}([θ],[interval(OpenBound(zero(T)),nothing)]),
         1,SquaredEuclidean)
     end
@@ -296,7 +296,7 @@ mutable struct SigmoidKernel{T} <: Kernel{T}
     @kernelfunctionfields
     function SigmoidKernel{T}(θ::Vector{T}=[1.0,0.0];variance::Float64=1.0) where {T<:Real}
         return new("Sigmoid",
-        HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=true),
+        HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
         HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()), interval(NullBound{T}(),NullBound{T}())]),
         length(θ),InnerProduct)
     end
@@ -333,7 +333,7 @@ end
 mutable struct PolynomialKernel{T} <: Kernel{T}
     @kernelfunctionfields
     function PolynomialKernel{T}(θ::Vector{T}=[1.0,0.0,2.0];variance::T=1.0) where {T<:Real}
-        return new("Polynomial",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=true),
+        return new("Polynomial",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
                                 HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()) for i in 1:length(θ)]),
                                 length(θ),InnerProduct)
     end
@@ -379,7 +379,7 @@ mutable struct ARDKernel{T} <: Kernel{T}
             θ = ones(dim)*θ[1]
         end
         intervals = [interval(OpenBound{T}(zero(T)),NullBound{T}()) for i in 1:length(θ)]
-        return new("ARD",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=true),
+        return new("ARD",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
                         HyperParameters{T}(θ,intervals),
                         length(θ),SquaredEuclidean)
     end
@@ -429,7 +429,7 @@ end
 mutable struct Matern3_2Kernel{T} <: Kernel{T}
     @kernelfunctionfields
     function Matern3_2Kernel{T}(θ::Float64=1.0;variance::Float64=1.0) where {T<:Real}
-        return new("Matern3_2Kernel",HyperParameter(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=true),
+        return new("Matern3_2Kernel",HyperParameter(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
                                     HyperParameters([θ],[interval(OpenBound{T}(zero(T)),NullBound{T}())]),
                                     length(θ),SquaredEuclidean)
     end

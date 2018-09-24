@@ -32,6 +32,9 @@ mutable struct SparseMultiClass <: MultiClassGPModel
             end
             initMultiClassSparse!(this,m,OptimizeIndPoints)
             initMultiClassVariables!(this,μ_init)
+            if model.Stochastic && model.AdaptiveLearningRate
+                MCInit!(model)
+            end
             return this;
     end
 end

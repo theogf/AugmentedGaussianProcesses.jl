@@ -298,7 +298,7 @@ function multiclasspredictproba(model::SparseMultiClass,X_test,covf=false)
     normsig = sum.(σ)
     h = mod_soft_max.(σ,normsig)
     hess_h = hessian_mod_soft_max.(σ,normsig)
-    m_predic = h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f)
+    m_predic = max.(h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f),0.0)
     if !covf
         return m_predic
     end
