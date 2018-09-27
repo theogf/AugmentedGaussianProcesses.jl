@@ -12,7 +12,7 @@ using ProfileView, Profile
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
 N_data = 500
-N_class = 4
+N_class = 10
 N_test = 50
 minx=-5.0
 maxx=5.0
@@ -25,7 +25,7 @@ println("$(now()): Starting testing multiclass")
 function latent(X)
     return sqrt.(X[:,1].^2+X[:,2].^2)
 end
-N_dim=100
+N_dim=20
 # X = (rand(N_data,N_dim)*(maxx-minx)).+minx
 # trunc_d = Truncated(Normal(0,3),minx,maxx)
 # X = rand(trunc_d,N_data,N_dim)
@@ -102,13 +102,14 @@ ssparsem = false
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
 function initial_lengthscale(X)
-    D = pairwise(Euclidean(),X)
+    D = pairwise(SqEuclidean(),X')
     return median([D[i,j] for i in 2:size(D,1) for j in 1:(i-1)])
 end
- l = initial_lengthscale(X)
+ l = sqrt(initial_lengthscale(X))
 
-kernel = OMGP.ARDKernel([l],dim=N_dim)
-OMGP.setvalue!(kernel.variance,10.0)
+kernel = OMGP.RBFKernel([l],dim=N_dim)
+# kernel = OMGP.RBFKernel(l)
+OMGP.setvalue!(kernel.variance,1.0)
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 if fullm
     global fmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true)
@@ -157,7 +158,7 @@ if sparsem
     smodel.train(iterations=7)
     Profile.clear()
     @profile smodel.train(iterations=10)#,callback=callback)
-    @time smodel.train(iterations=50)
+    @time smodel.train(iterations=10)
     # t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
     global y_sparse, = smodel.predict(X_test)
     global y_strain, = smodel.predict(X)

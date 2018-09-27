@@ -54,8 +54,10 @@ end
 import Base: *, +, getindex
 export Kernel, KernelSum, KernelProduct
 export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2Kernel, Matern5_2Kernel
-export kernelmatrix,kernelmatrix!,diagkernelmatrix,diagkernelmatrix!,computeIndPointsJ
-export derivativekernelmatrix,derivativediagkernelmatrix,compute_hyperparameter_gradient,apply_gradients!
+export kernelmatrix,kernelmatrix!,kerneldiagmatrix,kerneldiagmatrix!,computeIndPointsJ
+export kernelderivativematrix,kernelderivativediagmatrix,compute_hyperparameter_gradient
+export apply_gradients_lengthscale!, apply_gradients_variance!, apply_gradients!
+export kernelderivativematrix_K,kernelderivativediagmatrix_K
 export InnerProduct, SquaredEuclidean, Identity
 export compute,plotkernel
 export getvalue,setvalue!,setfixed!,setfree!
@@ -272,6 +274,10 @@ end
 
 function metric(k::Kernel{T,KT}) where {T,KT}
     return k.metric
+end
+
+function updateweights!(k::Kernel{T,KT},w::Vector{T}) where {T,KT}
+    k.metric.weights .= 1.0./(w.^2)
 end
 #
 # "Compute kernel gradients given the vectors"
@@ -695,12 +701,17 @@ function deriv_point_linear(X1::Array{Float64,1},X2::Array{Float64,1},θ)
     X2
 end
 
-function apply_gradients!(kernel::Kernel,gradients,variance::Bool=true)
-    update!(kernel.param,gradients[1:kernel.Nparam])
-    # update!(kernel.param,gradients[1:kernel.Nparam])
-    if variance
-        update!(kernel.variance,gradients[end])
-    end
+function apply_gradients_lengthscale!(kernel::Kernel{T,PlainKernel},gradient::T) where {T}
+    update!(kernel.lengthscales,[gradient])
+end
+
+function apply_gradients_lengthscale!(kernel::Kernel{T,ARDKernel},gradients::Vector{T}) where {T}
+    update!(kernel.lengthscales,gradients)
+    updateweights!(kernel,getvalue(kernel.lengthscales))
+end
+
+function apply_gradients_variance!(kernel::Kernel{T,KT},gradient::T) where {T,KT}
+    update!(kernel.variance,gradient)
 end
 
 function apply_gradients!(kernel::KernelSum,gradients,variance::Bool=true)

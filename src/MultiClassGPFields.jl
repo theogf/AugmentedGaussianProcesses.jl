@@ -102,8 +102,8 @@ function initMultiClassVariables!(model,μ_init)
     else
       model.μ = [μ_init for i in 1:model.K]
     end
-    model.Σ = [Symmetric(Matrix{Float64}(I,model.nFeatures,model.nFeatures)) for i in 1:model.K]
-    model.η_2 = -0.5*inv.(model.Σ)
+    model.Σ = [Symmetric(Matrix{Float64}(I,model.nFeatures,model.nFeatures)) for _ in 1:model.K]
+    model.η_2 = -inv.(model.Σ)*0.5
     model.η_1 = -2.0*model.η_2.*model.μ
     if model.Stochastic
         model.α = model.K*ones(model.nSamples)

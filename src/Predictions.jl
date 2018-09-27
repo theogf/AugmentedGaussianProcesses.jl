@@ -104,9 +104,9 @@ function fstar(model::MultiClass,X_test;covf::Bool=true)
         return mean_fstar
     else
         if model.IndependentGPs
-            k_starstar = [diagkernelmatrix(X_test,model.kernel[i]) for i in 1:model.K]
+            k_starstar = [kerneldiagmatrix(X_test,model.kernel[i]) for i in 1:model.K]
         else
-            k_starstar = [diagkernelmatrix(X_test,model.kernel[1])]
+            k_starstar = [kerneldiagmatrix(X_test,model.kernel[1])]
         end
         cov_fstar = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,model.DownMatrixForPrediction)
         return mean_fstar,cov_fstar
@@ -127,9 +127,9 @@ function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
     end
     if covf && model.DownMatrixForPrediction == 0
         if model.IndependentGPs
-            model.DownMatrixForPrediction = broadcast((var,Kmm)->(Kmm\(Diagonal{Float64}(I,model.nFeatures)-var/Kmm)),model.Σ,model.Kmm)
+            model.DownMatrixForPrediction = broadcast((Σ,invKmm)->invKmm*(Diagonal{Float64}(I,model.nFeatures)-Σ*invKmm),model.Σ,model.invKmm)
         else
-            model.DownMatrixForPrediction = broadcast((var)->(model.Kmm[1]\(Diagonal{Float64}(I,model.nFeatures)-var/model.Kmm[1])),model.Σ)
+            model.DownMatrixForPrediction = broadcast((Σ)->(model.invKmm[1]*(Diagonal{Float64}(I,model.nFeatures)-Σ*model.invKmm[1])),model.Σ)
         end
     end
     if model.IndependentGPs
@@ -142,9 +142,9 @@ function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
         return mean_fstar
     else
         if model.IndependentGPs
-            k_starstar = diagkernelmatrix.([X_test],model.kernel)
+            k_starstar = kerneldiagmatrix.([X_test],model.kernel)
         else
-            k_starstar = [diagkernelmatrix(X_test,model.kernel[1])]
+            k_starstar = [kerneldiagmatrix(X_test,model.kernel[1])]
         end
         cov_fstar = broadcast((x,ks,kss)->(kss .- sum((ks*x).*ks,dims=2)),model.DownMatrixForPrediction,k_star,k_starstar)
         return mean_fstar,cov_fstar
@@ -247,7 +247,7 @@ function multiclasspredict(model::MultiClass,X_test,all_class=false)
     return model.class_mapping[predic],value
 end
 
-function multiclasspredict(model::SparseMultiClass,X_test,all_class=false)
+function multiclasspredict(model::SparseMultiClass,X_test::Array{T,N},all_class::Bool=false)  where {T,N}
     n=size(X_test,1)
     m_f = fstar(model,X_test,covf=false)
     σ = hcat(logit.(m_f)...)
@@ -269,7 +269,7 @@ end
 
 
 
-function multiclasspredictproba(model::MultiClass,X_test,covf=false)
+function multiclasspredictproba(model::MultiClass,X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
     σ = hcat(logit.(m_f)...)
@@ -288,7 +288,7 @@ function multiclasspredictproba(model::MultiClass,X_test,covf=false)
     return m_predic,cov_predic
 end
 
-function multiclasspredictproba(model::SparseMultiClass,X_test,covf=false)
+function multiclasspredictproba(model::SparseMultiClass,X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
     σ = hcat(logit.(m_f)...)
@@ -298,26 +298,7 @@ function multiclasspredictproba(model::SparseMultiClass,X_test,covf=false)
     normsig = sum.(σ)
     h = mod_soft_max.(σ,normsig)
     hess_h = hessian_mod_soft_max.(σ,normsig)
-    m_predic = h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f)
-    if !covf
-        return m_predic
-    end
-    grad_h = grad_mod_soft_max.(σ,normsig)
-    cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov-0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
-    return m_predic,cov_predic
-end
-
-function multiclasssoftmax(model::SparseMultiClass,X_test,covf=false)
-    n = size(X_test,1)
-    m_f,cov_f = fstar(model,X_test)
-    σ = hcat(m_f...)
-    σ = [exp.(σ[i,:]) for i in 1:n]
-    cov_f = hcat(cov_f...)
-    cov_f = [cov_f[i,:] for i in 1:n]
-    normsig = sum.(σ)
-    h = mod_soft_max.(σ,normsig)
-    hess_h = hessian_mod_soft_max.(σ,normsig)
-    m_predic = h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f)
+    m_predic = broadcast(m->max.(m,eps(T)),h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f))
     if !covf
         return m_predic
     end

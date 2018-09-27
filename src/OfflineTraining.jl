@@ -26,6 +26,7 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
             reset_prediction_matrices!(model) #Reset predicton matrices
             if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
                 # for j in 1:model.AutotuningFrequency
+                # for j in 1:3
                     updateHyperParameters!(model) #Update the hyperparameters
                     # computeMatrices!(model)
                 # end
@@ -67,7 +68,7 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
         model.μ = squeeze(mean(hcat(model.estimate...),2),2)
         model.Σ = cov(hcat(model.estimate...),2)
     elseif isa(model,MultiClass) || isa(model,SparseMultiClass)
-        model.Σ = broadcast(x->(-0.5*inv(x)),model.η_2)
+        model.Σ = -inv.(model.η_2).*0.5
     elseif !isa(model,GPRegression)
         model.Σ = -0.5*inv(model.η_2);
     end
@@ -108,7 +109,7 @@ function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated || model.Stochastic #Also when batches change
         kernelmatrix!(model.Knm,model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
         model.κ = model.Knm*model.invKmm
-        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*model.Knm,dims=2)[:]
+        model.Ktilde = kerneldiagmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*model.Knm,dims=2)[:]
         @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
     end
     model.HyperParametersUpdated=false
@@ -152,11 +153,11 @@ function computeMatrices!(model::SparseMultiClass)
             # model.Knm .= broadcast((points,kernel)->kernelmatrix(model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices])
             broadcast((points,kernel,Knm)->kernelmatrix!(Knm,model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices],model.Knm)
             model.κ .= model.Knm.*model.invKmm[model.KIndices]
-            model.Ktilde .= broadcast((knm,kappa,kernel)->diagkernelmatrix(model.X[model.MBIndices,:],kernel) - sum(kappa.*knm,dims=2)[:],model.Knm,model.κ,model.kernel[model.KIndices])
+            model.Ktilde .= broadcast((knm,kappa,kernel)->kerneldiagmatrix(model.X[model.MBIndices,:],kernel)+ model.noise*ones(model.nSamplesUsed) - sum(kappa.*knm,dims=2)[:],model.Knm,model.κ,model.kernel[model.KIndices])
         else
             model.Knm = [kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1])]
             model.κ .= [model.Knm[1]/model.Kmm[1]]
-            model.Ktilde .= [diagkernelmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*Knm[1],dims=2)[:]]
+            model.Ktilde .= [kerneldiagmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*Knm[1],dims=2)[:]]
         end
         @assert sum(count.(broadcast(x->x.<0,model.Ktilde)))==0 "Ktilde has negative values"
     end
@@ -189,7 +190,7 @@ function MCInit!(model::GPModel)
         model.g = [zeros(model.m*(model.m+1)) for i in 1:model.K]
         model.h = zeros(model.K)
         #Make a MC estimation using τ samples
-        model.τ[1] = 2
+        # model.τ[1] = 40
         for i in 1:model.τ[1]
             if model.VerboseLevel > 2
                 println("MC sampling $i/$(model.τ[1])")
@@ -197,7 +198,7 @@ function MCInit!(model::GPModel)
             model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
             model.KIndices = collect(1:model.K)
             computeMatrices!(model);local_update!(model);
-            (grad_η_1, grad_η_2) = natural_gradient_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invKmm,model.γ,stoch_coeff=model.StochCoeff,MBIndices=model.MBIndices,κ=model.κ,KIndices=model.KIndices)
+            (grad_η_1, grad_η_2) = natural_gradient_MultiClass(model)
 
             model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_η_1,model.η_1,grad_η_2,model.η_2)
             model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η_1,model.η_1,grad_η_2,model.η_2)
