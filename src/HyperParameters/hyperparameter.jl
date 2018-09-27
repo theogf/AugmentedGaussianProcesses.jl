@@ -79,18 +79,16 @@ function HyperParameters(θ::Vector{T},intervals::Vector{Interval{T,A,B}}) where
     HyperParameters{T}(θ,intervals)
 end
 
-@inline getvalue(θ::HyperParameters) = broadcast(getvalue,θ.hyperparameters)
+@inline getvalue(θ::HyperParameters{T}) where T= broadcast(getvalue,θ.hyperparameters)
 
-function Base.getindex(p::HyperParameters,it::Integer)
+function Base.getindex(p::HyperParameters{T},it::Integer) where T
     return p.hyperparameters[it]
 end
 
-function update!(param::HyperParameters,grad)
-    for i in 1:length(param.hyperparameters)
-        update!(param.hyperparameters[i],grad[i])
-    end
+function update!(param::HyperParameters{T},grad::Vector{T}) where T
+    update!.(param.hyperparameters,grad)
 end
 
-setfixed!(θ::HyperParameters) = setfixed!.(θ.hyperparameters)
+setfixed!(θ::HyperParameters{T}) where T = setfixed!.(θ.hyperparameters)
 
-setfree!(θ::HyperParameters) = setfree!.(θ.hyperparameters)
+setfree!(θ::HyperParameters{T}) where T = setfree!.(θ.hyperparameters)

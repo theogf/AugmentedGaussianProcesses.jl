@@ -11,6 +11,7 @@
 module KernelFunctions
 
 using LinearAlgebra
+using Distances
 include("HyperParameters/HyperParametersMod.jl")
 using .HyperParametersMod:
     Bound,
@@ -41,11 +42,14 @@ macro kernelfunctionfields()
     return esc(quote
         name::String #Name of the kernel function
         variance::HyperParameter{T} #variance of the kernel
-        param::HyperParameters{T} #Parameters of the kernel
+        lengthscales::HyperParameters{T}
+        Ndim::Int64 #Number of lengthscales
+        params::HyperParameters{T} #Parameters of the kernel
         Nparam::Int64 #Number of parameters
-        distance::Function
+        metric::Metric
     end)
 end
+
 
 import Base: *, +, getindex
 export Kernel, KernelSum, KernelProduct
@@ -56,31 +60,35 @@ export InnerProduct, SquaredEuclidean, Identity
 export compute,plotkernel
 export getvalue,setvalue!,setfixed!,setfree!
 
+abstract type KernelType end
+
+abstract type ARDKernel <: KernelType end;
+
+abstract type PlainKernel <: KernelType end;
+
+abstract type KernelCombination <: KernelType end;
 
 "Abstract type for all kernels"
-abstract type Kernel{T<:AbstractFloat} end;
+abstract type Kernel{T<:AbstractFloat, KT<: KernelType} end;
+
+
+
+
 
 "Standard conversion when giving scalar and not vectors"
-function compute(k::Kernel,X1::T,X2::T) where {T<:Real}
+function compute(k::Kernel{T,KT},X1::T,X2::T) where {T<:Real,KT<:KernelType}
     compute(k,[X1],[X2])
 end
 
-"Return the inner product between two vectors"
-InnerProduct(X1,X2) = dot(X1,X2);
-"Return the squared euclidian distance between to vectors"
-SquaredEuclidean(X1,X2) = norm(X1-X2,2);
-"Return the same set of arguments"
-Identity(X1,X2) = (X1,X2);
-
 "Structure to combine kernels together by addition, can be created by using the constructor with an array or simply using Base.+"
-mutable struct KernelSum{T<:AbstractFloat} <: Kernel{T}
+mutable struct KernelSum{T<:AbstractFloat,KernelCombination} <: Kernel{T,KernelCombination}
     @kernelfunctionfields()
-    kernel_array::Vector{Kernel{T}} #Array of summed kernels
+    kernel_array::Vector{Kernel} #Array of summed kernels
     Nkernels::Int64 #Number of kernels
     "Inner KernelSum constructor taking an array of kernels"
-    function KernelSum{T}(kernels::AbstractArray) where {T<:AbstractFloat}
+    function KernelSum{T,KernelCombination}(kernels::AbstractArray) where {T<:AbstractFloat}
         this = new("Sum of kernels")
-        this.kernel_array = deepcopy(Vector{Kernel{T}}(kernels))
+        this.kernel_array = deepcopy(kernels)
         this.Nkernels = length(this.kernel_array)
         this.distance = Identity
         return this
@@ -88,7 +96,7 @@ mutable struct KernelSum{T<:AbstractFloat} <: Kernel{T}
 end
 
 "Apply kernel functions on vector"
-function compute(k::KernelSum{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where {T}
+function compute(k::KernelSum{T,KernelCombination},X1::Vector{T},X2::Vector{T},variance::Bool=true) where {T}
     sum = 0.0
     for kernel in k.kernel_array
         sum += compute(kernel,X1,X2)
@@ -131,14 +139,18 @@ function Base.getindex(a::KernelSum{T},i::Int64) where T
     return a.kernel_array[i]
 end
 "Structure to combine kernels together by addition, can be created by using the constructor with an array or simply using Base.*"
-mutable struct KernelProduct{T<:AbstractFloat} <: Kernel{T}
+mutable struct KernelProduct{T<:AbstractFloat,KernelCombination} <: Kernel{T,KernelCombination}
     @kernelfunctionfields
-    kernel_array::Vector{Kernel{T}} #Array of multiplied kernels
+    kernel_array::Vector{Kernel} #Array of multiplied kernels
     Nkernels::Int64 #Number of multiplied kernels
     "Inner KernelProduct constructor taking an array of kernels"
     function KernelProduct{T}(kernels::Vector{Kernel{T}}) where {T<:AbstractFloat}
-        this = new("Product of kernels",
-                HyperParameter{T}(1.0,interval(OpenBound(zero(T)),nothing),fixed=false))
+        this = new{T,KernelCombination}("Product of kernels",
+                HyperParameter{T}(1.0,interval(OpenBound(zero(T)),nothing),fixed=false),
+                HyperParameters{T}(),
+                0,
+                HyperParameters{T}()
+                )
         this.kernel_array = deepcopy(Vector{Kernel}(kernels))
         this.Nkernels = length(this.kernel_array)
         this.distance = Identity
@@ -198,53 +210,95 @@ end
 """
     Gaussian (RBF) Kernel
 """
-mutable struct RBFKernel{T<:AbstractFloat} <: Kernel{T}
-    @kernelfunctionfields
-    function RBFKernel{T}(θ::T=1.0;variance::T=1.0) where {T<:AbstractFloat}
-        return new("RBF",
-        HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
-        HyperParameters([θ],[interval(OpenBound(zero(T)),NullBound{T}())]),
-        1,SquaredEuclidean)
-    end
-end
-function RBFKernel(θ::T1=1.0;variance::T2=one(T1)) where {T1<:Real,T2<:Real}
-     RBFKernel{floattype(T1,T2)}(θ,variance=variance)
- end
-"Apply kernel functions on vector"
-function compute(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    if X1 == X2
-      return (variance ? getvalue(k.variance) : 1.0)
-    end
-    @assert k.distance(X1,X2) > 0  "Problem with distance computation"
-    return (variance ? getvalue(k.variance) : 1.0)*exp(-0.5*(k.distance(X1,X2)/getvalue(k.param[1]))^2)
-end
-#
-"Compute kernel gradients given the vectors"
-function compute_deriv(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    a = k.distance(X1,X2)
-    grad = a^2/(getvalue(k.param[1])^3)*compute(k,X1,X2,false)
-    if variance
-        return [getvalue(k.variance)*grad,compute(k,X1,X2)]
-    else
-        return [grad]
+mutable struct RBFKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
+    name::String #Name of the kernel function
+    variance::HyperParameter{T} #variance of the kernel
+    lengthscales::HyperParameters{T}
+    Ndim::Int64 #Number of lengthscales
+    metric::PreMetric
+    function RBFKernel{T,KT}(θ::Vector{T};variance::T=one(T),dim::Integer=0) where {T<:AbstractFloat,KT<:KernelType}
+        if KT == ARDKernel
+            if length(θ)==1 && dim ==0
+                error("You defined an ARD RBF kernel without precising the number of dimensions or giving a vector for the lengthscale                   Please set dim in your kernel initialization")
+            elseif dim!=0 && (length(θ)!=dim && length(θ)!=1)
+                @warn "You did not use the same dimension for your params and dim, using the first value of params for all dimensions"
+                θ = ones(dim,T=T)*θ[1]
+            elseif length(θ)==1 && dim!=0
+                θ = ones(dim)*θ[1]
+            end
+            return new{T,ARDKernel}("RBF (ARD)",
+            HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
+            HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}())]),
+            dim,
+            WeightedSqEuclidean(one(T)./(θ.^2)))
+        else
+            return new{T,PlainKernel}("RBF",
+            HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
+            HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}())]),
+            1,
+            SqEuclidean())
+        end
     end
 end
 
-#TODO probably not right
-function compute_point_deriv(k::RBFKernel{T},X1::Vector{T},X2::Vector{T}) where T
-    if X1 == X2
-        return zeros(X1)
+function RBFKernel(θ::T1=1.0;variance::T2=one(T1),dim::Integer=0,ARD::Bool=false) where {T1<:Real,T2<:Real}
+    if ARD
+        RBFKernel{floattype(T1,T2),ARDKernel}([θ],variance=variance,dim=dim)
     else
-        return getvalue(k.variance)*(-(X1-X2))./((k.param[1])^2).*compute(k,X1,X2)
+        RBFKernel{floattype(T1,T2),PlainKernel}([θ],variance=variance)
     end
+ end
+
+function RBFKernel(θ::Array{T1,1};variance::T2=one(T1),dim::Integer=0) where {T1<:Real,T2<:Real}
+    RBFKernel{floattype(T1,T2),ARDKernel}(θ,variance=variance,dim=dim)
 end
+
+"Apply kernel functions on vector"
+function compute(k::RBFKernel{T,PlainKernel},z::T) where {T,KT}
+    return exp(-0.5*z/(getvalue(k.lengthscales[1]))^2)
+end
+
+function compute(k::RBFKernel{T,ARDKernel},z::T) where {T,KT}
+    return exp(-0.5*z)
+end
+
+function compute!(k::RBFKernel{T,PlainKernel},z::T) where {T,KT}
+    return z = exp(-0.5*z/(getvalue(k.lengthscales[1]))^2)
+end
+
+function compute!(k::RBFKernel{T,ARDKernel},z::T) where {T,KT}
+    return z = exp(-0.5*z)
+end
+
+function metric(k::Kernel{T,KT}) where {T,KT}
+    return k.metric
+end
+#
+# "Compute kernel gradients given the vectors"
+# function compute_deriv(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     a = k.distance(X1,X2)
+#     if variance
+#         return [getvalue(k.variance)*a^2/(getvalue(k.param[1])^3),1.0].*compute(k,X1,X2,false)
+#     else
+#         return [a^2/(getvalue(k.param[1])^3)*compute(k,X1,X2,false)]
+#     end
+# end
+#
+# #TODO probably not right
+# function compute_point_deriv(k::RBFKernel{T},X1::Vector{T},X2::Vector{T}) where T
+#     if X1 == X2
+#         return zeros(X1)
+#     else
+#         return getvalue(k.variance)*(-(X1-X2))./((k.param[1])^2).*compute(k,X1,X2)
+#     end
+# end
 
 """
     Laplace Kernel
 """
-mutable struct LaplaceKernel{T} <: Kernel{T}
+mutable struct LaplaceKernel{T,KT<:KernelType} <: Kernel{T,KT}
     @kernelfunctionfields
-    function LaplaceKernel{T}(θ::T=1.0;variance::T=1.0) where {T<:AbstractFloat}
+    function LaplaceKernel{T,KT}(θ::T=1.0;variance::T=1.0,dim::Integer=0,ARD::Bool=false) where {T<:AbstractFloat,KT<:KernelType}
         return new("Laplace",
         HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
         HyperParameters{T}([θ],[interval(OpenBound(zero(T)),nothing)]),
@@ -292,9 +346,9 @@ end
     Sigmoid Kernel
     tanh(p1*d+p2)
 """
-mutable struct SigmoidKernel{T} <: Kernel{T}
+mutable struct SigmoidKernel{T,KT<:KernelType} <: Kernel{T,KT}
     @kernelfunctionfields
-    function SigmoidKernel{T}(θ::Vector{T}=[1.0,0.0];variance::Float64=1.0) where {T<:Real}
+    function SigmoidKernel{T,KT}(θ::Vector{T}=[1.0,0.0],variance::Float64=1.0,dim::Integer=0,ARD::Bool=false) where {T<:Real,KT<:KernelType}
         return new("Sigmoid",
         HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
         HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()), interval(NullBound{T}(),NullBound{T}())]),
@@ -330,9 +384,9 @@ end
     Polynomial Kernel
     (p1*d+p2)^p3
 """
-mutable struct PolynomialKernel{T} <: Kernel{T}
+mutable struct PolynomialKernel{T,KT<:KernelType} <: Kernel{T,KT}
     @kernelfunctionfields
-    function PolynomialKernel{T}(θ::Vector{T}=[1.0,0.0,2.0];variance::T=1.0) where {T<:Real}
+    function PolynomialKernel{T,KT}(θ::Vector{T}=[1.0,0.0,2.0];variance::T=1.0) where {T<:Real,KT<:KernelType}
         return new("Polynomial",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
                                 HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()) for i in 1:length(θ)]),
                                 length(θ),InnerProduct)
@@ -362,73 +416,80 @@ end
 function compute_point_deriv(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T}) where T
     return k.param[3]*k.param[1]*X2*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
 end
-
-"""
-    ARD Kernel
-"""
-mutable struct ARDKernel{T} <: Kernel{T}
-    @kernelfunctionfields
-    function ARDKernel{T}(θ::Vector{T}=[1.0];dim::Int64=0,variance::T=1.0) where {T<:Real}
-        if length(θ)==1 && dim ==0
-            error("You defined an ARD kernel without precising the number of dimensions
-                             Please set dim in your kernel initialization or use ARDKernel(X,θ)")
-        elseif dim!=0 && (length(θ)!=dim && length(θ)!=1)
-            @warn "You did not use the same dimension for your params and dim, using the first value of params for all dimensions"
-            θ = ones(dim,T=T)*θ[1]
-        elseif length(θ)==1 && dim!=0
-            θ = ones(dim)*θ[1]
-        end
-        intervals = [interval(OpenBound{T}(zero(T)),NullBound{T}()) for i in 1:length(θ)]
-        return new("ARD",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
-                        HyperParameters{T}(θ,intervals),
-                        length(θ),SquaredEuclidean)
-    end
-end
-
-function ARDKernel(θ::Vector{T1}=[1.0];dim::Int64=0,variance::T2=one(T1)) where {T1<:Real,T2<:Real}
-     ARDKernel{floattype(T1,T2)}(θ,dim=dim,variance=variance)
-end
-# function ARDKernel(θ::T1=1.0;dim::Int64=0,variance::T2=one(T1)) where {T1<:Real,T2<:Real}
-#      ARDKernel{floattype(T1,T2)}([θ],dim=dim,variance=variance)
-# end
-
-"Apply kernel functions on vector"
-function compute(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    if X1==X2
-        return (variance ? getvalue(k.variance) : 1.0)
-    end
-    return (variance ? getvalue(k.variance) : 1.0)*exp(-0.5*sum(((X1-X2)./k.param.hyperparameters).^2))
-end
 #
-"Compute kernel gradients given the vectors"
-function compute_deriv(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    if X1 == X2
-        grad = zeros(k.Nparam)
-    else
-        grad = (X1-X2).^2 ./(getvalue(k.param).^3).*compute(k,X1,X2,false)
-    end
-    if variance
-        return vcat(getvalue(k.variance)*grad,compute(k,X1,X2,false))
-    else
-        return grad
-    end
-end
-
-function compute_point_deriv(k::ARDKernel{T},X1::Vector{T},X2::Vector{T}) where T
-    if X1==X2
-        return zeros(X1)
-    end
-    return -2*(X1-X2)./(k.param.hyperparameters.^2).*compute(k,X1,X2)
-end
+# """
+#     ARD Kernel
+# """
+# mutable struct ARDKernel{T} <: Kernel{T}
+#     @kernelfunctionfields
+#     function ARDKernel{T}(θ::Vector{T}=[1.0];dim::Int64=0,variance::T=1.0) where {T<:Real}
+#         if length(θ)==1 && dim ==0
+#             error("You defined an ARD kernel without precising the number of dimensions
+#                              Please set dim in your kernel initialization or use ARDKernel(X,θ)")
+#         elseif dim!=0 && (length(θ)!=dim && length(θ)!=1)
+#             @warn "You did not use the same dimension for your params and dim, using the first value of params for all dimensions"
+#             θ = ones(dim,T=T)*θ[1]
+#         elseif length(θ)==1 && dim!=0
+#             θ = ones(dim)*θ[1]
+#         end
+#         intervals = [interval(OpenBound{T}(zero(T)),NullBound{T}()) for i in 1:length(θ)]
+#         return new("ARD",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
+#                         HyperParameters{T}(θ,intervals),
+#                         length(θ),SquaredEuclidean)
+#     end
+# end
+#
+# function ARDKernel(θ::Vector{T1}=[1.0];dim::Int64=0,variance::T2=one(T1)) where {T1<:Real,T2<:Real}
+#      ARDKernel{floattype(T1,T2)}(θ,dim=dim,variance=variance)
+# end
+# # function ARDKernel(θ::T1=1.0;dim::Int64=0,variance::T2=one(T1)) where {T1<:Real,T2<:Real}
+# #      ARDKernel{floattype(T1,T2)}([θ],dim=dim,variance=variance)
+# # end
+#
+# "Apply kernel functions on vector"
+# function compute(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     if X1==X2
+#         return (variance ? getvalue(k.variance) : 1.0)
+#     end
+#     # return (variance ? getvalue(k.variance) : 1.0)*exp(-0.5*sum(((X1-X2)./getvalue(k.param)).^2))
+#     return (variance ? getvalue(k.variance) : 1.0)*exp(-0.5*sum(((X1[i]-X2[i])/getvalue(k.param[i]))^2 for i in 1:length(X1)))
+# end
+# #
+# "Compute kernel gradients given the vectors"
+# function compute_deriv(k::ARDKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     D = length(X1)
+#     if variance
+#         if X1 == X2
+#             g = zeros(k.Nparam+1)
+#             g[end] = compute(k,X1,X2,false)
+#             return g
+#         else
+#             return getvalue(k.variance).*[i<(D+1) ? (X1[i]-X2[i])^2/(getvalue(k.param[i]))^3 : 1.0/getvalue(k.variance) for i in 1:(D+1)]#.*compute(k,X1,X2,false)
+#         end
+#     else
+#         if X1 == X2
+#             return zeros(k.Nparam)
+#         else
+#             return [(X1[i]-X2[i])^2/(getvalue(k.param[i]))^3 for i in 1:length(X1)]#.*compute(k,X1,X2,false)
+#         end
+#     end
+# end
+#
+# function compute_point_deriv(k::ARDKernel{T},X1::Vector{T},X2::Vector{T}) where T
+#     if X1==X2
+#         return zeros(X1)
+#     end
+#     return -2*[((X1[i]-X2[i])/getvalue(k.param[i]))^2 for i in 1:length(X1)]#.*compute(k,X1,X2)
+# end
 
 """
     Matern 3/2 Kernel
     d= ||X1-X2||^2
     (1+\frac{√(3)d}{ρ})exp(-\frac{√(3)d}{ρ})
 """
-mutable struct Matern3_2Kernel{T} <: Kernel{T}
+mutable struct Matern3_2Kernel{T,KT<:KernelType} <: Kernel{T,KT}
     @kernelfunctionfields
-    function Matern3_2Kernel{T}(θ::Float64=1.0;variance::Float64=1.0) where {T<:Real}
+    function Matern3_2Kernel{T,KT}(θ::Float64=1.0;variance::Float64=1.0) where {T<:Real,KT<:KernelType}
         return new("Matern3_2Kernel",HyperParameter(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
                                     HyperParameters([θ],[interval(OpenBound{T}(zero(T)),NullBound{T}())]),
                                     length(θ),SquaredEuclidean)
@@ -463,9 +524,9 @@ end
     d= ||X1-X2||^2
     (1+\frac{√(5)d}{ρ}+\frac{5d^2}{3ρ^2})exp(-\frac{-√(5)d}{ρ})
 """
-mutable struct Matern5_2Kernel{T} <: Kernel{T}
+mutable struct Matern5_2Kernel{T,KT<:KernelType} <: Kernel{T,KT}
     @kernelfunctionfields
-    function Matern5_2Kernel{T}(θ::T=1.0;variance::T=1.0) where {T<:Real}
+    function Matern5_2Kernel{T,KT}(θ::T=1.0;variance::T=1.0) where {T<:Real,KT<:KernelType}
         return new("Matern5_2Kernel",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}())),
                                     HyperParameters{T}([θ],[interval(OpenBound{T}(zero(T)),NullBound{T}())]),
                                     length(θ),SquaredEuclidean)
@@ -635,8 +696,8 @@ function deriv_point_linear(X1::Array{Float64,1},X2::Array{Float64,1},θ)
 end
 
 function apply_gradients!(kernel::Kernel,gradients,variance::Bool=true)
-    update!(kernel.param,gradients[kernel.Nparam ==1 ? 1 : 1:kernel.Nparam])
     update!(kernel.param,gradients[1:kernel.Nparam])
+    # update!(kernel.param,gradients[1:kernel.Nparam])
     if variance
         update!(kernel.variance,gradients[end])
     end

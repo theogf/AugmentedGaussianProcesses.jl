@@ -17,7 +17,7 @@ end
 "Compute the variational updates for the full GP MultiClass"
 function variational_updates!(model::MultiClass,iter::Integer)
     local_update!(model)
-    model.η_1[model.KIndices], model.η_2[model.KIndices] = natural_gradient_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invK,model.γ,KIndices=model.KIndices)
+    natural_gradient_MultiClass!(model)
     global_update!(model)
 end
 
@@ -65,9 +65,28 @@ end
 
 
 """Update the global variational parameters for the sparse multiclass model"""
-function global_update!(model::SparseMultiClass,grad_1::Array{Array{Float64,1},1},grad_2::Array{Array{Float64,2},1})
+function global_update!(model::SparseMultiClass,grad_1::Vector{Vector{Float64}},grad_2::Vector{Matrix{Float64}})
     model.η_1[model.KIndices] .= (1.0.-model.ρ_s[model.KIndices]).*model.η_1[model.KIndices] + model.ρ_s[model.KIndices].*grad_1; model.η_2[model.KIndices] .= (1.0.-model.ρ_s[model.KIndices]).*model.η_2[model.KIndices] + model.ρ_s[model.KIndices].*grad_2 #Update of the natural parameters with noisy/full natural gradient
     model.Σ[model.KIndices] .= -0.5.*inv.(model.η_2[model.KIndices]); model.μ[model.KIndices] .= model.Σ[model.KIndices].*model.η_1[model.KIndices] #Back to the distribution parameters (needed for α updates)
+end
+
+"""Compute the natural gradient of the ELBO given the natural parameters"""
+function natural_gradient_MultiClass(model::MultiClass)
+        model.η_1[model.KIndices] .= broadcast((y,γ)->0.5*(y-γ),model.Y[model.KIndices],model.γ)
+        model.η_2[model.KIndices] .= broadcast((y,θ,invK)->-0.5*(Diagonal(y.*model.θ[1]+θ)+invK),model.Y[model.KIndices],model.θ,model.invK[model.KIndices])
+end
+
+function natural_gradient_MultiClass(model::SparseMultiClass)
+    if model.IndependentGPs
+        #independent GP priors
+        grad_1 = broadcast((y,κ,γ)->0.5*model.StochCoeff*κ'*(y[model.MBIndices]-gamma),model.Y[KIndices],model.κ,model.γ)
+        grad_2 = broadcast((y,κ,θ,invKmm)->-0.5*(model.StochCoeff*κ'*Diagonal(y[model.MBIndices].*model.θ[1]+θ)*κ+invKmm),model.Y[model.KIndices],model.κ,model.θ,model.invKmm[model.KIndices])
+    else
+        #Shared inducing points
+        grad_1 = broadcast((y,γ)->0.5*model.StochCoeff*model.κ[1]'*(y[model.MBIndices]-γ),model.Y[KIndices],model.γ)
+        grad_2 = broadcast((y,theta)->-0.5*(model.StochCoeff*model.κ[1]'*(Diagonal(y[model.MBIndices].*model.θ[1]+θ))*model.κ[1]+model.invKmm[1]),model.Y[model.KIndices],model.θ)
+    end
+    return grad_1, grad_2
 end
 
 """Compute the natural gradient of the ELBO given the natural parameters"""
@@ -146,27 +165,25 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
     #General values used for all gradients
     F2 = broadcast((μ,Σ)->Symmetric(μ*transpose(μ) + Σ),model.μ[model.KIndices],model.Σ[model.KIndices])
     if model.IndependentGPs
-        Kmn = [kernelmatrix(model.inducingPoints[i],model.X[model.MBIndices,:],model.kernel[i]) for i in model.KIndices]
         return function(Js,Kindex,index)
-            #matrices Js: [1]Kmm, [2]invKmm, [3]κ
-                    Jmm = Js[1]; Jnm =Js[2]; Jnn = Js[3];
+            #matrices Js derivative of : [1]Kmm, [2]Knm, [3]Knn
+                    Jmm = Js[1].*model.Kmm[Kindex]; Jnm =Js[2].*model.Knm[index]; Jnn = Js[3].*diagkernelmatrix(model.X[model.MBIndices,:],model.kernel[Kindex]);
                     ι = (Jnm-model.κ[index]*Jmm)*model.invKmm[Kindex]
                     C = model.Y[Kindex][model.MBIndices].*model.θ[1]+model.θ[index+1]
                     A = transpose(model.κ[index])*Diagonal(C)*ι
                     A = Symmetric(A+transpose(A))
-                    Jtilde = Jnn - sum(ι.*transpose(Kmn[index]),dims=2) - sum(model.κ[index].*Jnm,dims=2)
+                    Jtilde = Jnn - sum(ι.*model.Knm[index],dims=2) - sum(model.κ[index].*Jnm,dims=2)
                     V = model.invKmm[Kindex]*Jmm
                     return 0.5*(sum( (V*model.invKmm[Kindex]-model.StochCoeff*A) .* transpose(F2[index]) )
                             - tr(V) - model.StochCoeff*dot(C,Jtilde)
                             + model.StochCoeff*dot(model.Y[Kindex][model.MBIndices]-model.γ[index],ι*model.μ[Kindex]))
          end #end of function(Js)
     else
-        Kmn = kernelmatrix(model.inducingPoints[1],model.X[model.MBIndices,:],model.kernel[1])
         return function(Js,Kindex,index)
             #matrices Js: [1]Kmm, [2]invKmm, [3]κ
                     Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
                     ι = (Jnm-model.κ[1]*Jmm)/model.Kmm[1]
-                    Jtilde = Jnn - sum(ι.*transpose(Kmn),dims=2) - sum(model.κ[1].*Jnm,dims=2)
+                    Jtilde = Jnn - sum(ι.*model.Knm[1],dims=2) - sum(model.κ[1].*Jnm,dims=2)
                     C = [y[model.MBIndices].*model.θ[1]+model.θ[i] for (i,y) in enumerate(model.Y[model.KIndices])]
                     A = transpose(model.κ[1]).*Diagonal.(C).*ι
                     A .= Symmetric(A.+transpose(A))

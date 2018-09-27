@@ -45,6 +45,9 @@ mutable struct SparseXGPC <: SparseModel
             initSparse!(this,m,OptimizeIndPoints);
             initGaussian!(this,μ_init);
             initLatentVariables!(this);
+            if this.Stochastic && this.AdaptiveLearningRate
+                MCInit!(this)
+            end
             return this;
     end
 end

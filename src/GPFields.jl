@@ -121,10 +121,11 @@ end
     inducingPoints::Matrix{Float64} #Inducing points coordinates for the Big Data GP
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
     optimizer::Optimizer #Optimizer for the inducing points
-    Kmm::Array{Float64,2} #Kernel matrix
-    invKmm::Array{Float64,2} #Inverse Kernel matrix of inducing points
-    Ktilde::Array{Float64,1} #Diagonal of the covariance matrix between inducing points and generative points
-    κ::Array{Float64,2} #Kmn*invKmm
+    Kmm::Symmetric{Float64,Matrix{Float64}} #Kernel matrix
+    invKmm::Symmetric{Float64,Matrix{Float64}} #Inverse Kernel matrix of inducing points
+    Ktilde::Vector{Float64} #Diagonal of the covariance matrix between inducing points and generative points
+    κ::Matrix{Float64} #Kmn*invKmm
+    Knm::Matrix{Float64}
 end
 """
 Function initializing the sparsefields parameters
@@ -146,6 +147,11 @@ function initSparse!(model::GPModel,m,optimizeIndPoints)
     if model.VerboseLevel>1
         println("Inducing points determined through KMeans algorithm")
     end
+    model.Kmm = Symmetric(Matrix{Float64}(undef,model.m,model.m)) #Kernel matrix
+    model.invKmm = Symmetric(Matrix{Float64}(undef,model.m,model.m)) #Inverse Kernel matrix of inducing points
+    model.Ktilde = Vector{Float64}(undef,model.m) #Diagonal of the covariance matrix between inducing points and generative points
+    model.κ = Matrix{Float64}(undef,model.nSamplesUsed,model.m) #Kmn*invKmm
+    model.Knm = Matrix{Float64}(undef,model.nSamplesUsed,model.m)
     # model.inducingPoints += rand(Normal(0,0.1),size(model.inducingPoints)...)
 end
 
@@ -287,17 +293,20 @@ end
     Parameters of the variational distribution of the augmented variable
 """
 @def latentfields begin
-    α::Array{Float64,1}
+    α::Vector{Float64}
+    θ::Vector{Float64}
 end
 
 "Initialize the latent variables"
 function initLatentVariables!(model::FullBatchModel)
     model.α = abs.(rand(model.nSamples))*2;
+    model.θ = zeros(Float64,model.nSamples)
 end
 
 "Initialize the latent variables"
 function initLatentVariables!(model::SparseModel)
     model.α = abs.(rand(model.nSamplesUsed))*2;
+    model.θ = zeros(Float64,model.nSamplesUsed)
 end
 
 """

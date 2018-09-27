@@ -9,20 +9,21 @@ end
 function variational_updates!(model::BatchXGPC,iter)
     local_update!(model)
     θ = 0.5*tanh.(0.5*model.α)./model.α
-    (model.η_1,model.η_2) = natural_gradient_XGPC(θ,model.y,model.invK)
+    natural_gradient_XGPC(model)
     global_update!(model)
 end
 
 "Update the local variational parameters of the sparse GP XGPC"
 function local_update!(model::SparseXGPC)
     model.α = sqrt.(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
+    model.θ = 0.5*tanh.(0.5*model.α)./model.α
+
 end
 
 "Compute the variational updates for the sparse GP XGPC"
 function variational_updates!(model::SparseXGPC,iter::Integer)
     local_update!(model)
-    θ = 0.5*tanh.(0.5*model.α)./model.α
-    (grad_η_1,grad_η_2) = natural_gradient_XGPC(θ,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
+    (grad_η_1,grad_η_2) = natural_gradient_XGPC(model)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     global_update!(model,grad_η_1,grad_η_2)
 end
@@ -36,22 +37,24 @@ end
 function variational_updates!(model::OnlineXGPC,iter::Integer)
     local_update!(model)
     θ = 0.5*tanh.(0.5*model.α)./model.α
-    (grad_η_1,grad_η_2) = natural_gradient_XGPC(θ,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.Stochastic ? model.StochCoeff : 1.0)
+    (grad_η_1,grad_η_2) = natural_gradient_XGPC(model)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     global_update!(model,grad_η_1,grad_η_2)
 end
 
 "Return the natural gradients of the ELBO given the natural parameters"
-function natural_gradient_XGPC(θ::Vector{Float64},y::Vector,invPrior::Matrix{Float64};κ::Matrix=Matrix{Float64}(undef,0,0),stoch_coef::Float64=1.0)
-    if length(κ) == 0 #Full batch case
-        grad_1 =  0.5*y
-        grad_2 = -0.5*(Diagonal{Float64}(θ) + invPrior)
-    else      #Sparse case
-        grad_1 =  0.5*stoch_coef*κ'*y
-        grad_2 = -0.5*(stoch_coef*transpose(κ)*Diagonal(θ)*κ + invPrior)
-    end
+function natural_gradient_XGPC(model::BatchXGPC)
+    model.η_1 =  0.5*y
+    model.η_2 = -0.5*(Diagonal{Float64}(model.θ) + model.invK)
+end
+
+"Return the natural gradients of the ELBO given the natural parameters"
+function natural_gradient_XGPC(model::SparseXGPC)
+    grad_1 =  0.5*model.StochCoeff*model.κ'*model.y[model.MBIndices]
+    grad_2 = -0.5.*(model.StochCoeff*transpose(model.κ)*Diagonal{Float64}(model.θ)*model.κ .+ model.invKmm)
     return (grad_1,grad_2)
 end
+
 
 "Compute the negative ELBO for the full batch XGPC Model"
 function ELBO(model::BatchXGPC)
@@ -95,7 +98,7 @@ function hyperparameter_gradient_function(model::SparseXGPC)
     B = model.μ*transpose(model.μ) + model.Σ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     Θ = Diagonal(0.25./model.α.*tanh.(0.5*model.α))
-    return function(Js,i)
+    return function(Js,i,j)
                 Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
                 Jtilde = Jnn - sum(ι.*(transpose(Kmn)),dims=2) - sum(model.κ.*Jnm,dims=2)

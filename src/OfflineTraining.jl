@@ -27,7 +27,7 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
             if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
                 # for j in 1:model.AutotuningFrequency
                     updateHyperParameters!(model) #Update the hyperparameters
-                    computeMatrices!(model)
+                    # computeMatrices!(model)
                 # end
             end
             if callback != 0
@@ -106,9 +106,9 @@ function computeMatrices!(model::SparseModel)
         model.invKmm = inv(model.Kmm)
     end
     if model.HyperParametersUpdated || model.Stochastic #Also when batches change
-        Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
-        model.κ = Knm/model.Kmm
-        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*Knm,dims=2)[:]
+        kernelmatrix!(model.Knm,model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
+        model.κ = model.Knm*model.invKmm
+        model.Ktilde = diagkernelmatrix(model.X[model.MBIndices,:],model.kernel) - sum(model.κ.*model.Knm,dims=2)[:]
         @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
     end
     model.HyperParametersUpdated=false
@@ -126,11 +126,12 @@ end
 function computeMatrices!(model::MultiClass)
     if model.HyperParametersUpdated
         if model.IndependentGPs
-            model.Knn .= [Symmetric(kernelmatrix(model.X,model.kernel[i]) + Diagonal{Float64}(model.noise*I,model.nFeatures)) for i in 1:model.K]
+            model.Knn[model.KIndices] .= [Symmetric(kernelmatrix(model.X,model.kernel[i]) + Diagonal{Float64}(model.noise*I,model.nFeatures)) for i in 1:model.KIndices]
+            model.invK[model.KIndices] .= inv.(model.Knn)
         else
             model.Knn .= [Symmetric(kernelmatrix(model.X,model.kernel[1]) + Diagonal{Float64}(model.noise*I,model.nFeatures))]
+            model.invK .= inv.(model.Knn)
         end
-        model.invK .= inv.(model.Knn)
         model.HyperParametersUpdated = false
     end
 end
@@ -148,13 +149,14 @@ function computeMatrices!(model::SparseMultiClass)
     #If change of hyperparameters or if stochatic
     if model.HyperParametersUpdated || model.Stochastic
         if model.IndependentGPs
-            Knm = broadcast((points,kernel)->kernelmatrix(model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices])
-            model.κ .= Knm./model.Kmm[model.KIndices]
-            model.Ktilde .= broadcast((knm,kappa,kernel)->diagkernelmatrix(model.X[model.MBIndices,:],kernel) - sum(kappa.*knm,dims=2)[:],Knm,model.κ,model.kernel[model.KIndices])
+            # model.Knm .= broadcast((points,kernel)->kernelmatrix(model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices])
+            broadcast((points,kernel,Knm)->kernelmatrix!(Knm,model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices],model.Knm)
+            model.κ .= model.Knm.*model.invKmm[model.KIndices]
+            model.Ktilde .= broadcast((knm,kappa,kernel)->diagkernelmatrix(model.X[model.MBIndices,:],kernel) - sum(kappa.*knm,dims=2)[:],model.Knm,model.κ,model.kernel[model.KIndices])
         else
-            Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1])
-            model.κ .= [Knm/model.Kmm[1]]
-            model.Ktilde .= [diagkernelmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*Knm,dims=2)[:]]
+            model.Knm = [kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1])]
+            model.κ .= [model.Knm[1]/model.Kmm[1]]
+            model.Ktilde .= [diagkernelmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*Knm[1],dims=2)[:]]
         end
         @assert sum(count.(broadcast(x->x.<0,model.Ktilde)))==0 "Ktilde has negative values"
     end
@@ -221,8 +223,7 @@ function MCInit!(model::GPModel)
                 (grad_η_1,grad_η_2) = natural_gradient_BSVM(model.α,Z, model.invKmm, model.StochCoeff)
             elseif model.ModelType==XGPC
                 local_update!(model)
-                θ = (1.0./(2.0*model.α)).*tanh.(model.α./2.0)
-                (grad_η_1,grad_η_2) = natural_gradient_XGPC(θ,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
+                (grad_η_1,grad_η_2) = natural_gradient_XGPC(model)
             elseif model.ModelType==Regression
                 (grad_η_1,grad_η_2) = natural_gradient_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.StochCoeff)
             end

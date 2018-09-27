@@ -120,9 +120,9 @@ Return also the variance if `covf=true`
 function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         if model.IndependentGPs
-            model.TopMatrixForPrediction = broadcast((k,mu)->k\mu,model.Kmm,model.μ)
+            model.TopMatrixForPrediction = model.invKmm.*model.μ
         else
-            model.TopMatrixForPrediction = broadcast((mu)->model.Kmm[1]\mu,model.μ)
+            model.TopMatrixForPrediction = model.invKmm.*model.μ
         end
     end
     if covf && model.DownMatrixForPrediction == 0

@@ -6,6 +6,7 @@ version = "0.1.0"
 [deps]
 Clustering = "aaaa29a8-35af-508c-8bc3-b662a17a0fe5"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 GradDescent = "76767984-a792-11e8-2bb2-77d388f79a09"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"

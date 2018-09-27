@@ -28,6 +28,9 @@ mutable struct SparseGPRegression <: SparseModel
             initKernel!(this,kernel);
             initSparse!(this,m,OptimizeIndPoints);
             initGaussian!(this,μ_init);
+            if this.Stochastic && this.AdaptiveLearningRate
+                MCInit!(this)
+            end
             return this;
     end
 end

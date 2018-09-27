@@ -5,8 +5,8 @@
 @def multiclasskernelfields begin
     IndependentGPs::Bool
     kernel::Vector{Kernel} #Kernels function used
-    Knn::Vector{Matrix{Float64}} #Kernel matrix of the GP prior
-    invK::Vector{Matrix{Float64}} #Inverse Kernel Matrix for the nonlinear case
+    Knn::Vector{Symmetric{Float64,Matrix{Float64}}} #Kernel matrix of the GP prior
+    invK::Vector{Symmetric{Float64,Matrix{Float64}}} #Inverse Kernel Matrix for the nonlinear case
 end
 """
 Function initializing the kernelfields
@@ -42,8 +42,8 @@ Parameters for the multiclass version of the classifier based of softmax
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     μ::Vector{Vector{Float64}} #Mean for each class
     η_1::Vector{Vector{Float64}} #Natural parameter #1 for each class
-    Σ::Vector{Matrix{Float64}} #Covariance matrix for each class
-    η_2::Vector{Matrix{Float64}} #Natural parameter #2 for each class
+    Σ::Vector{Symmetric{Float64,Matrix{Float64}}} #Covariance matrix for each class
+    η_2::Vector{Symmetric{Float64,Matrix{Float64}}} #Natural parameter #2 for each class
     f2::Vector{Vector{Float64}} #Sqrt of the expectation of f^2
     α::Vector{Float64} #Gamma shape parameters
     β::Vector{Float64} #Gamma rate parameters
@@ -102,8 +102,8 @@ function initMultiClassVariables!(model,μ_init)
     else
       model.μ = [μ_init for i in 1:model.K]
     end
-    model.Σ = [Matrix{Float64}(I,model.nFeatures,model.nFeatures) for i in 1:model.K]
-    model.η_2 = broadcast(x->-0.5*inv(x),model.Σ)
+    model.Σ = [Symmetric(Matrix{Float64}(I,model.nFeatures,model.nFeatures)) for i in 1:model.K]
+    model.η_2 = -0.5*inv.(model.Σ)
     model.η_1 = -2.0*model.η_2.*model.μ
     if model.Stochastic
         model.α = model.K*ones(model.nSamples)
@@ -129,6 +129,7 @@ function reinit_variational_parameters!(model)
         model.f2 = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
         model.Ktilde = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
         model.κ = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.nClassesUsed]
+        model.Knm = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.nClassesUsed]
 end
 
 """
@@ -140,8 +141,9 @@ end
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
     optimizer::Optimizer #Optimizer for the inducing points
     nInnerLoops::Int64 #Number of updates for converging α and γ
-    Kmm::Vector{Matrix{Float64}} #Kernel matrix
-    invKmm::Vector{Matrix{Float64}} #Inverse Kernel matrix of inducing points
+    Kmm::Vector{Symmetric{Float64,Matrix{Float64}}} #Kernel matrix
+    invKmm::Vector{Symmetric{Float64,Matrix{Float64}}} #Inverse Kernel matrix of inducing points
+    Knm::Vector{Matrix{Float64}}
     Ktilde::Vector{Vector{Float64}} #Diagonal of the covariance matrix between inducing points and generative points
     κ::Vector{Matrix{Float64}} #Kmn*invKmm
 end
@@ -176,15 +178,17 @@ function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool)
         println("$(now()): Inducing points determined through KMeans algorithm")
     end
     if model.IndependentGPs
-        model.Kmm = [Matrix{Float64}(undef,model.m,model.m) for i in 1:model.K]
-        model.invKmm = [Matrix{Float64}(undef,model.m,model.m) for i in 1:model.K]
+        model.Kmm = [Symmetric(Matrix{Float64}(undef,model.m,model.m)) for i in 1:model.K]
+        model.invKmm = [Symmetric(Matrix{Float64}(undef,model.m,model.m)) for i in 1:model.K]
         model.Ktilde = [ones(Float64,model.nSamplesUsed) for i in 1:model.K]
         model.κ = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.K]
+        model.Knm = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.K]
     else
-        model.Kmm = [Matrix{Float64}(undef,model.m,model.m)]
-        model.invKmm = [Matrix{Float64}(undef,model.m,model.m)]
+        model.Kmm = [Symmetric(Matrix{Float64}(undef,model.m,model.m))]
+        model.invKmm = [Symmetric(Matrix{Float64}(undef,model.m,model.m))]
         model.Ktilde = [ones(Float64,model.nSamplesUsed)]
         model.κ = [Matrix{Float64}(undef,model.nSamplesUsed,model.m)]
+        model.Knm = [Matrix{Float64}(undef,model.nSamplesUsed,model.m)]
     end
 end
 

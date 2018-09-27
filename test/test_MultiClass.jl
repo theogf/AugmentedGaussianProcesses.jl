@@ -2,15 +2,17 @@
 
 import OMGP
 using Distributions
-using StatsBase
+using StatsBase, Distances
 # using Gallium
 using Dates
 using PyCall
+using ProfileView, Profile
+
 
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
 N_data = 500
-N_class = 40
+N_class = 4
 N_test = 50
 minx=-5.0
 maxx=5.0
@@ -23,15 +25,15 @@ println("$(now()): Starting testing multiclass")
 function latent(X)
     return sqrt.(X[:,1].^2+X[:,2].^2)
 end
-N_dim=2
-X = (rand(N_data,N_dim)*(maxx-minx)).+minx
-trunc_d = Truncated(Normal(0,3),minx,maxx)
-X = rand(trunc_d,N_data,N_dim)
-x_test = range(minx,stop=maxx,length=N_test)
-X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
-# X_test = rand(trunc_d,N_test^dim,dim)
-y = min.(max.(1,floor.(Int64,latent(X)+rand(Normal(0,noise),size(X,1)))),N_class)
-y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
+N_dim=100
+# X = (rand(N_data,N_dim)*(maxx-minx)).+minx
+# trunc_d = Truncated(Normal(0,3),minx,maxx)
+# X = rand(trunc_d,N_data,N_dim)
+# x_test = range(minx,stop=maxx,length=N_test)
+# X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
+# # X_test = rand(trunc_d,N_test^dim,dim)
+# y = min.(max.(1,floor.(Int64,latent(X)+rand(Normal(0,noise),size(X,1)))),N_class)
+# y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 
 # X,y = sk.make_classification(n_samples=N_data,n_features=N_dim,n_classes=N_class,n_clusters_per_class=1,n_informative=N_dim,n_redundant=0)
 # y.+=1
@@ -42,7 +44,7 @@ for c in 1:N_class
     global variance = 1/N_class*ones(N_class)#rand(Gamma(1.0,0.5),150)
 end
 
-X = zeros(N_data,2)
+X = zeros(N_data,N_dim)
 y = sample(1:N_class,N_data)
 for i in 1:N_data
     X[i,:] = rand(MvNormal(centers[y[i],:],variance[y[i]]))
@@ -95,11 +97,15 @@ X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 ##Which algorithm are tested
 fullm = false
 sfullm = false
-sparsem = false
-ssparsem = true
+sparsem = true
+ssparsem = false
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
- l = 0.1
+function initial_lengthscale(X)
+    D = pairwise(Euclidean(),X)
+    return median([D[i,j] for i in 2:size(D,1) for j in 1:(i-1)])
+end
+ l = initial_lengthscale(X)
 
 kernel = OMGP.ARDKernel([l],dim=N_dim)
 OMGP.setvalue!(kernel.variance,10.0)
@@ -144,11 +150,15 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,VerboseLevel=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
+    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,VerboseLevel=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=100,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
     smetrics, callback = OMGP.getMultiClassLog(smodel,X_test,y_test)
     # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
+    smodel.train(iterations=7)
+    Profile.clear()
+    @profile smodel.train(iterations=10)#,callback=callback)
+    @time smodel.train(iterations=50)
+    # t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
     global y_sparse, = smodel.predict(X_test)
     global y_strain, = smodel.predict(X)
     global y_sall = OMGP.multiclasspredict(smodel,X_test,true)
@@ -160,8 +170,10 @@ if sparsem
             global sparse_score += 1
         end
     end
-    println("Sparse model Accuracy is $(sparse_score/length(y_test)) in $t_sparse s")
+    println("Sparse model Accuracy is $(sparse_score/length(y_test))")#" in $t_sparse s")
 end
+
+ProfileView.view()
 
 if ssparsem
     global ssmodel = OMGP.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=20,VerboseLevel=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
@@ -183,20 +195,20 @@ if ssparsem
     println("Super Sparse model Accuracy is $(ssparse_score/length(y_test)) in $t_ssparse s")
 end
 
-dim_t = 784
-tkernel = OMGP.ARDKernel([l],dim=dim_t)
-Test = rand(4000,dim_t)
-@elapsed begin
-    A = [Matrix(undef,200,200) for _ in 1:(dim_t+1)];
-    for i in 1:200
-        for j in 1:i
-            global g = OMGP.KernelFunctions.compute_deriv(tkernel,Test[i,:],Test[j,:],true);
-            [a[i,j] = g[iter] for (iter,a) in enumerate(A)]
-        end
-    end
-end
-
-@elapsed OMGP.KernelFunctions.derivativekernelmatrix(tkernel,Test[1:200,:])
+# dim_t = 784
+# tkernel = OMGP.ARDKernel([l],dim=dim_t)
+# Test = rand(4000,dim_t)
+# @elapsed begin
+#     A = [Matrix(undef,200,200) for _ in 1:(dim_t+1)];
+#     for i in 1:200
+#         for j in 1:i
+#             global g = OMGP.KernelFunctions.compute_deriv(tkernel,Test[i,:],Test[j,:],true);
+#             [a[i,j] = g[iter] for (iter,a) in enumerate(A)]
+#         end
+#     end
+# end
+#
+# @elapsed OMGP.KernelFunctions.derivativekernelmatrix(tkernel,Test[1:200,:])
 
 if doMCCompare
     full_f_star,full_cov_f_star = OMGP.fstar(fmodel,X_test)
@@ -211,7 +223,7 @@ function logit(x)
     return 1.0./(1.0.+exp.(-x))
 end
 
-callbacktests = true
+callbacktests = false
 if callbacktests
     plot(fmetrics[:test_error])
     plot!(sfmetrics[:test_error])
@@ -220,7 +232,7 @@ if callbacktests
 end
 
 #
-if true
+if false
 if size(X,2)==2
     using Plots
     pyplot()
