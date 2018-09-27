@@ -228,7 +228,7 @@ mutable struct RBFKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
             end
             return new{T,ARDKernel}("RBF (ARD)",
             HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
-            HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}())]),
+            HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}()) for _ in 1:dim]),
             dim,
             WeightedSqEuclidean(one(T)./(θ.^2)))
         else

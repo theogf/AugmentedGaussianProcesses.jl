@@ -72,8 +72,9 @@ end
 function kernelderivativematrix(X::Array{T,N},kernel::RBFKernel{T,PlainKernel}) where {T,N}
     K = pairwise(metric(kernel),X')
     Jl = zero(K)
+    l = getvalue(kernel.lengthscales[1])
     @inbounds for i in eachindex(K)
-        Jl[i] = K[i]/(getvalue(kernel.lengthscales[1]))
+        Jl[i] = K[i]/l
         K[i] = compute(kernel,K[i])
     end
     return [getvalue(kernel.variance)*Jl.*K,K]
@@ -83,8 +84,9 @@ end
 function kernelderivativematrix(X::Array{T,N},K::Array{T,N},kernel::RBFKernel{T,PlainKernel}) where {T,N}
     P = pairwise(metric(kernel),X')
     Jl = zero(K)
+    l = getvalue(kernel.lengthscales[1])
     @inbounds for i in eachindex(K)
-        Jl[i] = P[i]/(getvalue(kernel.lengthscales[1]))
+        Jl[i] = P[i]/l
     end
     return [Jl.*K,K./getvalue(kernel.variance)]
 end
@@ -93,23 +95,48 @@ function kernelderivativematrix(X::Array{T,N},kernel::RBFKernel{T,ARDKernel}) wh
     v = getvalue(kernel.variance)
     ls = vcat(getvalue(kernel.lengthscales),v)
     K = pairwise(metric(kernel),X')
-    Ki = vcat([pairwise(metric(kernel),X[:,i]) for i in 1:kernel.Ndim],[fill(one(T)/(),size(K))])
+    Ki = vcat([pairwise(SqEuclidean(),X[:,i]') for i in 1:kernel.Ndim],[fill(one(T),size(K))])
     Jl = [fill(one(T),size(K)) for _ in 1:(kernel.Ndim+1)]
     @inbounds for j in eachindex(K)
         K[j] = compute(kernel,K[j])
-        broadcast((jl,ki,l)->jl[j] = v*ki[j]/l*K[j],Jl[1:end-1],Ki,ls)
+        broadcast((jl,ki,l)->jl[j] = v*ki[j]/l*K[j],
+                    Jl,Ki,ls)
     end
+    # Jl .= v* Ki
     return Jl
 end
 
 function kernelderivativematrix(X::Array{T,N},K::Array{T,N},kernel::RBFKernel{T,ARDKernel}) where {T,N}
-    K = pairwise(metric(kernel),X')
+    v = getvalue(kernel.variance)
+    ls = vcat(getvalue(kernel.lengthscales),v)
+    Ki = vcat([pairwise(SqEuclidean(),X[:,i]') for i in 1:kernel.Ndim],[fill(one(T),size(K))])
+    Jl = [fill(one(T),size(K)) for _ in 1:(kernel.Ndim+1)]
+    @inbounds for j in eachindex(K)
+        broadcast((jl,ki,l)->jl[j] = v*ki[j]/l*K[j],Jl,Ki,ls)
+    end
+    return Jl
+end
+
+function kernelderivativematrix(X::Array{T,N},Y::Array{T,N},kernel::RBFKernel{T,PlainKernel}) where {T,N}
+    K = pairwise(metric(kernel),X',Y')
     Jl = zero(K)
+    l = getvalue(kernel.lengthscales[1])
     @inbounds for i in eachindex(K)
-        Jl[i] = K[i]/(getvalue(kernel.lengthscales[1]))
+        Jl[i] = K[i]/l
         K[i] = compute(kernel,K[i])
     end
     return [getvalue(kernel.variance)*Jl.*K,K]
+end
+
+"When K has already been computed"
+function kernelderivativematrix(X::Array{T,N},Y::Array{T,N},K::Array{T,N},kernel::RBFKernel{T,PlainKernel}) where {T,N}
+    P = pairwise(metric(kernel),X',Y')
+    Jl = zero(K)
+    l = getvalue(kernel.lengthscales[1])
+    @inbounds for i in eachindex(K)
+        Jl[i] = P[i]/l
+    end
+    return [Jl.*K,K./getvalue(kernel.variance)]
 end
 
 

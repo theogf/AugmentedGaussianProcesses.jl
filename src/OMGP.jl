@@ -26,7 +26,7 @@ abstract type SparseModel <: NonLinearModel end
 abstract type FullBatchModel <: NonLinearModel end
 
 
-include("KernelFunctions.jl")
+include("KernelFunctions/KernelFunctions.jl")
 include("KMeansModule.jl")
 include("PGSampler.jl")
 include("PerturbativeCorrection.jl")
