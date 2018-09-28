@@ -6,13 +6,13 @@ using StatsBase, Distances
 # using Gallium
 using Dates
 using PyCall
-using ProfileView, Profile
+using ProfileView, Profile, Traceur
 
 
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
-N_data = 1000
-N_class = 100
+N_data = 500
+N_class = 4
 N_test = 50
 minx=-5.0
 maxx=5.0
@@ -97,8 +97,8 @@ X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 ##Which algorithm are tested
 fullm = false
 sfullm = false
-sparsem = false
-ssparsem = true
+sparsem = true
+ssparsem = false
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
 function initial_lengthscale(X)
@@ -157,7 +157,7 @@ if sparsem
     # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
     smodel.train(iterations=4)
     Profile.clear()
-    @profile smodel.train(iterations=10)#,callback=callback)
+    @trace smodel.train(iterations=10)#,callback=callback)
     @time smodel.train(iterations=10)
     # t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
     global y_sparse, = smodel.predict(X_test)

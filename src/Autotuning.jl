@@ -58,7 +58,7 @@ function updateHyperParameters!(model::SparseMultiClass)
                             # [kernelderivativematrix_K(model.inducingPoints[kiter],model.Kmm[kiter],model.kernel[kiter]),
                             # kernelderivativematrix_K(model.X[model.MBIndices,:],model.inducingPoints[kiter],model.Knm[kiter],model.kernel[kiter]),
                             # kernelderivativediagmatrix(model.X[model.MBIndices,:],model.kernel[kiter])],kiter,iter) for (iter,kiter) in enumerate(model.KIndices)]
-        grads_l = map(compute_hyperparameter_gradient,model.kernel[model.KIndices],[f_l for _ in 1:model.nClassesUsed],trues(model.nClassesUsed),[[kernelderivativematrix(model.inducingPoints[kiter],model.kernel[kiter]),
+        grads_l = map(compute_hyperparameter_gradient,model.kernel[model.KIndices],[f_l for _ in 1:model.nClassesUsed],[[kernelderivativematrix(model.inducingPoints[kiter],model.kernel[kiter]),
         kernelderivativematrix(model.X[model.MBIndices,:],model.inducingPoints[kiter],model.kernel[kiter]),
         kernelderivativediagmatrix(model.X[model.MBIndices,:],model.kernel[kiter])] for kiter in model.KIndices],model.KIndices,1:model.nClassesUsed)
         # println([getvalue(k.variance) for k in model.kernel])
