@@ -30,6 +30,8 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
                     updateHyperParameters!(model) #Update the hyperparameters
                     # computeMatrices!(model)
                 # end
+                # println("Variances ", [getvalue(k.variance) for k in model.kernel])
+                # println("Lengthscales ", [getvalue(k.lengthscales) for k in model.kernel])
             end
             if callback != 0
                     callback(model,iter) #Use a callback method if put by user
@@ -155,7 +157,7 @@ function computeMatrices!(model::SparseMultiClass)
             model.κ .= model.Knm.*model.invKmm[model.KIndices]
             model.Ktilde .= broadcast((knm,kappa,kernel)->kerneldiagmatrix(model.X[model.MBIndices,:],kernel)+ model.noise*ones(model.nSamplesUsed) - sum(kappa.*knm,dims=2)[:],model.Knm,model.κ,model.kernel[model.KIndices])
         else
-            model.Knm = [kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1])]
+            kernelmatrix!(model.Knm[1],model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1])
             model.κ .= [model.Knm[1]/model.Kmm[1]]
             model.Ktilde .= [kerneldiagmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*Knm[1],dims=2)[:]]
         end

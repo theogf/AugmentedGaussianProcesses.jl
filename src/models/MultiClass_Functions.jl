@@ -165,11 +165,12 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
     if model.IndependentGPs
         return (function(Js::Array{AbstractArray{T,N} where N,1},Kindex::Int64,index::Int64) where {T}
             #matrices Js derivative of : [1]Kmm, [2]Knm, [3]Knn
-                    Pmm = Js[1]::Symmetric{T,Matrix{T}}; Jnm =Js[2]::Matrix{T}; Jnn = Js[3]::Vector{T};
+                    Jmm = Js[1]::Symmetric{T,Matrix{T}}; Jnm =Js[2]::Matrix{T}; Jnn = Js[3]::Vector{T};
                     ι = (Jnm-model.κ[index]*Jmm)*model.invKmm[Kindex]
                     Jtilde = Jnn - sum(ι.*model.Knm[index],dims=2)[:] - sum(model.κ[index].*Jnm,dims=2)[:]
                     V = model.invKmm[Kindex]*Jmm
-                    tot = sum((V*model.invKmm[Kindex]).*F2[index])-model.StochCoeff*sum(add_transpose!(KC[index]*ι).*F2[index])
+                    A = add_transpose!(KC[index]*ι)
+                    tot = sum((V*model.invKmm[Kindex]).*F2[index])-model.StochCoeff*sum(A.*F2[index])
                     tot += - tr(V) - model.StochCoeff*dot(C[index],Jtilde)
                     tot += model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex])
                     return 0.5*tot

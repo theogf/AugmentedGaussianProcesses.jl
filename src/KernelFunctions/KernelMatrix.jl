@@ -3,10 +3,11 @@
 """
 function kernelmatrix(X1::Array{T,N},X2::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     K = pairwise(metric(kernel),X1',X2')
+    v = getvalue(kernel.variance)
     @inbounds for i in eachindex(K)
-        K[i] = compute!(kernel,K[i])
+        K[i] = v*compute(kernel,K[i])
     end
-    return getvalue(kernel.variance)*K
+    return K
 end
 
 function kernelmatrix!(K::Array{T,N},X1::Array{T,N},X2::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
@@ -14,19 +15,20 @@ function kernelmatrix!(K::Array{T,N},X1::Array{T,N},X2::Array{T,N},kernel::Kerne
     @assert n1==size(X1,1)
     @assert n2==size(X2,1)
     pairwise!(K,metric(kernel),X1',X2')
+    v = getvalue(kernel.variance)
     @inbounds for i in eachindex(K)
-        K[i] = compute(kernel,K[i])
+        K[i] = v*compute(kernel,K[i])
     end
-    K *= getvalue(kernel.variance)
     return K
 end
 
 function kernelmatrix(X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     K = pairwise(metric(kernel),X')
+    v = getvalue(kernel.variance)
     @inbounds for i in eachindex(K)
-        K[i] = compute(kernel,K[i])
+        K[i] = v*compute(kernel,K[i])
     end
-    return getvalue(kernel.variance)*K
+    return K
 end
 
 
@@ -35,29 +37,31 @@ function kernelmatrix!(K::Array{T,N},X::Array{T,N},kernel::Kernel{T,KT}) where {
     @assert n1==size(X,1)
     @assert n1==n2
     pairwise!(K,metric(kernel),X')
+    v = getvalue(kernel.variance)
     @inbounds for i in in eachindex(K)
-        K[i] = compute(kernel,K[i])
+        K[i] = v*compute(kernel,K[i])
     end
-    K *= getvalue(kernel.variance)
     return K
 end
 
 function kerneldiagmatrix(X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     n = size(X,1)
     K = zeros(T,n)
+    v = getvalue(kernel.variance)
     @inbounds for i in eachindex(K)
-        K[i] = compute(kernel,evaluate(metric(kernel),X[i,:],X[i,:]))
+        K[i] = v*compute(kernel,evaluate(metric(kernel),X[i,:],X[i,:]))
     end
-    return getvalue(kernel.variance)*K
+    return K
 end
 
 function kerneldiagmatrix!(K::Array{T,N},X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     n = size(K,1)
     @assert n == size(X,1)
+    v = getvalue(kernel.variance)
     @inbounds for i in 1:n
-        K[i] = compute(kernel,evaluate(metric(kernel),X[i,:],X[i,:]))
+        K[i] = v*compute(kernel,evaluate(metric(kernel),X[i,:],X[i,:]))
     end
-    return getvalue(kernel.variance)*K
+    return K
 end
 
 ############# DERIVATIVE MATRICES ##############

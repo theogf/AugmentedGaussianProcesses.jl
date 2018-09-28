@@ -155,7 +155,7 @@ if sparsem
     # smodel.AutotuningFrequency=5
     smetrics, callback = OMGP.getMultiClassLog(smodel,X_test,y_test)
     # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    smodel.train(iterations=7)
+    smodel.train(iterations=4)
     Profile.clear()
     @profile smodel.train(iterations=10)#,callback=callback)
     @time smodel.train(iterations=10)
