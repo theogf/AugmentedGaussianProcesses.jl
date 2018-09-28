@@ -11,8 +11,8 @@ using ProfileView, Profile
 
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
-N_data = 500
-N_class = 10
+N_data = 1000
+N_class = 100
 N_test = 50
 minx=-5.0
 maxx=5.0
@@ -97,8 +97,8 @@ X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 ##Which algorithm are tested
 fullm = false
 sfullm = false
-sparsem = true
-ssparsem = false
+sparsem = false
+ssparsem = true
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
 function initial_lengthscale(X)
@@ -151,7 +151,7 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,VerboseLevel=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=100,IndependentGPs=true)
+    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,VerboseLevel=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=100,IndependentGPs=false)
     # smodel.AutotuningFrequency=5
     smetrics, callback = OMGP.getMultiClassLog(smodel,X_test,y_test)
     # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
@@ -174,17 +174,19 @@ if sparsem
     println("Sparse model Accuracy is $(sparse_score/length(y_test))")#" in $t_sparse s")
 end
 
-ProfileView.view()
+# ProfileView.view()
 
 if ssparsem
-    global ssmodel = OMGP.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=20,VerboseLevel=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
+    global ssmodel = OMGP.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=5,VerboseLevel=3,kernel=kernel,m=100,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
     ssmetrics, callback = OMGP.getMultiClassLog(ssmodel,X_test,y_test)
     # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
-    t_ssparse = @elapsed ssmodel.train(iterations=200,callback=callback)
+    t_ssparse = @elapsed ssmodel.train(iterations=100)#,callback=callback)
+
     y_ssparse, = ssmodel.predict(X_test)
     y_sstrain, = ssmodel.predict(X)
     y_ssall = OMGP.multiclasspredict(ssmodel,X_test,true)
+    # t_ssparse = @elapsed ssmodel.train(iterations=200,callback=callback)
 
     println("Sparse predictions computed")
     ssparse_score=0
@@ -195,6 +197,7 @@ if ssparsem
     end
     println("Super Sparse model Accuracy is $(ssparse_score/length(y_test)) in $t_ssparse s")
 end
+# t_ssparse = @elapsed ssmodel.train(iterations=200,callback=callback)
 
 # dim_t = 784
 # tkernel = OMGP.ARDKernel([l],dim=dim_t)
@@ -223,81 +226,81 @@ println("Sampling done")
 function logit(x)
     return 1.0./(1.0.+exp.(-x))
 end
-
-callbacktests = false
-if callbacktests
-    plot(fmetrics[:test_error])
-    plot!(sfmetrics[:test_error])
-    plot!(smetrics[:test_error])
-    plot!(ssmetrics[:test_error])
-end
-
 #
-if false
-if size(X,2)==2
-    using Plots
-    pyplot()
-    if truthknown
-        p1=plot(x_test,x_test,reshape(y_test,N_test,N_test),t=:contour,clims=(1,N_class),fill=true,cbar=false,lab="",title="Truth")
-        [plot!(X[y.==i,1],X[y.==i,2],t=:scatter,lab="y=$i",title="Training Truth") for i in 1:N_class]
-        p2=plot()
-        if isdefined(:y_full)
-            p2=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,clims=(1,N_class),fill=true,cbar=false,lab="",title="Fullbatch")
-        end
-        p3=plot()
-        if isdefined(:y_sparse)
-            p3=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,clims=(1,N_class),fill=true,cbar=false,lab="",title="Sparse MultiClass ($(smodel.m) points)")
-            [plot!(smodel.inducingPoints[k][:,1],smodel.inducingPoints[k][:,2],t=:scatter,lab="y=$(smodel.class_mapping[k])",xlims=(-5,5),y_lims=(-5,5)) for k in 1:N_class]
-        end
-        display(plot(p1,p2,p3));
-    else
-        p1=plot()
-        [plot!(X[y.==i,1],X[y.==i,2],t=:scatter,lab="y=$i",title="Training Truth") for i in 1:N_class]
-        p2=plot()
-        [plot!(X_test[y_test.==i,1],X_test[y_test.==i,2],t=:scatter,lab="y=$i",title="Test Truth") for i in 1:N_class]
-        p3=plot()
-        if fullm
-            [plot!(X[y_ftrain.==i,1],X[y_ftrain.==i,2],t=:scatter,lab="y=$(fmodel.class_mapping[i])",title="Training Prediction") for i in 1:N_class]
-        else
-            [plot!(X[y_strain.==i,1],X[y_strain.==i,2],t=:scatter,lab="y=$(smodel.class_mapping[i])",title="Training Prediction") for i in 1:N_class]
-        end
-        p4=plot()
-        if fullm
-            [plot!(X_test[y_full.==i,1],X_test[y_full.==i,2],t=:scatter,lab="y=$(fmodel.class_mapping[i])",title="Test Prediction") for i in 1:N_class]
-        else
-            [plot!(X_test[y_sparse.==i,1],X_test[y_sparse.==i,2],t=:scatter,lab="y=$(smodel.class_mapping[i])",title="Test Prediction") for i in 1:N_class]
-        end
-        display(plot(p1,p2,p3,p4))
-    end
-    if doMCCompare
-        p_full = [plot(x_test,x_test,reshape(full_f_star[i],N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="f_$(fmodel.class_mapping[i])") for i in 1:N_class]
-        println("Latent plots ready")
-        p_logit_full = [plot(x_test,x_test,reshape(logit_f[i],N_test,N_test),t=:contour,fill=true,clims=[0,1],cbar=true,lab="",title="σ(f)_$(fmodel.class_mapping[i])") for i in 1:N_class]
-        println("Logit Latent plots ready")
-        p_val = [plot(x_test,x_test,reshape(broadcast(x->x[i],m_pred),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="mu_approx_$(fmodel.class_mapping[i])") for i in 1:N_class]
-        println("Mu plots ready")
-        p_val_simple = [plot(x_test,x_test,reshape(broadcast(x->x[i],m_base),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="mu_simple_$(fmodel.class_mapping[i])") for i in 1:N_class]
-        println("Mu base plots ready")
-        p_val_mc = [plot(x_test,x_test,reshape(broadcast(x->x[i],m_pred_mc),N_test,N_test),t=:contour,clims=[0,1],fill=true,cbar=true,lab="",title="MC mu_$(fmodel.class_mapping[i])") for i in 1:N_class]
-        println("MC Mu plots ready")
-        p_sig = [plot(x_test,x_test,reshape(broadcast(x->x[i],sig_pred),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="sig_$(fmodel.class_mapping[i])") for i in 1:N_class]
-        println("Sig plots ready")
-        p_sig_mc = [plot(x_test,x_test,reshape(broadcast(x->x[i],sig_pred_mc),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="MC sig_$(fmodel.class_mapping[i])") for i in 1:N_class]
-        println("MC sig plots ready")
-        # p_sparse = [begin plot(x_test,x_test,reshape(sparse_f_star[i],N_test,N_test),t=:contour,fill=true,cbar=false,lab="",title="f_$(smodel.class_mapping[i])");plot!(smodel.inducingPoints[i][:,1],smodel.inducingPoints[i][:,2],t=:scatter,lab="") end for i in 1:N_class]
-        display(plot(p_full...,p_logit_full...,p_val...,p_val_mc...,p_val_simple...,p_sig...,p_sig_mc...,layout=(7,N_class)))
-    end
-    if dolikelihood
-        p1 = [plot()]
-        if isdefined(:fmodel)
-            p1 = [plot(x_test,x_test,reshape(broadcast(x->x[i],y_fall),N_test,N_test),t=:contour,fill=true,clim=(0,1),cbar=true,lab="",title="Full_likelihood_$(fmodel.class_mapping[i])") for i in 1:N_class]
-        end
-        p2 = [plot()]
-        if isdefined(:smodel)
-            p2 = [plot(x_test,x_test,reshape(broadcast(x->x[i],y_sall),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="Sparse_likelihood_$(smodel.class_mapping[i])") for i in 1:N_class]
-        end
-        display(plot(p1...,p2...))
-    end
-
-end
-end
+# callbacktests = false
+# if callbacktests
+#     plot(fmetrics[:test_error])
+#     plot!(sfmetrics[:test_error])
+#     plot!(smetrics[:test_error])
+#     plot!(ssmetrics[:test_error])
+# end
+#
+# #
+# if false
+# if size(X,2)==2
+#     using Plots
+#     pyplot()
+#     if truthknown
+#         p1=plot(x_test,x_test,reshape(y_test,N_test,N_test),t=:contour,clims=(1,N_class),fill=true,cbar=false,lab="",title="Truth")
+#         [plot!(X[y.==i,1],X[y.==i,2],t=:scatter,lab="y=$i",title="Training Truth") for i in 1:N_class]
+#         p2=plot()
+#         if isdefined(:y_full)
+#             p2=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,clims=(1,N_class),fill=true,cbar=false,lab="",title="Fullbatch")
+#         end
+#         p3=plot()
+#         if isdefined(:y_sparse)
+#             p3=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,clims=(1,N_class),fill=true,cbar=false,lab="",title="Sparse MultiClass ($(smodel.m) points)")
+#             [plot!(smodel.inducingPoints[k][:,1],smodel.inducingPoints[k][:,2],t=:scatter,lab="y=$(smodel.class_mapping[k])",xlims=(-5,5),y_lims=(-5,5)) for k in 1:N_class]
+#         end
+#         display(plot(p1,p2,p3));
+#     else
+#         p1=plot()
+#         [plot!(X[y.==i,1],X[y.==i,2],t=:scatter,lab="y=$i",title="Training Truth") for i in 1:N_class]
+#         p2=plot()
+#         [plot!(X_test[y_test.==i,1],X_test[y_test.==i,2],t=:scatter,lab="y=$i",title="Test Truth") for i in 1:N_class]
+#         p3=plot()
+#         if fullm
+#             [plot!(X[y_ftrain.==i,1],X[y_ftrain.==i,2],t=:scatter,lab="y=$(fmodel.class_mapping[i])",title="Training Prediction") for i in 1:N_class]
+#         else
+#             [plot!(X[y_strain.==i,1],X[y_strain.==i,2],t=:scatter,lab="y=$(smodel.class_mapping[i])",title="Training Prediction") for i in 1:N_class]
+#         end
+#         p4=plot()
+#         if fullm
+#             [plot!(X_test[y_full.==i,1],X_test[y_full.==i,2],t=:scatter,lab="y=$(fmodel.class_mapping[i])",title="Test Prediction") for i in 1:N_class]
+#         else
+#             [plot!(X_test[y_sparse.==i,1],X_test[y_sparse.==i,2],t=:scatter,lab="y=$(smodel.class_mapping[i])",title="Test Prediction") for i in 1:N_class]
+#         end
+#         display(plot(p1,p2,p3,p4))
+#     end
+#     if doMCCompare
+#         p_full = [plot(x_test,x_test,reshape(full_f_star[i],N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="f_$(fmodel.class_mapping[i])") for i in 1:N_class]
+#         println("Latent plots ready")
+#         p_logit_full = [plot(x_test,x_test,reshape(logit_f[i],N_test,N_test),t=:contour,fill=true,clims=[0,1],cbar=true,lab="",title="σ(f)_$(fmodel.class_mapping[i])") for i in 1:N_class]
+#         println("Logit Latent plots ready")
+#         p_val = [plot(x_test,x_test,reshape(broadcast(x->x[i],m_pred),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="mu_approx_$(fmodel.class_mapping[i])") for i in 1:N_class]
+#         println("Mu plots ready")
+#         p_val_simple = [plot(x_test,x_test,reshape(broadcast(x->x[i],m_base),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="mu_simple_$(fmodel.class_mapping[i])") for i in 1:N_class]
+#         println("Mu base plots ready")
+#         p_val_mc = [plot(x_test,x_test,reshape(broadcast(x->x[i],m_pred_mc),N_test,N_test),t=:contour,clims=[0,1],fill=true,cbar=true,lab="",title="MC mu_$(fmodel.class_mapping[i])") for i in 1:N_class]
+#         println("MC Mu plots ready")
+#         p_sig = [plot(x_test,x_test,reshape(broadcast(x->x[i],sig_pred),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="sig_$(fmodel.class_mapping[i])") for i in 1:N_class]
+#         println("Sig plots ready")
+#         p_sig_mc = [plot(x_test,x_test,reshape(broadcast(x->x[i],sig_pred_mc),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="MC sig_$(fmodel.class_mapping[i])") for i in 1:N_class]
+#         println("MC sig plots ready")
+#         # p_sparse = [begin plot(x_test,x_test,reshape(sparse_f_star[i],N_test,N_test),t=:contour,fill=true,cbar=false,lab="",title="f_$(smodel.class_mapping[i])");plot!(smodel.inducingPoints[i][:,1],smodel.inducingPoints[i][:,2],t=:scatter,lab="") end for i in 1:N_class]
+#         display(plot(p_full...,p_logit_full...,p_val...,p_val_mc...,p_val_simple...,p_sig...,p_sig_mc...,layout=(7,N_class)))
+#     end
+#     if dolikelihood
+#         p1 = [plot()]
+#         if isdefined(:fmodel)
+#             p1 = [plot(x_test,x_test,reshape(broadcast(x->x[i],y_fall),N_test,N_test),t=:contour,fill=true,clim=(0,1),cbar=true,lab="",title="Full_likelihood_$(fmodel.class_mapping[i])") for i in 1:N_class]
+#         end
+#         p2 = [plot()]
+#         if isdefined(:smodel)
+#             p2 = [plot(x_test,x_test,reshape(broadcast(x->x[i],y_sall),N_test,N_test),t=:contour,fill=true,cbar=true,lab="",title="Sparse_likelihood_$(smodel.class_mapping[i])") for i in 1:N_class]
+#         end
+#         display(plot(p1...,p2...))
+#     end
+#
+# end
+# end

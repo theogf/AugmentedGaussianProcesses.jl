@@ -174,11 +174,11 @@ end
 """
     Compute the gradients using a gradient function and matrices Js
 """
-function compute_hyperparameter_gradient(k::KernelSum{T},gradient_function::Function,variance::Bool,Js::Vector{Any},Kindex::Int64,index::Int64) where T
+function compute_hyperparameter_gradient(k::KernelSum{T},gradient_function::Function,Js::Vector{Any},Kindex::Int64,index::Int64) where T
     return [compute_hyperparameter_gradient(kernel,gradient_function,false,broadcast(x->x[j],Js),Kindex,index) for (j,kernel) in enumerate(k.kernel_array)]
 end
 
-function compute_hyperparameter_gradient(k::KernelProduct{T},gradient_function::Function,variance::Bool,Js::Vector{Any},Kindex::Int64,index::Int64) where T
+function compute_hyperparameter_gradient(k::KernelProduct{T},gradient_function::Function,Js::Vector{Any},Kindex::Int64,index::Int64) where T
     gradients = [compute_hyperparameter_gradient(kernel,gradient_function,false,broadcast(x->x[j],Js),Kindex,index) for (j,kernel) in enumerate(k.kernel_array)]
     if variance
         push!(gradients,[gradient_function(broadcast(x->x[end][1],Js),Kindex,index)])
@@ -186,8 +186,9 @@ function compute_hyperparameter_gradient(k::KernelProduct{T},gradient_function::
     return gradients
 end
 
-function compute_hyperparameter_gradient(k::Kernel{T},gradient_function::Function,variance::Bool,Js::Array{Array{T2,1} where T2,1},Kindex::Int64,index::Int64) where T
-    return [gradient_function(broadcast(x->x[j],Js),Kindex,index) for j in 1:k.Ndim]
+function compute_hyperparameter_gradient(k::Kernel{T},gradient_function::Function,Js::Vector{Array{T2,1} where T2},Kindex::Int64,index::Int64) where T
+    return map(gradient_function,Js[1],Js[2],Js[3],Kindex*ones(Int64,k.Ndim),index*ones(Int64,k.Ndim))
+    # return map((jmm,jnm,jnn)->gradient_function([jmm,jnm,jnn],Kindex,index),Js[1],Js[2],Js[3])
 end
 
 

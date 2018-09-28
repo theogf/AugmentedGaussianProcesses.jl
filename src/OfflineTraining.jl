@@ -159,7 +159,7 @@ function computeMatrices!(model::SparseMultiClass)
         else
             kernelmatrix!(model.Knm[1],model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1])
             model.κ .= [model.Knm[1]/model.Kmm[1]]
-            model.Ktilde .= [kerneldiagmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*Knm[1],dims=2)[:]]
+            model.Ktilde .= [kerneldiagmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*model.Knm[1],dims=2)[:]]
         end
         @assert sum(count.(broadcast(x->x.<0,model.Ktilde)))==0 "Ktilde has negative values"
     end
@@ -205,6 +205,7 @@ function MCInit!(model::GPModel)
             model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_η_1,model.η_1,grad_η_2,model.η_2)
             model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η_1,model.η_1,grad_η_2,model.η_2)
         end
+        model.τ .*= model.nSamplesUsed
         model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
         if model.KStochastic
             reinit_variational_parameters!(model) #resize the vectors for class subsampling

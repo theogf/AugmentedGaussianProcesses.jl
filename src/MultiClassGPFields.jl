@@ -231,9 +231,5 @@ function initMultiClassStochastic!(model::GPModel,AdaptiveLearningRate,batchsize
         model.nSamplesUsed = min(floor(Int64,0.1*model.nSamples),50);
     end
     model.StochCoeff = model.nSamples/model.nSamplesUsed
-    if model.IndependentGPs
-        model.τ = 50.0*ones(Float64,model.K);
-    else
-        model.τ = [1.0]
-    end
+    model.τ = 10.0*ones(Float64,model.K);
 end

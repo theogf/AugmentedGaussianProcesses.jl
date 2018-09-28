@@ -79,7 +79,7 @@ function HyperParameters(θ::Vector{T},intervals::Vector{Interval{T,A,B}}) where
     HyperParameters{T}(θ,intervals)
 end
 
-@inline getvalue(θ::HyperParameters{T}) where T= broadcast(getvalue,θ.hyperparameters)
+@inline getvalue(θ::HyperParameters{T}) where T = broadcast(getvalue,θ.hyperparameters)
 
 function Base.getindex(p::HyperParameters{T},it::Integer) where T
     return p.hyperparameters[it]

@@ -68,11 +68,15 @@ function updateHyperParameters!(model::SparseMultiClass)
         apply_gradients_variance!.(model.kernel[model.KIndices],grads_variance)
         # setvariance(model)
     else
-        matrix_derivatives = [[kernelderivativematrix(model.kernel[1],model.inducingPoints[1]),
-                            kernelderivativematrix(model.kernel[1],model.X[model.MBIndices,:],model.inducingPoints[1]),
-                            kernelderivativediagmatrix(model.kernel[1],model.X[model.MBIndices,:])]]
-        grads = compute_hyperparameter_gradient.(model.kernel,hyperparameter_gradient_function(model),true,matrix_derivatives,1,1)
-        apply_gradients!.(model.kernel,grads)
+        matrix_derivatives = [kernelderivativematrix(model.inducingPoints[1],model.kernel[1]),
+                            kernelderivativematrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1]),
+                            kernelderivativediagmatrix(model.X[model.MBIndices,:],model.kernel[1])]
+        (f_l,f_v) = hyperparameter_gradient_function(model)
+        grads_lengthscales = compute_hyperparameter_gradient(model.kernel[1],f_l,matrix_derivatives,1,1)
+        println(grads_lengthscales)
+        grad_variance = f_v(model.kernel[1])
+        apply_gradients_lengthscale!(model.kernel[1],grads_lengthscales)
+        apply_gradients_variance!(model.kernel[1],grad_variance)
     end
     if model.OptimizeInducingPoints
         inducingpoints_gradients = inducingpoints_gradient(model)

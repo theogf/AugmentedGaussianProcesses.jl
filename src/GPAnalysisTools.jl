@@ -37,8 +37,8 @@ function getLog(model;X_test=0,y_test=0,iter_points=vcat(1:1:9,10:5:99,100:50:99
                 push!(metrics,:ELBO,iter,model.elbo())
                 push!(metrics,:mu,iter,model.μ)
                 push!(metrics,:sigma,iter,diag(model.Σ))
-                push!(metrics,:kernel_variance,iter,getindex(model.kernel.variance.value))
-                push!(metrics,:kernel_param,iter,getindex(model.kernel.param[1].value))
+                push!(metrics,:kernel_variance,iter,getvalue(model.kernel.variance))
+                push!(metrics,:kernel_param,iter,getvalue(model.kernel.lengthscales[1]))
         end
     end #end SaveLog
     return metrics,SaveLog
@@ -69,13 +69,13 @@ function getMultiClassLog(model,X_test=0,y_test=0,iter_points=vcat(1:1:9,10:5:99
                 # push!(metrics,:median_neg_log_likelihood,iter,median(-loglike)) #TODO
                 println("Iteration $iter : acc = $(score/length(y_test))")
             end
-            if model.IndependentGPs
-                push!(metrics,:kernel_param_1,iter,getindex(model.kernel[1].param[1].value))
-                push!(metrics,:kernel_param_2,iter,getindex(model.kernel[2].param[1].value))
-                push!(metrics,:kernel_param_3,iter,getindex(model.kernel[3].param[1].value))
-            else
-                push!(metrics,:kernel_param_1,iter,getindex(model.kernel[1].param[1].value))
-            end
+            # if model.IndependentGPs
+            #     push!(metrics,:kernel_param_1,iter,getvalue(model.kernel[1].lengthscales[1]))
+            #     push!(metrics,:kernel_param_2,iter,getvalue(model.kernel[2].lengthscales[1]))
+            #     push!(metrics,:kernel_param_3,iter,getvalue(model.kernel[3].lengthscales[1]))
+            # else
+            #     push!(metrics,:kernel_param_1,iter,getvalue(model.kernel[1].lengthscales[1]))
+            # end
         end
     end #end SaveLog
     return metrics,SaveLog

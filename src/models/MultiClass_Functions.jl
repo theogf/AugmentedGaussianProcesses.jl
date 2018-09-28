@@ -32,7 +32,7 @@ end
 "Compute the variational updates for the sparse GP XGPC"
 function local_update!(model::SparseMultiClass)
     if model.IndependentGPs
-        model.f2 = broadcast((μ,Σ,κ,ktilde)->sqrt.(ktilde+sum((κ*Σ).*κ,dims=2)[:]+(κ*μ).^2),model.μ[model.KIndices],model.Σ[model.KIndices],model.κ,model.Ktilde)
+        model.f2 = broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}},κ::Matrix{Float64},ktilde::Vector{Float64})->sqrt.(ktilde+sum((κ*Σ).*κ,dims=2)[:]+(κ*μ).^2),model.μ[model.KIndices],model.Σ[model.KIndices],model.κ,model.Ktilde)
         if model.KStochastic
             model.K_map = [findnext(x->x==model.y_class[i],model.KIndices,1) for i in model.MBIndices]
             model.θ[1] .= [model.K_map[i] != nothing ? 0.5./model.f2[model.K_map[i]][i]*tanh(0.5*model.f2[model.K_map[i]][i]) : 0 for i in 1:model.nSamplesUsed];
@@ -40,19 +40,23 @@ function local_update!(model::SparseMultiClass)
             model.θ[1] .= [0.5./model.f2[model.y_class[i]][iter]*tanh(0.5*model.f2[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices)];
         end
         for _ in 1:model.nInnerLoops
-            model.γ .= broadcast((f2,κ,μ)->0.5.*model.β./(cosh.(0.5.*f2).*gamma.(model.α[model.MBIndices])).*exp.(-model.α[model.MBIndices]-(1.0.-model.α[model.MBIndices]).*digamma.(model.α[model.MBIndices]).-0.5.*κ*μ),model.f2,model.κ,model.μ[model.KIndices])
+            model.γ .= broadcast((f2::Vector{Float64},κ::Matrix{Float64},μ::Vector{Float64})->0.5.*model.β./(cosh.(0.5.*f2).*gamma.(model.α[model.MBIndices])).*exp.(-model.α[model.MBIndices]-(1.0.-model.α[model.MBIndices]).*digamma.(model.α[model.MBIndices]).-0.5.*κ*μ),model.f2,model.κ,model.μ[model.KIndices])
             model.α[model.MBIndices] .= [1+model.KStochCoeff*sum([gam[i] for gam in model.γ]) for i in 1:model.nSamplesUsed]
         end
     else
-        model.f2 .= broadcast((μ,Σ)->sqrt.(model.Ktilde[1]+sum((model.κ[1]*Σ).*model.κ[1],dims=2)[:]+(model.κ[1]*μ).^2),model.μ[model.KIndices],model.Σ[model.KIndices])
-        K_map = [findnextfindnext(x->x==model.y_class[i],model.KIndices,1) for i in model.MBIndices]
-        model.θ[1] .= [K_map[i] != nothing ? 0.5./model.f2[K_map[i]][i]*tanh(0.5*model.f2[K_map[i]][i]) : 0 for i in model.MBIndices];
+        model.f2 .= broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}})->sqrt.(model.Ktilde[1]+sum((model.κ[1]*Σ).*model.κ[1],dims=2)[:]+(model.κ[1]*μ).^2),model.μ[model.KIndices],model.Σ[model.KIndices])
+        if model.KStochastic
+            model.K_map = [findnext(x->x==model.y_class[i],model.KIndices,1) for i in model.MBIndices]
+            model.θ[1] .= [model.K_map[i] != nothing ? 0.5./model.f2[model.K_map[i]][i]*tanh(0.5*model.f2[model.K_map[i]][i]) : 0 for i in 1:model.nSamplesUsed];
+        else
+            model.θ[1] .= [0.5./model.f2[model.y_class[i]][iter]*tanh(0.5*model.f2[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices)];
+        end
         for l in 1:model.nInnerLoops
-            model.γ .= broadcast((f2,μ)->0.5.*model.β./(cosh.(0.5.*f2).*gamma.(model.α[model.MBIndices])).*exp.(-model.α[model.MBIndices]-(1.0.-model.α[model.MBIndices]).*digamma.(model.α[model.MBIndices]).-0.5.*model.κ[1]*μ),model.f2,model.μ[model.KIndices])
+            model.γ .= broadcast((f2::Vector{Float64},μ::Vector{Float64})->0.5.*model.β./(cosh.(0.5.*f2).*gamma.(model.α[model.MBIndices])).*exp.(-model.α[model.MBIndices]-(1.0.-model.α[model.MBIndices]).*digamma.(model.α[model.MBIndices]).-0.5.*model.κ[1]*μ),model.f2,model.μ[model.KIndices])
             model.α[model.MBIndices] .= [1+model.KStochCoeff*sum([gam[i] for gam in model.γ]) for i in 1:model.nSamplesUsed]
         end
     end
-    model.θ[2:end] .= broadcast((γ,f2)->0.5.*γ./f2.*tanh.(0.5.*f2),model.γ,model.f2)
+    model.θ[2:end] .= broadcast((γ::Vector{Float64},f2::Vector{Float64})->0.5.*γ./f2.*tanh.(0.5.*f2),model.γ,model.f2)
 end
 
 "Compute the variational updates for the sparse GP MultiClass"
@@ -84,12 +88,12 @@ end
 function natural_gradient_MultiClass(model::SparseMultiClass)
     if model.IndependentGPs
         #independent GP priors
-        grad_1 = broadcast((y,κ,γ)->0.5*model.StochCoeff*transpose(κ)*Array(y[model.MBIndices]-γ),model.Y[model.KIndices],model.κ,model.γ)
-        grad_2 = broadcast((y,κ,θ,invKmm)->-0.5*(model.StochCoeff*κ'*Diagonal(y[model.MBIndices].*model.θ[1]+θ)*κ+invKmm),model.Y[model.KIndices],model.κ,model.θ[2:end],model.invKmm[model.KIndices])
+        grad_1 = broadcast((y::SparseVector{Int64,Int64},κ::Matrix{Float64},γ::Vector{Float64})->0.5*model.StochCoeff*transpose(κ)*Array(y[model.MBIndices]-γ),model.Y[model.KIndices],model.κ,model.γ)
+        grad_2 = broadcast((y::SparseVector{Int64,Int64},κ::Matrix{Float64},θ::Vector{Float64},invKmm::Symmetric{Float64,Matrix{Float64}})->-0.5*(model.StochCoeff*κ'*Diagonal(y[model.MBIndices].*model.θ[1]+θ)*κ+invKmm),model.Y[model.KIndices],model.κ,model.θ[2:end],model.invKmm[model.KIndices])
     else
         #Shared inducing points
-        grad_1 = broadcast((y,γ)->0.5*model.StochCoeff*model.κ[1]'*Array(y[model.MBIndices]-γ),model.Y[KIndices],model.γ)
-        grad_2 = broadcast((y,theta)->-0.5*(model.StochCoeff*model.κ[1]'*(Diagonal(y[model.MBIndices].*model.θ[1]+θ))*model.κ[1]+model.invKmm[1]),model.Y[model.KIndices],model.θ[2:end])
+        grad_1 = broadcast((y::SparseVector{Int64,Int64},γ::Vector{Float64})->0.5*model.StochCoeff*model.κ[1]'*Array(y[model.MBIndices]-γ),model.Y[model.KIndices],model.γ)
+        grad_2 = broadcast((y::SparseVector{Int64,Int64},θ::Vector{Float64})->-0.5*(model.StochCoeff*model.κ[1]'*(Diagonal(y[model.MBIndices].*model.θ[1]+θ))*model.κ[1]+model.invKmm[1]),model.Y[model.KIndices],model.θ[2:end])
     end
     return grad_1, grad_2
 end
@@ -116,13 +120,14 @@ function ELBO(model::SparseMultiClass)
                       sum((model.StochCoeff*κ'*Diagonal(y[model.MBIndices].*model.θ[1]+theta)*κ+invK).*(sigma+mu*(mu')))-
                       model.StochCoeff*dot(y[model.MBIndices].*model.θ[1]+theta,ktilde),model.Y[model.KIndices],model.γ,model.μ[model.KIndices],model.θ[2:end],
                       model.Σ[model.KIndices],model.invKmm[model.KIndices],model.κ,model.Ktilde))
+        ELBO_v += 0.5*model.KStochCoeff*sum(logdet.(model.invKmm[model.KIndices]).+logdet.(model.Σ[model.KIndices]))
     else
         ELBO_v += 0.5*model.KStochCoeff*sum(broadcast((y,gam,mu,theta,sigma)->model.StochCoeff*dot(y[model.MBIndices]-gam,model.κ[1]*mu)-
                       sum((model.StochCoeff*model.κ[1]'*Diagonal(y[model.MBIndices].*model.θ[1]+theta)*model.κ[1]+model.invKmm[1]).*(sigma+mu*(mu')))-
                       model.StochCoeff*dot(y[model.MBIndices].*model.θ[1]+theta,model.Ktilde[1]),
                       model.Y[model.KIndices],model.γ,model.μ[model.KIndices],model.θ[2:end],model.Σ[model.KIndices]))
+        ELBO_v += 0.5*(model.K*logdet(model.invKmm[1])+model.KStochCoeff*sum(logdet.(model.Σ[model.KIndices])))
     end
-    ELBO_v += 0.5*model.KStochCoeff*sum(logdet.(model.invKmm[model.KIndices]).+logdet.(model.Σ[model.KIndices]))
     ELBO_v += model.StochCoeff*model.KStochCoeff*sum(broadcast((gam,f2,theta)->dot(gam,-log(2).-log.(gam).+1.0.+digamma.(model.α[model.MBIndices])-log.(model.β))-sum(log.(cosh.(0.5*f2)))+0.5*dot(f2,f2.*theta),model.γ,model.f2,model.θ[2:end]))
     if model.KStochastic
         ELBO_v += model.StochCoeff*model.KStochCoeff*sum([model.K_map[i] != nothing ? -log.(cosh.(0.5*model.f2[model.K_map[i]][i]))-0.5*model.θ[1][i]*(model.f2[model.K_map[i]][i]^2) : 0 for i in 1:model.nSamplesUsed])
@@ -159,41 +164,44 @@ end
 """Return the gradient of the ELBO given the kernel hyperparameters"""
 function hyperparameter_gradient_function(model::SparseMultiClass)
     #General values used for all gradients
-    F2 = broadcast((μ,Σ)->Symmetric(μ*transpose(μ) + Σ),model.μ[model.KIndices],model.Σ[model.KIndices])
-    C = broadcast((y,θ)->Array(y[model.MBIndices].*model.θ[1]).+θ,model.Y[model.KIndices],model.θ[2:end])
-    KC = transpose.(model.κ[model.KIndices]).*Diagonal.(C)
+    F2 = broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}})->Symmetric(μ*transpose(μ) + Σ),model.μ[model.KIndices],model.Σ[model.KIndices])
+    C = broadcast((y::SparseVector{Int64,Int64},θ::Vector{Float64})->Array(y[model.MBIndices].*model.θ[1]).+θ,model.Y[model.KIndices],model.θ[2:end])
     if model.IndependentGPs
-        return (function(Js::Array{AbstractArray{T,N} where N,1},Kindex::Int64,index::Int64) where {T}
-            #matrices Js derivative of : [1]Kmm, [2]Knm, [3]Knn
-                    Jmm = Js[1]::Symmetric{T,Matrix{T}}; Jnm =Js[2]::Matrix{T}; Jnn = Js[3]::Vector{T};
+        KC = transpose.(model.κ).*Diagonal.(C)
+        return (function(Jmm::LinearAlgebra.Symmetric{Float64,Matrix{Float64}},Jnm::Matrix{T},Jnn::Vector{T},Kindex::Int64,index::Int64) where {T}
                     ι = (Jnm-model.κ[index]*Jmm)*model.invKmm[Kindex]
                     Jtilde = Jnn - sum(ι.*model.Knm[index],dims=2)[:] - sum(model.κ[index].*Jnm,dims=2)[:]
                     V = model.invKmm[Kindex]*Jmm
                     A = add_transpose!(KC[index]*ι)
-                    tot = sum((V*model.invKmm[Kindex]).*F2[index])-model.StochCoeff*sum(A.*F2[index])
-                    tot += - tr(V) - model.StochCoeff*dot(C[index],Jtilde)
-                    tot += model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex])
-                    return 0.5*tot
-                    # return 0.5*(sum((V*model.invKmm[Kindex]).*F2[index])-model.StochCoeff*sum(add_transpose!(KC[index]*ι).*F2[index])
-                            # - tr(V) - model.StochCoeff*dot(C[index],Jtilde)
-                            # + model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex]))
+                    # tot = sum((V*model.invKmm[Kindex]).*F2[index])-model.StochCoeff*sum(A.*F2[index])
+                    # tot += - tr(V) - model.StochCoeff*dot(C[index],Jtilde)
+                    # tot += model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex])
+                    # return 0.5*tot
+                    return 0.5*(sum((V*model.invKmm[Kindex]).*F2[index])-model.StochCoeff*sum(A.*F2[index])
+                            - tr(V)
+                            - model.StochCoeff*dot(C[index],Jtilde)
+                            + model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex]))
          end, #end of function(Js)
                 function(kernel::Kernel,Kindex::Int64,index::Int64)
                     # println(mean(F2[index]))
                     return 0.5/(getvalue(kernel.variance))*(sum(model.invKmm[Kindex].*F2[index])-model.StochCoeff * dot(C[index],model.Ktilde[index])-model.m)
                 end)
     else
-        return function(Js,Kindex,index)
-            #matrices Js: [1]Kmm, [2]invKmm, [3]κ
-                    Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
+        KC = broadcast(c->transpose(model.κ[1])*Diagonal(c),C)
+        return (function(Jmm::LinearAlgebra.Symmetric{Float64,Matrix{Float64}},Jnm::Matrix{T},Jnn::Vector{T},Kindex::Int64,index::Int64) where {T}
                     ι = (Jnm-model.κ[1]*Jmm)/model.Kmm[1]
-                    Jtilde = Jnn - sum(ι.*model.Knm[1],dims=2) - sum(model.κ[1].*Jnm,dims=2)
-                    A = add_transpose(transpose(model.κ[1]).*Diagonal.(C).*ι)
-                    V = model.Kmm[1]\Jmm
-                    return sum(broadcast((a,c,y,γ,μ)->                0.5*model.KStochCoeff*(sum((V/model.Kmm[1]-model.StochCoeff*a).*f2')
-                        -tr(V)-model.StochCoeff*dot(c,Jtilde)
-                        + model.StochCoeff*dot(y[model.MBIndices]-γ,ι*μ)),
-                        A,C,model.Y[model.KIndices],model.γ,model.μ[model.KIndices])) #arguments
-        end#end of function(Js)
-    end
+                    Jtilde = Jnn - sum(ι.*model.Knm[1],dims=2)[:] - sum(model.κ[1].*Jnm,dims=2)[:]
+                    A = broadcast(kc::Matrix{T}->add_transpose!(kc*ι),KC)
+                    V = model.invKmm[1]*Jmm
+                    TraceV = -tr(V)
+                    return 0.5*(model.KStochCoeff*sum(broadcast((f2,a,c,y,γ,μ)->                (sum((V*model.invKmm[1]).*f2)-sum(a.*f2)*model.StochCoeff)
+                        -model.StochCoeff*dot(c,Jtilde)
+                        + model.StochCoeff*dot(Array(y[model.MBIndices])-γ,ι*μ),
+                        F2,A,C,model.Y[model.KIndices],model.γ,model.μ[model.KIndices]))+model.K*TraceV)
+        end,#end of function(Js)
+        function(kernel::Kernel)
+            # println(mean(F2[index]))
+            return 0.5/(getvalue(kernel.variance))*sum(broadcast((f2,c)->sum(model.invKmm[1].*f2)-model.StochCoeff * dot(c,model.Ktilde[1])-model.m,F2,C))
+        end)
+       end
 end
