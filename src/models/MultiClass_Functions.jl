@@ -28,33 +28,33 @@ function global_update!(model::MultiClass)
     model.μ[model.KIndices] .= model.Σ[model.KIndices].*model.η_1[model.KIndices] #Back to the distribution parameters (needed for α updates)
 end
 
+"Return variational parameter gamma"
+function local_gamma(f2::Vector{Float64},κ::Matrix{Float64},μ::Vector{Float64},β::Vector{Float64},α::Vector{Float64})
+    return 0.5.*β./(cosh.(0.5.*f2).*gamma.(α)).*exp.(-α-(1.0.-α).*digamma.(α).-0.5.*κ*μ)
+end
+
+"Return the approximate variational parameter γ for large α"
+function approx_local_gamma(f2::Vector{Float64},κ::Matrix{Float64},μ::Vector{Float64},β::Vector{Float64},α::Vector{Float64})
+    return 0.5.*β./(cosh.(0.5.*f2)).*exp.(-(1.0.-α).*digamma.(α).-(α.-0.5).*log.(α).-0.5*log(2*pi).-0.5.*κ*μ)
+end
 
 "Compute the variational updates for the sparse GP XGPC"
 function local_update!(model::SparseMultiClass)
-    if model.IndependentGPs
-        model.f2 = broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}},κ::Matrix{Float64},ktilde::Vector{Float64})->sqrt.(ktilde+sum((κ*Σ).*κ,dims=2)[:]+(κ*μ).^2),model.μ[model.KIndices],model.Σ[model.KIndices],model.κ,model.Ktilde)
-        if model.KStochastic
-            model.K_map = [findnext(x->x==model.y_class[i],model.KIndices,1) for i in model.MBIndices]
-            model.θ[1] .= [model.K_map[i] != nothing ? 0.5./model.f2[model.K_map[i]][i]*tanh(0.5*model.f2[model.K_map[i]][i]) : 0 for i in 1:model.nSamplesUsed];
-        else
-            model.θ[1] .= [0.5./model.f2[model.y_class[i]][iter]*tanh(0.5*model.f2[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices)];
-        end
-        for _ in 1:model.nInnerLoops
-            model.γ .= broadcast((f2::Vector{Float64},κ::Matrix{Float64},μ::Vector{Float64})->0.5.*model.β./(cosh.(0.5.*f2).*gamma.(model.α[model.MBIndices])).*exp.(-model.α[model.MBIndices]-(1.0.-model.α[model.MBIndices]).*digamma.(model.α[model.MBIndices]).-0.5.*κ*μ),model.f2,model.κ,model.μ[model.KIndices])
-            model.α[model.MBIndices] .= [1+model.KStochCoeff*sum([gam[i] for gam in model.γ]) for i in 1:model.nSamplesUsed]
-        end
+    model.f2 = broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}},κ::Matrix{Float64},ktilde::Vector{Float64})->sqrt.(ktilde+sum((κ*Σ).*κ,dims=2)[:]+(κ*μ).^2),model.μ[model.KIndices],model.Σ[model.KIndices],model.κ,model.Ktilde)
+    if model.KStochastic
+        model.K_map = [findnext(x->x==model.y_class[i],model.KIndices,1) for i in model.MBIndices]
+        model.θ[1] .= [model.K_map[i] != nothing ? 0.5./model.f2[model.K_map[i]][i]*tanh(0.5*model.f2[model.K_map[i]][i]) : 0 for i in 1:model.nSamplesUsed];
     else
-        model.f2 .= broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}})->sqrt.(model.Ktilde[1]+sum((model.κ[1]*Σ).*model.κ[1],dims=2)[:]+(model.κ[1]*μ).^2),model.μ[model.KIndices],model.Σ[model.KIndices])
-        if model.KStochastic
-            model.K_map = [findnext(x->x==model.y_class[i],model.KIndices,1) for i in model.MBIndices]
-            model.θ[1] .= [model.K_map[i] != nothing ? 0.5./model.f2[model.K_map[i]][i]*tanh(0.5*model.f2[model.K_map[i]][i]) : 0 for i in 1:model.nSamplesUsed];
+        model.θ[1] .= [0.5./model.f2[model.y_class[i]][iter]*tanh(0.5*model.f2[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices)];
+    end
+    for _ in 1:model.nInnerLoops
+        if maximum(model.α) < 50
+
+            model.γ .= broadcast(local_gamma,model.f2,model.κ,model.μ[model.KIndices],[model.β],[model.α[model.MBIndices]])
         else
-            model.θ[1] .= [0.5./model.f2[model.y_class[i]][iter]*tanh(0.5*model.f2[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices)];
+            model.γ .= broadcast(approx_local_gamma,model.f2,model.κ,model.μ[model.KIndices],[model.β],[model.α[model.MBIndices]])
         end
-        for l in 1:model.nInnerLoops
-            model.γ .= broadcast((f2::Vector{Float64},μ::Vector{Float64})->0.5.*model.β./(cosh.(0.5.*f2).*gamma.(model.α[model.MBIndices])).*exp.(-model.α[model.MBIndices]-(1.0.-model.α[model.MBIndices]).*digamma.(model.α[model.MBIndices]).-0.5.*model.κ[1]*μ),model.f2,model.μ[model.KIndices])
-            model.α[model.MBIndices] .= [1+model.KStochCoeff*sum([gam[i] for gam in model.γ]) for i in 1:model.nSamplesUsed]
-        end
+        model.α[model.MBIndices] .= [1+model.KStochCoeff*sum([gam[i] for gam in model.γ]) for i in 1:model.nSamplesUsed]
     end
     model.θ[2:end] .= broadcast((γ::Vector{Float64},f2::Vector{Float64})->0.5.*γ./f2.*tanh.(0.5.*f2),model.γ,model.f2)
 end
@@ -86,15 +86,8 @@ end
 
 """Compute the natural gradient of the ELBO given the natural parameters"""
 function natural_gradient_MultiClass(model::SparseMultiClass)
-    if model.IndependentGPs
-        #independent GP priors
-        grad_1 = broadcast((y::SparseVector{Int64,Int64},κ::Matrix{Float64},γ::Vector{Float64})->0.5*model.StochCoeff*transpose(κ)*Array(y[model.MBIndices]-γ),model.Y[model.KIndices],model.κ,model.γ)
-        grad_2 = broadcast((y::SparseVector{Int64,Int64},κ::Matrix{Float64},θ::Vector{Float64},invKmm::Symmetric{Float64,Matrix{Float64}})->-0.5*(model.StochCoeff*κ'*Diagonal(y[model.MBIndices].*model.θ[1]+θ)*κ+invKmm),model.Y[model.KIndices],model.κ,model.θ[2:end],model.invKmm[model.KIndices])
-    else
-        #Shared inducing points
-        grad_1 = broadcast((y::SparseVector{Int64,Int64},γ::Vector{Float64})->0.5*model.StochCoeff*model.κ[1]'*Array(y[model.MBIndices]-γ),model.Y[model.KIndices],model.γ)
-        grad_2 = broadcast((y::SparseVector{Int64,Int64},θ::Vector{Float64})->-0.5*(model.StochCoeff*model.κ[1]'*(Diagonal(y[model.MBIndices].*model.θ[1]+θ))*model.κ[1]+model.invKmm[1]),model.Y[model.KIndices],model.θ[2:end])
-    end
+    grad_1 = broadcast((y::SparseVector{Int64,Int64},κ::Matrix{Float64},γ::Vector{Float64})->0.5*model.StochCoeff*transpose(κ)*Array(y[model.MBIndices]-γ),model.Y[model.KIndices],model.κ,model.γ)
+    grad_2 = broadcast((y::SparseVector{Int64,Int64},κ::Matrix{Float64},θ::Vector{Float64},invKmm::Symmetric{Float64,Matrix{Float64}})->-0.5*(model.StochCoeff*κ'*Diagonal(y[model.MBIndices].*model.θ[1]+θ)*κ+invKmm),model.Y[model.KIndices],model.κ,model.θ[2:end],model.invKmm[model.IndependentGPs ? model.KIndices : :])
     return grad_1, grad_2
 end
 

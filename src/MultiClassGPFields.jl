@@ -163,7 +163,7 @@ function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool)
     model.m = m; model.nFeatures = model.m;
     model.OptimizeInducingPoints = optimizeIndPoints
     model.optimizer = Adam();
-    model.nInnerLoops = 1;
+    model.nInnerLoops = 5;
     Ninst_per_K = countmap(model.y)
     Ninst_per_K = [Ninst_per_K[model.class_mapping[i]] for i in 1:model.K]
     if model.VerboseLevel>2

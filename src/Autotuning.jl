@@ -75,6 +75,7 @@ function updateHyperParameters!(model::SparseMultiClass)
         grads_lengthscales = compute_hyperparameter_gradient(model.kernel[1],f_l,matrix_derivatives,1,1)
         println(grads_lengthscales)
         grad_variance = f_v(model.kernel[1])
+        println(grad_variance)
         apply_gradients_lengthscale!(model.kernel[1],grads_lengthscales)
         apply_gradients_variance!(model.kernel[1],grad_variance)
     end
