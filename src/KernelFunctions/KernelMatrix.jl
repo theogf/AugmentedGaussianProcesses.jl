@@ -1,13 +1,11 @@
 """
     Create the kernel matrix from the training data or the correlation matrix one of set of vectors
 """
+
 function kernelmatrix(X1::Array{T,N},X2::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     K = pairwise(metric(kernel),X1',X2')
     v = getvalue(kernel.variance)
-    @inbounds for i in eachindex(K)
-        K[i] = v*compute(kernel,K[i])
-    end
-    return K
+    return map!(x->v*compute(kernel,x),K,K)
 end
 
 function kernelmatrix!(K::Array{T,N},X1::Array{T,N},X2::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
@@ -16,19 +14,13 @@ function kernelmatrix!(K::Array{T,N},X1::Array{T,N},X2::Array{T,N},kernel::Kerne
     @assert n2==size(X2,1)
     pairwise!(K,metric(kernel),X1',X2')
     v = getvalue(kernel.variance)
-    @inbounds for i in eachindex(K)
-        K[i] = v*compute(kernel,K[i])
-    end
-    return K
+    return map!(x->v*compute(kernel,x),K,K)
 end
 
 function kernelmatrix(X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     K = pairwise(metric(kernel),X')
     v = getvalue(kernel.variance)
-    @inbounds for i in eachindex(K)
-        K[i] = v*compute(kernel,K[i])
-    end
-    return K
+    return map!(x->v*compute(kernel,x),K,K)
 end
 
 
@@ -38,10 +30,7 @@ function kernelmatrix!(K::Array{T,N},X::Array{T,N},kernel::Kernel{T,KT}) where {
     @assert n1==n2
     pairwise!(K,metric(kernel),X')
     v = getvalue(kernel.variance)
-    @inbounds for i in in eachindex(K)
-        K[i] = v*compute(kernel,K[i])
-    end
-    return K
+    return map!(x->v*compute(kernel,x),K,K)
 end
 
 function kerneldiagmatrix(X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}

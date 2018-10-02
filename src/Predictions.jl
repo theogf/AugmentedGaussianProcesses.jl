@@ -119,36 +119,22 @@ Return also the variance if `covf=true`
 """
 function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
-        if model.IndependentGPs
-            model.TopMatrixForPrediction = model.invKmm.*model.μ
-        else
-            model.TopMatrixForPrediction = model.invKmm.*model.μ
-        end
+        model.TopMatrixForPrediction = model.invKmm.*model.μ
     end
     if covf && model.DownMatrixForPrediction == 0
-        if model.IndependentGPs
-            model.DownMatrixForPrediction = broadcast((Σ,invKmm)->invKmm*(Diagonal{Float64}(I,model.nFeatures)-Σ*invKmm),model.Σ,model.invKmm)
-        else
-            model.DownMatrixForPrediction = broadcast((Σ)->(model.invKmm[1]*(Diagonal{Float64}(I,model.nFeatures)-Σ*model.invKmm[1])),model.Σ)
-        end
+        model.DownMatrixForPrediction = broadcast((Σ,invKmm)->invKmm*(Diagonal{Float64}(I,model.nFeatures)-Σ*invKmm),model.Σ,model.invKmm)
     end
-    if model.IndependentGPs
-        k_star = broadcast((points,kernel)->kernelmatrix(X_test,points,kernel),model.inducingPoints,model.kernel)
-    else
-        k_star = [kernelmatrix(X_test,model.inducingPoints[1],model.kernel[1])]
-    end
+    k_star = broadcast((points,kernel)->kernelmatrix(X_test,points,kernel),model.inducingPoints,model.kernel)
     mean_fstar = k_star.*model.TopMatrixForPrediction
+    println()
     if !covf
         return mean_fstar
-    else
-        if model.IndependentGPs
-            k_starstar = kerneldiagmatrix.([X_test],model.kernel)
-        else
-            k_starstar = [kerneldiagmatrix(X_test,model.kernel[1])]
-        end
-        cov_fstar = broadcast((x,ks,kss)->(kss .- sum((ks*x).*ks,dims=2)),model.DownMatrixForPrediction,k_star,k_starstar)
-        return mean_fstar,cov_fstar
     end
+    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
+    cov_fstar = [zeros(Float64,size(X_test,1)) for _ in 1:model.K]
+    cov_fstar .= broadcast((x,ks,kss)->(kss .- sum((ks*x).*ks,dims=2)[:]),model.DownMatrixForPrediction,k_star,k_starstar)
+    println(size(cov_fstar[1]))
+    return mean_fstar,cov_fstar
 end
 
 "Return the predicted class {-1,1} with a linear model via the probit link"
