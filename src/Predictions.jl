@@ -307,16 +307,45 @@ function multiclasspredictproba(model::SparseMultiClass,X_test::Array{T,N},covf:
     return m_predic,cov_predic
 end
 
-function multiclasspredictprobamcmc(model::MultiClass,X_test,NSamples=100)
+function expec_logit(f::Vector{T},μ::Vector{T},σ::Vector{T},result::Vector{T}) where {T}
+    return result[:]=[sigma_max(f,c)*prod(pdf.(Normal.(μ,sqrt.(σ)),f)) for c in 1:length(f)]
+end
+
+function expecsquare_logit(f::Vector{T},μ::Vector{T},σ::Vector{T},result::Vector{T}) where {T}
+    return result[:]=[sigma_max(f,c)^2*prod(pdf.(Normal.(μ,sqrt.(σ)),f)) for c in 1:length(f)]
+end
+
+
+function multiclasspredictproba_cubature(model::SparseMultiClass,X_test::Array{T,N},covf::Bool=false) where {T,N}
+    n = size(X_test,1)
+    m_f,cov_f = fstar(model,X_test)
+    m_predic = [zeros(T,model.K) for _ in 1:n]
+    m_f = hcat(m_f...)
+    m_f = [m_f[i,:] for i in 1:n]
+    cov_f = hcat(cov_f...)
+    cov_f = [cov_f[i,:] for i in 1:n]
+    m_predic .= broadcast((μ,σ)->hcubature(model.K,(x,r)->expec_logit(x,μ,σ,r),μ.-10.0.*sqrt.(σ),μ.+10.0.*sqrt.(σ),abstol=1e-4)[1],m_f,cov_f)
+    if !covf
+        return m_predic
+    end
+    println("Computed Mean")
+    cov_predic = [zeros(T,model.K) for _ in 1:n]
+    cov_predic .= broadcast((μ,σ,μ_pred)->hcubature(model.K,(x,r)->expecsquare_logit(x,μ,σ,r),μ.-10.0.*sqrt.(σ),μ.+10.0.*sqrt.(σ),abstol=1e-4)[1] .- μ_pred.^2,m_f,cov_f,m_predic)
+    println("Computed Variance")
+    return m_predic,cov_predic
+end
+
+
+function multiclasspredictprobamcmc(model,X_test::Array{T,N},NSamples=100) where {T,N}
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
     m_f = hcat(m_f...)
     m_f = [m_f[i,:] for i in 1:n]
     cov_f = hcat(cov_f...)
     cov_f = [cov_f[i,:] for i in 1:n]
-    stack_preds = Array{Array{Any,1},1}(n);
-    m_pred_mc = Array{Array{Float64,1},1}(n)
-    sig_pred_mc = Array{Array{Float64,1},1}(n)
+    stack_preds = Vector{Vector{Any}}(n);
+    m_pred_mc = Vector{Vector{T}}(n)
+    sig_pred_mc = Vector{Vector{T}}(n)
     for i in 1:n
         preds = []
         if i%100 == 0
@@ -333,9 +362,13 @@ function multiclasspredictprobamcmc(model::MultiClass,X_test,NSamples=100)
     return m_pred_mc,sig_pred_mc
 end
 
+"Return the modified softmax likelihood given the latent functions"
+function sigma_max(f::Vector{T},index::Integer) where {T}
+    return logit(f[index])/sum(logit.(f))
+end
 
 "Return the modified softmax likelihood given the array of 'σ' and their sum (can be given via sumsig)"
-function mod_soft_max(σ::Array{Float64,1},sumsig::Float64=0.0)
+function mod_soft_max(σ::Vector{T},sumsig::T=zero(T)) where {T}
     return sumsig == 0 ? σ./(sum(σ)) : σ./sumsig
 end
 

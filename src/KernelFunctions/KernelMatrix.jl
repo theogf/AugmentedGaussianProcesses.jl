@@ -74,7 +74,7 @@ function kernelderivativematrix(X::Array{T,N},kernel::RBFKernel{T,PlainKernel}) 
     @inbounds for i in eachindex(K)
         K[i] = compute(kernel,P[i]/(l^2))
     end
-    return v./(l^3).*P.*K
+    return Symmetric(v./(l^3).*P.*K)
 end
 
 "When K has already been computed"
@@ -82,7 +82,7 @@ function kernelderivativematrix_K(X::Array{T,N},K::Symmetric{T,Array{T,N}},kerne
     P = pairwise(SqEuclidean(),X')
     v = getvalue(kernel.variance)
     ls = getvalue(kernel.lengthscales[1])
-    return v./(l^3).*P.*K
+    return Symmetric(v./(l^3).*P.*K)
 end
 
 function kernelderivativematrix(X::Array{T,N},kernel::RBFKernel{T,ARDKernel}) where {T,N}
@@ -191,6 +191,10 @@ function compute_hyperparameter_gradient(k::Kernel{T},gradient_function::Functio
     # return map((jmm,jnm,jnn)->gradient_function([jmm,jnm,jnn],Kindex,index),Js[1],Js[2],Js[3])
 end
 
+function compute_hyperparameter_gradient(k::Kernel{T,PlainKernel},gradient_function::Function,Js::Array{AbstractArray{Float64,N} where N,1},Kindex::Int64,index::Int64) where T
+    return gradient_function(Js[1],Js[2],Js[3],Kindex,index)
+    # return map((jmm,jnm,jnn)->gradient_function([jmm,jnm,jnn],Kindex,index),Js[1],Js[2],Js[3])
+end
 
 """
     Compute derivative matrices given the data points
