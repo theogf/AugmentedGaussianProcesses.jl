@@ -1,4 +1,4 @@
-module HyperParametersMod
+module HyperParametersModule
 using GradDescent
 import Base: convert, eltype, promote_type, show, string, ==, *, /, +, -, ^, isless;
 

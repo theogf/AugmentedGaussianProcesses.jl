@@ -126,14 +126,12 @@ function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
     end
     k_star = broadcast((points,kernel)->kernelmatrix(X_test,points,kernel),model.inducingPoints,model.kernel)
     mean_fstar = k_star.*model.TopMatrixForPrediction
-    println()
     if !covf
         return mean_fstar
     end
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
     cov_fstar = [zeros(Float64,size(X_test,1)) for _ in 1:model.K]
     cov_fstar .= broadcast((x,ks,kss)->(kss .- sum((ks*x).*ks,dims=2)[:]),model.DownMatrixForPrediction,k_star,k_starstar)
-    println(size(cov_fstar[1]))
     return mean_fstar,cov_fstar
 end
 
@@ -314,10 +312,8 @@ function multiclasspredictproba_cubature(model::SparseMultiClass,X_test::Array{T
     if !covf
         return m_predic
     end
-    println("Computed Mean")
     cov_predic = [zeros(T,model.K) for _ in 1:n]
     cov_predic .= broadcast((μ,σ,μ_pred)->hcubature(model.K,(x,r)->expecsquare_logit(x,μ,σ,r),μ.-10.0.*sqrt.(σ),μ.+10.0.*sqrt.(σ),abstol=1e-4)[1] .- μ_pred.^2,m_f,cov_f,m_predic)
-    println("Computed Variance")
     return m_predic,cov_predic
 end
 
@@ -330,20 +326,21 @@ function multiclasspredictprobamcmc(model,X_test::Array{T,N},NSamples=100) where
     cov_f = hcat(cov_f...)
     cov_f = [cov_f[i,:] for i in 1:n]
     stack_preds = Vector{Vector{Any}}(n);
-    m_pred_mc = Vector{Vector{T}}(n)
-    sig_pred_mc = Vector{Vector{T}}(n)
+    m_pred_mc = [zeros(model.K) for _ in 1:n]
+    sig_pred_mc = [zeros(model.K) for _ in 1:n]
     for i in 1:n
-        preds = []
         if i%100 == 0
             println("$i/$n points predicted with sampling ($NSamples samples)")
         end
-        for samp in 1:NSamples
+        for j in 1:NSamples
             samp = logit.(broadcast((m,cov)->rand(Normal(m,cov)),m_f[i],cov_f[i]))
             norm_sig = sum(samp)
-            push!(preds,mod_soft_max(samp,norm_sig))
+            v = mod_soft_max(samp,norm_sig)
+            m_pred_mc[i] .+= v
+            sig_pred_mc[i] .+= v.^2
         end
-        m_pred_mc[i]=mean(preds)
-        sig_pred_mc[i]=cov.([broadcast(x->x[j],preds) for j in 1:model.K])
+        m_pred_mc[i] ./= NSamples
+        sig_pred_mc[i] .= sig_pred_mc[i]./NSamples .- m_pred_mc[i].^2
     end
     return m_pred_mc,sig_pred_mc
 end

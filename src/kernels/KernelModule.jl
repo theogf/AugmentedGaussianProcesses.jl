@@ -1,6 +1,3 @@
-# """
-
-# """
 """
      Module for the kernel functions, also create kernel matrices
      Mostly from the list http://crsouza.com/2010/03/17/kernel-functions-for-machine-learning-applications/
@@ -12,44 +9,8 @@ module KernelFunctions
 
 using LinearAlgebra
 using Distances
-include("HyperParameters/HyperParametersMod.jl")
-using .HyperParametersMod:
-    Bound,
-        OpenBound,
-        ClosedBound,
-        NullBound,
-
-    Interval,
-    interval,
-
-    HyperParameter,
-    HyperParameters,
-    getvalue,
-    setvalue!,
-    checkvalue,
-    gettheta,
-    checktheta,
-    settheta!,
-    lowerboundtheta,
-    upperboundtheta,
-    update!,
-    setfixed!,
-    setfree!
-
-
-"Macro giving common fields for all kernels"
-macro kernelfunctionfields()
-    return esc(quote
-        name::String #Name of the kernel function
-        variance::HyperParameter{T} #variance of the kernel
-        lengthscales::HyperParameters{T}
-        Ndim::Int64 #Number of lengthscales
-        params::HyperParameters{T} #Parameters of the kernel
-        Nparam::Int64 #Number of parameters
-        metric::Metric
-    end)
-end
-
+include("hyperparameters/HyperParametersModule.jl")
+using .HyperParametersModule
 
 import Base: *, +, getindex
 export Kernel, KernelSum, KernelProduct
@@ -62,7 +23,7 @@ export InnerProduct, SquaredEuclidean, Identity
 export compute,plotkernel
 export getvalue,setvalue!,setfixed!,setfree!
 
-abstract type KernelType end
+abstract type KernelType end;
 
 abstract type ARDKernel <: KernelType end;
 
@@ -70,11 +31,29 @@ abstract type PlainKernel <: KernelType end;
 
 abstract type KernelCombination <: KernelType end;
 
+
+"Macro giving common fields for all kernels"
+mutable struct KernelFields{T,KT} where {T<:Real,KT<:KernelType}
+    name::String #Name of the kernel function
+    variance::HyperParameter{T} #variance of the kernel
+    lengthscales::HyperParameters{T} #lengthscale variables
+    Ndim::Int64 #Number of lengthscales
+    metric::Metric
+end
+
+# params::HyperParameters{T} #Parameters of the kernel
+# Nparam::Int64 #Number of parameters
 "Abstract type for all kernels"
-abstract type Kernel{T<:AbstractFloat, KT<: KernelType} end;
+abstract type Kernel{T<:Real, KT<:KernelType} end;
 
+"Return the metric of a kernel"
+function metric(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType}
+    return k.metric
+end
 
-
+include("KernelSum.jl")
+include("KernelProduct.jl")
+include("RBFKernel.jl")
 
 
 "Standard conversion when giving scalar and not vectors"
@@ -82,222 +61,11 @@ function compute(k::Kernel{T,KT},X1::T,X2::T) where {T<:Real,KT<:KernelType}
     compute(k,[X1],[X2])
 end
 
-"Structure to combine kernels together by addition, can be created by using the constructor with an array or simply using Base.+"
-mutable struct KernelSum{T<:AbstractFloat,KernelCombination} <: Kernel{T,KernelCombination}
-    @kernelfunctionfields()
-    kernel_array::Vector{Kernel} #Array of summed kernels
-    Nkernels::Int64 #Number of kernels
-    "Inner KernelSum constructor taking an array of kernels"
-    function KernelSum{T,KernelCombination}(kernels::AbstractArray) where {T<:AbstractFloat}
-        this = new("Sum of kernels")
-        this.kernel_array = deepcopy(kernels)
-        this.Nkernels = length(this.kernel_array)
-        this.distance = Identity
-        return this
-    end
-end
-
-"Apply kernel functions on vector"
-function compute(k::KernelSum{T,KernelCombination},X1::Vector{T},X2::Vector{T},variance::Bool=true) where {T}
-    sum = 0.0
-    for kernel in k.kernel_array
-        sum += compute(kernel,X1,X2)
-    end
-    return sum
-end
-
-"Compute kernel gradients given the vectors"
-function compute_deriv(k::KernelSum{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where {T}
-    deriv_values = Vector{Vector{Any}}()
-    for kernel in k.kernel_array
-        push!(deriv_values,compute_deriv{T}(kernel,X1,X2,true))
-    end
-    return deriv_values
-end
-
-function compute_point_deriv(k::KernelSum{T},X1,X2) where {T}
-    deriv_values = zeros(X1)
-    for kernel in k.kernel_array
-        deriv_values += getvalue(kernel.variance)*compute_point_deriv{T}(kernel,X1,X2)
-    end
-    return deriv_values
-end
-
-function Base.:+(a::Kernel{T},b::Kernel{T}) where T
-    return KernelSum{T}([a,b])
-end
-function Base.:+(a::KernelSum{T},b::Kernel{T}) where T
-    return KernelSum{T}(vcat(a.kernel_array,b))
-end
-function Base.:+(a::Kernel{T},b::KernelSum{T}) where T
-    return KernelSum{T}(vcat(a,b.kernel_array))
-end
-function Base.:+(a::KernelSum{T},b::KernelSum{T}) where T
-    return KernelSum{T}(vcat(a.kernel_array,b.kernel_array))
-end
-
-"Return the kernel at index i of the kernel sum"
-function Base.getindex(a::KernelSum{T},i::Int64) where T
-    return a.kernel_array[i]
-end
-"Structure to combine kernels together by addition, can be created by using the constructor with an array or simply using Base.*"
-mutable struct KernelProduct{T<:AbstractFloat,KernelCombination} <: Kernel{T,KernelCombination}
-    @kernelfunctionfields
-    kernel_array::Vector{Kernel} #Array of multiplied kernels
-    Nkernels::Int64 #Number of multiplied kernels
-    "Inner KernelProduct constructor taking an array of kernels"
-    function KernelProduct{T}(kernels::Vector{Kernel{T}}) where {T<:AbstractFloat}
-        this = new{T,KernelCombination}("Product of kernels",
-                HyperParameter{T}(1.0,interval(OpenBound(zero(T)),nothing),fixed=false),
-                HyperParameters{T}(),
-                0,
-                HyperParameters{T}()
-                )
-        this.kernel_array = deepcopy(Vector{Kernel}(kernels))
-        this.Nkernels = length(this.kernel_array)
-        this.distance = Identity
-        return this
-    end
-end
-
-"Apply kernel functions on vector"
-function compute(k::KernelProduct{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    product = 1.0
-    for kernel in k.kernel_array
-        product *= compute(kernel,X1,X2,false)
-    end
-    return (variance ? getvalue(k.variance) : 1.0) * product
-end
-
-"Compute kernel gradients given the vectors"
-function compute_deriv(k::KernelProduct{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    tot = compute(k,X1,X2)
-    deriv_values = Vector{Vector{Any}}()
-    for kernel in k.kernel_array
-        push!(deriv_values,compute_deriv(kernel,X1,X2,false).*tot./compute(kernel,X1,X2,false))
-    end
-    if variance
-        push!(deriv_values,[tot])
-    end
-    return deriv_values
-end
-
-function compute_point_deriv(k::KernelProduct{T},X1::Vector{T},X2::Vector{T}) where T
-    tot = compute(k,X1,X2)
-    deriv_values = zeros(X1)
-    for kernel in k.kernel_array
-        #This should be checked TODO
-        deriv_values += compute_point_deriv(kernel,X1,X2).*tot./compute(kernel,X1,X2)
-    end
-    return deriv_values
-end
-
-function Base.:*(a::Kernel{T},b::Kernel{T}) where T
-    return KernelProduct{T}([a,b])
-end
-function Base.:*(a::KernelProduct{T},b::Kernel{T}) where T
-    return KernelProduct{T}(vcat(a.kernel_array,b))
-end
-function Base.:*(a::KernelProduct{T},b::KernelSum{T}) where T
-    return KernelProduct{T}(vcat(a.kernel_array,b.kernel_array))
-end
-function Base.getindex(a::KernelProduct{T},i::Int64) where T
-    return a.kernel_array[i]
-end
+"Function to determine most adapted type between a selection"
 function floattype(T_i::DataType...)
     T_max = promote_type(T_i...)
     T_max <: AbstractFloat ? T_max : Float64
 end
-
-"""
-    Gaussian (RBF) Kernel
-"""
-mutable struct RBFKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
-    name::String #Name of the kernel function
-    variance::HyperParameter{T} #variance of the kernel
-    lengthscales::HyperParameters{T}
-    Ndim::Int64 #Number of lengthscales
-    metric::PreMetric
-    function RBFKernel{T,KT}(θ::Vector{T};variance::T=one(T),dim::Integer=0) where {T<:AbstractFloat,KT<:KernelType}
-        if KT == ARDKernel
-            if length(θ)==1 && dim ==0
-                error("You defined an ARD RBF kernel without precising the number of dimensions or giving a vector for the lengthscale                   Please set dim in your kernel initialization")
-            elseif dim!=0 && (length(θ)!=dim && length(θ)!=1)
-                @warn "You did not use the same dimension for your params and dim, using the first value of params for all dimensions"
-                θ = ones(dim,T=T)*θ[1]
-            elseif length(θ)==1 && dim!=0
-                θ = ones(dim)*θ[1]
-            end
-            return new{T,ARDKernel}("RBF (ARD)",
-            HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
-            HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}()) for _ in 1:dim]),
-            dim,
-            WeightedSqEuclidean(one(T)./(θ.^2)))
-        else
-            return new{T,PlainKernel}("RBF",
-            HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
-            HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}())]),
-            1,
-            SqEuclidean())
-        end
-    end
-end
-
-function RBFKernel(θ::T1=1.0;variance::T2=one(T1),dim::Integer=0,ARD::Bool=false) where {T1<:Real,T2<:Real}
-    if ARD
-        RBFKernel{floattype(T1,T2),ARDKernel}([θ],variance=variance,dim=dim)
-    else
-        RBFKernel{floattype(T1,T2),PlainKernel}([θ],variance=variance)
-    end
- end
-
-function RBFKernel(θ::Array{T1,1};variance::T2=one(T1),dim::Integer=0) where {T1<:Real,T2<:Real}
-    RBFKernel{floattype(T1,T2),ARDKernel}(θ,variance=variance,dim=dim)
-end
-
-"Apply kernel functions on vector"
-function compute(k::RBFKernel{T,PlainKernel},z::T) where {T,KT}
-    return exp(-0.5*z/(getvalue(k.lengthscales[1]))^2)
-end
-
-function compute(k::RBFKernel{T,ARDKernel},z::T) where {T,KT}
-    return exp(-0.5*z)
-end
-
-function compute!(k::RBFKernel{T,PlainKernel},z::T) where {T,KT}
-    return z = exp(-0.5*z/(getvalue(k.lengthscales[1]))^2)
-end
-
-function compute!(k::RBFKernel{T,ARDKernel},z::T) where {T,KT}
-    return z = exp(-0.5*z)
-end
-
-function metric(k::Kernel{T,KT}) where {T,KT}
-    return k.metric
-end
-
-function updateweights!(k::Kernel{T,KT},w::Vector{T}) where {T,KT}
-    k.metric.weights .= 1.0./(w.^2)
-end
-#
-# "Compute kernel gradients given the vectors"
-# function compute_deriv(k::RBFKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-#     a = k.distance(X1,X2)
-#     if variance
-#         return [getvalue(k.variance)*a^2/(getvalue(k.param[1])^3),1.0].*compute(k,X1,X2,false)
-#     else
-#         return [a^2/(getvalue(k.param[1])^3)*compute(k,X1,X2,false)]
-#     end
-# end
-#
-# #TODO probably not right
-# function compute_point_deriv(k::RBFKernel{T},X1::Vector{T},X2::Vector{T}) where T
-#     if X1 == X2
-#         return zeros(X1)
-#     else
-#         return getvalue(k.variance)*(-(X1-X2))./((k.param[1])^2).*compute(k,X1,X2)
-#     end
-# end
 
 """
     Laplace Kernel
