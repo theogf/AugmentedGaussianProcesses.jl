@@ -5,17 +5,37 @@
      RBFKernel, LaplaceKernel, SigmoidKernel, ARDKernel, PolynomialKernel, Matern3_2Kernel, Matern5_2Kernel
      Arguments are kernel specific, see for each one
 """
-module KernelFunctions
+module KernelModule
 
 using LinearAlgebra
 using Distances
 include("hyperparameters/HyperParametersModule.jl")
-using .HyperParametersModule
+using .HyperParametersModule:
+    Bound,
+        OpenBound,
+        ClosedBound,
+        NullBound,
+    Interval,
+        interval,
+    HyperParameter,
+    HyperParameters,
+        getvalue,
+        setvalue!,
+        checkvalue,
+        gettheta,
+        checktheta,
+        settheta!,
+        lowerboundtheta,
+        upperboundtheta,
+        update!,
+        setfixed!,
+        setfree!
 
 import Base: *, +, getindex
 export Kernel, KernelSum, KernelProduct
 export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2Kernel, Matern5_2Kernel
-export kernelmatrix,kernelmatrix!,kerneldiagmatrix,kerneldiagmatrix!,computeIndPointsJ
+export kernelmatrix,kernelmatrix!,kerneldiagmatrix,kerneldiagmatrix!
+export computeIndPointsJ
 export kernelderivativematrix,kernelderivativediagmatrix,compute_hyperparameter_gradient
 export apply_gradients_lengthscale!, apply_gradients_variance!, apply_gradients!
 export kernelderivativematrix_K,kernelderivativediagmatrix_K
@@ -33,12 +53,12 @@ abstract type KernelCombination <: KernelType end;
 
 
 "Macro giving common fields for all kernels"
-mutable struct KernelFields{T,KT} where {T<:Real,KT<:KernelType}
+mutable struct KernelFields{T,KT}
     name::String #Name of the kernel function
     variance::HyperParameter{T} #variance of the kernel
     lengthscales::HyperParameters{T} #lengthscale variables
     Ndim::Int64 #Number of lengthscales
-    metric::Metric
+    metric::PreMetric
 end
 
 # params::HyperParameters{T} #Parameters of the kernel
@@ -47,14 +67,28 @@ end
 abstract type Kernel{T<:Real, KT<:KernelType} end;
 
 "Return the metric of a kernel"
-function metric(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType}
-    return k.metric
+function getmetric(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType}
+    return k.fields.metric
 end
+
+function getvariance(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType}
+    return getvalue(k.fields.variance)
+end
+
+function getlengthscales(k::Kernel{T,PlainKernel}) where {T<:Real}
+    return getvalue(k.fields.lengthscales[1])
+end
+
+function getlengthscales(k::Kernel{T,ARDKernel}) where {T<:Real}
+    return getvalue(k.fields.lengthscales)
+end
+
 
 include("KernelSum.jl")
 include("KernelProduct.jl")
 include("RBFKernel.jl")
-
+include("KernelMatrix.jl")
+include("KernelMatrixDerivatives.jl")
 
 "Standard conversion when giving scalar and not vectors"
 function compute(k::Kernel{T,KT},X1::T,X2::T) where {T<:Real,KT<:KernelType}
@@ -66,130 +100,131 @@ function floattype(T_i::DataType...)
     T_max = promote_type(T_i...)
     T_max <: AbstractFloat ? T_max : Float64
 end
-
-"""
-    Laplace Kernel
-"""
-mutable struct LaplaceKernel{T,KT<:KernelType} <: Kernel{T,KT}
-    @kernelfunctionfields
-    function LaplaceKernel{T,KT}(θ::T=1.0;variance::T=1.0,dim::Integer=0,ARD::Bool=false) where {T<:AbstractFloat,KT<:KernelType}
-        return new("Laplace",
-        HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
-        HyperParameters{T}([θ],[interval(OpenBound(zero(T)),nothing)]),
-        1,SquaredEuclidean)
-    end
-end
-
-function LaplaceKernel(θ::T1=1.0;variance::T2=one(T1)) where {T1<:Real,T2<:Real}
-     LaplaceKernel{floattype(T1,T2)}(θ,variance=variance)
- end
-
-"Apply kernel functions on vector"
-function compute(k::LaplaceKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    if X1 == X2
-      return (variance ? getvalue(k.variance) : 1.0)
-    end
-    return (variance ? getvalue(k.variance) : 1.0)*exp(-k.distance(X1,X2)/(k.param[1]))
-end
 #
-"Compute kernel gradients given the vectors"
-function compute_deriv(k::LaplaceKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    a = k.distance(X1,X2)
-    if a != 0
-        grad = a/((k.param[1])^2)*compute(k,X1,X2)
-        if variance
-            return [getvalue(k.variance)*grad,compute(k,X1,X2)]
-        else
-            return [grad]
-        end
-    else
-      return [0.0]
-    end
-end
-
-#TODO Not correct
-function compute_point_deriv(k::LaplaceKernel{T},X1::Vector{T},X2::Vector{T}) where T
-    if X1 == X2
-        return zeros(X1)
-    else
-        return getvalue(k.variance)*(-(X1-X2))./(k.param[1]^2).*compute(k,X1,X2)
-    end
-end
-
-"""
-    Sigmoid Kernel
-    tanh(p1*d+p2)
-"""
-mutable struct SigmoidKernel{T,KT<:KernelType} <: Kernel{T,KT}
-    @kernelfunctionfields
-    function SigmoidKernel{T,KT}(θ::Vector{T}=[1.0,0.0],variance::Float64=1.0,dim::Integer=0,ARD::Bool=false) where {T<:Real,KT<:KernelType}
-        return new("Sigmoid",
-        HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
-        HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()), interval(NullBound{T}(),NullBound{T}())]),
-        length(θ),InnerProduct)
-    end
-end
-function SigmoidKernel(θ::Vector{T1}=[1.0,0.0];variance::T2=one(T1)) where {T1<:Real,T2<:Real}
-     SigmoidKernel{floattype(T1,T2)}(θ,variance=variance)
- end
-
-"Apply kernel functions on vector"
-function compute(k::SigmoidKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    return (variance ? getvalue(k.variance) : 1.0)*tanh(k.param[1]*k.distance(X1,X2)+k.param[2])
-end
+# """
+#     Laplace Kernel
+# """
+# mutable struct LaplaceKernel{T,KT<:KernelType} <: Kernel{T,KT}
+#     @kernelfunctionfields
+#     function LaplaceKernel{T,KT}(θ::T=1.0;variance::T=1.0,dim::Integer=0,ARD::Bool=false) where {T<:AbstractFloat,KT<:KernelType}
+#         return new("Laplace",
+#         HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
+#         HyperParameters{T}([θ],[interval(OpenBound(zero(T)),nothing)]),
+#         1,SquaredEuclidean)
+#     end
+# end
 #
-"Compute kernel gradients given the vectors"
-function compute_deriv(k::SigmoidKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-
-    grad_1 = k.distance(X1,X2)*(1-compute(k,X1,X2)^2)
-    grad_2 = (1-compute(k,X1,X2)^2)
-    if variance
-        return [getvalue(k.variance)*grad_1,getvalue(k.variance)*grad_2,compute(k,X1,X2)]
-    else
-        return [grad_1,grad_2]
-    end
-end
-
-function compute_point_deriv(k::SigmoidKernel{T},X1::Vector{T},X2::Vector{T}) where T
-    return k.param[1]*X2.*(1-compute(k,X1,X2)^2)
-end
-
-"""
-    Polynomial Kernel
-    (p1*d+p2)^p3
-"""
-mutable struct PolynomialKernel{T,KT<:KernelType} <: Kernel{T,KT}
-    @kernelfunctionfields
-    function PolynomialKernel{T,KT}(θ::Vector{T}=[1.0,0.0,2.0];variance::T=1.0) where {T<:Real,KT<:KernelType}
-        return new("Polynomial",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
-                                HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()) for i in 1:length(θ)]),
-                                length(θ),InnerProduct)
-    end
-end
-function PolynomialKernel(θ::Vector{T1}=[1.0,0.0,2.0];variance::T2=one(T1)) where {T1<:Real,T2<:Real}
-     PolynomialKernel{floattype(T1,T2)}(θ,variance=variance)
- end
-
-"Apply kernel functions on vector"
-function compute(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    return (variance ? getvalue(k.variance) : 1.0)*(k.param[1]*k.distance(X1,X2)+k.param[2])^getvalue(k.param[3])
-end
+# function LaplaceKernel(θ::T1=1.0;variance::T2=one(T1)) where {T1<:Real,T2<:Real}
+#      LaplaceKernel{floattype(T1,T2)}(θ,variance=variance)
+#  end
 #
-"Compute kernel gradients given the vectors"
-function compute_deriv(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    grad_1 = k.param[3]*k.distance(X1,X2)*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
-    grad_2 = k.param[3]*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
-    grad_3 = log(k.param[1]*k.distance(X1,X2)+k.param[2])*compute(k,X1,X2)
-    if variance
-        return [getvalue(k.variance)*grad_1,getvalue(k.variance)*grad_2,getvalue(k.variance)*grad_3,compute(k,X1,X2)]
-    else
-        return [grad_1,grad_2,grad_3]
-    end
-end
-
-function compute_point_deriv(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T}) where T
-    return k.param[3]*k.param[1]*X2*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
-end
+# "Apply kernel functions on vector"
+# function compute(k::LaplaceKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     if X1 == X2
+#       return (variance ? getvalue(k.variance) : 1.0)
+#     end
+#     return (variance ? getvalue(k.variance) : 1.0)*exp(-k.distance(X1,X2)/(k.param[1]))
+# end
+# #
+# "Compute kernel gradients given the vectors"
+# function compute_deriv(k::LaplaceKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     a = k.distance(X1,X2)
+#     if a != 0
+#         grad = a/((k.param[1])^2)*compute(k,X1,X2)
+#         if variance
+#             return [getvalue(k.variance)*grad,compute(k,X1,X2)]
+#         else
+#             return [grad]
+#         end
+#     else
+#       return [0.0]
+#     end
+# end
+#
+# #TODO Not correct
+# function compute_point_deriv(k::LaplaceKernel{T},X1::Vector{T},X2::Vector{T}) where T
+#     if X1 == X2
+#         return zeros(X1)
+#     else
+#         return getvalue(k.variance)*(-(X1-X2))./(k.param[1]^2).*compute(k,X1,X2)
+#     end
+# end
+#
+# """
+#     Sigmoid Kernel
+#     tanh(p1*d+p2)
+# """
+# mutable struct SigmoidKernel{T,KT<:KernelType} <: Kernel{T,KT}
+#     @kernelfunctionfields
+#     function SigmoidKernel{T,KT}(θ::Vector{T}=[1.0,0.0],variance::Float64=1.0,dim::Integer=0,ARD::Bool=false) where {T<:Real,KT<:KernelType}
+#         return new("Sigmoid",
+#         HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
+#         HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()), interval(NullBound{T}(),NullBound{T}())]),
+#         length(θ),InnerProduct)
+#     end
+# end
+# function SigmoidKernel(θ::Vector{T1}=[1.0,0.0];variance::T2=one(T1)) where {T1<:Real,T2<:Real}
+#      SigmoidKernel{floattype(T1,T2)}(θ,variance=variance)
+#  end
+#
+# "Apply kernel functions on vector"
+# function compute(k::SigmoidKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     return (variance ? getvalue(k.variance) : 1.0)*tanh(k.param[1]*k.distance(X1,X2)+k.param[2])
+# end
+# #
+# "Compute kernel gradients given the vectors"
+# function compute_deriv(k::SigmoidKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#
+#     grad_1 = k.distance(X1,X2)*(1-compute(k,X1,X2)^2)
+#     grad_2 = (1-compute(k,X1,X2)^2)
+#     if variance
+#         return [getvalue(k.variance)*grad_1,getvalue(k.variance)*grad_2,compute(k,X1,X2)]
+#     else
+#         return [grad_1,grad_2]
+#     end
+# end
+#
+# function compute_point_deriv(k::SigmoidKernel{T},X1::Vector{T},X2::Vector{T}) where T
+#     return k.param[1]*X2.*(1-compute(k,X1,X2)^2)
+# end
+#
+# """
+#     Polynomial Kernel
+#     (p1*d+p2)^p3
+# """
+# mutable struct PolynomialKernel{T,KT<:KernelType} <: Kernel{T,KT}
+#     @kernelfunctionfields
+#     function PolynomialKernel{T,KT}(θ::Vector{T}=[1.0,0.0,2.0];variance::T=1.0) where {T<:Real,KT<:KernelType}
+#         return new("Polynomial",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
+#                                 HyperParameters{T}(θ,[interval(NullBound{T}(),NullBound{T}()) for i in 1:length(θ)]),
+#                                 length(θ),InnerProduct)
+#     end
+# end
+# function PolynomialKernel(θ::Vector{T1}=[1.0,0.0,2.0];variance::T2=one(T1)) where {T1<:Real,T2<:Real}
+#      PolynomialKernel{floattype(T1,T2)}(θ,variance=variance)
+#  end
+#
+# "Apply kernel functions on vector"
+# function compute(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     return (variance ? getvalue(k.variance) : 1.0)*(k.param[1]*k.distance(X1,X2)+k.param[2])^getvalue(k.param[3])
+# end
+# #
+# "Compute kernel gradients given the vectors"
+# function compute_deriv(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     grad_1 = k.param[3]*k.distance(X1,X2)*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
+#     grad_2 = k.param[3]*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
+#     grad_3 = log(k.param[1]*k.distance(X1,X2)+k.param[2])*compute(k,X1,X2)
+#     if variance
+#         return [getvalue(k.variance)*grad_1,getvalue(k.variance)*grad_2,getvalue(k.variance)*grad_3,compute(k,X1,X2)]
+#     else
+#         return [grad_1,grad_2,grad_3]
+#     end
+# end
+#
+# function compute_point_deriv(k::PolynomialKernel{T},X1::Vector{T},X2::Vector{T}) where T
+#     return k.param[3]*k.param[1]*X2*(k.param[1]*k.distance(X1,X2)+k.param[2])^(k.param[3]-1)
+# end
+###################################################### OLD STUFF
 #
 # """
 #     ARD Kernel
@@ -255,82 +290,82 @@ end
 #     end
 #     return -2*[((X1[i]-X2[i])/getvalue(k.param[i]))^2 for i in 1:length(X1)]#.*compute(k,X1,X2)
 # end
-
-"""
-    Matern 3/2 Kernel
-    d= ||X1-X2||^2
-    (1+\frac{√(3)d}{ρ})exp(-\frac{√(3)d}{ρ})
-"""
-mutable struct Matern3_2Kernel{T,KT<:KernelType} <: Kernel{T,KT}
-    @kernelfunctionfields
-    function Matern3_2Kernel{T,KT}(θ::Float64=1.0;variance::Float64=1.0) where {T<:Real,KT<:KernelType}
-        return new("Matern3_2Kernel",HyperParameter(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
-                                    HyperParameters([θ],[interval(OpenBound{T}(zero(T)),NullBound{T}())]),
-                                    length(θ),SquaredEuclidean)
-    end
-end
-function Matern3_2Kernel(θ::T1=1.0;variance::T2=one(T1)) where {T1<:Real,T2<:Real}
-     Matern3_2Kernel{floattype(T1,T2)}(θ,variance=variance)
- end
-"Apply kernel functions on vector"
-function compute(k::Matern3_2Kernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    d = sqrt(3.0)*k.distance(X1,X2)
-    return (variance ? getvalue(k.variance) : 1.0)*(1.0+d/k.param[1])*exp(-d/k.param[1])
-end
 #
-"Compute kernel gradients given the vectors"
-function compute_deriv(k::Matern3_2Kernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    d = sqrt(3.0)*k.distance(X1,X2)
-    grad_1 = -d*(1+d/k.param[1]+1/(k.param[1])^2)*exp(-d/k.param[1])
-    if variance
-        return [getvalue(k.variance)*grad_1,compute(k,X1,X2)]
-    else
-        return [grad_1]
-    end
-end
-
-function compute_point_deriv(k::Matern3_2Kernel{T},X1::Vector{T},X2::Vector{T}) where T
-    ### TODO
-end
-
-"""
-    Matern 5/2 Kernel
-    d= ||X1-X2||^2
-    (1+\frac{√(5)d}{ρ}+\frac{5d^2}{3ρ^2})exp(-\frac{-√(5)d}{ρ})
-"""
-mutable struct Matern5_2Kernel{T,KT<:KernelType} <: Kernel{T,KT}
-    @kernelfunctionfields
-    function Matern5_2Kernel{T,KT}(θ::T=1.0;variance::T=1.0) where {T<:Real,KT<:KernelType}
-        return new("Matern5_2Kernel",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}())),
-                                    HyperParameters{T}([θ],[interval(OpenBound{T}(zero(T)),NullBound{T}())]),
-                                    length(θ),SquaredEuclidean)
-    end
-end
-
-function Matern5_2Kernel(θ::T1=1.0;variance::T2=one(T1)) where {T1<:Real,T2<:Real}
-     Matern5_2Kernel{floattype(T1,T2)}(θ,variance=variance)
- end
-
-"Apply kernel functions on vector"
-function compute(k::Matern5_2Kernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    d = sqrt(5.0)*k.distance(X1,X2)
-    return (variance ? getvalue(k.variance) : 1.0)*(1.0+d/k.param[1]+d^2/(3.0*k.param[1]^2))*exp(-d/k.param[1])
-end
+# """
+#     Matern 3/2 Kernel
+#     d= ||X1-X2||^2
+#     (1+\frac{√(3)d}{ρ})exp(-\frac{√(3)d}{ρ})
+# """
+# mutable struct Matern3_2Kernel{T,KT<:KernelType} <: Kernel{T,KT}
+#     @kernelfunctionfields
+#     function Matern3_2Kernel{T,KT}(θ::Float64=1.0;variance::Float64=1.0) where {T<:Real,KT<:KernelType}
+#         return new("Matern3_2Kernel",HyperParameter(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
+#                                     HyperParameters([θ],[interval(OpenBound{T}(zero(T)),NullBound{T}())]),
+#                                     length(θ),SquaredEuclidean)
+#     end
+# end
+# function Matern3_2Kernel(θ::T1=1.0;variance::T2=one(T1)) where {T1<:Real,T2<:Real}
+#      Matern3_2Kernel{floattype(T1,T2)}(θ,variance=variance)
+#  end
+# "Apply kernel functions on vector"
+# function compute(k::Matern3_2Kernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     d = sqrt(3.0)*k.distance(X1,X2)
+#     return (variance ? getvalue(k.variance) : 1.0)*(1.0+d/k.param[1])*exp(-d/k.param[1])
+# end
+# #
+# "Compute kernel gradients given the vectors"
+# function compute_deriv(k::Matern3_2Kernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     d = sqrt(3.0)*k.distance(X1,X2)
+#     grad_1 = -d*(1+d/k.param[1]+1/(k.param[1])^2)*exp(-d/k.param[1])
+#     if variance
+#         return [getvalue(k.variance)*grad_1,compute(k,X1,X2)]
+#     else
+#         return [grad_1]
+#     end
+# end
 #
-"Compute kernel gradients given the vectors"
-function compute_deriv(k::Matern5_2Kernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
-    d = sqrt(5.0)*k.distance(X1,X2)
-    grad_1 = -d*(1+d^2/k.param[1]+(3*d+d^3)/(3*k.param[1]^2)+2*d^2/(3*k.param[1]^3))*exp(-d/k.param[1])
-    if variance
-        return [getvalue(k.variance)*grad_1,compute(k,X1,X2)]
-    else
-        return [grad_1]
-    end
-end
-
-function compute_point_deriv(k::Matern5_2Kernel{T},X1::Vector{T},X2::Vector{T}) where T
-    ### TODO
-end
+# function compute_point_deriv(k::Matern3_2Kernel{T},X1::Vector{T},X2::Vector{T}) where T
+#     ### TODO
+# end
+#
+# """
+#     Matern 5/2 Kernel
+#     d= ||X1-X2||^2
+#     (1+\frac{√(5)d}{ρ}+\frac{5d^2}{3ρ^2})exp(-\frac{-√(5)d}{ρ})
+# """
+# mutable struct Matern5_2Kernel{T,KT<:KernelType} <: Kernel{T,KT}
+#     @kernelfunctionfields
+#     function Matern5_2Kernel{T,KT}(θ::T=1.0;variance::T=1.0) where {T<:Real,KT<:KernelType}
+#         return new("Matern5_2Kernel",HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}())),
+#                                     HyperParameters{T}([θ],[interval(OpenBound{T}(zero(T)),NullBound{T}())]),
+#                                     length(θ),SquaredEuclidean)
+#     end
+# end
+#
+# function Matern5_2Kernel(θ::T1=1.0;variance::T2=one(T1)) where {T1<:Real,T2<:Real}
+#      Matern5_2Kernel{floattype(T1,T2)}(θ,variance=variance)
+#  end
+#
+# "Apply kernel functions on vector"
+# function compute(k::Matern5_2Kernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     d = sqrt(5.0)*k.distance(X1,X2)
+#     return (variance ? getvalue(k.variance) : 1.0)*(1.0+d/k.param[1]+d^2/(3.0*k.param[1]^2))*exp(-d/k.param[1])
+# end
+# #
+# "Compute kernel gradients given the vectors"
+# function compute_deriv(k::Matern5_2Kernel{T},X1::Vector{T},X2::Vector{T},variance::Bool=true) where T
+#     d = sqrt(5.0)*k.distance(X1,X2)
+#     grad_1 = -d*(1+d^2/k.param[1]+(3*d+d^3)/(3*k.param[1]^2)+2*d^2/(3*k.param[1]^3))*exp(-d/k.param[1])
+#     if variance
+#         return [getvalue(k.variance)*grad_1,compute(k,X1,X2)]
+#     else
+#         return [grad_1]
+#     end
+# end
+#
+# function compute_point_deriv(k::Matern5_2Kernel{T},X1::Vector{T},X2::Vector{T}) where T
+#     ### TODO
+# end
 
 # type Kernel
 #     name::String #Type of function
@@ -496,7 +531,5 @@ function apply_gradients!(kernel::KernelProduct,gradients,variance::Bool=true)
         update!(kernel.variance,gradients[end][1]);
     end
 end
-
-include("KernelMatrix.jl")
 
 end #end of module

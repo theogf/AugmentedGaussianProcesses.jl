@@ -31,7 +31,7 @@ include("KMeansModule.jl")
 include("PGSampler.jl")
 include("PerturbativeCorrection.jl")
 #Custom modules
-using .KernelFunctions
+using .KernelModule
 using .KMeansModule
 using .PGSampler
 using .PerturbativeCorrection
@@ -57,7 +57,7 @@ export MultiClass, SparseMultiClass
 export GPModel, OnlineGPModel, OfflineGPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 #Useful functions
 export getLog, getMultiClassLog
-export Kernel, kerneldiagmatrix, kernelmatrix, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
+export Kernel, kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 export Matern3_2Kernel, Matern5_2Kernel
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 export setvalue!,getvalue,setfixed!,setfree!

@@ -1,23 +1,23 @@
 "Create the kernel matrix from the training data or the correlation matrix one of set of vectors"
 function kernelmatrix(X1::Array{T,N},X2::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
-    K = pairwise(metric(kernel),X1',X2')
-    v = getvalue(kernel.variance)
-    return map!(x->v*compute(kernel,x),K,K)
+    K = pairwise(getmetric(kernel),X1',X2')
+    v = getvariance(kernel)
+    return v.*map!(kappa(kernel),K,K)
 end
 
 function kernelmatrix!(K::Array{T,N},X1::Array{T,N},X2::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     (n1,n2) = size(K)
     @assert n1==size(X1,1)
     @assert n2==size(X2,1)
-    pairwise!(K,metric(kernel),X1',X2')
-    v = getvalue(kernel.variance)
-    return map!(x->v*compute(kernel,x),K,K)
+    pairwise!(K,getmetric(kernel),X1',X2')
+    v = getvariance(kernel)
+    return v.*map!(kappa(kernel),K,K)
 end
 
 function kernelmatrix(X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
-    K = pairwise(metric(kernel),X')
-    v = getvalue(kernel.variance)
-    return map!(x->v*compute(kernel,x),K,K)
+    K = pairwise(getmetric(kernel),X')
+    v = getvariance(kernel)
+    return v.*map!(kappa(kernel),K,K)
 end
 
 
@@ -25,32 +25,33 @@ function kernelmatrix!(K::Array{T,N},X::Array{T,N},kernel::Kernel{T,KT}) where {
     (n1,n2) = size(K)
     @assert n1==size(X,1)
     @assert n1==n2
-    pairwise!(K,metric(kernel),X')
-    v = getvalue(kernel.variance)
-    return map!(x->v*compute(kernel,x),K,K)
+    pairwise!(K,getmetric(kernel),X')
+    v = getvariance(kernel)
+    return v.*map!(kappa(kernel),K,K)
 end
 
 function kerneldiagmatrix(X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     n = size(X,1)
     K = zeros(T,n)
-    v = getvalue(kernel.variance)
-    @inbounds for i in eachindex(K)
-        K[i] = v*compute(kernel,evaluate(metric(kernel),X[i,:],X[i,:]))
+    v = getvariance(kernel)
+    f = kappa(kernel)
+    @simd for i in eachindex(K)
+        @inbounds K[i] = f(evaluate(getmetric(kernel),X[i,:],X[i,:]))
     end
-    return K
+    return v.*K
 end
 
-function kerneldiagmatrix!(K::Array{T,N},X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
+function kerneldiagmatrix!(K::Vector{T},X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     n = size(K,1)
     @assert n == size(X,1)
-    v = getvalue(kernel.variance)
-    @inbounds for i in 1:n
-        K[i] = v*compute(kernel,evaluate(metric(kernel),X[i,:],X[i,:]))
+    v = getvariance(kernel)
+    f = kappa(kernel)
+    @simd for i in eachindex(K)
+        @inbounds K[i] = f(evaluate(getmetric(kernel),X[i,:],X[i,:]))
     end
+    K .*= v
     return K
 end
-
-############# DERIVATIVE MATRICES ##############
 
 
 """

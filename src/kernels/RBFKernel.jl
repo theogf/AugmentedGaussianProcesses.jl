@@ -2,7 +2,7 @@
 """
     Gaussian (RBF) Kernel
 """
-mutable struct RBFKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
+struct RBFKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
     fields::KernelFields{T,KT}
     function RBFKernel{T,KT}(θ::Vector{T};variance::T=one(T),dim::Integer=0) where {T<:AbstractFloat,KT<:KernelType}
         if KT == ARDKernel
@@ -44,14 +44,14 @@ end
 
 @inline rbfkernel(z::T, l::T) where {T<:Real} = exp(-0.5*z/(l^2))
 
-@inline rbfkernel(z::T) where {T:Real} = exp(-0.5*z)
+@inline rbfkernel(z::Real) = exp(-0.5*z)
 
-function kappa(k::RBFKernel{T,PlainKernel},z::T) where {T,KT}
-    return rbfkernel(z,getvalue(k.lengthscales[1]))
+function kappa(k::RBFKernel{T,PlainKernel}) where {T<:Real,KT}
+    return z->rbfkernel(z,getlengthscales(k))
 end
 
-function kappa(k::RBFKernel{T,ARDKernel},z::T) where {T,KT}
-    return rbfkernel(z)
+function kappa(k::RBFKernel{T,ARDKernel}) where {T<:Real,KT}
+    return z->rbfkernel(z)
 end
 
 function updateweights!(k::RBFKernel{T,KT},w::Vector{T}) where {T,KT}

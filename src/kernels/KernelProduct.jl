@@ -1,7 +1,7 @@
 
 "Structure to combine kernels together by multiplication, can be created by using the constructor with an array or simply using Base.*"
 mutable struct KernelProduct{T<:AbstractFloat,KernelCombination} <: Kernel{T,KernelCombination}
-    @kernelfunctionfields
+    # @kernelfunctionfields
     kernel_array::Vector{Kernel} #Array of multiplied kernels
     Nkernels::Int64 #Number of multiplied kernels
     "Inner KernelProduct constructor taking an array of kernels"

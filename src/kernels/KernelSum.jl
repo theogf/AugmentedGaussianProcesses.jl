@@ -1,6 +1,6 @@
 "Structure to combine kernels together by addition, can be created by using the constructor with an array or simply using Base.+"
 mutable struct KernelSum{T<:AbstractFloat,KernelCombination} <: Kernel{T,KernelCombination}
-    @kernelfunctionfields()
+    # @kernelfunctionfields()
     kernel_array::Vector{Kernel} #Array of summed kernels
     Nkernels::Int64 #Number of kernels
     "Inner KernelSum constructor taking an array of kernels"
