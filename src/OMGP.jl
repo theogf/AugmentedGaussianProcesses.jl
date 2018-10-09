@@ -27,15 +27,15 @@ abstract type FullBatchModel <: NonLinearModel end
 
 
 include("kernels/KernelModule.jl")
-include("KMeansModule.jl")
-include("PGSampler.jl")
-include("PerturbativeCorrection.jl")
+include("kmeans/KMeansModule.jl")
+include("functions/PGSampler.jl")
+include("functions/PerturbativeCorrection.jl")
 #Custom modules
 using .KernelModule
 using .KMeansModule
 using .PGSampler
 using .PerturbativeCorrection
-include("GPAnalysisTools.jl")
+include("functions/GPAnalysisTools.jl")
 using .GPAnalysisTools
 #General modules
 using Distributions
