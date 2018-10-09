@@ -17,8 +17,8 @@ end
 
 function kernelderivativematrix(X::Array{T,N},kernel::RBFKernel{T,ARDKernel}) where {T,N}
     v = getvariance(kernel); ls = getlengthscales(kernel)
-    K = pairwise(metric(kernel),X')
-    Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:kernel.Ndim]
+    K = pairwise(getmetric(kernel),X')
+    Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:length(ls)]
     map!(kappa(kernel),K,K)
     return Symmetric.(map((pi,l)->v./(l^3).*pi.*K,Pi,ls))
 end
@@ -26,7 +26,7 @@ end
 "When K has already been computed"
 function kernelderivativematrix_K(X::Array{T,N},K::Symmetric{T,Array{T,N}},kernel::RBFKernel{T,ARDKernel}) where {T,N}
     v = getvariance(kernel); ls = getlengthscales(kernel)
-    Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:kernel.Ndim]
+    Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:length(ls)]
     return Symmetric.(map((pi,l)->v./(l^3).*pi.*K,Pi,ls))
 end
 
@@ -64,26 +64,12 @@ end
 
 ############ DIAGONAL DERIVATIVES ###################
 
-
 function kernelderivativediagmatrix(X::Array{T,N},kernel::RBFKernel{T,PlainKernel}) where {T,N}
     n = size(X,1); P = zeros(T,n)
     return P
 end
 
-
-function kernelderivativediagmatrix_K(X::Array{T,N},K::Array{T,N},kernel::RBFKernel{T,PlainKernel}) where {T,N}
-    n = size(X,1); P = zeros(T,n);
-    return P
-end
-
-
 function kernelderivativediagmatrix(X::Array{T,N},kernel::RBFKernel{T,ARDKernel}) where {T,N}
-    n = size(X,1); P = zeros(T,n);
-    return [P for _ in 1:kernel.fields.Ndim]
-end
-
-"When K has already been computed"
-function kernelderivativediagmatrix_K(X::Array{T,N},K::Array{T,N},kernel::RBFKernel{T,ARDKernel}) where {T,N}
     n = size(X,1); P = zeros(T,n);
     return [P for _ in 1:kernel.fields.Ndim]
 end

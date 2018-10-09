@@ -31,12 +31,6 @@ git-tree-sha1 = "ff2595695fc4f14427358ce2593f867085c45dcb"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
 version = "1.2.0"
 
-[[Cubature]]
-deps = ["BinDeps", "Compat", "Libdl"]
-git-tree-sha1 = "12e6771883254a02ed647b053b0c5b746bb0c4bb"
-uuid = "667455a9-e2ce-5579-9412-b964f529a492"
-version = "1.2.2"
-
 [[DataStructures]]
 deps = ["InteractiveUtils", "OrderedCollections", "REPL", "Random", "Serialization", "Test"]
 git-tree-sha1 = "8fc6e166e24fda04b2b648d4260cdad241788c54"

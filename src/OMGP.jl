@@ -44,7 +44,6 @@ using StatsBase
 using SpecialFunctions
 using Dates
 using QuadGK
-using Cubature
 using GradDescent
 using SparseArrays
 #Exported models

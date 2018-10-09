@@ -36,10 +36,11 @@ export Kernel, KernelSum, KernelProduct
 export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2Kernel, Matern5_2Kernel
 export kernelmatrix,kernelmatrix!,kerneldiagmatrix,kerneldiagmatrix!
 export computeIndPointsJ
-export kernelderivativematrix,kernelderivativediagmatrix,compute_hyperparameter_gradient
 export apply_gradients_lengthscale!, apply_gradients_variance!, apply_gradients!
-export kernelderivativematrix_K,kernelderivativediagmatrix_K
+export kernelderivativematrix_K
+export kernelderivativematrix,kernelderivativediagmatrix
 export InnerProduct, SquaredEuclidean, Identity
+export compute_hyperparameter_gradient
 export compute,plotkernel
 export getvalue,setvalue!,setfixed!,setfree!
 
