@@ -5,7 +5,7 @@ give a callback function that will take the model and the actual step as argumen
 and give a convergence method to stop the algorithm given specific criteria
 """
 function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,convergence=DefaultConvergence)
-    if model.VerboseLevel > 0
+    if model.verbose > 0
       println("Starting training of online training of data with $(model.nSamples) samples with $(size(model.X,2)) features :, using the "*model.Name*" model")
     end
 
@@ -33,7 +33,7 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,convergenc
         end
         # conv = convergence(model,iter) #Check for convergence
         ### Print out informations about the convergence
-         if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
+         if model.verbose > 2 || (model.verbose > 1  && iter%10==0)
             print("Iteration : $iter, convergence = $conv \n")
             # println("Neg. ELBO is : $(ELBO(model))")
         end
@@ -41,7 +41,7 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,convergenc
          ((iter < model.nEpochs && !model.alldataparsed) && conv > model.ϵ) || break; #Verify if any condition has been broken
         iter += 1;
     end
-    if model.VerboseLevel > 0
+    if model.verbose > 0
       println("Training ended after $iter iterations")
     end
     computeMatrices!(model) #Recompute matrices if hyperparameters have been changed
@@ -152,7 +152,7 @@ function MCInit!(model::OnlineGPModel)
             model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η_1,model.η_1,grad_η_2,model.η_2)
         end
         model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
-        if model.VerboseLevel > 2
+        if model.verbose > 2
             println("$(now()): MCMC estimation of the gradient completed")
         end
     else
@@ -178,7 +178,7 @@ function MCInit!(model::OnlineGPModel)
             model.h = model.h + 1/model.τ*norm(vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2)))^2
         end
         model.ρ_s = norm(model.g)^2/model.h
-        if model.VerboseLevel > 2
+        if model.verbose > 2
             println("MCMC estimation of the gradient completed")
         end
     end

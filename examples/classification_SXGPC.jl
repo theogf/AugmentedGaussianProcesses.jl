@@ -47,11 +47,11 @@ Ninducingpoints = 20
 
  # toc()
  tic()
-# model = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=true,optimizer=StandardGD(α=0.1),AutotuningFrequency=1,VerboseLevel=2,ϵ=1e-4,nEpochs=100)
+# model = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=true,optimizer=StandardGD(α=0.1),AutotuningFrequency=1,verbose=2,ϵ=1e-4,nEpochs=100)
 Profile.clear()
 @profile model = SparseXGPC(X,y;optimizer=Adam(α=0.5),OptimizeIndPoints=true,
 Stochastic=false,ϵ=1e-4,nEpochs=MaxIter,SmoothingWindow=10,Kernels=kerns,Autotuning=false,AutotuningFrequency=2,
-VerboseLevel=2,AdaptiveLearningRate=true,batchsize=batchsize,m=Ninducingpoints)
+verbose=2,AdaptiveLearningRate=true,batchsize=batchsize,m=Ninducingpoints)
 ProfileView.view()
 initPoints = copy(model.inducingPoints)
 # iter_points = vcat(collect(1:1:9),collect(10:10:99))
@@ -81,9 +81,9 @@ function StoreIt(model::OMGP.GPModel,iter;hyper=false)#;iter_points=[],LogArrays
         end
     end
 end
-# model = SparseBSVM(X,y;Stochastic=true,Kernels=kerns,Autotuning=true,SmoothingWindow=50,AutotuningFrequency=1,VerboseLevel=3,ρ_AT=0.2,AdaptiveLearningRate=true,BatchSize=50,m=50)
-# model = BatchBSVM(X,y;Kernels=kerns,Autotuning=false,AutotuningFrequency=2,VerboseLevel=1)
- # model = LinearBSVM(X,y;Intercept=true,Stochastic=false,BatchSize=30,AdaptiveLearningRate=true,VerboseLevel=3,Autotuning=true,AutotuningFrequency=5)
+# model = SparseBSVM(X,y;Stochastic=true,Kernels=kerns,Autotuning=true,SmoothingWindow=50,AutotuningFrequency=1,verbose=3,ρ_AT=0.2,AdaptiveLearningRate=true,BatchSize=50,m=50)
+# model = BatchBSVM(X,y;Kernels=kerns,Autotuning=false,AutotuningFrequency=2,verbose=1)
+ # model = LinearBSVM(X,y;Intercept=true,Stochastic=false,BatchSize=30,AdaptiveLearningRate=true,verbose=3,Autotuning=true,AutotuningFrequency=5)
 Profile.clear()
 @profile model.train()
 ProfileView.view()

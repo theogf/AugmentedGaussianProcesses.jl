@@ -5,7 +5,7 @@ give a callback function that will take the model and the actual step as argumen
 and give a convergence method to stop the algorithm given specific criteria
 """
 function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
-    if model.VerboseLevel > 0
+    if model.verbose > 0
       println("Starting training of data of $(model.nSamples) samples with $(size(model.X,2)) features $(typeof(model)<:MultiClassGPModel ? "and $(model.K) classes" : ""), using the "*model.Name*" model")
     end
 
@@ -39,13 +39,13 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
             # if !isa(model,GPRegression)
             #     conv = Convergence(model,iter) #Check for convergence
             # else
-            #     if model.VerboseLevel > 2
+            #     if model.verbose > 2
             #         # warn("GPRegression does not need any convergence criteria")
             #     end
             #     conv = Inf
             # end
             ### Print out informations about the convergence
-            if model.VerboseLevel > 2 || (model.VerboseLevel > 1  && iter%10==0)
+            if model.verbose > 2 || (model.verbose > 1  && iter%10==0)
                 println("Iteration : $iter")
             #     print("Iteration : $iter, convergence = $conv \n")
             #     println("Neg. ELBO is : $(ELBO(model))")
@@ -62,7 +62,7 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
             end
         end
     end
-    if model.VerboseLevel > 0
+    if model.verbose > 0
       println("Training ended after $iter iterations")
     end
     computeMatrices!(model) #Compute final version of the matrices for prediction
@@ -194,7 +194,7 @@ function MCInit!(model::GPModel)
         #Make a MC estimation using τ samples
         # model.τ[1] = 40
         for i in 1:model.τ[1]
-            if model.VerboseLevel > 2
+            if model.verbose > 2
                 println("MC sampling $i/$(model.τ[1])")
             end
             model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
@@ -210,7 +210,7 @@ function MCInit!(model::GPModel)
         if model.KStochastic
             reinit_variational_parameters!(model) #resize the vectors for class subsampling
         end
-        if model.VerboseLevel > 1
+        if model.verbose > 1
             println("$(now()): Estimation of the natural gradient for the adaptive learning rate completed")
         end
     else
@@ -236,7 +236,7 @@ function MCInit!(model::GPModel)
             model.h = model.h + norm(grads)^2/model.τ
         end
         model.ρ_s = norm(model.g)^2/model.h
-        if model.VerboseLevel > 1
+        if model.verbose > 1
             println("MCMC estimation of the gradient completed")
         end
     end

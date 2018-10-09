@@ -103,7 +103,7 @@ y=sign.(f)
 kernel = OMGP.RBFKernel(0.5)
 
 ##Basic Offline KMeans
-t_off = @elapsed offgp = OMGP.SparseXGPC(X,f,m=k,Stochastic=true,Autotuning=false,BatchSize=b,VerboseLevel=0,kernel=kernel)
+t_off = @elapsed offgp = OMGP.SparseXGPC(X,f,m=k,Stochastic=true,Autotuning=false,BatchSize=b,verbose=0,kernel=kernel)
 t_off += @elapsed offgp.train(iterations=500)
 y_off = offgp.predict(X_test)
 y_indoff = offgp.predict(offgp.inducingPoints)
@@ -115,7 +115,7 @@ end
 println("Offline KMeans ($t_off s)\n\tRMSE (train) : $(loss(offgp.predict(X),f))\n\tRMSE (test) : $(loss(y_off,randomf(X_test)))")
 
 ###Online KMeans with Webscale
-t_web = @elapsed onwebgp = OMGP.OnlineXGPC(X,y,kmeansalg=OMGP.Webscale(),m=k,BatchSize=b,VerboseLevel=0,kernel=kernel)
+t_web = @elapsed onwebgp = OMGP.OnlineXGPC(X,y,kmeansalg=OMGP.Webscale(),m=k,BatchSize=b,verbose=0,kernel=kernel)
 t_web = @elapsed onwebgp.train(iterations=500)
 y_web = onwebgp.predict(X_test)
 y_indweb = onwebgp.predict(onwebgp.kmeansalg.centers)
@@ -128,7 +128,7 @@ println("Webscale KMeans ($t_web s)\n\tRMSE (train) : $(loss(onwebgp.predict(X),
 
 
 ###Online KMeans with Streaming
-t_str = @elapsed onstrgp = OMGP.OnlineXGPC(X,f,kmeansalg=OMGP.StreamOnline(),m=k,BatchSize=b,VerboseLevel=0,kernel=kernel)
+t_str = @elapsed onstrgp = OMGP.OnlineXGPC(X,f,kmeansalg=OMGP.StreamOnline(),m=k,BatchSize=b,verbose=0,kernel=kernel)
 t_str = @elapsed onstrgp.train(iterations=500)
 y_str = onstrgp.predict(X_test)
 y_indstr = onstrgp.predict(onstrgp.kmeansalg.centers)

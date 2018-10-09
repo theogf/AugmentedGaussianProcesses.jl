@@ -11,11 +11,11 @@ mutable struct GibbsSamplerGPC <: FullBatchModel
     function GibbsSamplerGPC(X::AbstractArray,y::AbstractArray;burninsamples::Integer = 200, samplefrequency::Integer=100,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 200,
                                     kernel=0,noise::Float64=1e-3,AutotuningFrequency::Integer=10,
-                                    ϵ::Float64=1e-5,μ_init::Array{Float64,1}=[0.0],VerboseLevel::Integer=0)
+                                    ϵ::Float64=1e-5,μ_init::Array{Float64,1}=[0.0],verbose::Integer=0)
             this = new(X,y)
             this.ModelType = XGPC
             this.Name = "Polya-Gamma Gaussian Process Classifier by sampling"
-            initCommon!(this,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
+            initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             initKernel!(this,kernel);
             initGaussian!(this,μ_init);

@@ -23,7 +23,7 @@ end
     evol_conv::Vector{Float64} #Used for convergence estimation
     prev_params::Any
     nEpochs::Int64; #Maximum number of iterations
-    VerboseLevel::Int64 #Level of printing information
+    verbose::Int64 #Level of printing information
     Stochastic::Bool #Is the model stochastic    #Autotuning parameters
     Autotuning::Bool #Chose Autotuning type
     AutotuningFrequency::Int64 #Frequency of update of the hyperparameter
@@ -42,13 +42,13 @@ the noise `noise`, the convergence threshold `ϵ`, the initial number of iterati
 the `verboseLevel` (from 0 to 3), enabling `Autotuning`, the `AutotuningFrequency` and
 what `optimizer` to use
 """
-function initCommon!(model::GPModel,X::Matrix{Float64},y::Vector,noise::Float64,ϵ::Float64,nEpochs::Integer,VerboseLevel::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer)
+function initCommon!(model::GPModel,X::Matrix{Float64},y::Vector,noise::Float64,ϵ::Float64,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer)
     @assert (size(y,1)==size(X,1)) "There is a dimension problem with the data size(y)!=size(X)";
     model.X = X; model.y = y;
     @assert noise > 0 "noise should be a positive float"; model.noise = noise;
     @assert ϵ > 0 "ϵ should be a positive float"; model.ϵ = ϵ;
     @assert nEpochs > 0 "nEpochs should be positive"; model.nEpochs = nEpochs;
-    @assert (VerboseLevel > -1 && VerboseLevel < 4) "VerboseLevel should be in {0,1,2,3}, here value is $VerboseLevel"; model.VerboseLevel = VerboseLevel;
+    @assert (verbose > -1 && verbose < 4) "verbose should be in {0,1,2,3}, here value is $verbose"; model.verbose = verbose;
     model.Autotuning = Autotuning; model.AutotuningFrequency = AutotuningFrequency;
     # model.opt_type = optimizer;
     model.nSamples = size(X,1); #model.nSamplesUsed = model.nSamples;
@@ -144,7 +144,7 @@ function initSparse!(model::GPModel,m,optimizeIndPoints)
     model.OptimizeInducingPoints = optimizeIndPoints
     model.optimizer = Adam(α=0.1);
     model.inducingPoints = KMeansInducingPoints(model.X,model.m,10)
-    if model.VerboseLevel>1
+    if model.verbose>1
         println("Inducing points determined through KMeans algorithm")
     end
     model.Kmm = Symmetric(Matrix{Float64}(undef,model.m,model.m)) #Kernel matrix
@@ -171,7 +171,7 @@ Function for initialisation of the variational multivariate parameters
 function initGaussian!(model::GPModel,μ_init::Vector{Float64})
     #Initialize gaussian parameters and check for consistency
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
-      if model.VerboseLevel > 2
+      if model.verbose > 2
         println("***Initial mean of the variational distribution is sampled from a multivariate normal***")
       end
       model.μ = randn(model.nFeatures)

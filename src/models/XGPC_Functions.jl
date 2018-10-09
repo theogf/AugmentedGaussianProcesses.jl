@@ -44,7 +44,7 @@ end
 
 "Return the natural gradients of the ELBO given the natural parameters"
 function natural_gradient_XGPC(model::BatchXGPC)
-    model.η_1 =  0.5*y
+    model.η_1 =  0.5*model.y
     model.η_2 = -0.5*(Diagonal{Float64}(model.θ) + model.invK)
 end
 

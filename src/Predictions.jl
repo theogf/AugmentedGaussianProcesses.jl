@@ -16,7 +16,7 @@ function fstar(model::FullBatchModel,X_test;covf::Bool=true)
     if !covf
         return mean_fstar
     else
-        cov_fstar = diagkernelmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
+        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
         return mean_fstar,cov_fstar
     end
 end
@@ -36,7 +36,7 @@ function fstar(model::SparseModel,X_test;covf::Bool=true)
     if !covf
         return mean_fstar
     else
-        cov_fstar = diagkernelmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
+        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
         return mean_fstar,cov_fstar
     end
 end
@@ -57,7 +57,7 @@ function fstar(model::OnlineGPModel,X_test;covf::Bool=true)
     if !covf
         return mean_fstar
     else
-        cov_fstar = diagkernelmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
+        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
         return mean_fstar,cov_fstar
     end
 end
@@ -78,7 +78,7 @@ function fstar(model::GPRegression,X_test;covf::Bool=true)
     if !covf
         return mean_fstar
     else
-        cov_fstar = diagkernelmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
+        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
         return mean_fstar,cov_fstar
     end
 end

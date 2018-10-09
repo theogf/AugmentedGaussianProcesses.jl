@@ -14,11 +14,11 @@ mutable struct OnlineGPRegression <: OnlineGPModel
                                     nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
                                     kernel=0,noise::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=2,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
-                                    VerboseLevel::Integer=0)
+                                    verbose::Integer=0)
             this = new();
             this.ModelType = Regression;
             this.Name = "Online Sparse Gaussian Process Regression";
-            initCommon!(this,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
+            initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             this.nSamplesUsed = batchsize
             initKernel!(this,kernel);
             initFunctions!(this);

@@ -25,7 +25,7 @@ ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
 kernel = RBFKernel(2.0)
 
 println("Testing the full model")
-t_full = @elapsed fullmodel = OMGP.GPRegression(X,y,noise=noise,kernel=kernel,VerboseLevel=3)
+t_full = @elapsed fullmodel = OMGP.GPRegression(X,y,noise=noise,kernel=kernel,verbose=3)
 t_full += @elapsed fullmodel.train()
 y_full = fullmodel.predict(X_test); rmse_full = norm(y_full-y_test,2)/sqrt(length(y_test))
 if doPlots
@@ -34,7 +34,7 @@ if doPlots
 end
 
 println("Testing the sparse model")
-t_sparse = @elapsed sparsemodel = OMGP.SparseGPRegression(X,y,Stochastic=false,Autotuning=false,VerboseLevel=3,m=20,noise=noise,kernel=kernel)
+t_sparse = @elapsed sparsemodel = OMGP.SparseGPRegression(X,y,Stochastic=false,Autotuning=false,verbose=3,m=20,noise=noise,kernel=kernel)
 t_sparse += @elapsed sparsemodel.train(iterations=100)
 y_sparse = sparsemodel.predict(X_test); rmse_sparse = norm(y_sparse-y_test,2)/sqrt(length(y_test))
 if doPlots
@@ -44,7 +44,7 @@ if doPlots
 end
 
 println("Testing the sparse stochastic model")
-t_stoch = @elapsed stochmodel = OMGP.SparseGPRegression(X,y,Stochastic=true,BatchSize=20,Autotuning=true,VerboseLevel=2,m=20,noise=noise,kernel=kernel)
+t_stoch = @elapsed stochmodel = OMGP.SparseGPRegression(X,y,Stochastic=true,BatchSize=20,Autotuning=true,verbose=2,m=20,noise=noise,kernel=kernel)
 t_stoch += @elapsed stochmodel.train(iterations=200)
 y_stoch = stochmodel.predict(X_test); rmse_stoch = norm(y_stoch-y_test,2)/sqrt(length(y_test))
 if doPlots

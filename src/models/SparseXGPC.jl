@@ -14,7 +14,7 @@ Create a GP model taking the  training data and labels X & y as required argumen
 - m::Integer : Number of inducing points
 - ϵ::Float64 : minimum value for convergence
 - SmoothingWindow::Integer : Window size for averaging convergence in the stochastic case
-- VerboseLevel::Integer : How much information is displayed (from 0 to 3)
+- verbose::Integer : How much information is displayed (from 0 to 3)
 """
 mutable struct SparseXGPC <: SparseModel
     @commonfields
@@ -30,11 +30,11 @@ mutable struct SparseXGPC <: SparseModel
                                     nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
                                     kernel=0,noise::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=2,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
-                                    VerboseLevel::Integer=0)
+                                    verbose::Integer=0)
             this = new();
             this.ModelType = XGPC;
             this.Name = "Polya-Gamma Sparse Gaussian Process Classifier";
-            initCommon!(this,X,y,noise,ϵ,nEpochs,VerboseLevel,Autotuning,AutotuningFrequency,optimizer);
+            initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             if Stochastic
                 initStochastic!(this,AdaptiveLearningRate,batchsize,κ_s,τ_s,SmoothingWindow);

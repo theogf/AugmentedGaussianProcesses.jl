@@ -166,7 +166,7 @@ function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool)
     model.nInnerLoops = 5;
     Ninst_per_K = countmap(model.y)
     Ninst_per_K = [Ninst_per_K[model.class_mapping[i]] for i in 1:model.K]
-    if model.VerboseLevel>2
+    if model.verbose>2
         println("$(now()): Starting determination of inducing points through KMeans algorithm")
     end
     if model.IndependentGPs
@@ -174,7 +174,7 @@ function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool)
     else
         model.inducingPoints = [KMeansInducingPoints(model.X,model.m,10)]
     end
-    if model.VerboseLevel>2
+    if model.verbose>2
         println("$(now()): Inducing points determined through KMeans algorithm")
     end
     if model.IndependentGPs

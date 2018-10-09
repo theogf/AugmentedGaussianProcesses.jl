@@ -112,7 +112,7 @@ kernel = OMGP.RBFKernel([l],dim=N_dim)
 OMGP.setvalue!(kernel.variance,1.0)
 # kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
 if fullm
-    global fmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true)
+    global fmodel = OMGP.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true)
     fmetrics, callback = OMGP.getMultiClassLog(fmodel,X_test,y_test)
     # full_model.AutotuningFrequency=1
     t_full = @elapsed fmodel.train(iterations=100,callback=callback)
@@ -131,7 +131,7 @@ if fullm
 end
 
 if sfullm
-    global sfmodel = OMGP.MultiClass(X,y,VerboseLevel=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true,KStochastic=true,nClassesUsed=20)
+    global sfmodel = OMGP.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true,KStochastic=true,nClassesUsed=20)
     sfmetrics, callback = OMGP.getMultiClassLog(sfmodel,X_test,y_test)
     # full_model.AutotuningFrequency=1
     t_sfull = @elapsed sfmodel.train(iterations=200,callback=callback)
@@ -151,10 +151,10 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,VerboseLevel=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=100,IndependentGPs=false)
+    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=100,IndependentGPs=false)
     # smodel.AutotuningFrequency=5
     smetrics, callback = OMGP.getMultiClassLog(smodel,X_test,y_test)
-    # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
+    # smodel = OMGP.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
     smodel.train(iterations=4)
     Profile.clear()
     @trace smodel.train(iterations=10)#,callback=callback)
@@ -177,10 +177,10 @@ end
 # ProfileView.view()
 
 if ssparsem
-    global ssmodel = OMGP.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=5,VerboseLevel=3,kernel=kernel,m=100,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
+    global ssmodel = OMGP.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=5,verbose=3,kernel=kernel,m=100,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
     ssmetrics, callback = OMGP.getMultiClassLog(ssmodel,X_test,y_test)
-    # smodel = OMGP.SparseMultiClass(X,y,VerboseLevel=3,kernel=kernel,m=100,Stochastic=false)
+    # smodel = OMGP.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
     t_ssparse = @elapsed ssmodel.train(iterations=100)#,callback=callback)
 
     y_ssparse, = ssmodel.predict(X_test)
