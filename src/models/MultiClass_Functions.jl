@@ -24,7 +24,7 @@ end
 
 "Update of the global variational parameter for full batch case"
 function global_update!(model::MultiClass)
-    model.Σ[model.KIndices] .= -0.5*inv.(model.η_2[model.KIndices]);
+    model.Σ[model.KIndices] .= -inv.(model.η_2[model.KIndices]).*0.5;
     model.μ[model.KIndices] .= model.Σ[model.KIndices].*model.η_1[model.KIndices] #Back to the distribution parameters (needed for α updates)
 end
 
@@ -79,9 +79,9 @@ function global_update!(model::SparseMultiClass,grad_1::Vector{Vector{Float64}},
 end
 
 """Compute the natural gradient of the ELBO given the natural parameters"""
-function natural_gradient_MultiClass(model::MultiClass)
+function natural_gradient_MultiClass!(model::MultiClass)
         model.η_1[model.KIndices] .= broadcast((y,γ)->0.5*(y-γ),model.Y[model.KIndices],model.γ)
-        model.η_2[model.KIndices] .= broadcast((y,θ,invK)->-0.5*(Diagonal(y.*model.θ[1]+θ)+invK),model.Y[model.KIndices],model.θ[2:end],model.invK[model.KIndices])
+        model.η_2[model.KIndices] .= broadcast((y,θ,invK)->Symmetric(-0.5*(Diagonal(y.*model.θ[1]+θ)+invK)),model.Y[model.KIndices],model.θ[2:end],model.invK[model.KIndices])
 end
 
 """Compute the natural gradient of the ELBO given the natural parameters"""
@@ -94,14 +94,14 @@ end
 
 """Return the negative ELBO for the MultiClass model"""
 function ELBO(model::MultiClass)
-    ELBO_v = model.nSamples*(0.5*model.K-log(2))-sum(model.α./model.β)+sum(model.α-log.(model.β)+log.(gamma.(model.α))+(1-model.α).*digamma.(model.α))
+    ELBO_v = model.nSamples*(0.5*model.K.-log(2))-sum(model.α./model.β)+sum(model.α-log.(model.β)+log.(gamma.(model.α))+(1.0.-model.α).*digamma.(model.α))
     if model.KStochastic
-        ELBO_v += model.KStochCoeff*sum([model.K_map[i]!=nothing ? -log.(cosh.(0.5*model.f2[model.K_map[i]][i]))+0.5*model.θ[1][i]*(model.f2[model.K_map[i]][i]^2) : 0 for i in 1:model.nSamples])
+        ELBO_v += model.KStochCoeff*sum([model.K_map[i]!=nothing ? -log.(cosh.(0.5.*model.f2[model.K_map[i]][i]))+0.5*model.θ[1][i]*(model.f2[model.K_map[i]][i]^2) : 0 for i in 1:model.nSamples])
     else
-        ELBO_v += sum([-log.(cosh.(0.5*model.f2[model.y_class[i]][i]))+0.5*model.θ[1][i]*(model.f2[model.y_class[i]][i]^2) for i in 1:model.nSamples])
+        ELBO_v += sum([-log.(cosh.(0.5.*model.f2[model.y_class[i]][i]))+0.5*model.θ[1][i]*(model.f2[model.y_class[i]][i]^2) for i in 1:model.nSamples])
     end
     ELBO_v += 0.5*model.KStochCoeff*sum(broadcast((invK,y,gam,mu,theta,sigma)->logdet(invK)+logdet(sigma)+dot(y-gam,mu)-sum((Diagonal(y.*model.θ[1]+theta)+invK).*transpose(sigma+mu*(mu'))),model.invK[model.KIndices],model.Y[model.KIndices],model.γ,model.μ[model.KIndices],model.θ[2:end],model.Σ[model.KIndices]))
-    ELBO_v += sum(broadcast((gam,f2,theta)->dot(gam,-(model.α-log.(model.β)+log.(gamma.(model.α))+(1.0.-model.α).*digamma.(model.α))-log(2.0)-log.(gam)+1.0-log.(cosh.(0.5*f2)))+0.5*dot(f2,f2.*theta),model.γ,model.f2,model.θ[2:end]))
+    ELBO_v += sum(broadcast((gam,f2,theta)->dot(gam,-(model.α.-log.(model.β).+log.(gamma.(model.α)).+(1.0.-model.α).*digamma.(model.α)).-log(2.0).-log.(gam).+1.0.-log.(cosh.(0.5.*f2))).+0.5*dot(f2,f2.*theta),model.γ,model.f2,model.θ[2:end]))
     return -ELBO_v
 end
 
@@ -134,18 +134,21 @@ end
 function hyperparameter_gradient_function(model::MultiClass)
     if model.IndependentGPs
         A = [model.invK[i]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{Float64}(I,model.nSamples) for i in model.KIndices]
-        return (function(Js,Kindex,index)
-                    return 0.5*sum((model.invK[Kindex].*Js[1]).*transpose(A[index]))
+        return (function(J,Kindex,index)
+                    return 0.5*sum((model.invK[Kindex].*J).*transpose(A[index]))
                 end,
                 function(kernel,Kindex,index)
-                    return 0.5/getvalue(kernel.variance)*trace(A[index])
+                    return 0.5/getvariance(kernel)*tr(A[index])
                 end)
     else
         A = [model.invK[1]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{Float64}(I,model.nSamples) for i in model.KIndices]
-        return function(Js,Kindex,index)
-            V = model.invK[1].*Js[1] #invK*Js
+        return (function(J,Kindex,index)
+            V = model.invK[1].*J #invK*J
             return 0.5*model.KStochCoeff*sum([sum(V.*transpose(A[i])) for i in 1:model.nClassesUsed])
-        end
+                end,
+                function(kernel)
+                    return 0.5/getvariance(kernel)*sum(tr.(A))
+                end)
     end
 end
 
@@ -177,7 +180,7 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
          end, #end of function(Js)
                 function(kernel::Kernel,Kindex::Int64,index::Int64)
                     # println(mean(F2[index]))
-                    return 0.5/(getvalue(kernel.variance))*(sum(model.invKmm[Kindex].*F2[index])-model.StochCoeff * dot(C[index],model.Ktilde[index])-model.m)
+                    return 0.5/(getvariance(kernel))*(sum(model.invKmm[Kindex].*F2[index])-model.StochCoeff * dot(C[index],model.Ktilde[index])-model.m)
                 end)
     else
         KC = broadcast(c->transpose(model.κ[1])*Diagonal(c),C)
@@ -194,7 +197,7 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
         end,#end of function(Js)
         function(kernel::Kernel)
             # println(mean(F2[index]))
-            return 0.5/(getvalue(kernel.variance))*sum(broadcast((f2,c)->sum(model.invKmm[1].*f2)-model.StochCoeff * dot(c,model.Ktilde[1])-model.m,F2,C))
+            return 0.5/(getvariance(kernel))*sum(broadcast((f2,c)->sum(model.invKmm[1].*f2)-model.StochCoeff * dot(c,model.Ktilde[1])-model.m,F2,C))
         end)
        end
 end

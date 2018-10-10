@@ -43,7 +43,7 @@ export InnerProduct, SquaredEuclidean, Identity
 export compute_hyperparameter_gradient
 export compute,plotkernel
 export getvalue,setvalue!,setfixed!,setfree!
-
+export getlengthscales, getvariance
 abstract type KernelType end;
 
 abstract type ARDKernel <: KernelType end;
@@ -506,16 +506,16 @@ function deriv_point_linear(X1::Array{Float64,1},X2::Array{Float64,1},θ)
 end
 
 function apply_gradients_lengthscale!(kernel::Kernel{T,PlainKernel},gradient::T) where {T}
-    update!(kernel.lengthscales,[gradient])
+    update!(kernel.fields.lengthscales,[gradient])
 end
 
 function apply_gradients_lengthscale!(kernel::Kernel{T,ARDKernel},gradients::Vector{T}) where {T}
-    update!(kernel.lengthscales,gradients)
-    updateweights!(kernel,getvalue(kernel.lengthscales))
+    update!(kernel.fields.lengthscales,gradients)
+    updateweights!(kernel,getlengthscales(kernel))
 end
 
 function apply_gradients_variance!(kernel::Kernel{T,KT},gradient::T) where {T,KT}
-    update!(kernel.variance,gradient)
+    update!(kernel.fields.variance,gradient)
 end
 
 function apply_gradients!(kernel::KernelSum,gradients,variance::Bool=true)

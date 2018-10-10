@@ -69,15 +69,29 @@ function compute_hyperparameter_gradient(k::KernelProduct{T},gradient_function::
     return gradients
 end
 
-function compute_hyperparameter_gradient(k::Kernel{T},gradient_function::Function,Js::Vector{Array{T2,1} where T2},Kindex::Int64,index::Int64) where T
-    return map(gradient_function,Js[1],Js[2],Js[3],Kindex*ones(Int64,k.Ndim),index*ones(Int64,k.Ndim))
-    # return map((jmm,jnm,jnn)->gradient_function([jmm,jnm,jnn],Kindex,index),Js[1],Js[2],Js[3])
+
+#Case for full batch with ARD Kernel
+function compute_hyperparameter_gradient(k::Kernel{T,ARDKernel},gradient_function::Function,J::Vector{LinearAlgebra.Symmetric{Float64,Matrix{Float64}}},Kindex::Int64,index::Int64) where T
+    return map(gradient_function,J,Kindex*ones(Int64,k.fields.Ndim),index*ones(Int64,k.fields.Ndim))
 end
 
-function compute_hyperparameter_gradient(k::Kernel{T,PlainKernel},gradient_function::Function,Js::Array{AbstractArray{Float64,N} where N,1},Kindex::Int64,index::Int64) where T
-    return gradient_function(Js[1],Js[2],Js[3],Kindex,index)
-    # return map((jmm,jnm,jnn)->gradient_function([jmm,jnm,jnn],Kindex,index),Js[1],Js[2],Js[3])
+#Case for sparse with ARD Kernel
+function compute_hyperparameter_gradient(k::Kernel{T,ARDKernel},gradient_function::Function,Js::Vector{Array{T2,1} where T2},Kindex::Int64,index::Int64) where T
+    return map(gradient_function,Js[1],Js[2],Js[3],Kindex*ones(Int64,k.fields.Ndim),index*ones(Int64,k.fields.Ndim))
 end
+
+#Case for full batch with Plain Kernel
+function compute_hyperparameter_gradient(k::Kernel{T,PlainKernel},gradient_function::Function,J::LinearAlgebra.Symmetric{Float64,Matrix{Float64}},Kindex::Int64,index::Int64) where T
+    return gradient_function(J,Kindex,index)
+end
+
+#Case for sparse with Plain Kernel
+function compute_hyperparameter_gradient(k::Kernel{T,PlainKernel},gradient_function::Function,Js::Vector{AbstractArray{Float64,N} where N},Kindex::Int64,index::Int64) where T
+    return gradient_function(Js[1],Js[2],Js[3],Kindex,index)
+end
+
+
+
 
 """
     Compute derivative matrices given the data points

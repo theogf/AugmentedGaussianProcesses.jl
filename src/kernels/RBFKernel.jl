@@ -55,5 +55,5 @@ function kappa(k::RBFKernel{T,ARDKernel}) where {T<:Real,KT}
 end
 
 function updateweights!(k::RBFKernel{T,KT},w::Vector{T}) where {T,KT}
-    k.metric.weights .= 1.0./(w.^2)
+    k.fields.metric.weights .= 1.0./(w.^2)
 end

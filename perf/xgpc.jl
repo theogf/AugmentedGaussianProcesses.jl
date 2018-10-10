@@ -6,7 +6,7 @@ suite["Full"] = BenchmarkGroup(["init","elbo","computematrices","updatevariation
 suite["Sparse"] = BenchmarkGroup(["init","elbo","computematrices","updatevariational","updatehyperparam","predic","predicproba"])
 suite["SparseStoch"] = BenchmarkGroup(["init","elbo","computematrices","updatevariational","updatehyperparam","predic","predicproba"])
 paramfile = "params/xgpc.json"
-data = readdlm("banana_dataset")
+data = readdlm("data/banana_dataset")
 train,test=splitobs(data',at=0.7)
 X_train = train'[:,1:2]; y_train = train'[:,3]
 X_test = test'[:,1:2]; y_test = test'[:,3]
@@ -25,8 +25,8 @@ for KT in ["Full","Sparse","SparseStoch"]
     models[KT].train(iterations=1)
     suite[KT]["elbo"] = @benchmarkable OMGP.ELBO($(models[KT]))
     suite[KT]["computematrices"] = @benchmarkable OMGP.computeMatrices!($(models[KT]))
-    suite[KT]["updatevariational"] = @benchmarkable OMGP.updatevariational!($(models[KT]))
-    suite[KT]["updatehyperparam"] = @benchmarkable OMGP.updatehyperparam!($(models[KT]))
+    suite[KT]["updatevariational"] = @benchmarkable OMGP.variational_updates!!($(models[KT]),1)
+    suite[KT]["updatehyperparam"] = @benchmarkable OMGP.updateHyperParameters!($(models[KT]))
     suite[KT]["predic"] = @benchmarkable OMGP.probitpredict($(models[KT]),$X_test)
     suite[KT]["predicproba"] = @benchmarkable OMGP.probitpredictproba($(models[KT]),$X_test)
 end

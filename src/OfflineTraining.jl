@@ -129,7 +129,7 @@ end
 function computeMatrices!(model::MultiClass)
     if model.HyperParametersUpdated
         if model.IndependentGPs
-            model.Knn[model.KIndices] .= [Symmetric(kernelmatrix(model.X,model.kernel[i]) + Diagonal{Float64}(model.noise*I,model.nFeatures)) for i in 1:model.KIndices]
+            model.Knn[model.KIndices] .= [Symmetric(kernelmatrix(model.X,model.kernel[i]) + Diagonal{Float64}(model.noise*I,model.nFeatures)) for i in model.KIndices]
             model.invK[model.KIndices] .= inv.(model.Knn)
         else
             model.Knn .= [Symmetric(kernelmatrix(model.X,model.kernel[1]) + Diagonal{Float64}(model.noise*I,model.nFeatures))]

@@ -69,7 +69,7 @@ end
 "Compute the ELBO for the sparse GP BSVM Model"
 function ELBO(model::SparseBSVM)#TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
     ELBO = 0.5*(logdet(model.Σ)+logdet(model.invKmm))
-    ELBO += -0.5*(tr(model.invKmm*(model.Σ+model.μ*transpose(model.μ)))) #trace replaced by sum
+    ELBO += -0.5*(tr(model.invKmm*(model.Σ+model.μ*transpose(model.μ)))) #tr replaced by sum
     ELBO += model.StochCoeff*dot(model.y[model.MBIndices],model.κ*model.μ)
     ELBO += model.StochCoeff*sum(0.25*log.(model.α[model.MBIndices]) + log.(besselk.(0.5,sqrt.(model.α[model.MBIndices]))))
     Σtilde = model.κ*model.Σ*transpose(model.κ)
