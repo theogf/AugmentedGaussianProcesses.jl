@@ -82,8 +82,7 @@ function hyperparameter_gradient_function(model::SparseBSVM)
     B = model.μ*transpose(model.μ) + model.Σ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     A = Diagonal(1.0./sqrt.(model.α))
-    return function(Js,iter)
-                Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3]
+    return function(Jmm,Jnm,Jnn,iter)
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
                 Jtilde = Jnn - sum(ι.*transpose(Kmn),dims=2) - sum(model.κ.*Jnm,dims=2)
                 V = model.invKmm*Jmm

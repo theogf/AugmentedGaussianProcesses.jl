@@ -13,11 +13,6 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
         model.nEpochs = iterations
     end
     model.evol_conv = [] #Array to check on the evolution of convergence
-    # if model.Stochastic && model.AdaptiveLearningRate && !model.Trained #If the adaptive learning rate is selected, compute a first expectation of the gradient with MCMC (if restarting training, avoid this part)
-    #         MCInit!(model)
-    # end
-    # computeMatrices!(model)
-    model.Trained = true
     iter::Int64 = 1; conv = Inf;
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
@@ -30,8 +25,6 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
                     updateHyperParameters!(model) #Update the hyperparameters
                     # computeMatrices!(model)
                 # end
-                # println("Variances ", [getvalue(k.variance) for k in model.kernel])
-                # println("Lengthscales ", [getvalue(k.lengthscales) for k in model.kernel])
             end
             if callback != 0
                     callback(model,iter) #Use a callback method if put by user
@@ -85,13 +78,12 @@ function updateParameters!(model::GPModel,iter::Integer)
         #No replacement means one points cannot be twice in the same minibatch
     end
     if typeof(model) <: MultiClassGPModel
-        if model.KStochastic
-            model.KIndices = StatsBase.sample(1:model.K,model.nClassesUsed,replace=false)
-        end
+
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model,iter);
 end
+
 
 "Compute of kernel matrices for the full batch GPs"
 function computeMatrices!(model::FullBatchModel)

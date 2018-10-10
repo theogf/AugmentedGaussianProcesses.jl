@@ -34,7 +34,7 @@ for KT in ["Full","FullKStoch","Sparse","SparseStoch","SparseStochKStoch"]
     models[KT].train(iterations=1)
     suite[KT]["elbo"] = @benchmarkable OMGP.ELBO($(models[KT]))
     suite[KT]["computematrices"] = @benchmarkable OMGP.computeMatrices!($(models[KT]))
-    suite[KT]["updatevariational"] = @benchmarkable OMGP.variational_updates!!($(models[KT]),1)
+    suite[KT]["updatevariational"] = @benchmarkable OMGP.variational_updates!($(models[KT]),1)
     suite[KT]["updatehyperparam"] = @benchmarkable OMGP.updateHyperParameters!($(models[KT]))
     suite[KT]["predic"] = @benchmarkable OMGP.multiclasspredict($(models[KT]),$X_test)
     suite[KT]["predicproba"] = @benchmarkable OMGP.multiclasspredictproba($(models[KT]),$X_test)
@@ -44,11 +44,11 @@ if isfile(paramfile)
     loadparams!(suite,BenchmarkTools.load(paramfile))
 else
     println("Tuning parameters")
-    tune!(suite)
+    tune!(suite,verbose=true)
     BenchmarkTools.save(paramfile,params(suite))
 end
 println("Running benchmarks")
-results = run(suite)
+results = run(suite,verbose=true)
 save_target = "results/multiclass_"*("$(now())"[1:10])
 i = 1
 while isfile(save_target*"_$(i).json")

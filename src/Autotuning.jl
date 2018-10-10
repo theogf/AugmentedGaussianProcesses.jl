@@ -9,22 +9,23 @@ end
 
 "Update all hyperparameters for the full batch GP models"
 function  updateHyperParameters!(model::FullBatchModel)
-    Jnn = kernelderivativematrix(model.kernel,model.X) #Compute all the derivatives of the matrix Knn given the kernel parameters
-    f_l,f_v = hyperparameter_gradient_function(model)
-    grads_l = compute_hyperparameter_gradient(model.kernel,f_l,[Jnn])
+    Jnn = kernelderivativematrix(model.X,model.kernel) #Compute all the derivatives of the matrix Knn given the kernel parameters
+    f_l,f_v,f_n = hyperparameter_gradient_function(model)
+    grads_l = compute_hyperparameter_gradient(model.kernel,f_l,Jnn)
+    grads_v = f_v(model.kernel)
+    grads_n = f_n()
     apply_gradients_lengthscale!(model.kernel,grads_l) #Send the derivative of the matrix to the specific gradient of the model
     apply_gradients_variance!(model.kernel,grads_v) #Send the derivative of the matrix to the specific gradient of the model
-
-    grads_v = f_v(model.kernel)
+    apply_gradients_noise!(model,grads_n)
 
     model.HyperParametersUpdated = true
 end
 
 "Update all hyperparameters for the full batch GP models"
 function updateHyperParameters!(model::SparseModel)
-    Jmm = kernelderivativematrix(model.kernel,model.inducingPoints) #Compute all the derivatives of the matrix Kmm given the kernel
-    Jnm = kernelderivativematrix(model.kernel,model.X[model.MBIndices,:],model.inducingPoints) #Compute all the derivative of the matrix Knm given the kernel
-    Jnn = kernelderivativediagmatrix(model.kernel,model.X[model.MBIndices,:]) #Compute all the derivatives of the diagonal matrix Knn given the kernel
+    Jmm = kernelderivativematrix(model.inducingPoints,model.kernel) #Compute all the derivatives of the matrix Kmm given the kernel
+    Jnm = kernelderivativematrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel) #Compute all the derivative of the matrix Knm given the kernel
+    Jnn = kernelderivativediagmatrix(model.X[model.MBIndices,:],model.kernel) #Compute all the derivatives of the diagonal matrix Knn given the kernel
     f_l,f_v = hyperparameter_gradient_function(model)
     grads_l = compute_hyperparameter_gradient(model.kernel,f_l,[Jmm,Jnm,Jnn])
     grads_v = f_v(model.kernel)
@@ -65,22 +66,22 @@ function updateHyperParameters!(model::SparseMultiClass)
         kernelderivativematrix(model.X[model.MBIndices,:],model.inducingPoints[kiter],model.kernel[kiter]),
         kernelderivativediagmatrix(model.X[model.MBIndices,:],model.kernel[kiter])] for kiter in model.KIndices]
         grads_l = map(compute_hyperparameter_gradient,model.kernel[model.KIndices],[f_l for _ in 1:model.nClassesUsed],matrix_derivatives,model.KIndices,1:model.nClassesUsed)
-        # println([getvalue(k.variance) for k in model.kernel])
+        # println([getvariance(k) for k in model.kernel])
         grads_v = map(f_v,model.kernel[model.KIndices],model.KIndices,1:model.nClassesUsed)
-        # println("Variances grad :", grads_variance)
+        # println("Variances grad :", grads_v)
         apply_gradients_lengthscale!.(model.kernel[model.KIndices],grads_l)
-        apply_gradients_variance!.(model.kernel[model.KIndices],grads_variance)
+        apply_gradients_variance!.(model.kernel[model.KIndices],grads_v)
         # setvariance(model)
     else
         matrix_derivatives = [kernelderivativematrix(model.inducingPoints[1],model.kernel[1]),
                             kernelderivativematrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1]),
                             kernelderivativediagmatrix(model.X[model.MBIndices,:],model.kernel[1])]
-        grads_lengthscales = compute_hyperparameter_gradient(model.kernel[1],f_l,matrix_derivatives,1,1)
-        # println(grads_lengthscales)
-        grad_variance = f_v(model.kernel[1])
-        # println(grad_variance)
-        apply_gradients_lengthscale!(model.kernel[1],grads_lengthscales)
-        apply_gradients_variance!(model.kernel[1],grad_variance)
+        grads_l = compute_hyperparameter_gradient(model.kernel[1],f_l,matrix_derivatives,1,1)
+        # println(grads_l)
+        grad_v = f_v(model.kernel[1])
+        # println(grad_v)
+        apply_gradients_lengthscale!(model.kernel[1],grads_l)
+        apply_gradients_variance!(model.kernel[1],grad_v)
     end
     if model.OptimizeInducingPoints
         inducingpoints_gradients = inducingpoints_gradient(model)

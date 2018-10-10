@@ -169,17 +169,12 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
                     Jtilde = Jnn - sum(ι.*model.Knm[index],dims=2)[:] - sum(model.κ[index].*Jnm,dims=2)[:]
                     V = model.invKmm[Kindex]*Jmm
                     A = add_transpose!(KC[index]*ι)
-                    # tot = sum((V*model.invKmm[Kindex]).*F2[index])-model.StochCoeff*sum(A.*F2[index])
-                    # tot += - tr(V) - model.StochCoeff*dot(C[index],Jtilde)
-                    # tot += model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex])
-                    # return 0.5*tot
                     return 0.5*(sum((V*model.invKmm[Kindex]).*F2[index])-model.StochCoeff*sum(A.*F2[index])
                             - tr(V)
                             - model.StochCoeff*dot(C[index],Jtilde)
                             + model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex]))
          end, #end of function(Js)
                 function(kernel::Kernel,Kindex::Int64,index::Int64)
-                    # println(mean(F2[index]))
                     return 0.5/(getvariance(kernel))*(sum(model.invKmm[Kindex].*F2[index])-model.StochCoeff * dot(C[index],model.Ktilde[index])-model.m)
                 end)
     else

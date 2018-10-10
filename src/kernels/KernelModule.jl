@@ -90,6 +90,7 @@ include("KernelProduct.jl")
 include("RBFKernel.jl")
 include("KernelMatrix.jl")
 include("KernelMatrixDerivatives.jl")
+include("KernelGradients.jl")
 
 "Standard conversion when giving scalar and not vectors"
 function compute(k::Kernel{T,KT},X1::T,X2::T) where {T<:Real,KT<:KernelType}

@@ -1,3 +1,4 @@
+cd(dirname(@__FILE__))
 using BenchmarkTools,Traceur,Profile,ProfileView
 using OMGP.KernelModule
 using Distances, LinearAlgebra, Dates
@@ -5,7 +6,7 @@ suite = BenchmarkGroup()
 suite["ardmatrices"] = BenchmarkGroup(["XY","XYinplace","X","Xinplace","diagX","diagXinplace"])
 suite["plainmatrices"] = BenchmarkGroup(["XY","XYinplace","X","Xinplace","diagX","diagXinplace"])
 paramfile = "params/kernel.json"
-dim = 100
+dim = 50
 N1 = 1000; N2 = 500;
 X = rand(N1,dim)
 Y = rand(N2,dim)
@@ -33,13 +34,13 @@ for KT in ["ard","plain"]
 end
 
 if isfile(paramfile)
-    loadparams!(suite,BenchmarkTools.load(paramfile))
+    loadparams!(suite,BenchmarkTools.load(paramfile)[1])
 else
-    tune!(suite)
+    tune!(suite,verbose=true)
     BenchmarkTools.save(paramfile,params(suite))
 end
 
-results = run(suite)
+results = run(suite,verbose=true)
 save_target = "results/kernel_"*("$(now())"[1:10])
 i = 1
 while isfile(save_target*"_$(i).json")

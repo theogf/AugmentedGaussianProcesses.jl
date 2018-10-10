@@ -3,12 +3,12 @@
 "Update the local variational parameters of the full batch GP XGPC"
 function local_update!(model::BatchXGPC)
     model.α = sqrt.(diag(model.Σ)+model.μ.^2)
+    model.θ = 0.5*tanh.(0.5*model.α)./model.α
 end
 
 "Compute the variational updates for the full GP XGPC"
 function variational_updates!(model::BatchXGPC,iter)
     local_update!(model)
-    θ = 0.5*tanh.(0.5*model.α)./model.α
     natural_gradient_XGPC(model)
     global_update!(model)
 end
@@ -31,6 +31,7 @@ end
 "Update the local variational parameters of the online GP XGPC"
 function local_update!(model::OnlineXGPC)
     model.α = sqrt.(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
+    model.θ = 0.5*tanh.(0.5*model.α)./model.α
 end
 
 "Compute the variational updates for the online GP XGPC"
@@ -95,17 +96,19 @@ end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters for a XGPC Model"
 function hyperparameter_gradient_function(model::SparseXGPC)
-    B = model.μ*transpose(model.μ) + model.Σ
+    F2 = Symmetric(model.μ*transpose(model.μ) + model.Σ)
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
-    Θ = Diagonal(0.25./model.α.*tanh.(0.5*model.α))
-    return function(Js,i,j)
-                Jmm = Js[1]; Jnm = Js[2]; Jnn = Js[3];
+    θ = Diagonal(model.θ)
+    return (function(Jmm,Jnm,Jnn)
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
                 Jtilde = Jnn - sum(ι.*(transpose(Kmn)),dims=2) - sum(model.κ.*Jnm,dims=2)
                 V = model.invKmm*Jmm
-                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*Θ*model.κ + model.κ'*Θ*ι)) .* transpose(B)) - tr(V) - model.StochCoeff*dot(diag(Θ),Jtilde)
+                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*θ*model.κ + model.κ'*θ*ι)) .* transpose(F2)) - tr(V) - model.StochCoeff*dot(model.θ,Jtilde)
                     + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
-     end
+            end,
+            function(kernel)
+                return  0.5/(getvariance(kernel))*(sum(model.invKmm.*F2)-model.StochCoeff*dot(model.θ,model.Ktilde)-model.m)
+            end)
 end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters"
@@ -113,14 +116,14 @@ function inducingpoints_gradient(model::SparseXGPC)
     gradients_inducing_points = zeros(model.inducingPoints)
     B = model.μ*transpose(model.μ) + model.Σ
     Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
-    Θ = Diagonal(0.25./model.α.*tanh.(0.5*model.α))
+    θ = Diagonal(0.25./model.α.*tanh.(0.5*model.α))
     for i in 1:model.m #Iterate over the points
         Jnm,Jmm = computeIndPointsJ(model,i)
         for j in 1:model.nDim #Compute the gradient over the dimensions
             ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])/model.Kmm
             Jtilde = -sum(ι.*(transpose(Kmn)),dims=2)[:]-sum(model.κ.*Jnm[j,:,:],dims=2)[:]
             V = model.Kmm\Jmm[j,:,:]
-            gradients_inducing_points[i,j] = 0.5*(sum( (V/model.Kmm - model.StochCoeff*(ι'*Θ*model.κ + model.κ'*Θ*ι)) .* transpose(B)) - tr(V) - model.StochCoeff*dot(diag(Θ),Jtilde)
+            gradients_inducing_points[i,j] = 0.5*(sum( (V/model.Kmm - model.StochCoeff*(ι'*θ*model.κ + model.κ'*θ*ι)) .* transpose(B)) - tr(V) - model.StochCoeff*dot(diag(θ),Jtilde)
                 + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
         end
     end

@@ -1,3 +1,4 @@
+cd(dirname(@__FILE__))
 using BenchmarkTools
 using OMGP
 using Distances, LinearAlgebra, Dates, MLDataUtils, DelimitedFiles
@@ -32,14 +33,14 @@ for KT in ["Full","Sparse","SparseStoch"]
 end
 
 if isfile(paramfile)
-    loadparams!(suite,BenchmarkTools.load(paramfile))
+    loadparams!(suite,BenchmarkTools.load(paramfile)[1])
 else
     println("Tuning parameters")
-    tune!(suite)
+    tune!(suite,verbose=true)
     BenchmarkTools.save(paramfile,params(suite))
 end
 println("Running benchmarks")
-results = run(suite)
+results = run(suite,verbose=true)
 save_target = "results/xpgc_"*("$(now())"[1:10])
 i = 1
 while isfile(save_target*"_$(i).json")
