@@ -16,7 +16,7 @@ function fstar(model::FullBatchModel,X_test;covf::Bool=true)
     if !covf
         return mean_fstar
     else
-        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
+        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .+ getvalue(model.noise) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
         return mean_fstar,cov_fstar
     end
 end
@@ -36,7 +36,7 @@ function fstar(model::SparseModel,X_test;covf::Bool=true)
     if !covf
         return mean_fstar
     else
-        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
+        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .+ getvalue(model.noise) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
         return mean_fstar,cov_fstar
     end
 end
@@ -57,7 +57,7 @@ function fstar(model::OnlineGPModel,X_test;covf::Bool=true)
     if !covf
         return mean_fstar
     else
-        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
+        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .+ getvalue(model.noise) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
         return mean_fstar,cov_fstar
     end
 end
@@ -78,7 +78,7 @@ function fstar(model::GPRegression,X_test;covf::Bool=true)
     if !covf
         return mean_fstar
     else
-        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
+        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .+ getvalue(model.noise) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
         return mean_fstar,cov_fstar
     end
 end
@@ -108,7 +108,7 @@ function fstar(model::MultiClass,X_test;covf::Bool=true)
         else
             k_starstar = [kerneldiagmatrix(X_test,model.kernel[1])]
         end
-        cov_fstar = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,model.DownMatrixForPrediction)
+        cov_fstar = broadcast((k_ss,k_s,x)->(k_ss .+ getvalue(model.noise).- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,model.DownMatrixForPrediction)
         return mean_fstar,cov_fstar
     end
 end
@@ -131,7 +131,7 @@ function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
     end
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
     cov_fstar = [zeros(Float64,size(X_test,1)) for _ in 1:model.K]
-    cov_fstar .= broadcast((x,ks,kss)->(kss .- sum((ks*x).*ks,dims=2)[:]),model.DownMatrixForPrediction,k_star,k_starstar)
+    cov_fstar .= broadcast((x,ks,kss)->(kss .+ getvalue(model.noise) .- sum((ks*x).*ks,dims=2)[:]),model.DownMatrixForPrediction,k_star,k_starstar)
     return mean_fstar,cov_fstar
 end
 

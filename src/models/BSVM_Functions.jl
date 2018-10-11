@@ -17,36 +17,40 @@ function variational_updates!(model::LinearBSVM,iter::Integer)
 end
 
 "Update the local variational parameters of full batch GP BSVM"
-function local_update!(model::BatchBSVM,Z::Diagonal{Float64})
-    model.α = (1.0 .- Z*model.μ).^2 +  dropdims(sum((-0.5*Z/model.η_2).*Z,dims=2),dims=2);
+function local_update!(model::BatchBSVM)
+    model.α = (1.0 .- model.y.*model.μ).^2 .+ diag(model.Σ);
 end
 
 "Compute the variational updates for the full GP BSVM"
 function variational_updates!(model::BatchBSVM,iter::Integer)
-    Z = Diagonal{Float64}(model.y);
-    local_update!(model,Z)
-    (model.η_1,model.η_2) = natural_gradient_BSVM(model.α,Z,model.invK, 1.0)
+    local_update!(model)
+    natural_gradient_BSVM(model)
     global_update!(model)
 end
 
 "Update the local variational parameters of the sparse GP BSVM"
-function local_update!(model::SparseBSVM,Z::Matrix{Float64})
-    model.α = (1 .- Z*model.μ).^2 + sum((-0.5*Z/model.η_2).*Z,dims=2)[:] + model.Ktilde;
+function local_update!(model::SparseBSVM)
+    model.α = (1.0 .- Diagonal(model.y[model.MBIndices])*model.κ*model.μ).^2 + sum((model.κ*model.Σ).*model.κ,dims=2)[:] .+ model.Ktilde;
 end
 
 "Compute the variational updates for the sparse GP BSVM"
 function variational_updates!(model::SparseBSVM,iter::Integer)
-    Z = Diagonal{Float64}(model.y[model.MBIndices])*model.κ;
-    local_update!(model,Z)
-    (grad_η_1,grad_η_2) = natural_gradient_BSVM(model.α,Z, model.invKmm, model.Stochastic ? model.StochCoeff : 1.0)
+    local_update!(model)
+    (grad_η_1,grad_η_2) = natural_gradient_BSVM(model)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     global_update!(model,grad_η_1,grad_η_2)
 end
 
 "Return the natural gradients of the ELBO given the natural parameters"
-function natural_gradient_BSVM(α::Vector{Float64},Z::AbstractArray{Float64,2},invPrior::Matrix{Float64},stoch_coef::Float64)
-  grad_1 =  stoch_coef*transpose(Z)*(1.0./sqrt.(α).+1.0)
-  grad_2 = -0.5*(stoch_coef*transpose(Z)*Diagonal(1.0./sqrt.(α))*Z + invPrior)
+function natural_gradient_BSVM(model::BatchBSVM)
+  model.η_1 =  model.y.*(1.0./sqrt.(model.α).+1.0)
+  model.η_2 = -0.5*(Diagonal(1.0./sqrt.(model.α)) + model.invK)
+end
+
+"Return the natural gradients of the ELBO given the natural parameters"
+function natural_gradient_BSVM(model::SparseBSVM)
+  grad_1 =  model.StochCoeff*model.κ'*(model.y[model.MBIndices].*(1.0./sqrt.(model.α).+1.0))
+  grad_2 = -0.5*(model.StochCoeff*model.κ'*Diagonal(1.0./sqrt.(model.α))*model.κ + model.invKmm)
   return (grad_1,grad_2)
 end
 
@@ -79,16 +83,25 @@ end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters for a BSVM Model"
 function hyperparameter_gradient_function(model::SparseBSVM)
-    B = model.μ*transpose(model.μ) + model.Σ
-    Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
+    F2 = Symmetric(model.μ*transpose(model.μ) + model.Σ)
     A = Diagonal(1.0./sqrt.(model.α))
-    return function(Jmm,Jnm,Jnn,iter)
+    return (function(Jmm,Jnm,Jnn)
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
-                Jtilde = Jnn - sum(ι.*transpose(Kmn),dims=2) - sum(model.κ.*Jnm,dims=2)
+                Jtilde = Jnn - sum(ι.*model.Knm,dims=2)[:] - sum(model.κ.*Jnm,dims=2)[:]
                 V = model.invKmm*Jmm
-                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*A*model.κ + model.κ'*A*ι)) .* transpose(B)) - tr(V) - model.StochCoeff*dot(diag(A),Jtilde)
+                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*A*model.κ + model.κ'*A*ι)) .* F2) - tr(V) - model.StochCoeff*dot(diag(A),Jtilde)
                     + 2.0*model.StochCoeff*dot(model.y[model.MBIndices],(Diagonal{Float64}(I,model.nSamplesUsed)+A)*ι*model.μ))
-            end
+            end,
+            function(kernel)
+                0.5/(getvariance(kernel))*(sum(model.invKmm.*F2)-model.StochCoeff*dot(diag(A),model.Ktilde)-model.m)
+            end,
+            function()
+                ι = -model.κ*model.invKmm
+                Jtilde = ones(Float64,model.nSamplesUsed) - sum(ι.*model.Knm,dims=2)[:]
+                V = model.invKmm
+                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*A*model.κ + model.κ'*A*ι)) .* F2) - tr(V) - model.StochCoeff*dot(diag(A),Jtilde)
+                    .+ 2.0*model.StochCoeff*dot(model.y[model.MBIndices],(Diagonal{Float64}(I,model.nSamplesUsed)+A)*ι*model.μ))
+            end)
 end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters"

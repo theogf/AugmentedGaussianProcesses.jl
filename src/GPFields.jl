@@ -18,7 +18,7 @@ end
     nSamples::Int64 # Number of data points
     nDim::Int64
     nFeatures::Int64 # Number of features
-    noise::Float64  #Regularization parameter of the noise
+    noise::KernelModule.HyperParameter{Float64}  #Regularization parameter of the noise
     ϵ::Float64  #Desired Precision on ||ELBO(t+1)-ELBO(t)||))
     evol_conv::Vector{Float64} #Used for convergence estimation
     prev_params::Any
@@ -45,7 +45,7 @@ what `optimizer` to use
 function initCommon!(model::GPModel,X::Matrix{Float64},y::Vector,noise::Float64,ϵ::Float64,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer)
     @assert (size(y,1)==size(X,1)) "There is a dimension problem with the data size(y)!=size(X)";
     model.X = X; model.y = y;
-    @assert noise > 0 "noise should be a positive float"; model.noise = noise;
+    @assert noise > 0 "noise should be a positive float";  model.noise = KernelModule.HyperParameter{Float64}(noise,KernelModule.interval(KernelModule.OpenBound{Float64}(zero(Float64)),KernelModule.NullBound{Float64}()))
     @assert ϵ > 0 "ϵ should be a positive float"; model.ϵ = ϵ;
     @assert nEpochs > 0 "nEpochs should be positive"; model.nEpochs = nEpochs;
     @assert (verbose > -1 && verbose < 4) "verbose should be in {0,1,2,3}, here value is $verbose"; model.verbose = verbose;

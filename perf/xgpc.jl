@@ -26,10 +26,10 @@ for KT in ["Full","Sparse","SparseStoch"]
     models[KT].train(iterations=1)
     suite[KT]["elbo"] = @benchmarkable OMGP.ELBO($(models[KT]))
     suite[KT]["computematrices"] = @benchmarkable OMGP.computeMatrices!($(models[KT]))
-    suite[KT]["updatevariational"] = @benchmarkable OMGP.variational_updates!!($(models[KT]),1)
+    suite[KT]["updatevariational"] = @benchmarkable OMGP.variational_updates!($(models[KT]),1)
     suite[KT]["updatehyperparam"] = @benchmarkable OMGP.updateHyperParameters!($(models[KT]))
-    suite[KT]["predic"] = @benchmarkable OMGP.probitpredict($(models[KT]),$X_test)
-    suite[KT]["predicproba"] = @benchmarkable OMGP.probitpredictproba($(models[KT]),$X_test)
+    suite[KT]["predic"] = @benchmarkable OMGP.logitpredict($(models[KT]),$X_test)
+    suite[KT]["predicproba"] = @benchmarkable OMGP.logitpredictproba($(models[KT]),$X_test)
 end
 
 if isfile(paramfile)

@@ -28,7 +28,8 @@ function kernelmatrix!(K::Array{T,N},X::Array{T,N},kernel::Kernel{T,KT}) where {
     @assert n1==n2
     pairwise!(K,getmetric(kernel),X')
     v = getvariance(kernel)
-    return v.*map!(kappa(kernel),K,K)
+    map!(kappa(kernel),K,K)
+    return K .*= v
 end
 
 function kerneldiagmatrix(X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}

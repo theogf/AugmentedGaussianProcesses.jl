@@ -12,10 +12,10 @@ println("Testing the XGPC")
 ### TESTING WITH TOY XOR DATASET
     N_data = 1000;N_test = 20
     N_indpoints = 20; N_dim = 2
-    noise = 0.1
+    noise = 2.0
     minx=-5.0; maxx=5.0
     function latent(x)
-        return x[:,1].*sin.(2.0*x[:,2])
+        return x[:,1].*sin.(1.0*x[:,2])
     end
     X = rand(N_data,N_dim)*(maxx-minx).+minx
     x_test = range(minx,stop=maxx,length=N_test)
@@ -34,7 +34,6 @@ println("Testing the XGPC")
     # y_test = ones(size(X_test,1))
 
 # (nSamples,nFeatures) = (N_data,1)
-# kernel = RBFKernel([3.0],dim=N_dim)
 # stochmodel = OMGP.SparseXGPC(X,y,Stochastic=true,batchsize=40,Autotuning=true,AutotuningFrequency=2,verbose=2,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
 # stochmodel.train(iterations=7)#,callback=savelog)
 # Profile.clear()
@@ -43,6 +42,7 @@ println("Testing the XGPC")
 # @time stochmodel.train(iterations=1000)
 # ProfileView.view()
 
+kernel = RBFKernel([3.0],dim=N_dim)
 
 fullm = true
 sparsem = true
@@ -52,7 +52,7 @@ ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
 if fullm
     println("Testing the full model")
     t_full = @elapsed fullmodel = OMGP.BatchXGPC(X,y,noise=noise,kernel=kernel,verbose=3,Autotuning=true)
-    t_full += @elapsed fullmodel.train(iterations=10)
+    t_full += @elapsed fullmodel.train(iterations=20)
     y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
     if doPlots
         p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="XGPC")

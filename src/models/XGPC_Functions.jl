@@ -97,17 +97,23 @@ end
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters for a XGPC Model"
 function hyperparameter_gradient_function(model::SparseXGPC)
     F2 = Symmetric(model.μ*transpose(model.μ) + model.Σ)
-    Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
     θ = Diagonal(model.θ)
     return (function(Jmm,Jnm,Jnn)
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
-                Jtilde = Jnn - sum(ι.*(transpose(Kmn)),dims=2) - sum(model.κ.*Jnm,dims=2)
+                Jtilde = Jnn - sum(ι.*model.Knm,dims=2)[:] - sum(model.κ.*Jnm,dims=2)[:]
                 V = model.invKmm*Jmm
                 return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*θ*model.κ + model.κ'*θ*ι)) .* transpose(F2)) - tr(V) - model.StochCoeff*dot(model.θ,Jtilde)
                     + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
             end,
             function(kernel)
                 return  0.5/(getvariance(kernel))*(sum(model.invKmm.*F2)-model.StochCoeff*dot(model.θ,model.Ktilde)-model.m)
+            end,
+            function()
+                ι = -model.κ*model.invKmm
+                Jtilde = ones(Float64,model.nSamplesUsed) - sum(ι.*model.Knm,dims=2)[:]
+                V = model.invKmm
+                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*θ*model.κ + model.κ'*θ*ι)) .* transpose(F2)) - tr(V) - model.StochCoeff*dot(model.θ,Jtilde)
+                    + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
             end)
 end
 

@@ -34,12 +34,12 @@ function compare_versions(benchmarkname::String;version1=nothing,version2=nothin
         println(k)
         for v in keys(r2[k])
             if haskey(r1[k],v)
-                change = judge(median(r1[k][v]),median(r2[k][v]))
+                global change = judge(median(r1[k][v]),median(r2[k][v]))
                 print("For model ")
                 printstyled("$k",color=:red)
                 print(", and test ")
                 printstyled("$v :\n",bold=true,color=:blue)
-                @show change
+                display(change)
             end
         end
     end
