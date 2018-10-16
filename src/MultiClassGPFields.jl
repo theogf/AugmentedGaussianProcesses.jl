@@ -81,7 +81,8 @@ function initMultiClass!(model,Y,y_class,y_mapping,ind_mapping,KStochastic,nClas
     if KStochastic
         if nClassesUsed >= model.K || nClassesUsed <= 0
             @warn "The number of classes used is greater or equal to the number of classes or less than 0, setting back to the classical class batch method"
-            model.KStochastic = false; model.KIndices = collect(1:model.K); model.KStochCoeff = 1.0;   model.nClassesUsed = model.K;
+            model.KStochastic = false;  model.KStochCoeff = 1.0;
+            model.nClassesUsed = model.K; model.KIndices = collect(1:model.K);
         else
             model.nClassesUsed = nClassesUsed
             model.KStochCoeff = model.K/model.nClassesUsed
@@ -98,9 +99,9 @@ end
 
 function initMultiClassVariables!(model,μ_init)
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
-      model.μ = [randn(model.nFeatures) for i in 1:model.K]
+      model.μ = [randn(model.nFeatures) for _ in 1:model.K]
     else
-      model.μ = [μ_init for i in 1:model.K]
+      model.μ = [μ_init for _ in 1:model.K]
     end
     model.Σ = [Symmetric(Matrix{Float64}(I,model.nFeatures,model.nFeatures)) for _ in 1:model.K]
     model.η_2 = -inv.(model.Σ)*0.5
@@ -206,7 +207,7 @@ end
 @def multiclassstochasticfields begin
     nSamplesUsed::Int64 #Size of the minibatch used
     StochCoeff::Float64 #Stochastic Coefficient
-    MBIndices #MiniBatch Indices
+    MBIndices::Vector{Int64} #MiniBatch Indices
     #Flag for adaptative learning rate for the SVI
     AdaptiveLearningRate::Bool
       κ_s::Float64 #Parameters for decay of learning rate (iter + κ)^-τ in case adaptative learning rate is not used

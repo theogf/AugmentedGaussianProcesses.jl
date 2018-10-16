@@ -2,7 +2,7 @@
 function kernelmatrix(X1::Array{T,N},X2::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     K = pairwise(getmetric(kernel),X1',X2')
     v = getvariance(kernel)
-    return v.*map!(kappa(kernel),K,K)
+    return lmul!(v,map!(kappa(kernel),K,K))
 end
 
 function kernelmatrix!(K::Array{T,N},X1::Array{T,N},X2::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
@@ -12,13 +12,13 @@ function kernelmatrix!(K::Array{T,N},X1::Array{T,N},X2::Array{T,N},kernel::Kerne
     pairwise!(K,getmetric(kernel),X1',X2')
     v = getvariance(kernel)
     map!(kappa(kernel),K,K)
-    return K .*= v
+    return lmul!(v,K)
 end
 
 function kernelmatrix(X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     K = pairwise(getmetric(kernel),X')
     v = getvariance(kernel)
-    return v.*map!(kappa(kernel),K,K)
+    return lmul!(v,map!(kappa(kernel),K,K))
 end
 
 
@@ -29,7 +29,7 @@ function kernelmatrix!(K::Array{T,N},X::Array{T,N},kernel::Kernel{T,KT}) where {
     pairwise!(K,getmetric(kernel),X')
     v = getvariance(kernel)
     map!(kappa(kernel),K,K)
-    return K .*= v
+    return lmul!(v,K)
 end
 
 function kerneldiagmatrix(X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
@@ -40,7 +40,7 @@ function kerneldiagmatrix(X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
     @simd for i in eachindex(K)
         @inbounds K[i] = f(evaluate(getmetric(kernel),X[i,:],X[i,:]))
     end
-    return v.*K
+    return lmul!(v,K)
 end
 
 function kerneldiagmatrix!(K::Vector{T},X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
@@ -51,8 +51,7 @@ function kerneldiagmatrix!(K::Vector{T},X::Array{T,N},kernel::Kernel{T,KT}) wher
     @simd for i in eachindex(K)
         @inbounds K[i] = f(evaluate(getmetric(kernel),X[i,:],X[i,:]))
     end
-    K .*= v
-    return K
+    return lmul!(v,K)
 end
 
 

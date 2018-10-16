@@ -135,15 +135,16 @@ function hyperparameter_gradient_function(model::MultiClass)
     if model.IndependentGPs
         A = [model.invK[i]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{Float64}(I,model.nSamples) for i in model.KIndices]
         return (function(J,Kindex,index)
-                    return 0.5*sum((model.invK[Kindex].*J).*transpose(A[index]))
+                    return 0.5*sum((model.invK[Kindex]*J).*transpose(A[index]))
                 end,
                 function(kernel,Kindex,index)
                     return 0.5/getvariance(kernel)*tr(A[index])
                 end)
     else
         A = [model.invK[1]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{Float64}(I,model.nSamples) for i in model.KIndices]
+        V = Matrix{Float64}(undef,model.nSamples,model.nSamples)
         return (function(J,Kindex,index)
-            V = model.invK[1].*J #invK*J
+            V = model.invK[1]*J #invK*J
             return 0.5*model.KStochCoeff*sum([sum(V.*transpose(A[i])) for i in 1:model.nClassesUsed])
                 end,
                 function(kernel)
@@ -153,39 +154,58 @@ function hyperparameter_gradient_function(model::MultiClass)
 end
 
 function add_transpose!(A::Matrix{T}) where {T}
-    A += A'
+    A .+= A'
 end
 
 
 """Return the gradient of the ELBO given the kernel hyperparameters"""
 function hyperparameter_gradient_function(model::SparseMultiClass)
     #General values used for all gradients
-    F2 = broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}})->Symmetric(μ*transpose(μ) + Σ),model.μ[model.KIndices],model.Σ[model.KIndices])
+    F2 = broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}})->μ*transpose(μ) + Σ,model.μ[model.KIndices],model.Σ[model.KIndices])
     C = broadcast((y::SparseVector{Int64,Int64},θ::Vector{Float64})->Array(y[model.MBIndices].*model.θ[1]).+θ,model.Y[model.KIndices],model.θ[2:end])
+    #preallocation
+    ι = Matrix{Float64}(undef,model.nSamplesUsed,model.m)
+    Jtilde = Vector{Float64}(undef,model.nSamplesUsed)
+    V = Matrix{Float64}(undef,model.m,model.m)
     if model.IndependentGPs
         KC = transpose.(model.κ).*Diagonal.(C)
+        A = Matrix{Float64}(undef,model.m,model.m)
         return (function(Jmm::LinearAlgebra.Symmetric{Float64,Matrix{Float64}},Jnm::Matrix{T},Jnn::Vector{T},Kindex::Int64,index::Int64) where {T}
-                    ι = (Jnm-model.κ[index]*Jmm)*model.invKmm[Kindex]
-                    Jtilde = Jnn - sum(ι.*model.Knm[index],dims=2)[:] - sum(model.κ[index].*Jnm,dims=2)[:]
-                    V = model.invKmm[Kindex]*Jmm
+                    # ι = (Jnm-model.κ[index]*Jmm)*model.invKmm[Kindex]
+                    mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[Kindex])
+                    # Jtilde = Jnn - sum(ι.*model.Knm[index],dims=2)[:] - sum(model.κ[index].*Jnm,dims=2)[:]
+                    Jnn .+= - sum(ι.*model.Knm[index],dims=2)[:] - sum(model.κ[index].*Jnm,dims=2)[:]
+                    # V = Matrix(model.invKmm[Kindex])*Matrix(Jmm)
+                    mul!(V,model.invKmm[Kindex],Matrix(Jmm))
+                    trV = tr(V)
+                    V *= model.invKmm[Kindex]
                     A = add_transpose!(KC[index]*ι)
-                    return 0.5*(sum((V*model.invKmm[Kindex]).*F2[index])-model.StochCoeff*sum(A.*F2[index])
-                            - tr(V)
-                            - model.StochCoeff*dot(C[index],Jtilde)
-                            + model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex]))
+                    grad = sum(V.*F2[index])
+                    grad += - model.StochCoeff*sum(A.*F2[index])
+                    grad += - trV
+                    grad += - model.StochCoeff*dot(C[index],Jnn)
+                    grad += model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex])
+                    grad *= 0.5
+                    return grad
+                    # return 0.5*(sum((V*model.invKmm[Kindex]).*F2[index])-model.StochCoeff*sum(A.*F2[index])
+                    #         - trV
+                    #         - model.StochCoeff*dot(C[index],Jtilde)
+                    #         + model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex]))
          end, #end of function(Js)
                 function(kernel::Kernel,Kindex::Int64,index::Int64)
                     return 0.5/(getvariance(kernel))*(sum(model.invKmm[Kindex].*F2[index])-model.StochCoeff * dot(C[index],model.Ktilde[index])-model.m)
                 end)
     else
         KC = broadcast(c->transpose(model.κ[1])*Diagonal(c),C)
+        A = [Matrix{Float64}(undef,model.m,model.m) for _ in 1:model.nClassesUsed]
         return (function(Jmm::LinearAlgebra.Symmetric{Float64,Matrix{Float64}},Jnm::Matrix{T},Jnn::Vector{T},Kindex::Int64,index::Int64) where {T}
-                    ι = (Jnm-model.κ[1]*Jmm)/model.Kmm[1]
-                    Jtilde = Jnn - sum(ι.*model.Knm[1],dims=2)[:] - sum(model.κ[1].*Jnm,dims=2)[:]
-                    A = broadcast(kc::Matrix{T}->add_transpose!(kc*ι),KC)
-                    V = model.invKmm[1]*Jmm
+                    mul!((Jnm-model.κ[1]*Jmm),model.invKmm[1])
+                    Jnn .+= - sum(ι.*model.Knm[1],dims=2)[:] - sum(model.κ[1].*Jnm,dims=2)[:]
+                    A .= broadcast(kc::Matrix{T}->add_transpose!(kc*ι),KC)
+                    mul!(V,Matrix(model.invKmm[1]),Matrix(Jmm))
                     TraceV = -tr(V)
-                    return 0.5*(model.KStochCoeff*sum(broadcast((f2,a,c,y,γ,μ)->                (sum((V*model.invKmm[1]).*f2)-sum(a.*f2)*model.StochCoeff)
+                    V*= model.invKmm[1]
+                    return 0.5*(model.KStochCoeff*sum(broadcast((f2,a,c,y,γ,μ)->                (sum(V.*f2)-sum(a.*f2)*model.StochCoeff)
                         -model.StochCoeff*dot(c,Jtilde)
                         + model.StochCoeff*dot(Array(y[model.MBIndices])-γ,ι*μ),
                         F2,A,C,model.Y[model.KIndices],model.γ,model.μ[model.KIndices]))+model.K*TraceV)

@@ -95,10 +95,10 @@ X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 
 
 ##Which algorithm are tested
-fullm = true
-sfullm = true
+fullm = !true
+sfullm = false
 sparsem = true
-ssparsem = true
+ssparsem = false
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
 function initial_lengthscale(X)
@@ -115,7 +115,7 @@ if fullm
     global fmodel = OMGP.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true)
     fmetrics, callback = OMGP.getMultiClassLog(fmodel,X_test=X_test,y_test=y_test)
     # full_model.AutotuningFrequency=1
-    t_full = @elapsed fmodel.train(iterations=100,callback=callback)
+    t_full = @elapsed fmodel.train(iterations=50)#,callback=callback)
 
     global y_full,sig_full = fmodel.predict(X_test)
     global y_fall = OMGP.multiclasspredict(fmodel,X_test,true)
@@ -129,6 +129,8 @@ if fullm
     end
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s for l = $l")
 end
+
+
 
 if sfullm
     global sfmodel = OMGP.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true,KStochastic=true,nClassesUsed=20)
@@ -151,12 +153,13 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=100,IndependentGPs=false)
+    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=100,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
     smetrics, callback = OMGP.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = OMGP.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
     smodel.train(iterations=4)
-    # Profile.clear()
+    Profile.clear()
+    @profile smodel.train(iterations=10)
     @time smodel.train(iterations=10)
     # t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
     global y_sparse, = smodel.predict(X_test)
@@ -173,7 +176,18 @@ if sparsem
     println("Sparse model Accuracy is $(sparse_score/length(y_test))")#" in $t_sparse s")
 end
 
-# ProfileView.view()
+1
+    model = smodel;
+    OMGP.computeMatrices!(model)
+    OMGP.updateHyperParameters!(model)
+    OMGP.computeMatrices!(model)
+    @btime OMGP.updateHyperParameters!(model)
+    Profile.clear()
+    OMGP.computeMatrices!(model)
+    @profile OMGP.updateHyperParameters!(model)
+    ProfileView.view()
+
+1
 
 if ssparsem
     global ssmodel = OMGP.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=5,verbose=3,kernel=kernel,m=100,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)

@@ -13,10 +13,10 @@ suite["SparseStochKStoch"] = BenchmarkGroup(["init","elbo","computematrices","up
 paramfile = "params/multiclass.json"
 data = readdlm("data/vehicle.csv",',')
 train,test=splitobs(data',at=0.7)
-X_train = train'[:,1:2]; y_train = train'[:,3]
-X_test = test'[:,1:2]; y_test = test'[:,3]
+X_train = train'[:,1:end-1]; y_train = train'[:,end]
+X_test = test'[:,1:end-1]; y_test = test'[:,end]
 m = 50; batchsize = 50
-kernel = RBFKernel([2.0],variance=1.0,dim=2)
+kernel = RBFKernel([2.0],variance=1.0,dim=size(X_train,2))
 models = Dict{String,GPModel}()
 
 models["Full"] = MultiClass(X_train,y_train,kernel=kernel,Autotuning=true,μ_init=ones(Float64,size(X_train,1)))
@@ -31,13 +31,14 @@ suite["Sparse"]["init"] = @benchmarkable SparseMultiClass($X_train,$y_train,kern
 suite["SparseStoch"]["init"] = @benchmarkable SparseMultiClass($X_train,$y_train,kernel=$kernel,Autotuning=true,μ_init=ones(Float64,$m),Stochastic=true,m=$m,batchsize=$batchsize)
 suite["SparseStochKStoch"]["init"] = @benchmarkable SparseMultiClass($X_train,$y_train,kernel=$kernel,Autotuning=true,μ_init=ones(Float64,$m),Stochastic=true,m=$m,batchsize=$batchsize,KStochastic=true,nClassesUsed=1)
 for KT in ["Full","FullKStoch","Sparse","SparseStoch","SparseStochKStoch"]
+    println(KT)
     models[KT].train(iterations=1)
-    suite[KT]["elbo"] = @benchmarkable OMGP.ELBO($(models[KT]))
-    suite[KT]["computematrices"] = @benchmarkable OMGP.computeMatrices!($(models[KT]))
-    suite[KT]["updatevariational"] = @benchmarkable OMGP.variational_updates!($(models[KT]),1)
-    suite[KT]["updatehyperparam"] = @benchmarkable OMGP.updateHyperParameters!($(models[KT]))
-    suite[KT]["predic"] = @benchmarkable OMGP.multiclasspredict($(models[KT]),$X_test)
-    suite[KT]["predicproba"] = @benchmarkable OMGP.multiclasspredictproba($(models[KT]),$X_test)
+    suite[KT]["elbo"] = @benchmarkable OMGP.ELBO(model) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["computematrices"] = @benchmarkable OMGP.computeMatrices!(model) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["updatevariational"] = @benchmarkable OMGP.variational_updates!(model,1) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["updatehyperparam"] = @benchmarkable OMGP.updateHyperParameters!(model) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["predic"] = @benchmarkable OMGP.multiclasspredict(model,$X_test) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["predicproba"] = @benchmarkable OMGP.multiclasspredictproba(model,$X_test) setup=(model=deepcopy($(models[KT])))
 end
 
 if isfile(paramfile)
@@ -48,7 +49,7 @@ else
     BenchmarkTools.save(paramfile,params(suite))
 end
 println("Running benchmarks")
-results = run(suite,verbose=true)
+results = run(suite,verbose=true,seconds=30)
 save_target = "results/multiclass_"*("$(now())"[1:10])
 i = 1
 while isfile(save_target*"_$(i).json")

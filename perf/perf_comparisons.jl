@@ -4,7 +4,7 @@ using BenchmarkTools, DelimitedFiles, Statistics
 
 function load_results(benchmarkname::String;version1=nothing,version2=nothing)
     files = readdir("results")
-    files = files[occursin.([benchmarkname],files)]
+    files = filter(x->occursin(benchmarkname,x),files)
     print("Comparing file ")
     if version1 == nothing
         prev_result = BenchmarkTools.load("results/"*files[end-1])[1]
@@ -34,7 +34,8 @@ function compare_versions(benchmarkname::String;version1=nothing,version2=nothin
         println(k)
         for v in keys(r2[k])
             if haskey(r1[k],v)
-                global change = judge(median(r1[k][v]),median(r2[k][v]))
+                # global change = judge(minimum(r1[k][v]),minimum(r2[k][v]))
+                global change = judge(mean(r1[k][v]),mean(r2[k][v]))
                 print("For model ")
                 printstyled("$k",color=:red)
                 print(", and test ")

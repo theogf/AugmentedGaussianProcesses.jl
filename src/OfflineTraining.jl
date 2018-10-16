@@ -78,7 +78,9 @@ function updateParameters!(model::GPModel,iter::Integer)
         #No replacement means one points cannot be twice in the same minibatch
     end
     if typeof(model) <: MultiClassGPModel
-
+        if model.KStochastic
+            model.KIndices = StatsBase.sample(1:model.K,model.nClassesUsed,replace=false)
+        end
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model,iter);
