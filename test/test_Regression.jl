@@ -44,7 +44,7 @@ if doPlots
 end
 
 println("Testing the sparse stochastic model")
-t_stoch = @elapsed stochmodel = OMGP.SparseGPRegression(X,y,Stochastic=true,BatchSize=20,Autotuning=true,verbose=2,m=20,noise=noise,kernel=kernel)
+t_stoch = @elapsed stochmodel = OMGP.SparseGPRegression(X,y,Stochastic=true,batchsize=20,Autotuning=true,verbose=2,m=20,noise=noise,kernel=kernel)
 t_stoch += @elapsed stochmodel.train(iterations=200)
 y_stoch = stochmodel.predict(X_test); rmse_stoch = norm(y_stoch-y_test,2)/sqrt(length(y_test))
 if doPlots

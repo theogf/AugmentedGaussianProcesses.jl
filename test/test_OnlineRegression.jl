@@ -155,7 +155,7 @@ end
 # kernel = OMGP.Matern5_2Kernel(0.5)
 # kernel = OMGP.LaplaceKernel(0.5)
 ##Basic Offline KMeans
-# t_off = @elapsed offgp = OMGP.SparseGPRegression(X,y,m=k,Stochastic=true,Autotuning=false,BatchSize=b,verbose=0,kernel=kernel)
+# t_off = @elapsed offgp = OMGP.SparseGPRegression(X,y,m=k,Stochastic=true,Autotuning=false,batchsize=b,verbose=0,kernel=kernel)
 # t_off += @elapsed offgp.train(iterations=500)
 # y_off, sig_off = offgp.predictproba(X_test)
 # y_indoff = offgp.predict(offgp.inducingPoints)
@@ -167,7 +167,7 @@ end
 # end
 # println("Offline KMeans ($t_off s)\n\tRMSE (train) : $(RMSE(offgp.predict(X),y))\n\tRMSE (test) : $(RMSE(y_off,y_test))")
 # ###Online KMeans with Webscale
-# t_web = @elapsed onwebgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.Webscale(),Sequential=false,m=k,BatchSize=b,verbose=0,kernel=kernel)
+# t_web = @elapsed onwebgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.Webscale(),Sequential=false,m=k,batchsize=b,verbose=0,kernel=kernel)
 # t_web = @elapsed onwebgp.train(iterations=10)#,callback=plotthisshit)
 # y_web, sig_web = onwebgp.predictproba(X_test)
 # y_indweb = onwebgp.predict(onwebgp.kmeansalg.centers)
@@ -182,7 +182,7 @@ end
 #
 #
 ###Online KMeans with Streaming
-# t_str = @elapsed onstrgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.StreamOnline(),Sequential=sequential,m=k,BatchSize=b,verbose=0,kernel=kernel)
+# t_str = @elapsed onstrgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.StreamOnline(),Sequential=sequential,m=k,batchsize=b,verbose=0,kernel=kernel)
 # t_str = @elapsed onstrgp.train(iterations=1000)#,callback=plotthisshit)
 # y_str,sig_str = onstrgp.predictproba(X_test)
 # y_indstr = onstrgp.predict(onstrgp.kmeansalg.centers)
@@ -209,7 +209,7 @@ println("Full GP ($t_full s)\n\tRMSE (train) : $(RMSE(fullgp.predict(X),y))\n\tR
 
 
 #### Custom K finding method with constant limit
-t_const = @elapsed onconstgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.CircleKMeans(lim=0.90),Sequential=sequential,m=k,BatchSize=b,verbose=0,kernel=kernel)
+t_const = @elapsed onconstgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.CircleKMeans(lim=0.90),Sequential=sequential,m=k,batchsize=b,verbose=0,kernel=kernel)
 t_const = @elapsed onconstgp.train(iterations=50,callback=plotthisshit)
 y_const,sig_const = onconstgp.predictproba(X_test)
 y_indconst = onconstgp.predict(onconstgp.kmeansalg.centers)
@@ -230,7 +230,7 @@ plot!(twinx(),X,[kl_const js_const],lab=["KL" "JS"])
 #plot!(X,y_trainconst+js_const,fill=(y_trainconst-js_const),alpha=0.3,lab="")
 
 #### Custom K with random accept using both f and X
-t_rand = @elapsed onrandgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.DataSelection(),Sequential=sequential,m=k,BatchSize=b,verbose=0,kernel=kernel)
+t_rand = @elapsed onrandgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.DataSelection(),Sequential=sequential,m=k,batchsize=b,verbose=0,kernel=kernel)
 t_rand = @elapsed onrandgp.train(iterations=50,callback=plotthisshit)
 y_rand,sig_rand = onrandgp.predictproba(X_test)
 y_indrand = onrandgp.predict(onrandgp.kmeansalg.centers)

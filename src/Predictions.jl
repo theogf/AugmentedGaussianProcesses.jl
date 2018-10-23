@@ -172,7 +172,7 @@ end
 
 "Return the predicted class {-1,1} with a GP model via the logit link"
 function logitpredict(model::GPModel,X_test)
-    return sign.(fstar(model,X_test,covf=false).-0.5)
+    return sign.(fstar(model,X_test,covf=false))
 end
 
 "Return the mean of likelihood p(y*=1|X,x*) via the logit link with a GP model"
@@ -206,9 +206,19 @@ end
 
 """Return the mean and variance of the predictive distribution of f"""
 function regpredictproba(model::GPModel,X_test)
-    return fstar(model,X_test)
+    return fstar(model,X_test,covf=false)
 end
 
+"""Return the mean of the predictive distribution of f"""
+function studenttpredict(model::GPModel,X_test)
+    return fstar(model,X_test,covf=false)
+end
+
+#TODO WRONG RETURN
+"""Return the mean and variance of the predictive distribution of f"""
+function studenttpredictproba(model::GPModel,X_test)
+    return fstar(model,X_test)
+end
 
 function multiclasspredict(model::MultiClass,X_test,all_class=false)
     n = size(X_test,1)

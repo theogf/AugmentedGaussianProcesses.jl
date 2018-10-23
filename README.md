@@ -15,7 +15,7 @@ A complete documentation is currently being written, for now you can use this ve
 
 ```julia
 using OMGPC
-model = SparseXGPC(X_train,Y_train;Stochastic=true,BatchSize=100,m=64,kernel=RBFKernel(1.0)) #Parameters after ; are optional
+model = SparseXGPC(X_train,Y_train;Stochastic=true,batchsize=100,m=64,kernel=RBFKernel(1.0)) #Parameters after ; are optional
 model.train(iterations=100)
 Y_predic = model.predict(X_test) #For getting the label directly
 Y_predic_prob = model.predictproba(X_test) #For getting the likelihood of predicting class 1

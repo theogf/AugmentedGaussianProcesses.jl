@@ -20,6 +20,14 @@ function global_update!(model::SparseModel,grad_1::Vector,grad_2::Matrix)
     model.μ = model.Σ*model.η_1 #Back to the normal distribution parameters (needed for α updates)
 end
 
+function GaussianKL(model::FullBatchModel)
+    return 0.5*(sum(model.invK.*(model.Σ+model.μ*transpose(model.μ)))-model.nSamples-logdet(model.Σ)-logdet(model.invK))
+end
+
+function GaussianKL(model::SparseModel)
+    return 0.5*(sum(model.invKmm.*(model.Σ+model.μ*transpose(model.μ)))-model.m-logdet(model.Σ)-logdet(model.invKmm))
+end
+
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters for full batch Models"
 function hyperparameter_gradient_function(model::FullBatchModel)
     A = model.invK*(model.Σ+model.µ*transpose(model.μ))-Diagonal{Float64}(I,model.nSamples)

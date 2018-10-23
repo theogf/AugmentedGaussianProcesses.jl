@@ -4,13 +4,13 @@
 mutable struct SparseBSVM <: SparseModel
     @commonfields
     @functionfields
-    @latentfields
     @stochasticfields
     @kernelfields
     @sparsefields
-
     @gaussianparametersfields
-    #Constructor
+    α::Vector{Float64}
+    θ::Vector{Float64}
+    "SparseBSVM Constructor"
     function SparseBSVM(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(),OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
@@ -30,7 +30,8 @@ mutable struct SparseBSVM <: SparseModel
             initKernel!(this,kernel);
             initSparse!(this,m,OptimizeIndPoints);
             initGaussian!(this,μ_init);
-            initLatentVariables!(this);
+            this.α = abs.(rand(this.nSamplesUsed))*2;
+            this.θ = zero(this.α)
             if this.Stochastic && this.AdaptiveLearningRate
                 MCInit!(this)
             end

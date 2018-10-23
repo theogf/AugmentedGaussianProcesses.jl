@@ -244,6 +244,8 @@ function initFunctions!(model::GPModel)
             logitpredict(model,X_test)
         elseif model.ModelType == Regression
             regpredict(model,X_test)
+        elseif model.ModelType == StudentT
+            studenttpredict(model,X_test)
         elseif typeof(model) <: MultiClassGPModel
             multiclasspredict(model,X_test)
         end
@@ -259,6 +261,8 @@ function initFunctions!(model::GPModel)
             logitpredictproba(model,X_test)
         elseif model.ModelType == Regression
             regpredictproba(model,X_test)
+        elseif model.ModelType == StudentT
+            studenttpredictproba(model,X_test)
         elseif typeof(model) <: MultiClassGPModel
             multiclasspredictproba(model,X_test)
         end

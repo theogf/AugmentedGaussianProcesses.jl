@@ -81,9 +81,9 @@ function StoreIt(model::OMGP.GPModel,iter;hyper=false)#;iter_points=[],LogArrays
         end
     end
 end
-# model = SparseBSVM(X,y;Stochastic=true,Kernels=kerns,Autotuning=true,SmoothingWindow=50,AutotuningFrequency=1,verbose=3,ρ_AT=0.2,AdaptiveLearningRate=true,BatchSize=50,m=50)
+# model = SparseBSVM(X,y;Stochastic=true,Kernels=kerns,Autotuning=true,SmoothingWindow=50,AutotuningFrequency=1,verbose=3,ρ_AT=0.2,AdaptiveLearningRate=true,batchsize=50,m=50)
 # model = BatchBSVM(X,y;Kernels=kerns,Autotuning=false,AutotuningFrequency=2,verbose=1)
- # model = LinearBSVM(X,y;Intercept=true,Stochastic=false,BatchSize=30,AdaptiveLearningRate=true,verbose=3,Autotuning=true,AutotuningFrequency=5)
+ # model = LinearBSVM(X,y;Intercept=true,Stochastic=false,batchsize=30,AdaptiveLearningRate=true,verbose=3,Autotuning=true,AutotuningFrequency=5)
 Profile.clear()
 @profile model.train()
 ProfileView.view()

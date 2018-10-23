@@ -7,21 +7,27 @@ end
 
 "Update the variational parameters of the sparse model"
 function variational_updates!(model::SparseGPRegression,iter::Integer)
-    (grad_η_1,grad_η_2) = natural_gradient_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.Stochastic ? model.StochCoeff : 1.0)
+    (grad_η_1,grad_η_2) = natural_gradient_Regression(model)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     global_update!(model,grad_η_1,grad_η_2)
 end
 
 "Update the variational parameters of the online model"
 function variational_updates!(model::OnlineGPRegression,iter::Integer)
-    (grad_η_1,grad_η_2) = natural_gradient_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.Stochastic ? model.StochCoeff : 1.0)
+    (grad_η_1,grad_η_2) = natural_gradient_Regression(model)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     global_update!(model,grad_η_1,grad_η_2)
 end
 
-function natural_gradient_Regression(y::Vector{Float64},κ::Matrix{Float64},noise::Float64;stoch_coeff::Float64=1.0)
-    grad_1 = stoch_coeff*κ'*y./noise
-    grad_2 = -0.5*(stoch_coeff*(κ')*κ./noise)
+function natural_gradient_Regression(model::SparseGPRegression)
+    grad_1 = model.StochCoeff*model.κ'*model.y./model.noise
+    grad_2 = -0.5*(model.StochCoeff*(model.κ')*model.κ./model.noise)
+    return (grad_1,grad_2)
+end
+
+function natural_gradient_Regression(model::OnlineGPRegression)
+    grad_1 = model.StochCoeff*model.κ'*model.y./model.noise
+    grad_2 = -0.5*(model.StochCoeff*(model.κ')*model.κ./model.noise)
     return (grad_1,grad_2)
 end
 

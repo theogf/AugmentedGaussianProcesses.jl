@@ -223,6 +223,9 @@ function MCInit!(model::GPModel)
                 (grad_η_1,grad_η_2) = natural_gradient_XGPC(model)
             elseif model.ModelType==Regression
                 (grad_η_1,grad_η_2) = natural_gradient_Regression(model.y[model.MBIndices],model.κ,getvalue(model.noise),stoch_coeff=model.StochCoeff)
+            elseif model.ModelType==StudentT
+                local_update!(model)
+                (grad_η_1,grad_η_2) = natural_gradient_StudentT(model)
             end
             grads = vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
             model.g = model.g + grads/model.τ

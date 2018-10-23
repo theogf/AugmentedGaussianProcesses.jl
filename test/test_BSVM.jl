@@ -38,7 +38,7 @@ println("Testing the BSVM model")
 kernel = OMGP.RBFKernel([1.0],dim=N_dim)
 fullm = true
 sparsem = true
-ssparsem = true
+stochm = true
 
 ps = []; t_full = 0; t_sparse = 0; t_stoch =0;
 #### FULL MODEL EVALUATION ####
@@ -60,19 +60,19 @@ if sparsem
     t_sparse += @elapsed sparsemodel.train(iterations=100)
     y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
     if doPlots
-        p2=plot(x1_test,x2_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Sparse Regression")
+        p2=plot(x1_test,x2_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Sparse BSVM")
         plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
         push!(ps,p2)
     end
 end
 # #### STOCH. MODEL EVALUATION ####
-if ssparsem
+if stochm
     println("Testing the sparse stochastic model")
     t_stoch = @elapsed stochmodel = OMGP.SparseBSVM(X,y,Stochastic=true,batchsize=10,Autotuning=true,verbose=3,m=20,noise=noise,kernel=kernel)
     t_stoch += @elapsed stochmodel.train(iterations=1000)
     y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))
     if doPlots
-        p3=plot(x1_test,x2_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse Regression")
+        p3=plot(x1_test,x2_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse BSVM")
         plot!(stochmodel.inducingPoints[:,1],stochmodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
         push!(ps,p3)
     end

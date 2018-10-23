@@ -5,7 +5,7 @@ General Framework for the data augmented Gaussian Processes
 """
 module OMGP
 
-@enum GPModelType Undefined=0 BSVM=1 XGPC=2 Regression=3 MultiClassGP=4
+@enum GPModelType Undefined=0 BSVM=1 XGPC=2 Regression=3 StudentT=4 MultiClassGP=5
 
 #Class arborescence
 
@@ -51,6 +51,7 @@ export KMeansModule
 export LinearBSVM, BatchBSVM, SparseBSVM
 export BatchXGPC, SparseXGPC, OnlineXGPC, GibbsSamplerGPC
 export GPRegression, SparseGPRegression, OnlineGPRegression
+export BatchStudentT, SparseStudentT
 export MultiClass, SparseMultiClass
 #General class definitions
 export GPModel, OnlineGPModel, OfflineGPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
@@ -78,6 +79,8 @@ include("models/GibbsSamplerGPC.jl")
 include("models/Regression.jl")
 include("models/SparseRegression.jl")
 include("models/OnlineRegression.jl")
+include("models/BatchStudentT.jl")
+include("models/SparseStudentT.jl")
 include("models/MultiClass.jl")
 include("models/SparseMultiClass.jl")
 #Functions
@@ -88,7 +91,8 @@ include("Predictions.jl")
 include("models/General_Functions.jl")
 include("models/BSVM_Functions.jl")
 include("models/XGPC_Functions.jl")
-include("models/Reg_Functions.jl")
+include("models/Regression_Functions.jl")
+include("models/StudentT_Functions.jl")
 include("models/MultiClass_Functions.jl")
 
 end #End Module

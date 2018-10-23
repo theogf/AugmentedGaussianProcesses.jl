@@ -2,10 +2,10 @@
 mutable struct BatchBSVM <: FullBatchModel
     @commonfields
     @functionfields
-    @latentfields
     @gaussianparametersfields
     @kernelfields
-
+    α::Vector{Float64}
+    θ::Vector{Float64}
     "BatchBSVM Constructor"
     function BatchBSVM(X::AbstractArray,y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 100,
                                     kernel=0,noise::Real=1e-3,AutotuningFrequency::Integer=2,
@@ -18,6 +18,8 @@ mutable struct BatchBSVM <: FullBatchModel
         initKernel!(this,kernel)
         initGaussian!(this,μ_init)
         initLatentVariables!(this)
+        this.α = abs.(rand(this.nSamples))*2;
+        this.θ = zero(this.α)
         return this
     end
 end
