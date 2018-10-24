@@ -17,7 +17,7 @@ mutable struct SparseGPRegression <: SparseModel
                                     verbose::Integer=0)
             this = new();
             this.ModelType = Regression;
-            this.Name = "Sparse Gaussian Process Regression";
+            this.Name = "Sparse Gaussian Process Regression  with Gaussian Likelihood";
             initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             if Stochastic
@@ -32,5 +32,13 @@ mutable struct SparseGPRegression <: SparseModel
                 MCInit!(this)
             end
             return this;
+    end
+    "Empty constructor for loading models"
+    function SparseGPRegression()
+        this = new()
+        this.ModelType = Regression
+        this.Name = "Sparse Gaussian Process Regression with Gaussian Likelihood";
+        initFunctions!(this)
+        return this;
     end
 end

@@ -52,6 +52,7 @@ mutable struct SparseXGPC <: SparseModel
             end
             return this;
     end
+    "Empty constructor for loading models"
     function SparseXGPC()
         this = new()
         this.ModelType = XGPC

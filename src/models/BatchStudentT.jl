@@ -26,4 +26,12 @@ mutable struct BatchStudentT <: FullBatchModel
             this.θ = zero(this.β)
             return this;
     end
+    "Empty constructor for loading models"
+    function BatchStudentT()
+        this = new()
+        this.ModelType = StudentT
+        this.Name = "Student T Gaussian Process Regression"
+        initFunctions!(this)
+        return this;
+    end
 end

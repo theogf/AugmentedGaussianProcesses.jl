@@ -20,7 +20,7 @@ mutable struct SparseStudentT <: SparseModel
                                     verbose::Integer=0,ν::Float64=5.0)
             this = new();
             this.ModelType = StudentT;
-            this.Name = "Student T Gaussian Process Regression";
+            this.Name = "Student T Sparse Gaussian Process Regression";
             initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             if Stochastic
@@ -39,5 +39,13 @@ mutable struct SparseStudentT <: SparseModel
                 MCInit!(this)
             end
             return this;
+    end
+    "Empty constructor for loading models"
+    function SparseStudentT()
+        this = new()
+        this.ModelType = StudentT
+        this.Name = "Student T Sparse Gaussian Process Regression";
+        initFunctions!(this)
+        return this;
     end
 end

@@ -26,6 +26,10 @@ end
 
 function save_trained_model(filename::String,model::GPModel)
     # try
+    if typeof(model) <: GPRegression
+        @warn "Model not saved, GPRegression (non sparse) does not require training, it does not make sense to save it"
+        return nothing
+    end
         jldopen(filename,"w") do file
             writegeneral(file,model)
             writekernel(file,model)

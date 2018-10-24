@@ -37,4 +37,12 @@ mutable struct SparseBSVM <: SparseModel
             end
             return this;
     end
+    "Empty constructor for loading models"
+    function SparseBSVM()
+        this = new()
+        this.ModelType = BSVM
+        this.Name = "Sparse Nonlinear Bayesian SVM";
+        initFunctions!(this)
+        return this;
+    end
 end

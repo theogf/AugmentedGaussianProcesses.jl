@@ -22,4 +22,12 @@ mutable struct BatchBSVM <: FullBatchModel
         this.θ = zero(this.α)
         return this
     end
+    "Empty constructor for loading models"
+    function BatchBSVM()
+        this = new()
+        this.ModelType = BSVM
+        this.Name = "Full Batch Nonlinear Bayesian SVM"
+        initFunctions!(this)
+        return this;
+    end
 end
