@@ -39,9 +39,10 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
             # end
             ### Print out informations about the convergence
             if model.verbose > 2 || (model.verbose > 1  && iter%10==0)
-                println("Iteration : $iter")
+                print("Iteration : $iter ")
             #     print("Iteration : $iter, convergence = $conv \n")
-            #     println("Neg. ELBO is : $(ELBO(model))")
+                 print("Neg. ELBO is : $(ELBO(model))")
+                 print("\n")
              end
             (iter < model.nEpochs) || break; #Verify if the number of maximum iterations has been reached
             # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
@@ -222,7 +223,7 @@ function MCInit!(model::GPModel)
                 local_update!(model)
                 (grad_η_1,grad_η_2) = natural_gradient_XGPC(model)
             elseif model.ModelType==Regression
-                (grad_η_1,grad_η_2) = natural_gradient_Regression(model.y[model.MBIndices],model.κ,getvalue(model.noise),stoch_coeff=model.StochCoeff)
+                (grad_η_1,grad_η_2) = natural_gradient_Regression(model)
             elseif model.ModelType==StudentT
                 local_update!(model)
                 (grad_η_1,grad_η_2) = natural_gradient_StudentT(model)

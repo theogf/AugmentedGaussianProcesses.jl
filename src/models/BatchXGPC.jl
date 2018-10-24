@@ -2,9 +2,10 @@
 mutable struct BatchXGPC <: FullBatchModel
     @commonfields
     @functionfields
-    @latentfields
     @gaussianparametersfields
     @kernelfields
+    c::Vector{Float64}
+    θ::Vector{Float64}
     "BatchXGPC Constructor"
     function BatchXGPC(X::AbstractArray,y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 200,
                                     kernel=0,noise::Float64=1e-3,AutotuningFrequency::Integer=1,
@@ -16,7 +17,8 @@ mutable struct BatchXGPC <: FullBatchModel
             initFunctions!(this);
             initKernel!(this,kernel);
             initGaussian!(this,μ_init);
-            initLatentVariables!(this);
+            this.c = abs.(rand(this.nSamples))*2;
+            this.θ = zero(this.c)
             return this;
     end
 end

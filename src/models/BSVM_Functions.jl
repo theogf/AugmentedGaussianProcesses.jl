@@ -65,20 +65,53 @@ end
 
 "Compute the ELBO for the full batch GP BSVM Model"
 function ELBO(model::BatchBSVM) #TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
-    ELBO = 0.5*(logdet(model.Σ)+logdet(model.invK)-sum(model.invK.*transpose(model.Σ+model.μ*transpose(model.μ))))
-    ELBO += sum(0.25*log.(model.α[i])+log.(besselk.(0.5,sqrt.(model.α)))+model.y.*model.μ+(model.α-(1-model.y.*model.μ[i]).^2-diag(model.Σ))./(2*sqrt.(model.α)))
-    return -ELBO
+    # print("\n")
+    ELBO_v = ExpecLogLikelihood(model)
+    # println(ExpecLogLikelihood(model))
+    ELBO_v -= GaussianKL(model)
+    # println(GaussianKL(model))
+    ELBO_v -= GIGKL(model)
+    # println(GIGKL(model))
+    # ELBO = 0.5*(logdet(model.Σ)+logdet(model.invK)-sum(model.invK.*transpose(model.Σ+model.μ*transpose(model.μ))))
+    # ELBO += sum(0.25*log.(model.α[i])+log.(besselk.(0.5,sqrt.(model.α)))+model.y.*model.μ+(model.α-(1-model.y.*model.μ[i]).^2-diag(model.Σ))./(2*sqrt.(model.α)))
+    return -ELBO_v
 end
 
 "Compute the ELBO for the sparse GP BSVM Model"
 function ELBO(model::SparseBSVM)#TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
-    ELBO = 0.5*(logdet(model.Σ)+logdet(model.invKmm))
-    ELBO += -0.5*(tr(model.invKmm*(model.Σ+model.μ*transpose(model.μ)))) #tr replaced by sum
-    ELBO += model.StochCoeff*dot(model.y[model.MBIndices],model.κ*model.μ)
-    ELBO += model.StochCoeff*sum(0.25*log.(model.α[model.MBIndices]) + log.(besselk.(0.5,sqrt.(model.α[model.MBIndices]))))
-    Σtilde = model.κ*model.Σ*transpose(model.κ)
-    ELBO += 0.5*model.StochCoeff/sqrt.(model.α).*(model.α[model.MBIndices[i]]-(1-model.y.*dot(model.κ[i,:],model.μ)).^2-(diag(Σtilde)+model.Ktilde))
-    return -ELBO
+    ELBO_v = model.StochCoeff*ExpecLogLikelihood(model)
+    ELBO_v -= GaussianKL(model)
+    ELBO_v -= model.StochCoeff*GIGKL(model)
+    # ELBO = 0.5*(logdet(model.Σ)+logdet(model.invKmm))
+    # ELBO += -0.5*(tr(model.invKmm*(model.Σ+model.μ*transpose(model.μ)))) #tr replaced by sum
+    # ELBO += model.StochCoeff*dot(model.y[model.MBIndices],model.κ*model.μ)
+    # ELBO += model.StochCoeff*sum(0.25*log.(model.α[model.MBIndices]) + log.(besselk.(0.5,sqrt.(model.α[model.MBIndices]))))
+    # Σtilde = model.κ*model.Σ*transpose(model.κ)
+    # ELBO += 0.5*model.StochCoeff/sqrt.(model.α).*(model.α[model.MBIndices[i]]-(1-model.y.*dot(model.κ[i,:],model.μ)).^2-(diag(Σtilde)+model.Ktilde))
+    return -ELBO_v
+end
+
+
+
+"Return the expected log likelihood for the batch BSVM Model"
+function ExpecLogLikelihood(model::BatchBSVM)
+    tot = -model.nSamples*(0.5*log(2π)+1)
+    tot += sum(model.y.*model.μ - 0.5*((1.0.-model.y.*model.μ).^2+diag(model.Σ))./sqrt.(model.α))
+    # tot = sum((model.Ktilde+(1.0-model.y.*model.μ).^2+)./sqrt.(model.α))
+    return tot
+end
+
+"Return the expected log likelihood for the sparse BSVM Model"
+function ExpecLogLikelihood(model::SparseBSVM)
+    tot = -model.nSamplesUsed*(0.5*log(2π)+1)
+    tot += sum(model.y[model.MBIndices].*(model.κ*model.μ) - 0.5*((1.0.-model.y[model.MBIndices].*(model.κ*model.μ)).^2+model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:])./model.α)
+    # tot = sum((model.Ktilde+(1.0-model.y.*model.μ).^2+)./sqrt.(model.α))
+    return tot
+end
+
+"Return the KL divergence for the Generalized Inverse Gaussian distributions (for the improper prior p(lambda)=1)"
+function GIGKL(model::GPModel)
+    return -0.25*sum(model.α)-sum(log.(besselk.(0.5,sqrt.(model.α))))-0.5*sum(sqrt.(model.α))
 end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters for a BSVM Model"

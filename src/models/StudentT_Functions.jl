@@ -76,16 +76,16 @@ end
 "Return the expected log likelihood for the batch StudentT Model"
 function ExpecLogLikelihood(model::BatchStudentT)
     tot = -0.5*model.nSamples*log(2*π)
-    tot -= 0.5.*(log.(model.β).-model.nSamples*digamma(model.α))
-    tot -= 0.5.*model.α./model.β*sum(diag(model.Σ)+model.μ.^2-2*model.μ.*model.y-model.y.^2)
+    tot -= 0.5.*(sum(log.(model.β))-model.nSamples*digamma(model.α))
+    tot -= 0.5.*sum(model.α./model.β.*(diag(model.Σ)+model.μ.^2-2*model.μ.*model.y-model.y.^2))
     return tot
 end
 
 "Return the expected log likelihood for the sparse StudentT Model"
 function ExpecLogLikelihood(model::SparseStudentT)
     tot = -0.5*model.nSamplesUsed*log(2*π)
-    tot -= 0.5.*(log.(model.β).-model.nSamples*digamma(model.α))
-    tot -= 0.5.*model.α./model.β*sum(model.Ktilde + model.κ'*model.Σ*model.κ+(model.κ*model.μ).^2-2*(model.κ*model.μ).*model.y[model.MBIndices]-model.y[model.MBIndices].^2)
+    tot -= 0.5.*(sum(log.(model.β))-model.nSamples*digamma(model.α))
+    tot -= 0.5.*sum(model.α./model.β.*(model.Ktilde + sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2-2*(model.κ*model.μ).*model.y[model.MBIndices]-model.y[model.MBIndices].^2))
     return tot
 end
 

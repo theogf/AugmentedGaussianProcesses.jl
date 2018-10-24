@@ -19,11 +19,12 @@ Create a GP model taking the  training data and labels X & y as required argumen
 mutable struct SparseXGPC <: SparseModel
     @commonfields
     @functionfields
-    @latentfields
     @stochasticfields
     @kernelfields
     @sparsefields
     @gaussianparametersfields
+    c::Vector{Float64}
+    θ::Vector{Float64}
     "SparseXGPC Constructor"
     function SparseXGPC(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false,
@@ -44,7 +45,8 @@ mutable struct SparseXGPC <: SparseModel
             initKernel!(this,kernel);
             initSparse!(this,m,OptimizeIndPoints);
             initGaussian!(this,μ_init);
-            initLatentVariables!(this);
+            this.c = abs.(rand(this.nSamplesUsed))*2;
+            this.θ = zero(this.c)
             if this.Stochastic && this.AdaptiveLearningRate
                 MCInit!(this)
             end
