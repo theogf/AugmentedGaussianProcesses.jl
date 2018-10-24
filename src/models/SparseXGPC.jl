@@ -1,4 +1,4 @@
-"""Sparse Xtreme Gaussian Process Classifier
+"""Sparse Gaussian Process Classifier with Logistic Likelihood
 Create a GP model taking the  training data and labels X & y as required arguments. Other optional arguments are:
 - Stochastic::Bool : Is the method trained via mini batches
 - AdaptiveLearningRate::Bool : Is the learning rate adapted via estimation of the gradient variance? see "Adaptive Learning Rate for Stochastic Variational inference" https://pdfs.semanticscholar.org/9903/e08557f328d58e4ba7fce68faee380d30b12.pdf, if not use simple exponential decay with parameters κ_s and τ_s seen under (1/(iter+τ_s))^-κ_s
@@ -34,7 +34,7 @@ mutable struct SparseXGPC <: SparseModel
                                     verbose::Integer=0)
             this = new();
             this.ModelType = XGPC;
-            this.Name = "Polya-Gamma Sparse Gaussian Process Classifier";
+            this.Name = "Sparse Gaussian Process Classifier with Logistic Likelihood";
             initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             if Stochastic
@@ -56,7 +56,7 @@ mutable struct SparseXGPC <: SparseModel
     function SparseXGPC()
         this = new()
         this.ModelType = XGPC
-        this.Name = "Polya-Gamma Sparse Gaussian Process Classifier";
+        this.Name = "Sparse Gaussian Process Classifier with Logistic Likelihood";
         initFunctions!(this)
         return this;
     end

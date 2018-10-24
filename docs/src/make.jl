@@ -1,3 +1,0 @@
-using Documenter, OMGP
-
-makedocs()

@@ -3,7 +3,9 @@ using OMGP
 using LinearAlgebra
 using Random: seed!
 seed!(1234)
-doPlots = true
+if !@isdefined doPlots
+    doPlots = true
+end
 if doPlots
     using Plots
     pyplot()

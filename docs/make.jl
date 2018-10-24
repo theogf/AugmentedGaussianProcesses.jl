@@ -4,5 +4,5 @@ makedocs(modules=[OMGP])
 
 deploydocs(
     repo = "github.com/theogf/OMGP.jl.git",
-    julia = "0.7"
+    julia = "1.0"
 )

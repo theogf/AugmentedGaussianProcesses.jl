@@ -1,12 +1,8 @@
 using Distributions
 using LinearAlgebra
-using Profile, ProfileView
+# using Profile, ProfileView
 using OMGP
-doPlots = true
-if doPlots
-    using Plots
-    pyplot()
-end
+
 N_data = 500;N_test = 20
 N_indpoints = 20; N_dim = 2
 noise = 2.0
@@ -38,7 +34,6 @@ if fullm
         return false
     end
 end
-# save_trained_model("test/fullXGPC_test.jld2",fullmodel)
 # # #### SPARSE MODEL EVALUATION ####
 if sparsem
     println("Testing the sparse model")
@@ -53,3 +48,4 @@ if sparsem
         return false
     end
 end
+return true

@@ -1,4 +1,4 @@
-"Batch Xtreme Gaussian Process Classifier (no inducing points)"
+"Gaussian Process Classifier with Logistic Likelihood"
 mutable struct BatchXGPC <: FullBatchModel
     @commonfields
     @functionfields
@@ -12,7 +12,7 @@ mutable struct BatchXGPC <: FullBatchModel
                                     ϵ::Float64=1e-5,μ_init::Array{Float64,1}=[0.0],verbose::Integer=0)
             this = new(X,y)
             this.ModelType = XGPC
-            this.Name = "Polya-Gamma Gaussian Process Classifier"
+            this.Name = "Gaussian Process Classifier with Logistic Likelihood"
             initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             initKernel!(this,kernel);
@@ -25,7 +25,7 @@ mutable struct BatchXGPC <: FullBatchModel
     function BatchXGPC()
         this = new()
         this.ModelType = XGPC
-        this.Name = "Polya-Gamma Gaussian Process Classifier"
+        this.Name = "Gaussian Process Classifier with Logistic Likelihood"
         initFunctions!(this)
         return this;
     end

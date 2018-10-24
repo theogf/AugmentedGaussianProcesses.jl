@@ -4,8 +4,8 @@
 ```@contents
 ```
 
-## Install the package
+/* ## Install the package
 
 ```@docs
 train(model)
-```
+``` */

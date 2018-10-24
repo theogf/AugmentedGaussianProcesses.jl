@@ -2,8 +2,9 @@ using Distributions
 using OMGP
 using LinearAlgebra
 
-
-doPlots = true
+if !@isdefined doPlots
+    doPlots = true
+end
 if doPlots
     using Plots
     pyplot()

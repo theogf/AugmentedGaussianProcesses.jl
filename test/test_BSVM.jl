@@ -1,7 +1,8 @@
 using Distributions
 using OMGP
-
-doPlots= true
+if !@isdefined doPlots
+    doPlots = true
+end
 if doPlots
     using Plots
     pyplot()

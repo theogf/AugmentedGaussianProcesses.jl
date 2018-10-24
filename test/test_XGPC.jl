@@ -1,9 +1,11 @@
 using Distributions
 using LinearAlgebra
-using Profile, ProfileView
+# using Profile, ProfileView
 
 using OMGP
-doPlots = true
+if !@isdefined doPlots
+    doPlots = true
+end
 if doPlots
     using Plots
     pyplot()
