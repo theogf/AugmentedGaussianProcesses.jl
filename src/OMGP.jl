@@ -32,14 +32,16 @@ include("kmeans/KMeansModule.jl")
 include("functions/PGSampler.jl")
 include("functions/PerturbativeCorrection.jl")
 include("functions/GPAnalysisTools.jl")
+include("functions/IO_model.jl")
+include("graddescent/GradDescent.jl")
 #Custom modules
 using .KernelModule
 using .KMeansModule
 using .PGSampler
 using .PerturbativeCorrection
 using .GPAnalysisTools
+using .GradDescent
 # using .IO_model
-include("functions/IO_model.jl")
 #General modules
 using Distributions
 using LinearAlgebra
@@ -47,7 +49,6 @@ using StatsBase
 using SpecialFunctions
 using Dates
 using QuadGK
-using GradDescent
 using SparseArrays
 #Exported models
 export KMeansModule

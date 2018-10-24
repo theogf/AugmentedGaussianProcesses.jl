@@ -2,10 +2,11 @@
 
 
 ```@contents
+OMGP
 ```
 
-/* ## Install the package
+## Index
 
-```@docs
-train(model)
-``` */
+```@index
+Modules = [OMGP]
+```

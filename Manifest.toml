@@ -73,14 +73,6 @@ git-tree-sha1 = "481e4db939f005db39f7296599d0543c0744fe30"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 version = "1.0.2"
 
-[[GradDescent]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "ca5103e33a602705c4196bf5bede1542a82f9dc2"
-repo-rev = "master"
-repo-url = "https://github.com/theogf/GradDescent.jl"
-uuid = "76767984-a792-11e8-2bb2-77d388f79a09"
-version = "0.1.0"
-
 [[InteractiveUtils]]
 deps = ["LinearAlgebra", "Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
