@@ -5,8 +5,8 @@ Oh My GP! is a Julia package in development for **extremely efficient Gaussian P
 
 ## Install the package
 
-The package requires Julia 0.7
-Run in Julia press `]` and type `add https://github.com/theogf/OMGP.jl`, it will install the package and all its requirements
+The package requires Julia 1.0
+Run in `Julia` press `]` and type `add OMGP`, it will install the package and all its requirements
 
 
 ## Use the package
