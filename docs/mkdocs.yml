@@ -1,7 +1,8 @@
 site_name:        OMGP.jl
-repo_url:         https://github.com/theogf/OMGP.jl
 site_description: Website for OMGP.jl package
-site_author:      theogf
+site_author:      Theo Galy-Fajou
+site_url:         https://github.com/theogf/OMGP.jl
+repo_url:         https://github.com/theogf/OMGP.jl
 
 theme: readthedocs
 
