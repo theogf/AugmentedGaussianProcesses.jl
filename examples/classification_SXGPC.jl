@@ -1,5 +1,4 @@
 using Plots
-using GradDescent
 pyplot()
 #unicodeplots()
 using Distributions
@@ -49,7 +48,7 @@ Ninducingpoints = 20
  tic()
 # model = DAM.BatchXGPC(X,y;Kernels=kerns,Autotuning=true,optimizer=StandardGD(α=0.1),AutotuningFrequency=1,verbose=2,ϵ=1e-4,nEpochs=100)
 Profile.clear()
-@profile model = SparseXGPC(X,y;optimizer=Adam(α=0.5),OptimizeIndPoints=true,
+@profile model = SparseXGPC(X,y;OptimizeIndPoints=true,
 Stochastic=false,ϵ=1e-4,nEpochs=MaxIter,SmoothingWindow=10,Kernels=kerns,Autotuning=false,AutotuningFrequency=2,
 verbose=2,AdaptiveLearningRate=true,batchsize=batchsize,m=Ninducingpoints)
 ProfileView.view()

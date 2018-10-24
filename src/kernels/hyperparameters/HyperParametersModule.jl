@@ -1,5 +1,5 @@
 module HyperParametersModule
-using GradDescent
+using OMGP.GradDescent
 import Base: convert, eltype, promote_type, show, string, ==, *, /, +, -, ^, isless;
 
 export

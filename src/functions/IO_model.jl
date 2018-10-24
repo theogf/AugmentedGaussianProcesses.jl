@@ -4,7 +4,6 @@ using JLD2, FileIO
 # using OMGP
 import OMGP.KernelModule
 import OMGP.KernelModule.HyperParametersModule#: HyperParameter, OpenBound, NullBound, Interval
-import GradDescent
 export save_trained_model, save_model,load_trained_model,load_model
 #Needs to be redefined
 function save_model(filename::String,model::GPModel)
