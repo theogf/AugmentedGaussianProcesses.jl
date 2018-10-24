@@ -25,18 +25,21 @@ abstract type SparseModel <: NonLinearModel end
 
 abstract type FullBatchModel <: NonLinearModel end
 
+export GPModel, OnlineGPModel, OfflineGPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel, GPMOdelType
 
 include("kernels/KernelModule.jl")
 include("kmeans/KMeansModule.jl")
 include("functions/PGSampler.jl")
 include("functions/PerturbativeCorrection.jl")
+include("functions/GPAnalysisTools.jl")
 #Custom modules
 using .KernelModule
 using .KMeansModule
 using .PGSampler
 using .PerturbativeCorrection
-include("functions/GPAnalysisTools.jl")
 using .GPAnalysisTools
+# using .IO_model
+include("functions/IO_model.jl")
 #General modules
 using Distributions
 using LinearAlgebra
@@ -54,7 +57,6 @@ export GPRegression, SparseGPRegression, OnlineGPRegression
 export BatchStudentT, SparseStudentT
 export MultiClass, SparseMultiClass
 #General class definitions
-export GPModel, OnlineGPModel, OfflineGPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel
 #Useful functions
 export getLog, getMultiClassLog
 export Kernel, kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
@@ -62,6 +64,7 @@ export Matern3_2Kernel, Matern5_2Kernel
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 export setvalue!,getvalue,setfixed!,setfree!
 export KMeansInducingPoints
+# export save_trained_model,save_model,load_trained_model,load_model
 
 
 #using Plots

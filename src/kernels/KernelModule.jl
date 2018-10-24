@@ -44,6 +44,8 @@ export compute_hyperparameter_gradient
 export compute,plotkernel
 export getvalue,setvalue!,setfixed!,setfree!
 export getlengthscales, getvariance
+export isARD,isPlain
+export HyperParameter,HyperParameters,Interval, OpenBound,  NullBound
 abstract type KernelType end;
 
 abstract type ARDKernel <: KernelType end;
@@ -84,6 +86,8 @@ function getlengthscales(k::Kernel{T,ARDKernel}) where {T<:Real}
     return getvalue(k.fields.lengthscales)
 end
 
+isARD(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: ARDKernel
+isPlain(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: PlainKernel
 
 include("KernelSum.jl")
 include("KernelProduct.jl")

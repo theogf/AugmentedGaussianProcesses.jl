@@ -21,4 +21,12 @@ mutable struct BatchXGPC <: FullBatchModel
             this.θ = zero(this.c)
             return this;
     end
+    "Empty constructor for loading models"
+    function BatchXGPC()
+        this = new()
+        this.ModelType = XGPC
+        this.Name = "Polya-Gamma Gaussian Process Classifier"
+        initFunctions!(this)
+        return this;
+    end
 end

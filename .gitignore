@@ -1,6 +1,7 @@
 *.png
 *.result
 *.json
+*.jld2
 examples/.ipynb_checkpoints/*
 test/main_testing.jl
 docs/build/

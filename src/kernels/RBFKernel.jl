@@ -14,6 +14,7 @@ struct RBFKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
             elseif length(θ)==1 && dim!=0
                 θ = ones(dim)*θ[1]
             end
+            dim = length(θ)
             return new{T,ARDKernel}(KernelFields{T,ARDKernel}(
                                         "Radial Basis",
                                         HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),

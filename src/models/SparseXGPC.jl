@@ -52,4 +52,11 @@ mutable struct SparseXGPC <: SparseModel
             end
             return this;
     end
+    function SparseXGPC()
+        this = new()
+        this.ModelType = XGPC
+        this.Name = "Polya-Gamma Sparse Gaussian Process Classifier";
+        initFunctions!(this)
+        return this;
+    end
 end
