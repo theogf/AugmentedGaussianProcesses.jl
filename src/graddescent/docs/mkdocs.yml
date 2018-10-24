@@ -1,0 +1,26 @@
+site_name:        GradDescent.jl
+site_description: Gradient Descent Optimizers in Julia
+site_author:      Jacob Carey
+site_url:         https://jacobcvt12.github.com/GradDescent.jl/
+
+repo_url:         https://github.com/jacobcvt12/GradDescent.jl
+
+theme: readthedocs
+
+extra_css:
+  - assets/Documenter.css
+
+extra_javascript:
+  - https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML
+  - assets/mathjaxhelper.js
+
+markdown_extensions:
+  - extra
+  - tables
+  - fenced_code
+  - mdx_math
+
+docs_dir: 'build'
+
+pages:
+  - Home: index.md
