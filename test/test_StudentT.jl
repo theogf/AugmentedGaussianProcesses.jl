@@ -6,6 +6,9 @@ seed!(1234)
 if !@isdefined doPlots
     doPlots = true
 end
+if !@isdefined verbose
+    verbose = 3
+end
 if doPlots
     using Plots
     pyplot()
