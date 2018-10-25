@@ -49,7 +49,7 @@ ps = []; t_full = 0; t_sparse = 0; t_stoch =0;
 #### FULL MODEL EVALUATION ####
 if fullm
     println("Testing the full batch model")
-    t_full = @elapsed fullmodel = OMGP.BatchBSVM(X,y,Autotuning=autotuning,noise=noise,kernel=kernel,verbose=3)
+    t_full = @elapsed fullmodel = OMGP.BatchBSVM(X,y,Autotuning=autotuning,noise=noise,kernel=kernel,verbose=verbose)
     t_full += @elapsed fullmodel.train(iterations=20)
     y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
     if doPlots
@@ -61,7 +61,7 @@ end
 # #### SPARSE MODEL EVALUATION ####
 if sparsem
     println("Testing the sparse model")
-    t_sparse = @elapsed sparsemodel = OMGP.SparseBSVM(X,y,Stochastic=false,Autotuning=autotuning,verbose=3,m=20,noise=noise,kernel=kernel)
+    t_sparse = @elapsed sparsemodel = OMGP.SparseBSVM(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=20,noise=noise,kernel=kernel)
     t_sparse += @elapsed sparsemodel.train(iterations=100)
     y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
     if doPlots
@@ -73,7 +73,7 @@ end
 # #### STOCH. MODEL EVALUATION ####
 if stochm
     println("Testing the sparse stochastic model")
-    t_stoch = @elapsed stochmodel = OMGP.SparseBSVM(X,y,Stochastic=true,batchsize=10,Autotuning=autotuning,verbose=3,m=20,noise=noise,kernel=kernel)
+    t_stoch = @elapsed stochmodel = OMGP.SparseBSVM(X,y,Stochastic=true,batchsize=10,Autotuning=autotuning,verbose=verbose,m=20,noise=noise,kernel=kernel)
     t_stoch += @elapsed stochmodel.train(iterations=1000)
     y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))
     if doPlots

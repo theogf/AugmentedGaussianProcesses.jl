@@ -56,7 +56,7 @@ ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
 # # #### FULL MODEL EVALUATION ####
 if fullm
     println("Testing the full model")
-    t_full = @elapsed fullmodel = OMGP.BatchXGPC(X,y,noise=noise,kernel=kernel,verbose=3,Autotuning=true)
+    t_full = @elapsed fullmodel = OMGP.BatchXGPC(X,y,noise=noise,kernel=kernel,verbose=verbose,Autotuning=true)
     t_full += @elapsed fullmodel.train(iterations=20)
     y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
     if doPlots
@@ -67,7 +67,7 @@ end
 # # #### SPARSE MODEL EVALUATION ####
 if sparsem
     println("Testing the sparse model")
-    t_sparse = @elapsed sparsemodel = OMGP.SparseXGPC(X,y,Stochastic=false,Autotuning=true,ϵ=1e-6,verbose=3,m=N_indpoints,noise=1e-10,kernel=kernel,OptimizeIndPoints=false)
+    t_sparse = @elapsed sparsemodel = OMGP.SparseXGPC(X,y,Stochastic=false,Autotuning=true,ϵ=1e-6,verbose=verbose,m=N_indpoints,noise=1e-10,kernel=kernel,OptimizeIndPoints=false)
     metrics,savelog = OMGP.getLog(sparsemodel,X_test=X_test,y_test=y_test)
     t_sparse += @elapsed sparsemodel.train(iterations=100)#,callback=savelog)
     y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
@@ -81,7 +81,7 @@ end
 #### STOCH. SPARSE MODEL EVALUATION ###.
 if ssparsem
     println("Testing the sparse stochastic model")
-    t_stoch = @elapsed stochmodel = OMGP.SparseXGPC(X,y,Stochastic=true,batchsize=40,Autotuning=true,verbose=2,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
+    t_stoch = @elapsed stochmodel = OMGP.SparseXGPC(X,y,Stochastic=true,batchsize=40,Autotuning=true,verbose=verbose,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
     metrics,savelog = OMGP.getLog(stochmodel,X_test=X_test,y_test=y_test)
     t_stoch += @elapsed stochmodel.train(iterations=1000)#,callback=savelog)
     y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))
