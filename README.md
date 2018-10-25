@@ -1,6 +1,12 @@
 # OMGP!
 [![Build Status](https://travis-ci.org/theogf/OMGP.jl.svg?branch=master)](https://travis-ci.org/theogf/OMGP.jl)
-
+  <a href="https://theogf.github.io/OMGP.jl/stable">
+    <img src="https://img.shields.io/badge/docs-stable-blue.svg">
+  </a>
+  <a href="https://theogf.github.io/OMGP.jl/latest">
+    <img src="https://img.shields.io/badge/docs-latest-blue.svg">
+  </a>
+  
 Oh My GP! is a Julia package in development for **extremely efficient Gaussian Processes algorithms**. It contains for the moment two classifiers : one based on the Bayesian SVM (BSVM), and a state-of-the-art algorithm for classification using the logistic link called X-GPC (XGPC), two regression models one classic based on Gaussian likelihood (GPRegression) and another one in development base on Student T likelihood. A multiclass classifier model is in development.
 
 ## Install the package
