@@ -2,18 +2,23 @@
     "docs": [
         {
             "location": "/", 
-            "text": "OMGP.jl Documentation\n\n\n\n\nOMGP.jl Documentation\n\n\nIndex\n\n\n\n\n\n\n\n\n\n\nIndex", 
+            "text": "AugmentedGaussianProcesses.jl Documentation\n\n\n\n\nAugmentedGaussianProcesses.jl Documentation\n\n\nIndex\n\n\n\n\n\n\nGeneral introduction\n\n\n\n\n\n\nIndex\n\n\n\n\nGeneral introduction\n\n\nAugmentedGaussianProcesses is a package providing", 
             "title": "Home"
         }, 
         {
-            "location": "/#omgpjl-documentation", 
-            "text": "OMGP.jl Documentation  Index", 
-            "title": "OMGP.jl Documentation"
+            "location": "/#augmentedgaussianprocessesjl-documentation", 
+            "text": "AugmentedGaussianProcesses.jl Documentation  Index    General introduction", 
+            "title": "AugmentedGaussianProcesses.jl Documentation"
         }, 
         {
             "location": "/#index", 
             "text": "", 
             "title": "Index"
+        }, 
+        {
+            "location": "/#general-introduction", 
+            "text": "AugmentedGaussianProcesses is a package providing", 
+            "title": "General introduction"
         }
     ]
 }
