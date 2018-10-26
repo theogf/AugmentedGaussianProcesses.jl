@@ -37,6 +37,7 @@ ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
 fullm = true
 sparsem =true
 stochm = true
+println("Testing the StudentT model")
 
 if fullm
     println("Testing the full model")

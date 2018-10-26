@@ -1,7 +1,7 @@
 # Functions related to the Student T likelihood (StudentT)
 "Update the local variational parameters of the full batch GP StudentT"
 function local_update!(model::BatchStudentT)
-    model.β = 0.5.*(diag(model.Σ)+(model.μ.-model.y).^2+model.ν)
+    model.β = 0.5.*(diag(model.Σ)+(model.μ.-model.y).^2 .+model.ν)
     model.θ = 0.5.*(model.ν.+1.0)./model.β
 end
 
@@ -14,7 +14,7 @@ end
 
 "Update the local variational parameters of the sparse GP StudentT"
 function local_update!(model::SparseStudentT)
-    model.β = 0.5.*(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ.-model.y[model.MBIndices]).^2.+model.ν)
+    model.β = 0.5.*(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ.-model.y[model.MBIndices]).^2 .+model.ν)
     model.θ = 0.5.*(model.ν.+1.0)./model.β
 
 end

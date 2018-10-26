@@ -13,7 +13,7 @@ if doPlots
     using Plots
     pyplot()
 end
-println("Testing the XGPC")
+println("Testing the XGPC model")
 ### TESTING WITH TOY XOR DATASET
     N_data = 1000;N_test = 20
     N_indpoints = 20; N_dim = 2

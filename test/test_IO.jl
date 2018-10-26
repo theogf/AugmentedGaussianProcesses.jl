@@ -25,6 +25,7 @@ kernel = RBFKernel([3.0],dim=N_dim)
 fullm = true
 sparsem = true
 ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
+println("Testing the save/load model function")
 if fullm
     println("Testing the full model")
     t_full = @elapsed fullmodel = AugmentedGaussianProcesses.BatchXGPC(X,y,noise=noise,kernel=kernel,verbose=verbose,Autotuning=true)
@@ -32,6 +33,7 @@ if fullm
     y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
     save_trained_model("fullXGPC_test.jld2",fullmodel)
     fmodel = load_trained_model("fullXGPC_test.jld2")
+    rm("fullXGPC_test.jld2")
     y_full2 = fmodel.predictproba(X_test)
     if mean(abs.(y_full-y_full2))>1e-5
         return false
@@ -46,6 +48,7 @@ if sparsem
     y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
     save_trained_model("sparseXGPC_test.jld2",sparsemodel)
     smodel = load_trained_model("sparseXGPC_test.jld2")
+    rm("sparseXGPC_test.jld2")
     y_sparse2 = smodel.predictproba(X_test)
     if mean(abs.(y_sparse-y_sparse2))>1e-5
         return false

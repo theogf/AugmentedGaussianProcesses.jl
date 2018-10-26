@@ -31,6 +31,7 @@ ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
 
 kernel = RBFKernel(2.0)
 autotuning=false
+println("Testing the regression model")
 
 println("Testing the full model")
 t_full = @elapsed fullmodel = AugmentedGaussianProcesses.GPRegression(X,y,noise=noise,Autotuning=autotuning,kernel=kernel,verbose=verbose)
