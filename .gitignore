@@ -2,9 +2,12 @@
 *.result
 *.json
 *.jld2
+
+#Do not save checkpoints and testpoints
 examples/.ipynb_checkpoints/*
 test/main_testing.jl
+
+#Docs
 docs/build/
 docs/site/
 data/*
-build/*

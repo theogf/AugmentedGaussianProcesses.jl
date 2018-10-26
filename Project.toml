@@ -1,7 +1,10 @@
 name = "OMGP"
 uuid = "01d6f1c0-a789-11e8-1a9c-abf87115666d"
 authors = ["Theo Galy-Fajou <theo.galyfajou@gmail.com>"]
-version = "0.1.0"
+version = "0.3.1"
+
+[compat]
+julia = "0.7"
 
 [deps]
 Clustering = "aaaa29a8-35af-508c-8bc3-b662a17a0fe5"

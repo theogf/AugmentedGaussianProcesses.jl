@@ -1,5 +1,0 @@
-data/artificial-characters_train filter=lfs diff=lfs merge=lfs -text
-data/mnist_test filter=lfs diff=lfs merge=lfs -text
-data/mnist_train filter=lfs diff=lfs merge=lfs -text
-data/artificial-characters filter=lfs diff=lfs merge=lfs -text
-data/artificial-characters_test filter=lfs diff=lfs merge=lfs -text

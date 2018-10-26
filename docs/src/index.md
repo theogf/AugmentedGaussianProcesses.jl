@@ -10,3 +10,7 @@ OMGP
 ```@index
 Modules = [OMGP]
 ```
+
+# General introduction
+
+OMGP is a package providing
