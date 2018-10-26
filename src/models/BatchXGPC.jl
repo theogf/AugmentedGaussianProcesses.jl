@@ -8,8 +8,8 @@ mutable struct BatchXGPC <: FullBatchModel
     θ::Vector{Float64}
     "BatchXGPC Constructor"
     function BatchXGPC(X::AbstractArray,y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 200,
-                                    kernel=0,noise::Float64=1e-3,AutotuningFrequency::Integer=1,
-                                    ϵ::Float64=1e-5,μ_init::Array{Float64,1}=[0.0],verbose::Integer=0)
+                                    kernel=0,noise::Real=1e-3,AutotuningFrequency::Integer=1,
+                                    ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],verbose::Integer=0)
             this = new(X,y)
             this.ModelType = XGPC
             this.Name = "Gaussian Process Classifier with Logistic Likelihood"
