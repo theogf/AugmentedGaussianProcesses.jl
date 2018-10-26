@@ -7,20 +7,21 @@
     <img src="https://img.shields.io/badge/docs-latest-blue.svg">
   </a>
 
-AugmentedGaussianProcesses! is a Julia package in development for **Data Augmented Gaussian Processes**. It contains a collection of models for different **gaussian and non-gaussian likelihoods**, which are transformed via data augmentation into **conditionally conjugate likelihood** allowing for **extremely fast inference** via block coordinate updates.
+AugmentedGaussianProcesses! is a Julia package in development for **Data Augmented Sparse Gaussian Processes**. It contains a collection of models for different **gaussian and non-gaussian likelihoods**, which are transformed via data augmentation into **conditionally conjugate likelihood** allowing for **extremely fast inference** via block coordinate updates.
 
-# The package contains at the moment :
+# Packages models :
   - Two GP classifier models
-    - **BSVM** : A Classifier with a likelihood equivalent to the classic SVM
-    - **XGPC** : A Classifier with a Bernoulli likelihood with the logistic link
+    - **BSVM** : A Classifier with a likelihood equivalent to the classic SVM [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20BSVM.ipynb)
+    - **XGPC** : A Classifier with a Bernoulli likelihood with the logistic link [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20XGPC.ipynb)
   - Two GP Regression models
-    - **GPRegression** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here)
-    - **StudentT** : The standard Gaussian Process regression with a Student-t likelihood (the degree of freedom ν is not optimizable for the moment)
+    - **GPRegression** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)
+    - **StudentT** : The standard Gaussian Process regression with a Student-t likelihood (the degree of freedom ν is not optimizable for the moment) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)
   - More models in development
     - **MultiClass** : A multiclass classifier model, relying on a modified version of softmax
     - **Probit** : A Classifier with a Bernoulli likelihood with the probit link
     - **Online** : Allowing for all algorithms to work online as well
 
+For each of these models you can either run the fullbatch or sparse version by adding the prefix `Batch` or `Sparse` to the model name.
 ## Install the package
 
 The package requires Julia 1.0
@@ -37,8 +38,7 @@ model.train(iterations=100)
 Y_predic = model.predict(X_test) #For getting the label directly
 Y_predic_prob = model.predictproba(X_test) #For getting the likelihood of predicting class 1
 ```
-The documentation is currently worked on.
-There is also a more complete example in a Julia notebook : [Classification with Sparse XGPC][31b06e91]
+The documentation is currently worked on but I invite you to check the self explaining examples in the mean time [here](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/)
 
 ## References :
 
