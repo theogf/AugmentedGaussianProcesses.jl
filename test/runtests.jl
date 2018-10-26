@@ -1,4 +1,4 @@
-using OMGP
+using AugmentedGaussianProcesses
 using Test
 
 # write your own tests here

@@ -1,9 +1,9 @@
 # module IO_model
 
 using JLD2, FileIO
-# using OMGP
-import OMGP.KernelModule
-import OMGP.KernelModule.HyperParametersModule#: HyperParameter, OpenBound, NullBound, Interval
+# using AugmentedGaussianProcesses
+import AugmentedGaussianProcesses.KernelModule
+import AugmentedGaussianProcesses.KernelModule.HyperParametersModule#: HyperParameter, OpenBound, NullBound, Interval
 export save_trained_model, save_model,load_trained_model,load_model
 #Needs to be redefined
 function save_model(filename::String,model::GPModel)
@@ -127,15 +127,15 @@ end
 function writeextrabits(file,model::GPModel)
 end
 
-function create_model(sparse::Bool,modeltype::OMGP.GPModelType)
-    if modeltype == OMGP.GPModelType(1) #BSVM
+function create_model(sparse::Bool,modeltype::AugmentedGaussianProcesses.GPModelType)
+    if modeltype == AugmentedGaussianProcesses.GPModelType(1) #BSVM
         return model = sparse ? SparseBSVM() : BatchBSVM()
-    elseif modeltype == OMGP.GPModelType(2) #XGPC
+    elseif modeltype == AugmentedGaussianProcesses.GPModelType(2) #XGPC
         return model = sparse ? SparseXGPC() : BatchXGPC()
-    elseif modeltype == OMGP.GPModelType(3) #Regression
+    elseif modeltype == AugmentedGaussianProcesses.GPModelType(3) #Regression
         return model = sparse ? SparseGPRegression() :
         GPRegression()
-    elseif modeltype == OMGP.GPModelType(4) #StudentT
+    elseif modeltype == AugmentedGaussianProcesses.GPModelType(4) #StudentT
         return model = sparse ? SparseStudentT() : BatchStudentT()
     else
         @warn "Model writing for this model is not implemented yet"

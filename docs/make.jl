@@ -1,9 +1,9 @@
-using Documenter, OMGP
+using Documenter, AugmentedGaussianProcesses
 
-makedocs(modules=[OMGP])
+makedocs(modules=[AugmentedGaussianProcesses])
 
 deploydocs(
     deps = Deps.pip("mkdocs", "python-markdown-math"),
-    repo = "github.com/theogf/OMGP.jl.git",
+    repo = "github.com/theogf/AugmentedGaussianProcesses.jl.git",
     julia = "1.0"
 )

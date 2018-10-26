@@ -2,9 +2,9 @@ using Distributions
 using Plots
 using Clustering
 pyplot()
-include("../src/OMGP.jl")
-using OMGP.KernelFunctions
-using OMGP.KMeansModule
+include("../src/AugmentedGaussianProcesses.jl")
+using AugmentedGaussianProcesses.KernelFunctions
+using AugmentedGaussianProcesses.KMeansModule
 println("Packages loaded")
 
 function generate_random_walk_data(N,dim,noise)

@@ -1,16 +1,16 @@
-# OMGP.jl Documentation
+# AugmentedGaussianProcesses.jl Documentation
 
 
 ```@contents
-OMGP
+AugmentedGaussianProcesses
 ```
 
 ## Index
 
 ```@index
-Modules = [OMGP]
+Modules = [AugmentedGaussianProcesses]
 ```
 
 # General introduction
 
-OMGP is a package providing
+AugmentedGaussianProcesses is a package providing

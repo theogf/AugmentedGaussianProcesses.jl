@@ -1,7 +1,7 @@
 # Functions related to the Student T likelihood (StudentT)
 "Update the local variational parameters of the full batch GP StudentT"
 function local_update!(model::BatchStudentT)
-    model.β = 0.5.*(diag(model.Σ)+model.μ.^2-2.0.*model.μ.*model.y+(model.y.^2).+model.ν)
+    model.β = 0.5.*(diag(model.Σ)+(model.μ.-model.y).^2+model.ν)
     model.θ = 0.5.*(model.ν.+1.0)./model.β
 end
 
@@ -14,7 +14,7 @@ end
 
 "Update the local variational parameters of the sparse GP StudentT"
 function local_update!(model::SparseStudentT)
-    model.β = 0.5.*(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2-2.0.*(model.κ*model.μ).*model.y[model.MBIndices]+(model.y[model.MBIndices].^2).+model.ν)
+    model.β = 0.5.*(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ.-model.y[model.MBIndices]).^2.+model.ν)
     model.θ = 0.5.*(model.ν.+1.0)./model.β
 
 end
@@ -92,8 +92,8 @@ end
 "Return the KL divergence for the inverse gamma distributions"
 function InverseGammaKL(model::GPModel)
     α_p = β_p = model.ν/2;
-    return (model.α-α_p)*digamma(model.α).-log(gamma(model.α)).+log(gamma(α_p))
-            .+ α_p.*(log.(model.β).-log(β_p)).+model.α.*(β_p.-model.β)./model.β
+    return (α_p.-model.α)*digamma(α_p).-log(gamma(α_p)).+log(gamma(model.α))
+            .+ model.α*(log(β_p).-log.(model.β)).+α_p.*(model.β.-β_p)./β_p
 end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters for a StudentT Model"

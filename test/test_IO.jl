@@ -1,7 +1,7 @@
 using Distributions
 using LinearAlgebra
 # using Profile, ProfileView
-using OMGP
+using AugmentedGaussianProcesses
 
 if !@isdefined verbose
     verbose = 3
@@ -27,7 +27,7 @@ sparsem = true
 ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
 if fullm
     println("Testing the full model")
-    t_full = @elapsed fullmodel = OMGP.BatchXGPC(X,y,noise=noise,kernel=kernel,verbose=verbose,Autotuning=true)
+    t_full = @elapsed fullmodel = AugmentedGaussianProcesses.BatchXGPC(X,y,noise=noise,kernel=kernel,verbose=verbose,Autotuning=true)
     t_full += @elapsed fullmodel.train(iterations=20)
     y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
     save_trained_model("fullXGPC_test.jld2",fullmodel)
@@ -40,8 +40,8 @@ end
 # # #### SPARSE MODEL EVALUATION ####
 if sparsem
     println("Testing the sparse model")
-    t_sparse = @elapsed sparsemodel = OMGP.SparseXGPC(X,y,Stochastic=false,Autotuning=true,ϵ=1e-6,verbose=verbose,m=N_indpoints,noise=1e-10,kernel=kernel,OptimizeIndPoints=false)
-    metrics,savelog = OMGP.getLog(sparsemodel,X_test=X_test,y_test=y_test)
+    t_sparse = @elapsed sparsemodel = AugmentedGaussianProcesses.SparseXGPC(X,y,Stochastic=false,Autotuning=true,ϵ=1e-6,verbose=verbose,m=N_indpoints,noise=1e-10,kernel=kernel,OptimizeIndPoints=false)
+    metrics,savelog = AugmentedGaussianProcesses.getLog(sparsemodel,X_test=X_test,y_test=y_test)
     t_sparse += @elapsed sparsemodel.train(iterations=10)#,callback=savelog)
     y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
     save_trained_model("sparseXGPC_test.jld2",sparsemodel)

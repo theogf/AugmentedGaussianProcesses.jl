@@ -2,8 +2,8 @@ using Distributions
 using Plots
 using Clustering
 pyplot()
-include("../src/OMGP.jl")
-import OMGP
+include("../src/AugmentedGaussianProcesses.jl")
+import AugmentedGaussianProcesses
 
 
 
@@ -100,10 +100,10 @@ if dorand
 end
 
 y=sign.(f)
-kernel = OMGP.RBFKernel(0.5)
+kernel = AugmentedGaussianProcesses.RBFKernel(0.5)
 
 ##Basic Offline KMeans
-t_off = @elapsed offgp = OMGP.SparseXGPC(X,f,m=k,Stochastic=true,Autotuning=false,batchsize=b,verbose=0,kernel=kernel)
+t_off = @elapsed offgp = AugmentedGaussianProcesses.SparseXGPC(X,f,m=k,Stochastic=true,Autotuning=false,batchsize=b,verbose=0,kernel=kernel)
 t_off += @elapsed offgp.train(iterations=500)
 y_off = offgp.predict(X_test)
 y_indoff = offgp.predict(offgp.inducingPoints)
@@ -115,7 +115,7 @@ end
 println("Offline KMeans ($t_off s)\n\tRMSE (train) : $(loss(offgp.predict(X),f))\n\tRMSE (test) : $(loss(y_off,randomf(X_test)))")
 
 ###Online KMeans with Webscale
-t_web = @elapsed onwebgp = OMGP.OnlineXGPC(X,y,kmeansalg=OMGP.Webscale(),m=k,batchsize=b,verbose=0,kernel=kernel)
+t_web = @elapsed onwebgp = AugmentedGaussianProcesses.OnlineXGPC(X,y,kmeansalg=AugmentedGaussianProcesses.Webscale(),m=k,batchsize=b,verbose=0,kernel=kernel)
 t_web = @elapsed onwebgp.train(iterations=500)
 y_web = onwebgp.predict(X_test)
 y_indweb = onwebgp.predict(onwebgp.kmeansalg.centers)
@@ -128,7 +128,7 @@ println("Webscale KMeans ($t_web s)\n\tRMSE (train) : $(loss(onwebgp.predict(X),
 
 
 ###Online KMeans with Streaming
-t_str = @elapsed onstrgp = OMGP.OnlineXGPC(X,f,kmeansalg=OMGP.StreamOnline(),m=k,batchsize=b,verbose=0,kernel=kernel)
+t_str = @elapsed onstrgp = AugmentedGaussianProcesses.OnlineXGPC(X,f,kmeansalg=AugmentedGaussianProcesses.StreamOnline(),m=k,batchsize=b,verbose=0,kernel=kernel)
 t_str = @elapsed onstrgp.train(iterations=500)
 y_str = onstrgp.predict(X_test)
 y_indstr = onstrgp.predict(onstrgp.kmeansalg.centers)
@@ -145,7 +145,7 @@ println("Streaming KMeans ($t_str s)\n\tRMSE (train) : $(loss(onstrgp.predict(X)
 
 
 ### Non sparse GP :
-t_full = @elapsed fullgp = OMGP.BatchXGPC(X,y,kernel=kernel)
+t_full = @elapsed fullgp = AugmentedGaussianProcesses.BatchXGPC(X,y,kernel=kernel)
 t_full = @elapsed fullgp.train()
 y_full = fullgp.predict(X_test)
 if dim == 1
@@ -162,7 +162,7 @@ else
     display(plot(p1,p2,p3)); gui()
 end
 
-# model = OMGP.GPRegression(X,f,kernel=kernel)
+# model = AugmentedGaussianProcesses.GPRegression(X,f,kernel=kernel)
 #
 #
 # display(plotting2D(X,f,onstrgp.kmeansalg.centers,y_indstr,x1_test,x2_test,y_pred,"Streaming KMeans"))

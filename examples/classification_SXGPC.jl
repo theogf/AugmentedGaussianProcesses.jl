@@ -3,7 +3,7 @@ pyplot()
 #unicodeplots()
 using Distributions
 using ValueHistories
-using OMGP
+using AugmentedGaussianProcesses
 using ProfileView
 doPlot = false
 use_dataset = false
@@ -57,7 +57,7 @@ initPoints = copy(model.inducingPoints)
 iter_points = collect(1:1:1000)
 metrics = MVHistory()
 Parameters = MVHistory()
-function StoreIt(model::OMGP.GPModel,iter;hyper=false)#;iter_points=[],LogArrays=[],X_test=0,y_test=0)
+function StoreIt(model::AugmentedGaussianProcesses.GPModel,iter;hyper=false)#;iter_points=[],LogArrays=[],X_test=0,y_test=0)
     if in(iter,iter_points)
         if !hyper
             push!(metrics,:time_init,iter,time_ns()*1e-9)

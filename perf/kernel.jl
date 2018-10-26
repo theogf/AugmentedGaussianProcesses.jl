@@ -1,6 +1,6 @@
 cd(dirname(@__FILE__))
 using BenchmarkTools,Traceur,Profile,ProfileView
-using OMGP.KernelModule
+using AugmentedGaussianProcesses.KernelModule
 using Distances, LinearAlgebra, Dates
 using Random: seed!
 suite = BenchmarkGroup()

@@ -1,6 +1,6 @@
 cd(dirname(@__FILE__))
 using BenchmarkTools
-using OMGP
+using AugmentedGaussianProcesses
 using Distances, LinearAlgebra, Dates,  DelimitedFiles
 using MLDataUtils: splitobs
 suite = BenchmarkGroup()
@@ -33,12 +33,12 @@ suite["SparseStochKStoch"]["init"] = @benchmarkable SparseMultiClass($X_train,$y
 for KT in ["Full","FullKStoch","Sparse","SparseStoch","SparseStochKStoch"]
     println(KT)
     models[KT].train(iterations=1)
-    suite[KT]["elbo"] = @benchmarkable OMGP.ELBO(model) setup=(model=deepcopy($(models[KT])))
-    suite[KT]["computematrices"] = @benchmarkable OMGP.computeMatrices!(model) setup=(model=deepcopy($(models[KT])))
-    suite[KT]["updatevariational"] = @benchmarkable OMGP.variational_updates!(model,1) setup=(model=deepcopy($(models[KT])))
-    suite[KT]["updatehyperparam"] = @benchmarkable OMGP.updateHyperParameters!(model) setup=(model=deepcopy($(models[KT])))
-    suite[KT]["predic"] = @benchmarkable OMGP.multiclasspredict(model,$X_test) setup=(model=deepcopy($(models[KT])))
-    suite[KT]["predicproba"] = @benchmarkable OMGP.multiclasspredictproba(model,$X_test) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["elbo"] = @benchmarkable AugmentedGaussianProcesses.ELBO(model) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["computematrices"] = @benchmarkable AugmentedGaussianProcesses.computeMatrices!(model) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["updatevariational"] = @benchmarkable AugmentedGaussianProcesses.variational_updates!(model,1) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["updatehyperparam"] = @benchmarkable AugmentedGaussianProcesses.updateHyperParameters!(model) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["predic"] = @benchmarkable AugmentedGaussianProcesses.multiclasspredict(model,$X_test) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["predicproba"] = @benchmarkable AugmentedGaussianProcesses.multiclasspredictproba(model,$X_test) setup=(model=deepcopy($(models[KT])))
 end
 
 if isfile(paramfile)

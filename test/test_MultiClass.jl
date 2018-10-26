@@ -1,6 +1,6 @@
-# include("../src/OMGP.jl")
+# include("../src/AugmentedGaussianProcesses.jl")
 
-import OMGP
+import AugmentedGaussianProcesses
 using Distributions
 using StatsBase, Distances
 # using Gallium
@@ -107,18 +107,18 @@ function initial_lengthscale(X)
 end
  l = sqrt(initial_lengthscale(X))
 
-kernel = OMGP.RBFKernel([l],dim=N_dim)
-# kernel = OMGP.RBFKernel(l)
-OMGP.setvalue!(kernel.fields.variance,1.0)
-# kernel= OMGP.PolynomialKernel([1.0,0.0,1.0])
+kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim)
+# kernel = AugmentedGaussianProcesses.RBFKernel(l)
+AugmentedGaussianProcesses.setvalue!(kernel.fields.variance,1.0)
+# kernel= AugmentedGaussianProcesses.PolynomialKernel([1.0,0.0,1.0])
 if fullm
-    global fmodel = OMGP.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true)
-    fmetrics, callback = OMGP.getMultiClassLog(fmodel,X_test=X_test,y_test=y_test)
+    global fmodel = AugmentedGaussianProcesses.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true)
+    fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(fmodel,X_test=X_test,y_test=y_test)
     # full_model.AutotuningFrequency=1
     t_full = @elapsed fmodel.train(iterations=50)#,callback=callback)
 
     global y_full,sig_full = fmodel.predict(X_test)
-    global y_fall = OMGP.multiclasspredict(fmodel,X_test,true)
+    global y_fall = AugmentedGaussianProcesses.multiclasspredict(fmodel,X_test,true)
     global y_ftrain, = fmodel.predict(X)
     println("Full predictions computed")
     full_score = 0
@@ -133,13 +133,13 @@ end
 
 
 if sfullm
-    global sfmodel = OMGP.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true,KStochastic=true,nClassesUsed=20)
-    sfmetrics, callback = OMGP.getMultiClassLog(sfmodel,X_test=X_test,y_test=y_test)
+    global sfmodel = AugmentedGaussianProcesses.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true,KStochastic=true,nClassesUsed=20)
+    sfmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(sfmodel,X_test=X_test,y_test=y_test)
     # full_model.AutotuningFrequency=1
     t_sfull = @elapsed sfmodel.train(iterations=200,callback=callback)
 
     global y_sfull,sig_sfull = sfmodel.predict(X_test)
-    global y_sfall = OMGP.multiclasspredict(sfmodel,X_test,true)
+    global y_sfall = AugmentedGaussianProcesses.multiclasspredict(sfmodel,X_test,true)
     global y_sftrain, = sfmodel.predict(X)
     println("Full predictions computed")
     sfull_score = 0
@@ -153,10 +153,10 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=100,IndependentGPs=true)
+    global smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=100,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
-    smetrics, callback = OMGP.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
-    # smodel = OMGP.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
+    smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
+    # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
     smodel.train(iterations=4)
     Profile.clear()
     @profile smodel.train(iterations=10)
@@ -164,7 +164,7 @@ if sparsem
     # t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
     global y_sparse, = smodel.predict(X_test)
     global y_strain, = smodel.predict(X)
-    global y_sall = OMGP.multiclasspredict(smodel,X_test,true)
+    global y_sall = AugmentedGaussianProcesses.multiclasspredict(smodel,X_test,true)
 
     println("Sparse predictions computed")
     sparse_score=0
@@ -178,27 +178,27 @@ end
 
 1
     model = smodel;
-    OMGP.computeMatrices!(model)
-    OMGP.updateHyperParameters!(model)
-    OMGP.computeMatrices!(model)
-    @btime OMGP.updateHyperParameters!(model)
+    AugmentedGaussianProcesses.computeMatrices!(model)
+    AugmentedGaussianProcesses.updateHyperParameters!(model)
+    AugmentedGaussianProcesses.computeMatrices!(model)
+    @btime AugmentedGaussianProcesses.updateHyperParameters!(model)
     Profile.clear()
-    OMGP.computeMatrices!(model)
-    @profile OMGP.updateHyperParameters!(model)
+    AugmentedGaussianProcesses.computeMatrices!(model)
+    @profile AugmentedGaussianProcesses.updateHyperParameters!(model)
     ProfileView.view()
 
 1
 
 if ssparsem
-    global ssmodel = OMGP.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=5,verbose=3,kernel=kernel,m=100,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
+    global ssmodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=5,verbose=3,kernel=kernel,m=100,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
-    ssmetrics, callback = OMGP.getMultiClassLog(ssmodel,X_test=X_test,y_test=y_test)
-    # smodel = OMGP.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
+    ssmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(ssmodel,X_test=X_test,y_test=y_test)
+    # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
     t_ssparse = @elapsed ssmodel.train(iterations=100)#,callback=callback)
 
     y_ssparse, = ssmodel.predict(X_test)
     y_sstrain, = ssmodel.predict(X)
-    y_ssall = OMGP.multiclasspredict(ssmodel,X_test,true)
+    y_ssall = AugmentedGaussianProcesses.multiclasspredict(ssmodel,X_test,true)
     # t_ssparse = @elapsed ssmodel.train(iterations=200,callback=callback)
 
     println("Sparse predictions computed")
@@ -213,27 +213,27 @@ end
 # t_ssparse = @elapsed ssmodel.train(iterations=200,callback=callback)
 
 # dim_t = 784
-# tkernel = OMGP.ARDKernel([l],dim=dim_t)
+# tkernel = AugmentedGaussianProcesses.ARDKernel([l],dim=dim_t)
 # Test = rand(4000,dim_t)
 # @elapsed begin
 #     A = [Matrix(undef,200,200) for _ in 1:(dim_t+1)];
 #     for i in 1:200
 #         for j in 1:i
-#             global g = OMGP.KernelFunctions.compute_deriv(tkernel,Test[i,:],Test[j,:],true);
+#             global g = AugmentedGaussianProcesses.KernelFunctions.compute_deriv(tkernel,Test[i,:],Test[j,:],true);
 #             [a[i,j] = g[iter] for (iter,a) in enumerate(A)]
 #         end
 #     end
 # end
 #
-# @elapsed OMGP.KernelFunctions.derivativekernelmatrix(tkernel,Test[1:200,:])
+# @elapsed AugmentedGaussianProcesses.KernelFunctions.derivativekernelmatrix(tkernel,Test[1:200,:])
 
 if doMCCompare
-    full_f_star,full_cov_f_star = OMGP.fstar(fmodel,X_test)
+    full_f_star,full_cov_f_star = AugmentedGaussianProcesses.fstar(fmodel,X_test)
     logit_f = logit.(full_f_star)
-    m_base = OMGP.multiclasspredict(fmodel,X_test,true)
-    # m_base = OMGP.multiclasspredict(smodel,X_test)
-    m_pred,sig_pred = OMGP.multiclasspredictproba(fmodel,X_test)
-    m_pred_mc,sig_pred_mc = OMGP.multiclasspredictprobamcmc(fmodel,X_test,1000)
+    m_base = AugmentedGaussianProcesses.multiclasspredict(fmodel,X_test,true)
+    # m_base = AugmentedGaussianProcesses.multiclasspredict(smodel,X_test)
+    m_pred,sig_pred = AugmentedGaussianProcesses.multiclasspredictproba(fmodel,X_test)
+    m_pred_mc,sig_pred_mc = AugmentedGaussianProcesses.multiclasspredictprobamcmc(fmodel,X_test,1000)
 end
 println("Sampling done")
 function logit(x)

@@ -1,5 +1,5 @@
-name = "OMGP"
-uuid = "01d6f1c0-a789-11e8-1a9c-abf87115666d"
+name = "AugmentedGaussianProcesses"
+uuid = "b1c2f168-d918-11e8-38ee-334f3e5b0caa"
 authors = ["Theo Galy-Fajou <theo.galyfajou@gmail.com>"]
 version = "0.3.1"
 

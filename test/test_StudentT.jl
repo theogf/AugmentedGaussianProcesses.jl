@@ -1,5 +1,5 @@
 using Distributions
-using OMGP
+using AugmentedGaussianProcesses
 using LinearAlgebra
 using Random: seed!
 seed!(1234)
@@ -40,7 +40,7 @@ stochm = true
 
 if fullm
     println("Testing the full model")
-    t_full = @elapsed global fullmodel = OMGP.BatchStudentT(X,y,noise=noise,kernel=kernel,verbose=verbose,Autotuning=autotuning,ν=ν)
+    t_full = @elapsed global fullmodel = AugmentedGaussianProcesses.BatchStudentT(X,y,noise=noise,kernel=kernel,verbose=verbose,Autotuning=autotuning,ν=ν)
     t_full += @elapsed fullmodel.train(iterations=100)
     y_full = fullmodel.predict(X_test); rmse_full = norm(y_full-y_test,2)/sqrt(length(y_test))
     if doPlots
@@ -51,7 +51,7 @@ end
 
 if sparsem
     println("Testing the sparse model")
-    t_sparse = @elapsed global sparsemodel = OMGP.SparseStudentT(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=m,noise=noise,kernel=kernel,ν=ν)
+    t_sparse = @elapsed global sparsemodel = AugmentedGaussianProcesses.SparseStudentT(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=m,noise=noise,kernel=kernel,ν=ν)
     t_sparse += @elapsed sparsemodel.train(iterations=1000)
     y_sparse = sparsemodel.predict(X_test); rmse_sparse = norm(y_sparse-y_test,2)/sqrt(length(y_test))
     if doPlots
@@ -63,7 +63,7 @@ end
 
 if stochm
     println("Testing the sparse stochastic model")
-    t_stoch = @elapsed stochmodel = OMGP.SparseStudentT(X,y,Stochastic=true,batchsize=20,Autotuning=autotuning,verbose=verbose,m=m,noise=noise,kernel=kernel,ν=ν)
+    t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseStudentT(X,y,Stochastic=true,batchsize=20,Autotuning=autotuning,verbose=verbose,m=m,noise=noise,kernel=kernel,ν=ν)
     t_stoch += @elapsed stochmodel.train(iterations=1000)
     y_stoch = stochmodel.predict(X_test); rmse_stoch = norm(y_stoch-y_test,2)/sqrt(length(y_test))
     if doPlots

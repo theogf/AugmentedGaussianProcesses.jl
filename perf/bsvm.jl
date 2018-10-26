@@ -1,6 +1,6 @@
 cd(dirname(@__FILE__))
 using BenchmarkTools
-using OMGP
+using AugmentedGaussianProcesses
 using Distances, LinearAlgebra, Dates, MLDataUtils, DelimitedFiles
 suite = BenchmarkGroup()
 suite["Full"] = BenchmarkGroup(["init","elbo","computematrices","updatevariational","updatehyperparam","predic","predicproba"])
@@ -24,12 +24,12 @@ suite["Sparse"]["init"] = @benchmarkable SparseBSVM($X_train,$y_train,kernel=$ke
 suite["SparseStoch"]["init"] = @benchmarkable SparseBSVM($X_train,$y_train,kernel=$kernel,Autotuning=true,μ_init=ones(Float64,$m),Stochastic=true,m=$m,batchsize=$batchsize)
 for KT in ["Full","Sparse","SparseStoch"]
     models[KT].train(iterations=1)
-    suite[KT]["elbo"] = @benchmarkable OMGP.ELBO($(models[KT]))
-    suite[KT]["computematrices"] = @benchmarkable OMGP.computeMatrices!(model) setup=(model=deepcopy($(models[KT])))
-    suite[KT]["updatevariational"] = @benchmarkable OMGP.variational_updates!(model,1) setup=(model=deepcopy($(models[KT])))
-    suite[KT]["updatehyperparam"] = @benchmarkable OMGP.updateHyperParameters!(model) setup=(model=deepcopy($(models[KT])))
-    suite[KT]["predic"] = @benchmarkable OMGP.probitpredict(model,$X_test) setup=(model=deepcopy($(models[KT])))
-    suite[KT]["predicproba"] = @benchmarkable OMGP.probitpredictproba(model,X_test) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["elbo"] = @benchmarkable AugmentedGaussianProcesses.ELBO($(models[KT]))
+    suite[KT]["computematrices"] = @benchmarkable AugmentedGaussianProcesses.computeMatrices!(model) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["updatevariational"] = @benchmarkable AugmentedGaussianProcesses.variational_updates!(model,1) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["updatehyperparam"] = @benchmarkable AugmentedGaussianProcesses.updateHyperParameters!(model) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["predic"] = @benchmarkable AugmentedGaussianProcesses.probitpredict(model,$X_test) setup=(model=deepcopy($(models[KT])))
+    suite[KT]["predicproba"] = @benchmarkable AugmentedGaussianProcesses.probitpredictproba(model,X_test) setup=(model=deepcopy($(models[KT])))
 end
 
 if isfile(paramfile)

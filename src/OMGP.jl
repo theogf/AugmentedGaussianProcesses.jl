@@ -3,7 +3,7 @@
 General Framework for the data augmented Gaussian Processes
 
 """
-module OMGP
+module AugmentedGaussianProcesses
 
 @enum GPModelType Undefined=0 BSVM=1 XGPC=2 Regression=3 StudentT=4 MultiClassGP=5
 

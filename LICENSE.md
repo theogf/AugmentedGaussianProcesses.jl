@@ -1,4 +1,4 @@
-The OMGP.jl package is licensed under the MIT "Expat" License:
+The AugmentedGaussianProcesses.jl package is licensed under the MIT "Expat" License:
 
 > Copyright (c) 2018: Théo Galy-Fajou.
 >

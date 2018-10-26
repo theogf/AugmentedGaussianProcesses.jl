@@ -7,7 +7,7 @@ using Distributions
 using StatsBase
 using LinearAlgebra
 using Clustering
-using OMGP.KernelModule
+using AugmentedGaussianProcesses.KernelModule
 
 export KMeansInducingPoints
 export KMeansAlg, StreamOnline, Webscale, CircleKMeans, DataSelection

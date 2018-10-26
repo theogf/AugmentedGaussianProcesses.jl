@@ -2,8 +2,8 @@ using Distributions
 using Plots
 using Clustering
 pyplot()
-include("../src/OMGP.jl")
-import OMGP
+include("../src/AugmentedGaussianProcesses.jl")
+import AugmentedGaussianProcesses
 
 
 
@@ -101,11 +101,11 @@ function randomf(X)
     # return X[:,1].*sin.(X[:,2])
 end
 
-kernel = OMGP.RBFKernel(0.05)
+kernel = AugmentedGaussianProcesses.RBFKernel(0.05)
 
 function sample_gaussian_process(X,noise)
     N = size(X,1)
-    K = OMGP.kernelmatrix(X,kernel)+noise*Diagonal{Float64}(I,N)
+    K = AugmentedGaussianProcesses.kernelmatrix(X,kernel)+noise*Diagonal{Float64}(I,N)
     return rand(MvNormal(zeros(N),K))
 end
 
@@ -147,15 +147,15 @@ if dorand
     f = f[randord]
 end
 if dim ==1
-    plotthisshit = OMGP.IntermediatePlotting(X_test,x1_test,x2_test,y_test)
+    plotthisshit = AugmentedGaussianProcesses.IntermediatePlotting(X_test,x1_test,x2_test,y_test)
 else
-    plotthisshit = OMGP.IntermediatePlotting(X_test,x1_test,x2_test,y_test)
+    plotthisshit = AugmentedGaussianProcesses.IntermediatePlotting(X_test,x1_test,x2_test,y_test)
 end
 
-# kernel = OMGP.Matern5_2Kernel(0.5)
-# kernel = OMGP.LaplaceKernel(0.5)
+# kernel = AugmentedGaussianProcesses.Matern5_2Kernel(0.5)
+# kernel = AugmentedGaussianProcesses.LaplaceKernel(0.5)
 ##Basic Offline KMeans
-# t_off = @elapsed offgp = OMGP.SparseGPRegression(X,y,m=k,Stochastic=true,Autotuning=false,batchsize=b,verbose=0,kernel=kernel)
+# t_off = @elapsed offgp = AugmentedGaussianProcesses.SparseGPRegression(X,y,m=k,Stochastic=true,Autotuning=false,batchsize=b,verbose=0,kernel=kernel)
 # t_off += @elapsed offgp.train(iterations=500)
 # y_off, sig_off = offgp.predictproba(X_test)
 # y_indoff = offgp.predict(offgp.inducingPoints)
@@ -167,7 +167,7 @@ end
 # end
 # println("Offline KMeans ($t_off s)\n\tRMSE (train) : $(RMSE(offgp.predict(X),y))\n\tRMSE (test) : $(RMSE(y_off,y_test))")
 # ###Online KMeans with Webscale
-# t_web = @elapsed onwebgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.Webscale(),Sequential=false,m=k,batchsize=b,verbose=0,kernel=kernel)
+# t_web = @elapsed onwebgp = AugmentedGaussianProcesses.OnlineGPRegression(X,y,kmeansalg=AugmentedGaussianProcesses.Webscale(),Sequential=false,m=k,batchsize=b,verbose=0,kernel=kernel)
 # t_web = @elapsed onwebgp.train(iterations=10)#,callback=plotthisshit)
 # y_web, sig_web = onwebgp.predictproba(X_test)
 # y_indweb = onwebgp.predict(onwebgp.kmeansalg.centers)
@@ -182,7 +182,7 @@ end
 #
 #
 ###Online KMeans with Streaming
-# t_str = @elapsed onstrgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.StreamOnline(),Sequential=sequential,m=k,batchsize=b,verbose=0,kernel=kernel)
+# t_str = @elapsed onstrgp = AugmentedGaussianProcesses.OnlineGPRegression(X,y,kmeansalg=AugmentedGaussianProcesses.StreamOnline(),Sequential=sequential,m=k,batchsize=b,verbose=0,kernel=kernel)
 # t_str = @elapsed onstrgp.train(iterations=1000)#,callback=plotthisshit)
 # y_str,sig_str = onstrgp.predictproba(X_test)
 # y_indstr = onstrgp.predict(onstrgp.kmeansalg.centers)
@@ -195,7 +195,7 @@ end
 # end
 # println("Streaming KMeans ($t_str s)\n\tRMSE (train) : $(RMSE(onstrgp.predict(X),y))\n\tRMSE (test) : $(RMSE(y_str,y_test))")
 ### Non sparse GP :
-t_full = @elapsed fullgp = OMGP.GPRegression(X,y,kernel=kernel,noise=noise)
+t_full = @elapsed fullgp = AugmentedGaussianProcesses.GPRegression(X,y,kernel=kernel,noise=noise)
 t_full = @elapsed fullgp.train()
 y_full,sig_full = fullgp.predictproba(X_test)
 y_train,sig_train = fullgp.predictproba(X)
@@ -209,7 +209,7 @@ println("Full GP ($t_full s)\n\tRMSE (train) : $(RMSE(fullgp.predict(X),y))\n\tR
 
 
 #### Custom K finding method with constant limit
-t_const = @elapsed onconstgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.CircleKMeans(lim=0.90),Sequential=sequential,m=k,batchsize=b,verbose=0,kernel=kernel)
+t_const = @elapsed onconstgp = AugmentedGaussianProcesses.OnlineGPRegression(X,y,kmeansalg=AugmentedGaussianProcesses.CircleKMeans(lim=0.90),Sequential=sequential,m=k,batchsize=b,verbose=0,kernel=kernel)
 t_const = @elapsed onconstgp.train(iterations=50,callback=plotthisshit)
 y_const,sig_const = onconstgp.predictproba(X_test)
 y_indconst = onconstgp.predict(onconstgp.kmeansalg.centers)
@@ -230,7 +230,7 @@ plot!(twinx(),X,[kl_const js_const],lab=["KL" "JS"])
 #plot!(X,y_trainconst+js_const,fill=(y_trainconst-js_const),alpha=0.3,lab="")
 
 #### Custom K with random accept using both f and X
-t_rand = @elapsed onrandgp = OMGP.OnlineGPRegression(X,y,kmeansalg=OMGP.DataSelection(),Sequential=sequential,m=k,batchsize=b,verbose=0,kernel=kernel)
+t_rand = @elapsed onrandgp = AugmentedGaussianProcesses.OnlineGPRegression(X,y,kmeansalg=AugmentedGaussianProcesses.DataSelection(),Sequential=sequential,m=k,batchsize=b,verbose=0,kernel=kernel)
 t_rand = @elapsed onrandgp.train(iterations=50,callback=plotthisshit)
 y_rand,sig_rand = onrandgp.predictproba(X_test)
 y_indrand = onrandgp.predict(onrandgp.kmeansalg.centers)
@@ -271,7 +271,7 @@ println("Sparsity efficiency :
 # \t Webscale : $(KLGP(y_trainweb,sig_trainweb,y,noise))
 # \t Streaming : $(KLGP(y_trainstr,sig_trainstr,y,noise))
 
-# model = OMGP.GPRegression(X,f,kernel=kernel)
+# model = AugmentedGaussianProcesses.GPRegression(X,f,kernel=kernel)
 #
 #
 # display(plotting2D(X,f,onstrgp.kmeansalg.centers,y_indstr,x1_test,x2_test,y_pred,"Streaming KMeans"))
