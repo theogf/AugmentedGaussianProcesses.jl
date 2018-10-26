@@ -30,13 +30,13 @@ function updateHyperParameters!(model::SparseModel)
     grads_l = compute_hyperparameter_gradient(model.kernel,f_l,[Jmm,Jnm,Jnn])
     grads_v = f_v(model.kernel)
     grads_n = f_n()
+    if model.OptimizeInducingPoints
+        inducingpoints_gradients = inducingpoints_gradient(model) #Compute the gradient given the inducing points location
+        model.inducingPoints += GradDescent.update(model.optimizer,inducingpoints_gradients) #Apply the gradients on the location
+    end
     apply_gradients_lengthscale!(model.kernel,grads_l)
     apply_gradients_variance!(model.kernel,grads_v)
     apply_gradients_noise!(model,grads_n)
-    if model.OptimizeInducingPoints
-        inducingpoints_gradients = inducingpoints_gradient(model) #Compute the gradient given the inducing points location
-        model.inducingPoints -= GradDescent.update(model.optimizer,inducingpoints_gradients) #Apply the gradients on the location
-    end
     model.HyperParametersUpdated = true
 end
 
@@ -79,9 +79,7 @@ function updateHyperParameters!(model::SparseMultiClass)
                             kernelderivativematrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1]),
                             kernelderivativediagmatrix(model.X[model.MBIndices,:],model.kernel[1])]
         grads_l = compute_hyperparameter_gradient(model.kernel[1],f_l,matrix_derivatives,1,1)
-        # println(grads_l)
         grad_v = f_v(model.kernel[1])
-        # println(grad_v)
         apply_gradients_lengthscale!(model.kernel[1],grads_l)
         apply_gradients_variance!(model.kernel[1],grad_v)
     end

@@ -31,7 +31,7 @@ using .HyperParametersModule:
         setfixed!,
         setfree!
 
-import Base: *, +, getindex
+import Base: *, +, getindex, show
 export Kernel, KernelSum, KernelProduct
 export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2Kernel, Matern5_2Kernel
 export kernelmatrix,kernelmatrix!,kerneldiagmatrix,kerneldiagmatrix!
@@ -88,6 +88,10 @@ end
 
 isARD(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: ARDKernel
 isPlain(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: PlainKernel
+
+function Base.show(io::IO,k::Kernel{T,KT}) where {T,KT}
+    print("$(k.fields.name)"*(isARD(k) ? "ARD" : "")*" kernel, with variance $(getvariance(k)) and lengthscales $(getlengthscales(k))")
+end
 
 include("KernelSum.jl")
 include("KernelProduct.jl")

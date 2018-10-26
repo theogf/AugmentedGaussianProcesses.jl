@@ -40,7 +40,7 @@ println("Testing the BSVM model")
 
 
 kernel = AugmentedGaussianProcesses.RBFKernel([1.0],dim=N_dim)
-autotuning=false
+autotuning=true
 fullm = true
 sparsem = true
 stochm = true
@@ -53,7 +53,7 @@ if fullm
     t_full += @elapsed fullmodel.train(iterations=20)
     y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
     if doPlots
-        p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="BSVM")
+        p1=plot(x1_test,x2_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="BSVM")
         push!(ps,p1)
     end
 end
@@ -61,8 +61,8 @@ end
 # #### SPARSE MODEL EVALUATION ####
 if sparsem
     println("Testing the sparse model")
-    t_sparse = @elapsed sparsemodel = AugmentedGaussianProcesses.SparseBSVM(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=20,noise=noise,kernel=kernel)
-    t_sparse += @elapsed sparsemodel.train(iterations=100)
+    t_sparse = @elapsed sparsemodel = AugmentedGaussianProcesses.SparseBSVM(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=40,noise=noise,kernel=kernel,OptimizeIndPoints=true)
+    t_sparse += @elapsed sparsemodel.train(iterations=1000)
     y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
     if doPlots
         p2=plot(x1_test,x2_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Sparse BSVM")
@@ -73,7 +73,7 @@ end
 # #### STOCH. MODEL EVALUATION ####
 if stochm
     println("Testing the sparse stochastic model")
-    t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseBSVM(X,y,Stochastic=true,batchsize=10,Autotuning=autotuning,verbose=verbose,m=20,noise=noise,kernel=kernel)
+    t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseBSVM(X,y,Stochastic=true,batchsize=10,Autotuning=autotuning,verbose=verbose,m=20,noise=noise,kernel=kernel,OptimizeIndPoints=true)
     t_stoch += @elapsed stochmodel.train(iterations=1000)
     y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))
     if doPlots
@@ -88,7 +88,7 @@ t_stoch != 0 ? println("Stoch. Sparse model : Acc=$(acc_stoch), time=$t_stoch") 
 
 ### Plot the computed predictions ###
 if doPlots
-    ptrue = plot(x_test,x_test,reshape(y_test,N_test,N_test),t=:contour,cbar=false,fill=:true)
+    ptrue = plot(x1_test,x2_test,reshape(y_test,N_test,N_test),t=:contour,cbar=false,fill=:true)
     plot!(X[y.==1,1],X[y.==1,2],color=:red,t=:scatter,lab="y=1",title="Truth",xlims=(-5,5),ylims=(-5,5))
     plot!(X[y.==-1,1],X[y.==-1,2],color=:blue,t=:scatter,lab="y=-1")
     display(plot(ptrue,ps...));

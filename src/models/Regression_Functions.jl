@@ -57,8 +57,8 @@ end
 
 function ExpecLogLikelihood(model::SparseGPRegression)
     return -0.5*(model.nSamplesUsed*log(2π*getvalue(model.noise))
-    -sum((model.y[model.MBIndices]-model.κ*model.μ).^2)/getvalue(model.noise)
-    -sum(model.Ktilde)-sum((model.κ*model.Σ).*model.κ)/getvalue(model.noise))
+    + (sum((model.y[model.MBIndices]-model.κ*model.μ).^2)
+    + sum(model.Ktilde)+sum((model.κ*model.Σ).*model.κ))/getvalue(model.noise))
 end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters for a Regression Model"
@@ -78,37 +78,41 @@ end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters for a sparse regression Model"
 function hyperparameter_gradient_function(model::SparseGPRegression)
-    B = model.μ*transpose(model.μ) + model.Σ
+    F2 = model.μ*transpose(model.μ) + model.Σ
     return (function(Jmm,Jnm,Jnn)
             ι = (Jnm-model.κ*Jmm)*model.invKmm
             Jtilde = Jnn - sum(ι.*model.Knm,dims=2) - sum(model.κ.*Jnm,dims=2)
             V = model.invKmm*Jmm
-            return 0.5*(sum( (V*model.invKmm - model.StochCoeff/getvalue(model.noise)*(ι'*model.κ + model.κ'*ι)) .* transpose(B)) - tr(V) - model.StochCoeff/getvalue(model.noise)*sum(Jtilde)
-             +2*model.StochCoeff/getvalue(model.noise)*dot(model.y[model.MBIndices],ι*model.μ))
+            return 0.5*(sum( (V*model.invKmm).*F2)
+            - model.StochCoeff/getvalue(model.noise)*sum((ι'*model.κ + model.κ'*ι).*F2) - tr(V) - model.StochCoeff/getvalue(model.noise)*sum(Jtilde)
+            + 2*model.StochCoeff/getvalue(model.noise)*dot(model.y[model.MBIndices],ι*model.μ))
             end,
             function(kernel)
-                return 0.5/(getvariance(kernel))*(sum(model.invKmm.*transpose(B))-model.m+2*model.StochCoeff/getvalue(model.noise)*sum(model.Ktilde))
+                return 0.5/(getvariance(kernel))*(sum(model.invKmm.*F2)-model.m-model.StochCoeff/getvalue(model.noise)*sum(model.Ktilde))
             end,
             function()
                 ι = -model.κ*model.invKmm
                 Jtilde = ones(Float64,model.nSamplesUsed) - sum(ι.*model.Knm,dims=2)[:]
                 V = model.invKmm
-                return 0.5*(sum( (V*model.invKmm - model.StochCoeff/getvalue(model.noise)*(ι'*model.κ + model.κ'*ι)) .* transpose(B)) - tr(V) - model.StochCoeff/getvalue(model.noise)*sum(Jtilde)
-                 +2*model.StochCoeff/getvalue(model.noise)*dot(model.y[model.MBIndices],ι*model.μ))
+                return 0.5*(sum( (V*model.invKmm).*F2)
+                - model.StochCoeff/getvalue(model.noise)*sum((ι'*model.κ + model.κ'*ι).*F2) - tr(V) - model.StochCoeff/getvalue(model.noise)*sum(Jtilde)
+                + 2*model.StochCoeff/getvalue(model.noise)*dot(model.y[model.MBIndices],ι*model.μ))
             end)
 end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters"
 function inducingpoints_gradient(model::SparseGPRegression)
-        gradients_inducing_points = zeros(model.inducingPoints)
+        gradients_inducing_points = zero(model.inducingPoints)
+        F2 = model.μ*transpose(model.μ) + model.Σ
         for i in 1:model.m #Iterate over the points
             Jnm,Jmm = computeIndPointsJ(model,i)
-            for j in 1:dim #iterate over the dimensions
+            for j in 1:model.nDim #iterate over the dimensions
                 ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
-                Jtilde = -sum(ι.*transpose(Kmn),dims=2)-sum(model.κ.*Jnm[j,:,:],dims=2)
+                Jtilde = -sum(ι.*model.Knm,dims=2)-sum(model.κ.*Jnm[j,:,:],dims=2)
                 V = model.invKmm*Jmm[j,:,:]
-                gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff/getvalue(model.noise)*(ι'*model.κ+model.κ'*ι)).*transpose(B))-tr(V)-model.StochCoeff/getvalue(model.noise)*Jtilde
-                 + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
+                gradients_inducing_points[i,j] = 0.5*(sum( (V*model.invKmm).*F2)
+                - model.StochCoeff/getvalue(model.noise)*sum((ι'*model.κ + model.κ'*ι).*F2) - tr(V) - model.StochCoeff/getvalue(model.noise)*sum(Jtilde)
+                + 2*model.StochCoeff/getvalue(model.noise)*dot(model.y[model.MBIndices],ι*model.μ))
             end
         end
         return gradients_inducing_points

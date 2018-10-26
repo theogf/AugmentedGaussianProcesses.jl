@@ -1,3 +1,10 @@
+"Printing function"
+function Base.show(io::IO,model::GPModel)
+    print("$(model.Name) model")
+end
+
+
+
 "Update the global variational parameters of the linear models"
 function global_update!(model::LinearModel,grad_1::Vector,grad_2::Matrix)
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_1;

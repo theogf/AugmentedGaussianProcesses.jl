@@ -16,7 +16,7 @@ end
 println("Testing the XGPC model")
 ### TESTING WITH TOY XOR DATASET
     N_data = 1000;N_test = 20
-    N_indpoints = 20; N_dim = 2
+    N_indpoints = 80; N_dim = 2
     noise = 2.0
     minx=-5.0; maxx=5.0
     function latent(x)
@@ -26,7 +26,7 @@ println("Testing the XGPC model")
     x_test = range(minx,stop=maxx,length=N_test)
     X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
     y = sign.(latent(X)+rand(Normal(0,noise),size(X,1)))
-    y_test = sign.(latent(X_test)+rand(Normal(0,noise),size(X_test,1)))
+    y_test = sign.(latent(X_test))
 
 ### TESTING WITH BANANA DATASET ###
     # X=readdlm("data/banana_X_train")
@@ -48,7 +48,8 @@ println("Testing the XGPC model")
 # ProfileView.view()
 
 kernel = RBFKernel([3.0],dim=N_dim)
-
+autotuning=true
+optindpoints=true
 fullm = true
 sparsem = true
 ssparsem = true
@@ -56,7 +57,7 @@ ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
 # # #### FULL MODEL EVALUATION ####
 if fullm
     println("Testing the full model")
-    t_full = @elapsed fullmodel = AugmentedGaussianProcesses.BatchXGPC(X,y,noise=noise,kernel=kernel,verbose=verbose,Autotuning=true)
+    t_full = @elapsed fullmodel = AugmentedGaussianProcesses.BatchXGPC(X,y,noise=noise,kernel=kernel,verbose=verbose,Autotuning=autotuning)
     t_full += @elapsed fullmodel.train(iterations=20)
     y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
     if doPlots
@@ -67,7 +68,7 @@ end
 # # #### SPARSE MODEL EVALUATION ####
 if sparsem
     println("Testing the sparse model")
-    t_sparse = @elapsed sparsemodel = AugmentedGaussianProcesses.SparseXGPC(X,y,Stochastic=false,Autotuning=true,ϵ=1e-6,verbose=verbose,m=N_indpoints,noise=1e-10,kernel=kernel,OptimizeIndPoints=false)
+    t_sparse = @elapsed sparsemodel = AugmentedGaussianProcesses.SparseXGPC(X,y,Stochastic=false,Autotuning=autotuning,ϵ=1e-6,verbose=verbose,m=N_indpoints,noise=1e-3,kernel=kernel,OptimizeIndPoints=optindpoints)
     metrics,savelog = AugmentedGaussianProcesses.getLog(sparsemodel,X_test=X_test,y_test=y_test)
     t_sparse += @elapsed sparsemodel.train(iterations=100)#,callback=savelog)
     y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
@@ -81,7 +82,7 @@ end
 #### STOCH. SPARSE MODEL EVALUATION ###.
 if ssparsem
     println("Testing the sparse stochastic model")
-    t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseXGPC(X,y,Stochastic=true,batchsize=40,Autotuning=true,verbose=verbose,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
+    t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseXGPC(X,y,Stochastic=true,batchsize=40,Autotuning=autotuning,verbose=verbose,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=optindpoints)
     metrics,savelog = AugmentedGaussianProcesses.getLog(stochmodel,X_test=X_test,y_test=y_test)
     t_stoch += @elapsed stochmodel.train(iterations=1000)#,callback=savelog)
     y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))

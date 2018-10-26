@@ -50,6 +50,7 @@ using SpecialFunctions
 using Dates
 using QuadGK
 using SparseArrays
+using Base: show
 #Exported models
 export KMeansModule
 export LinearBSVM, BatchBSVM, SparseBSVM

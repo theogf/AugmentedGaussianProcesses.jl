@@ -107,7 +107,7 @@ function hyperparameter_gradient_function(model::SparseXGPC)
                 ι = (Jnm-model.κ*Jmm)*model.invKmm
                 Jtilde = Jnn - sum(ι.*model.Knm,dims=2)[:] - sum(model.κ.*Jnm,dims=2)[:]
                 V = model.invKmm*Jmm
-                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*θ*model.κ + model.κ'*θ*ι)) .* transpose(F2)) - tr(V) - model.StochCoeff*dot(model.θ,Jtilde)
+                return 0.5*(sum( (V*model.invKmm).*F2) - model.StochCoeff*sum((ι'*θ*model.κ + model.κ'*θ*ι).*F2) - tr(V) - model.StochCoeff*dot(model.θ,Jtilde)
                     + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
             end,
             function(kernel)
@@ -124,18 +124,19 @@ end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters"
 function inducingpoints_gradient(model::SparseXGPC)
-    gradients_inducing_points = zeros(model.inducingPoints)
+    gradients_inducing_points = zero(model.inducingPoints)
     B = model.μ*transpose(model.μ) + model.Σ
-    Kmn = kernelmatrix(model.inducingPoints,model.X[model.MBIndices,:],model.kernel)
-    θ = Diagonal(0.25./model.c.*tanh.(0.5*model.c))
+    θ = Diagonal(model.θ)
     for i in 1:model.m #Iterate over the points
         Jnm,Jmm = computeIndPointsJ(model,i)
         for j in 1:model.nDim #Compute the gradient over the dimensions
-            ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])/model.Kmm
-            Jtilde = -sum(ι.*(transpose(Kmn)),dims=2)[:]-sum(model.κ.*Jnm[j,:,:],dims=2)[:]
-            V = model.Kmm\Jmm[j,:,:]
-            gradients_inducing_points[i,j] = 0.5*(sum( (V/model.Kmm - model.StochCoeff*(ι'*θ*model.κ + model.κ'*θ*ι)) .* transpose(B)) - tr(V) - model.StochCoeff*dot(diag(θ),Jtilde)
-                + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
+            ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
+            Jtilde = -sum(ι.*model.Knm,dims=2)[:]-sum(model.κ.*Jnm[j,:,:],dims=2)[:]
+            V = model.invKmm*Jmm[j,:,:]
+            gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm).*B)
+            - model.StochCoeff*sum((ι'*θ*model.κ + model.κ'*θ*ι).*B)
+            - tr(V) - model.StochCoeff*dot(model.θ,Jtilde)
+            + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
         end
     end
     return gradients_inducing_points

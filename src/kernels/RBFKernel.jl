@@ -58,3 +58,13 @@ end
 function updateweights!(k::RBFKernel{T,KT},w::Vector{T}) where {T,KT}
     k.fields.metric.weights .= 1.0./(w.^2)
 end
+
+function computeIndPointsJmm(k::RBFKernel{T,KT},X::Matrix{T},iPoint::Integer,K::Symmetric{T,Matrix{T}}) where {T,KT}
+    l2 = (getlengthscales(k)).^2
+    return -((X[iPoint,:]'.-X)./l2').*K[:,iPoint]
+end
+
+function computeIndPointsJnm(k::RBFKernel{T,KT},X::Matrix{T},x::Vector{T},iPoint::Integer,K::Matrix{T}) where {T,KT}
+    l2 = (getlengthscales(k)).^2
+    return -((x'.-X)./l2').*K[:,iPoint]
+end

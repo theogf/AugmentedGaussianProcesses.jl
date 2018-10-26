@@ -1,11 +1,11 @@
 "Create the kernel matrix from the training data or the correlation matrix one of set of vectors"
-function kernelmatrix(X1::Array{T,N},X2::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
+function kernelmatrix(X1::Array{T,N1},X2::Array{T,N2},kernel::Kernel{T,KT}) where {T,N1,N2,KT}
     K = pairwise(getmetric(kernel),X1',X2')
     v = getvariance(kernel)
     return lmul!(v,map!(kappa(kernel),K,K))
 end
 
-function kernelmatrix!(K::Array{T,N},X1::Array{T,N},X2::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
+function kernelmatrix!(K::Array{T,N2},X1::Array{T,N1},X2::Array{T,N2},kernel::Kernel{T,KT}) where {T,N1,N2,KT}
     (n1,n2) = size(K)
     @assert n1==size(X1,1)
     @assert n2==size(X2,1)
@@ -70,19 +70,21 @@ function CreateColumnMatrix(n,m,iter,gradient)
     return K
 end
 
-#Compute the gradients given the inducing point locations
+# function computeIndPointsJ(model,iPoint)
+#     Jmm = [zeros(Float64,model.m,model.m) for _ in 1:model.nDim]
+#     Jnm = [zeros(Float64,model.nSamplesUsed,model.m) for _ in 1:model.nDim]
+#     map!(computeJmm,Jmm,)
+#
+#
+# end
+
+
+"Compute the gradients given the inducing point locations"
 function computeIndPointsJ(model,iter)
-    Dnm = zeros(model.nSamplesUsed,model.nDim)
-    Dmm = zeros(model.m,model.nDim)
+    Dnm = computeIndPointsJnm(model.kernel,model.X[model.MBIndices,:],model.inducingPoints[iter,:],iter,model.Knm)
+    Dmm = computeIndPointsJmm(model.kernel,model.inducingPoints,iter,model.Kmm)
     Jnm = zeros(model.nDim,model.nSamplesUsed,model.m)
     Jmm = zeros(model.nDim,model.m,model.m)
-    #Compute the gradients given every data point
-    for i in 1:model.nSamplesUsed
-        Dnm[i,:] = compute_point_deriv(model.kernel,model.X[model.MBIndices[i],:],model.inducingPoints[iter,:])
-    end
-    for i in 1:model.m
-        Dmm[i,:] = compute_point_deriv(model.kernel,model.inducingPoints[iter,:],model.inducingPoints[i,:])
-    end
     for i in 1:model.nDim
         Jnm[i,:,:] = CreateColumnMatrix(model.nSamplesUsed,model.m,iter,Dnm[:,i])
         Jmm[i,:,:] = CreateColumnRowMatrix(model.m,iter,Dmm[:,i])

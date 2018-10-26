@@ -1,7 +1,9 @@
 using AugmentedGaussianProcesses
 using Test
+using Random: seed!
+seed!(42)
 
-# write your own tests here
+# Global flags for the tests
 doPlots = false
 verbose = 0
 @test include("test_XGPC.jl")

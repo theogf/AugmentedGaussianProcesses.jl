@@ -30,36 +30,46 @@ y_test = latent(X_test)
 ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
 
 kernel = RBFKernel(2.0)
-autotuning=false
+autotuning=true
+optindpoints=true
+fullm=true
+sparsem=true
+stochm=true
 println("Testing the regression model")
 
-println("Testing the full model")
-t_full = @elapsed fullmodel = AugmentedGaussianProcesses.GPRegression(X,y,noise=noise,Autotuning=autotuning,kernel=kernel,verbose=verbose)
-t_full += @elapsed fullmodel.train()
-y_full = fullmodel.predict(X_test); rmse_full = norm(y_full-y_test,2)/sqrt(length(y_test))
-if doPlots
-    p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="Regression")
-    push!(ps,p1)
+if fullm
+    println("Testing the full model")
+    t_full = @elapsed fullmodel = AugmentedGaussianProcesses.GPRegression(X,y,noise=noise,Autotuning=autotuning,kernel=kernel,verbose=verbose)
+    t_full += @elapsed fullmodel.train(iterations=50)
+    y_full = fullmodel.predict(X_test); rmse_full = norm(y_full-y_test,2)/sqrt(length(y_test))
+    if doPlots
+        p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="Regression")
+        push!(ps,p1)
+    end
 end
 
-println("Testing the sparse model")
-t_sparse = @elapsed sparsemodel = AugmentedGaussianProcesses.SparseGPRegression(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=20,noise=noise,kernel=kernel)
-t_sparse += @elapsed sparsemodel.train(iterations=100)
-y_sparse = sparsemodel.predict(X_test); rmse_sparse = norm(y_sparse-y_test,2)/sqrt(length(y_test))
-if doPlots
-    p2=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="Sparse Regression")
-    plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
-    push!(ps,p2)
+if sparsem
+    println("Testing the sparse model")
+    t_sparse = @elapsed sparsemodel = AugmentedGaussianProcesses.SparseGPRegression(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=20,noise=noise,kernel=kernel,OptimizeIndPoints=optindpoints)
+    t_sparse += @elapsed sparsemodel.train(iterations=100)
+    y_sparse = sparsemodel.predict(X_test); rmse_sparse = norm(y_sparse-y_test,2)/sqrt(length(y_test))
+    if doPlots
+        p2=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="Sparse Regression")
+        plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
+        push!(ps,p2)
+    end
 end
 
-println("Testing the sparse stochastic model")
-t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseGPRegression(X,y,Stochastic=true,batchsize=20,Autotuning=autotuning,verbose=verbose,m=20,noise=noise,kernel=kernel)
-t_stoch += @elapsed stochmodel.train(iterations=200)
-y_stoch = stochmodel.predict(X_test); rmse_stoch = norm(y_stoch-y_test,2)/sqrt(length(y_test))
-if doPlots
-    p3=plot(x_test,x_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(minx*1.1,maxx*1.1),lab="",title="Stoch. Sparse Regression")
-    plot!(stochmodel.inducingPoints[:,1],stochmodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
-    push!(ps,p3)
+if stochm
+    println("Testing the sparse stochastic model")
+    t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseGPRegression(X,y,Stochastic=true,batchsize=20,Autotuning=autotuning,verbose=verbose,m=20,noise=noise,kernel=kernel,OptimizeIndPoints=optindpoints)
+    t_stoch += @elapsed stochmodel.train(iterations=1000)
+    y_stoch = stochmodel.predict(X_test); rmse_stoch = norm(y_stoch-y_test,2)/sqrt(length(y_test))
+    if doPlots
+        p3=plot(x_test,x_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(minx*1.1,maxx*1.1),lab="",title="Stoch. Sparse Regression")
+        plot!(stochmodel.inducingPoints[:,1],stochmodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
+        push!(ps,p3)
+    end
 end
 t_full != 0 ? println("Full model : RMSE=$(rmse_full), time=$t_full") : nothing
 t_sparse != 0 ? println("Sparse model : RMSE=$(rmse_sparse), time=$t_sparse") : nothing

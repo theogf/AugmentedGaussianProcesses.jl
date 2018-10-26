@@ -140,14 +140,18 @@ end
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters"
 function inducingpoints_gradient(model::SparseBSVM)
     gradients_inducing_points = zero(model.inducingPoints)
+    B = model.μ*transpose(model.μ) + model.Σ
+    A = Diagonal(1.0./sqrt.(model.α))
     for i in 1:model.m #Iterate over the points
         Jnm,Jmm = computeIndPointsJ(model,i)
-        for j in 1:dim #iterate over the dimensions
+        for j in 1:model.nDim #iterate over the dimensions
             ι = (Jnm[j,:,:]-model.κ*Jmm[j,:,:])*model.invKmm
-            Jtilde = -sum(ι.*transpose(Kmn),dims=2)-sum(model.κ.*Jnm[j,:,:],dims=2)
+            Jtilde = -sum(ι.*model.Knm,dims=2)-sum(model.κ.*Jnm[j,:,:],dims=2)
             V = model.invKmm*Jmm[j,:,:]
-            gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm-model.StochCoeff*(ι'*Θ*model.κ+model.κ'*Θ*ι)).*transpose(B))-tr(V)-model.StochCoeff*dot(diag(Θ),Jtilde)
-             + 2.0*model.StochCoeff*dot(model.y[model.MBIndices],(1+A)*ι*model.μ))
+            gradients_inducing_points[i,j] = 0.5*(sum((V*model.invKmm).*B)
+            - model.StochCoeff*sum((ι'*A*model.κ+model.κ'*A*ι).*B)
+            - tr(V) - model.StochCoeff*dot(diag(A),Jtilde)
+             + 2.0*model.StochCoeff*dot(model.y[model.MBIndices],(I+A)*ι*model.μ))
         end
     end
     return gradients_inducing_points
