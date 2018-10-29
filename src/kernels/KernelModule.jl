@@ -44,13 +44,13 @@ export compute_hyperparameter_gradient
 export compute,plotkernel
 export getvalue,setvalue!,setfixed!,setfree!
 export getlengthscales, getvariance
-export isARD,isPlain
+export isARD,isIso
 export HyperParameter,HyperParameters,Interval, OpenBound,  NullBound
 abstract type KernelType end;
 
 abstract type ARDKernel <: KernelType end;
 
-abstract type PlainKernel <: KernelType end;
+abstract type IsoKernel <: KernelType end;
 
 abstract type KernelCombination <: KernelType end;
 
@@ -78,7 +78,7 @@ function getvariance(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType}
     return getvalue(k.fields.variance)
 end
 
-function getlengthscales(k::Kernel{T,PlainKernel}) where {T<:Real}
+function getlengthscales(k::Kernel{T,IsoKernel}) where {T<:Real}
     return getvalue(k.fields.lengthscales[1])
 end
 
@@ -87,7 +87,7 @@ function getlengthscales(k::Kernel{T,ARDKernel}) where {T<:Real}
 end
 
 isARD(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: ARDKernel
-isPlain(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: PlainKernel
+isIso(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: IsoKernel
 
 function Base.show(io::IO,k::Kernel{T,KT}) where {T,KT}
     print("$(k.fields.name)"*(isARD(k) ? "ARD" : "")*" kernel, with variance $(getvariance(k)) and lengthscales $(getlengthscales(k))")
@@ -514,7 +514,7 @@ function deriv_point_linear(X1::Array{Float64,1},X2::Array{Float64,1},θ)
     X2
 end
 
-function apply_gradients_lengthscale!(kernel::Kernel{T,PlainKernel},gradient::T) where {T}
+function apply_gradients_lengthscale!(kernel::Kernel{T,IsoKernel},gradient::T) where {T}
     update!(kernel.fields.lengthscales,[gradient])
 end
 

@@ -12,13 +12,13 @@ function compute_hyperparameter_gradient(k::Kernel{T,ARDKernel},gradient_functio
     return map(gradient_function,Js[1],Js[2],Js[3])
 end
 
-#Case for full batch with Plain Kernel
-function compute_hyperparameter_gradient(k::Kernel{T,PlainKernel},gradient_function::Function,J::LinearAlgebra.Symmetric{Float64,Matrix{Float64}}) where T
+#Case for full batch with Iso Kernel
+function compute_hyperparameter_gradient(k::Kernel{T,IsoKernel},gradient_function::Function,J::LinearAlgebra.Symmetric{Float64,Matrix{Float64}}) where T
     return gradient_function(J)
 end
 
-#Case for sparse with Plain Kernel
-function compute_hyperparameter_gradient(k::Kernel{T,PlainKernel},gradient_function::Function,Js::Vector{AbstractArray{Float64,N} where N}) where T
+#Case for sparse with Iso Kernel
+function compute_hyperparameter_gradient(k::Kernel{T,IsoKernel},gradient_function::Function,Js::Vector{AbstractArray{Float64,N} where N}) where T
     return gradient_function(Js[1],Js[2],Js[3])
 end
 
@@ -33,13 +33,13 @@ function compute_hyperparameter_gradient(k::Kernel{T,ARDKernel},gradient_functio
     return map(gradient_function,Js[1],Js[2],Js[3],Kindex*ones(Int64,k.fields.Ndim),index*ones(Int64,k.fields.Ndim))
 end
 
-#Case for multiscale full batch with Plain Kernel
-function compute_hyperparameter_gradient(k::Kernel{T,PlainKernel},gradient_function::Function,J::LinearAlgebra.Symmetric{Float64,Matrix{Float64}},Kindex::Int64,index::Int64) where T
+#Case for multiscale full batch with Iso Kernel
+function compute_hyperparameter_gradient(k::Kernel{T,IsoKernel},gradient_function::Function,J::LinearAlgebra.Symmetric{Float64,Matrix{Float64}},Kindex::Int64,index::Int64) where T
     return gradient_function(J,Kindex,index)
 end
 
-#Case for multiscale sparse with Plain Kernel
-function compute_hyperparameter_gradient(k::Kernel{T,PlainKernel},gradient_function::Function,Js::Vector{AbstractArray{Float64,N} where N},Kindex::Int64,index::Int64) where T
+#Case for multiscale sparse with Iso Kernel
+function compute_hyperparameter_gradient(k::Kernel{T,IsoKernel},gradient_function::Function,Js::Vector{AbstractArray{Float64,N} where N},Kindex::Int64,index::Int64) where T
     return gradient_function(Js[1],Js[2],Js[3],Kindex,index)
 end
 

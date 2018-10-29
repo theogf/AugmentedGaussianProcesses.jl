@@ -21,7 +21,7 @@ struct RBFKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
                                         HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}()) for _ in 1:dim]),dim,
                                         WeightedSqEuclidean(one(T)./(θ.^2))))
         else
-            return new{T,PlainKernel}(KernelFields{T,PlainKernel}(
+            return new{T,IsoKernel}(KernelFields{T,IsoKernel}(
                                         "RBF",
                                         HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
                                         HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}())]),1,
@@ -34,7 +34,7 @@ function RBFKernel(θ::T1=1.0;variance::T2=one(T1),dim::Integer=0,ARD::Bool=fals
     if ARD
         RBFKernel{floattype(T1,T2),ARDKernel}([θ],variance=variance,dim=dim)
     else
-        RBFKernel{floattype(T1,T2),PlainKernel}([θ],variance=variance)
+        RBFKernel{floattype(T1,T2),IsoKernel}([θ],variance=variance)
     end
  end
 
@@ -47,7 +47,7 @@ end
 
 @inline rbfkernel(z::Real) = exp(-0.5*z)
 
-function kappa(k::RBFKernel{T,PlainKernel}) where {T<:Real,KT}
+function kappa(k::RBFKernel{T,IsoKernel}) where {T<:Real,KT}
     return z->rbfkernel(z,getlengthscales(k))
 end
 

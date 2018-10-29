@@ -1,7 +1,7 @@
 ################# DERIVATIVES FOR THE RBF KERNEL ###################################
 
 
-function kernelderivativematrix(X::Array{T,N},kernel::RBFKernel{T,PlainKernel}) where {T,N}
+function kernelderivativematrix(X::Array{T,N},kernel::RBFKernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel)
     P = pairwise(SqEuclidean(),X'); K = zero(P)
     map!(kappa(kernel),K,P)
@@ -9,7 +9,7 @@ function kernelderivativematrix(X::Array{T,N},kernel::RBFKernel{T,PlainKernel}) 
 end
 
 "When K has already been computed"
-function kernelderivativematrix_K(X::Array{T,N},K::Symmetric{T,Array{T,N}},kernel::RBFKernel{T,PlainKernel}) where {T,N}
+function kernelderivativematrix_K(X::Array{T,N},K::Symmetric{T,Array{T,N}},kernel::RBFKernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel)
     P = pairwise(SqEuclidean(),X')
     return Symmetric(lmul!(v./(l^3),P.*=K))
@@ -32,7 +32,7 @@ end
 
 ########## DERIVATIVE MATRICES FOR TWO MATRICES #######
 
-function kernelderivativematrix(X::Array{T,N},Y::Array{T,N},kernel::RBFKernel{T,PlainKernel}) where {T,N}
+function kernelderivativematrix(X::Array{T,N},Y::Array{T,N},kernel::RBFKernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel)
     P = pairwise(SqEuclidean(),X',Y'); K = zero(P);
     map!(kappa(kernel),K,P)
@@ -40,7 +40,7 @@ function kernelderivativematrix(X::Array{T,N},Y::Array{T,N},kernel::RBFKernel{T,
 end
 
 "When K has already been computed"
-function kernelderivativematrix_K(X::Array{T,N},Y::Array{T,N},K::Array{T,N},kernel::RBFKernel{T,PlainKernel}) where {T,N}
+function kernelderivativematrix_K(X::Array{T,N},Y::Array{T,N},K::Array{T,N},kernel::RBFKernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel)
     P = pairwise(SqEuclidean(),X',Y')
     return lmul!(v./(l^3),P.*=K)
@@ -64,7 +64,7 @@ end
 
 ############ DIAGONAL DERIVATIVES ###################
 
-function kernelderivativediagmatrix(X::Array{T,N},kernel::RBFKernel{T,PlainKernel}) where {T,N}
+function kernelderivativediagmatrix(X::Array{T,N},kernel::RBFKernel{T,IsoKernel}) where {T,N}
     n = size(X,1); P = zeros(T,n)
     return P
 end
