@@ -288,33 +288,43 @@ end
 
 
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
-function KMeansInducingPoints(X,K,m;weights=0)
-    C = copy(transpose(KmeansSeed(X,K,m)))
-    if weights!=0
+function KMeansInducingPoints(X::Array{T,N},nC::Integer;nMarkov::Integer=10,weights::Vector{T}=[0.0]) where {T,N}
+    C = copy(transpose(KmeansSeed(X,nC,nMarkov)))
+    if weights!=[0.0]
         Clustering.kmeans!(copy(transpose(X)),C,weights=weights,tol=1e-3)
     else
         Clustering.kmeans!(copy(transpose(X)),C)
     end
-return copy(transpose(C))
+    return copy(transpose(C))
 end
+
+# function KMeansInducingPoints(X::AbstractArray{T,N},nC::Integer;nMarkov::Integer=10,weights::AbstractArray{T,1}=[0.0]) where {T,N}
+#     C = copy(transpose(KmeansSeed(X,nC,nMarkov)))
+#     if weights!=[0.0]
+#         Clustering.kmeans!(copy(transpose(X)),C,weights=weights,tol=1e-3)
+#     else
+#         Clustering.kmeans!(copy(transpose(X)),C)
+#     end
+#     return copy(transpose(C))
+# end
 #Fast and efficient seeding for KMeans
-function KmeansSeed(X,K,m) #X is the data, K the number of centers wanted, m the number of Markov iterations
-  N = size(X,1)
+function KmeansSeed(X::AbstractArray{T,N},nC::Integer,nMarkov::Integer) where {T,N} #X is the data, nC the number of centers wanted, m the number of Markov iterations
+  NSamples = size(X,1)
   #Preprocessing, sample first random center
-  init = StatsBase.sample(1:N,1)
-  C = zeros(K,size(X,2))
+  init = StatsBase.sample(1:NSamples,1)
+  C = zeros(nC,size(X,2))
   C[1,:] = X[init,:]
-  q = zeros(N)
-  for i in 1:N
+  q = zeros(NSamples)
+  for i in 1:NSamples
     q[i] = 0.5*norm(X[i,:].-C[1])^2
   end
   sumq = sum(q)
-  q = Weights(q/sumq .+ 1.0/(2*N),1)
+  q = Weights(q/sumq .+ 1.0/(2*NSamples),1)
   uniform = Distributions.Uniform(0,1)
-  for i in 2:K
-    x = X[StatsBase.sample(1:N,q,1),:] #weighted sampling,
+  for i in 2:nC
+    x = X[StatsBase.sample(1:NSamples,q,1),:] #weighted sampling,
     mindist = mindistance(x,C,i-1)
-    for j in 2:m
+    for j in 2:nMarkov
       y = X[StatsBase.sample(q),:] #weighted sampling
       dist = mindistance(y,C,i-1)
       if (dist/mindist > rand(uniform))
@@ -327,9 +337,9 @@ function KmeansSeed(X,K,m) #X is the data, K the number of centers wanted, m the
 end
 
 #Compute the minimum distance
-function mindistance(x,C,K) #Point to look for, collection of centers, number of centers computed
+function mindistance(x::AbstractArray{T,N1},C::AbstractArray{T,N2},nC::Integer) where {T,N1,N2}#Point to look for, collection of centers, number of centers computed
   mindist = Inf
-  for i in 1:K
+  for i in 1:nC
     mindist = min.(norm(x.-C[i])^2,mindist)
   end
   return mindist

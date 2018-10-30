@@ -68,6 +68,7 @@ export setvalue!,getvalue,setfixed!,setfree!
 export KMeansInducingPoints
 # export save_trained_model,save_model,load_trained_model,load_model
 
+global jittering = 1e-3
 
 #using Plots
 

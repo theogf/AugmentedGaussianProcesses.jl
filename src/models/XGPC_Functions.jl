@@ -45,13 +45,13 @@ end
 "Return the natural gradients of the ELBO given the natural parameters"
 function natural_gradient_XGPC(model::BatchXGPC)
     model.η_1 =  0.5*model.y
-    model.η_2 = -0.5*(Diagonal{Float64}(model.θ) + model.invK)
+    model.η_2 = Symmetric(-0.5*(Diagonal{Float64}(model.θ) + model.invK))
 end
 
 "Return the natural gradients of the ELBO given the natural parameters"
 function natural_gradient_XGPC(model::SparseXGPC)
     grad_1 =  0.5*model.StochCoeff*model.κ'*model.y[model.MBIndices]
-    grad_2 = -0.5.*(model.StochCoeff*transpose(model.κ)*Diagonal{Float64}(model.θ)*model.κ .+ model.invKmm)
+    grad_2 = Symmetric(-0.5*(model.StochCoeff*transpose(model.κ)*Diagonal{Float64}(model.θ)*model.κ .+ model.invKmm))
     return (grad_1,grad_2)
 end
 

@@ -3,6 +3,8 @@ function Base.show(io::IO,model::GPModel)
     print("$(model.Name) model")
 end
 
+def_atfrequency = 2
+def_smoothwindow = 5
 
 
 "Update the global variational parameters of the linear models"
@@ -15,14 +17,14 @@ end
 
 "Update the global variational parameters of the linear models"
 function global_update!(model::FullBatchModel)
-    model.Σ = -0.5*inv(model.η_2);
+    model.Σ = inv(model.η_2)*(-0.5);
     model.μ = model.Σ*model.η_1 #Back to the normal distribution parameters (needed for α updates)
 end
 
 "Update the global variational parameters of the sparse GP models"
-function global_update!(model::SparseModel,grad_1::Vector,grad_2::Matrix)
+function global_update!(model::SparseModel,grad_1::Vector{Float64},grad_2::Symmetric{Float64,Matrix{Float64}})
     model.η_1 = (1.0-model.ρ_s)*model.η_1 + model.ρ_s*grad_1;
-    model.η_2 = (1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_2 #Update of the natural parameters with noisy/full natural gradient
+    model.η_2 = Symmetric((1.0-model.ρ_s)*model.η_2 + model.ρ_s*grad_2) #Update of the natural parameters with noisy/full natural gradient
     model.Σ = -inv(model.η_2)*0.5;
     model.μ = model.Σ*model.η_1 #Back to the normal distribution parameters (needed for α updates)
 end

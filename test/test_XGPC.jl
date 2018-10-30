@@ -50,7 +50,7 @@ println("Testing the XGPC model")
 kernel = RBFKernel([3.0],dim=N_dim)
 autotuning=true
 optindpoints=true
-fullm = true
+fullm = !true
 sparsem = true
 ssparsem = true
 ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
@@ -84,7 +84,7 @@ if ssparsem
     println("Testing the sparse stochastic model")
     t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseXGPC(X,y,Stochastic=true,batchsize=40,Autotuning=autotuning,verbose=verbose,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=optindpoints)
     metrics,savelog = AugmentedGaussianProcesses.getLog(stochmodel,X_test=X_test,y_test=y_test)
-    t_stoch += @elapsed stochmodel.train(iterations=1000)#,callback=savelog)
+    t_stoch += @elapsed stochmodel.train(iterations=5000)#,callback=savelog)
     y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))
     if doPlots
         p3=plot(x_test,x_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse XGPC")

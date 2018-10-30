@@ -17,15 +17,12 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             updateParameters!(model,iter) #Update all the variational parameters
+            model.Trained=true
             # println(mean(model.μ[1]))
-            reset_prediction_matrices!(model) #Reset predicton matrices
             if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
-                # for j in 1:model.AutotuningFrequency
-                # for j in 1:3
-                    updateHyperParameters!(model) #Update the hyperparameters
-                    # computeMatrices!(model)
-                # end
+                updateHyperParameters!(model) #Update the hyperparameters
             end
+            reset_prediction_matrices!(model) #Reset predicton matrices
             if callback != 0
                     callback(model,iter) #Use a callback method if put by user
             end
@@ -66,7 +63,7 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
     elseif isa(model,MultiClass) || isa(model,SparseMultiClass)
         model.Σ = -inv.(model.η_2).*0.5
     elseif !isa(model,GPRegression)
-        model.Σ = -0.5*inv(model.η_2);
+        model.Σ = -inv(model.η_2)*0.5;
     end
     model.Trained = true
 end
@@ -76,7 +73,6 @@ function updateParameters!(model::GPModel,iter::Integer)
 #Function to update variational parameters
     if model.Stochastic
         model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
-        #No replacement means one points cannot be twice in the same minibatch
     end
     if typeof(model) <: MultiClassGPModel
         if model.KStochastic
@@ -91,7 +87,7 @@ end
 "Compute of kernel matrices for the full batch GPs"
 function computeMatrices!(model::FullBatchModel)
     if model.HyperParametersUpdated
-        model.Knn = Symmetric(kernelmatrix(model.X,model.kernel) + Diagonal{Float64}(getvalue(model.noise)*I,model.nFeatures))
+        model.Knn = Symmetric(kernelmatrix(model.X,model.kernel) + Diagonal{Float64}((getvalue(model.noise)+getvariance(model.kernel)*jittering)*I,model.nFeatures))
         model.invK = inv(model.Knn)
         model.HyperParametersUpdated = false
     end
@@ -100,7 +96,7 @@ end
 "Computate of kernel matrices for the sparse GPs"
 function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated
-        model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+Diagonal{Float64}(getvalue(model.noise)*I,model.nFeatures))
+        model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+Diagonal{Float64}((getvalue(model.noise)+getvariance(model.kernel)*jittering)*I,model.nFeatures))
         model.invKmm = inv(model.Kmm)
     end
     if model.HyperParametersUpdated || model.Stochastic #Also when batches change

@@ -25,11 +25,14 @@ Compute the mean of the predicted latent distribution of f on X_test for sparse 
 Return also the variance if `covf=true`
 """
 function fstar(model::SparseModel,X_test;covf::Bool=true)
-    if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = model.invKmm*model.μ
-    end
-    if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = (model.invKmm*(Diagonal{Float64}(I,model.nFeatures)-model.Σ*model.invKmm))
+    # if model.HyperParametersUpdated
+    #     computeMatrices!(model)
+    # end
+    # if model.TopMatrixForPrediction == 0
+    model.TopMatrixForPrediction = model.invKmm*model.μ
+    # end
+    if covf
+        model.DownMatrixForPrediction = model.invKmm*(Diagonal{Float64}(I,model.nFeatures)-model.Σ*model.invKmm)
     end
     k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
     mean_fstar = k_star*model.TopMatrixForPrediction
@@ -179,11 +182,15 @@ end
 function logitpredictproba(model::GPModel,X_test)
     m_f,cov_f = fstar(model,X_test,covf=true)
     n_test = size(X_test,1)
-    @assert minimum(cov_f)>0  error("Covariance under 0")
+    # @assert minimum(cov_f)>0  error("Covariance under 0")
     predic = zeros(Float64,n_test)
     for i in 1:n_test
-        d = Normal(m_f[i],sqrt(cov_f[i]))
-        predic[i] = quadgk(x->logit(x)*pdf(d,x),-Inf,Inf)[1]
+        if cov_f[i] <= 0
+            predic[i] = logit(m_f[i])
+        else
+            d = Normal(m_f[i],sqrt(cov_f[i]))
+            predic[i] = quadgk(x->logit(x)*pdf(d,x),-Inf,Inf)[1]
+        end
         # predic[i] = quadgk(x->logit(x)*pdf(d,x),m_f[i]-10*sqrt(cov_f[i]),m_f[i]+10*sqrt(cov_f[i]))[1]
         # err += abs(v-predic[i])
     end

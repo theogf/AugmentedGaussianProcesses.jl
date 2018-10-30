@@ -45,7 +45,7 @@ what `optimizer` to use
 function initCommon!(model::GPModel,X::Array{T,N},y::Vector{T2},noise::Float64,ϵ::Float64,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer) where {T<:Real,T2<:Real,N}
     @assert (size(y,1)==size(X,1)) "There is a dimension problem with the data size(y)!=size(X)";
     model.X = X; model.y = y;
-    @assert noise > 0 "noise should be a positive float";  model.noise = KernelModule.HyperParameter{Float64}(noise,KernelModule.interval(KernelModule.OpenBound{Float64}(zero(Float64)),KernelModule.NullBound{Float64}()))
+    @assert noise >= 0 "noise should be a positive float";  model.noise = KernelModule.HyperParameter{Float64}(noise,KernelModule.interval(KernelModule.OpenBound{Float64}(zero(Float64)),KernelModule.NullBound{Float64}()))
     @assert ϵ > 0 "ϵ should be a positive float"; model.ϵ = ϵ;
     @assert nEpochs > 0 "nEpochs should be positive"; model.nEpochs = nEpochs;
     @assert (verbose > -1 && verbose < 4) "verbose should be in {0,1,2,3}, here value is $verbose"; model.verbose = verbose;
@@ -98,8 +98,8 @@ end
 """
 @def kernelfields begin
     kernel::Kernel #Kernels function used
-    Knn::Matrix{Float64} #Kernel matrix of the GP prior
-    invK::Matrix{Float64} #Inverse Kernel Matrix for the nonlinear case
+    Knn::Symmetric{Float64,Matrix{Float64}} #Kernel matrix of the GP prior
+    invK::Symmetric{Float64,Matrix{Float64}} #Inverse Kernel Matrix for the nonlinear case
 end
 """
 Function initializing the kernelfields
@@ -143,7 +143,7 @@ function initSparse!(model::GPModel,m,optimizeIndPoints)
     model.m = m; model.nFeatures = model.m;
     model.OptimizeInducingPoints = optimizeIndPoints
     model.optimizer = Adam(α=0.1);
-    model.inducingPoints = KMeansInducingPoints(model.X,model.m,10)
+    model.inducingPoints = KMeansInducingPoints(model.X,model.m,nMarkov=10)
     if model.verbose>1
         println("Inducing points determined through KMeans algorithm")
     end
@@ -162,8 +162,8 @@ Parameters for the variational multivariate gaussian distribution
 @def gaussianparametersfields begin
     μ::Vector{Float64} # Mean for variational distribution
     η_1::Vector{Float64}#Natural Parameter #1
-    Σ::Matrix{Float64} # Covariance matrix of variational distribution
-    η_2::Matrix{Float64} #Natural Parameter #2
+    Σ::Symmetric{Float64,Matrix{Float64}} # Covariance matrix of variational distribution
+    η_2::Symmetric{Float64,Matrix{Float64}} #Natural Parameter #2
 end
 """
 Function for initialisation of the variational multivariate parameters
@@ -178,8 +178,8 @@ function initGaussian!(model::GPModel,μ_init::Vector{Float64})
     else
       model.μ = μ_init
     end
-    model.Σ = Matrix{Float64}(I,model.nFeatures,model.nFeatures)
-    model.η_2 = -0.5*inv(model.Σ)
+    model.Σ = Symmetric(Matrix{Float64}(I,model.nFeatures,model.nFeatures))
+    model.η_2 = -inv(model.Σ)*0.5
     model.η_1 = -2.0*model.η_2*model.μ
 end
 """

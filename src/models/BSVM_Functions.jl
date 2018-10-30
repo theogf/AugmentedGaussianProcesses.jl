@@ -44,13 +44,13 @@ end
 "Return the natural gradients of the ELBO given the natural parameters"
 function natural_gradient_BSVM(model::BatchBSVM)
   model.η_1 =  model.y.*(1.0./sqrt.(model.α).+1.0)
-  model.η_2 = -0.5*(Diagonal(1.0./sqrt.(model.α)) + model.invK)
+  model.η_2 = Symmetric(-0.5*(Diagonal(1.0./sqrt.(model.α)) + model.invK))
 end
 
 "Return the natural gradients of the ELBO given the natural parameters"
 function natural_gradient_BSVM(model::SparseBSVM)
   grad_1 =  model.StochCoeff*model.κ'*(model.y[model.MBIndices].*(1.0./sqrt.(model.α).+1.0))
-  grad_2 = -0.5*(model.StochCoeff*model.κ'*Diagonal(1.0./sqrt.(model.α))*model.κ + model.invKmm)
+  grad_2 = Symmetric(-0.5*(model.StochCoeff*model.κ'*Diagonal(1.0./sqrt.(model.α))*model.κ + model.invKmm))
   return (grad_1,grad_2)
 end
 
