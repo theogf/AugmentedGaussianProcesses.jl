@@ -1,8 +1,8 @@
 # AugmentedGaussianProcesses!
 [![Build Status](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl.svg?branch=master)](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl)
-  <a href="https://theogf.github.io/AugmentedGaussianProcesses.jl/stable">
+  <!--a href="https://theogf.github.io/AugmentedGaussianProcesses.jl/stable">
     <img src="https://img.shields.io/badge/docs-stable-blue.svg">
-  </a>
+  </a-->
   <a href="https://theogf.github.io/AugmentedGaussianProcesses.jl/latest">
     <img src="https://img.shields.io/badge/docs-latest-blue.svg">
   </a>
@@ -11,11 +11,11 @@ AugmentedGaussianProcesses! is a Julia package in development for **Data Augment
 
 # Packages models :
   - Two GP classifier models
-    - **BSVM** : A Classifier with a likelihood equivalent to the classic SVM [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20BSVM.ipynb)
-    - **XGPC** : A Classifier with a Bernoulli likelihood with the logistic link [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20XGPC.ipynb)
+    - **BSVM** : A Classifier with a likelihood equivalent to the classic SVM [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20BSVM.ipynb)/[Reference][arxivbsvm]
+    - **XGPC** : A Classifier with a Bernoulli likelihood with the logistic link [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20XGPC.ipynb)/[Reference][arxivxgpc]
   - Two GP Regression models
-    - **GPRegression** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)
-    - **StudentT** : The standard Gaussian Process regression with a Student-t likelihood (the degree of freedom ν is not optimizable for the moment) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)
+    - **GPRegression** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)/[Reference][arxivgpbigdata]
+    - **StudentT** : The standard Gaussian Process regression with a Student-t likelihood (the degree of freedom ν is not optimizable for the moment) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)/[Reference][jmlrstudentt]
   - More models in development
     - **MultiClass** : A multiclass classifier model, relying on a modified version of softmax
     - **Probit** : A Classifier with a Bernoulli likelihood with the probit link
@@ -50,7 +50,10 @@ Arxiv "Efficient Gaussian Process Classification using Polya-Gamma Variables" by
 
 UAI 13' "Gaussian Process for Big Data" by James Hensman, Nicolo Fusi and Neil D. Lawrence [https://arxiv.org/abs/1309.6835][arxivgpbigdata]
 
+JMLR 11' "Robust Gaussian process regression with a Student-t likelihood." by Jylänki Pasi, Jarno Vanhatalo, and Aki Vehtari.  [http://www.jmlr.org/papers/v12/jylanki11a.html][jmlrstudentt]
+
 [arxivgpbigdata]:https://arxiv.org/abs/1309.6835
   [31b06e91]: https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20SXGPC.ipynb "Classification with Sparse XGPC"
 [arxivbsvm]:https://arxiv.org/abs/1707.05532
 [arxivxgpc]:https://arxiv.org/abs/1802.06383
+[jmlrstudentt]:http://www.jmlr.org/papers/volume12/jylanki11a/jylanki11a.pdf
