@@ -22,7 +22,7 @@ maxx=5.0
 function latent(x)
     return x[:,1].*sin.(x[:,2])
 end
-ν=20.0; st = TDist(ν)
+ν=5.0; st = TDist(ν)
 kernel = RBFKernel(2.0); m = 40
 autotuning = false
 
@@ -49,7 +49,7 @@ if fullm
     _ =  fullmodel.predict(X_test)
     global y_full = fullmodel.predict(X_test); rmse_full = rmse(y_full,y_test);
     global y_fullg, y_fullcovg = fullmodel.predictproba(X_test)
-    global y_fullmc,y_fullcovmc = AugmentedGaussianProcesses.studentpredictprobamc(fullmodel,X_test)
+    global y_fullmc,y_fullcovmc = AugmentedGaussianProcesses.studentpredictprobamc(fullmodel,X_test,nSamples=1000)
     if doPlots
         p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="StudentT")
         push!(ps,p1)
