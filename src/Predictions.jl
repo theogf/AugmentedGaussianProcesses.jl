@@ -156,11 +156,11 @@ function probitpredictproba(model::LinearModel,X_test)
       X_test = [ones(Float64,size(X_test,1)) X_test]
     end
     n = size(X_test,1)
-    predic = zeros(n)
-    for i in 1:n
-      predic[i] = cdf(Normal(),(dot(X_test[i,:],model.μ))/(dot(X_test[i,:],model.Σ*X_test[i,:])+1))
+    pred = zeros(n)
+    for i in 1:nTest
+      pred[i] = cdf(Normal(),(dot(X_test[i,:],model.μ))/(dot(X_test[i,:],model.Σ*X_test[i,:])+1))
     end
-    return predic
+    return pred
 end
 
 "Return the mean of likelihood p(y*=1|X,x*) via the probit link with a GP model"
@@ -189,11 +189,11 @@ end
 "Return the likelihood of class y=1 via the SVM likelihood"
 function svmpredictproba(model::GPModel,X_test)
     m_f,cov_f = fstar(model,X_test,covf=true)
-    N_test = length(m_f)
+    nTest = length(m_f)
     pred = zero(m_f)
-    for i in 1:N_test
-        if covf[i] <= min_cov
-            pred[i] = svmlikelihood(m_f)
+    for i in 1:nTest
+        if cov_f[i] <= min_cov
+            pred[i] = svmlikelihood(m_f[i])
         else
             d = Normal(m_f[i],sqrt(cov_f[i]))
             pred[i] = quadgk(x->pdf(d,x)*svmlikelihood(x),-Inf,Inf)[1]
@@ -216,9 +216,9 @@ end
 "Return the mean of likelihood p(y*=1|X,x*) via the logit link with a GP model"
 function logitpredictproba(model::GPModel,X_test)
     m_f,cov_f = fstar(model,X_test,covf=true)
-    n_test = size(X_test,1)
-    pred = zero(Float64,n_test)
-    for i in 1:n_test
+    nTest = length(m_f)
+    pred = zero(m_f)
+    for i in 1:nTest
         if cov_f[i] <= min_cov
             pred[i] = logit(m_f[i])
         else
@@ -226,7 +226,7 @@ function logitpredictproba(model::GPModel,X_test)
             pred[i] = quadgk(x->logit(x)*pdf(d,x),-Inf,Inf)[1]
         end
     end
-    return predic
+    return pred
 end
 
 """Return the mean of the predictive distribution of f"""
@@ -295,15 +295,15 @@ function multiclasspredict(model::MultiClass,X_test,all_class=false)
     if all_class
             return y
     end
-    predic = zeros(Int64,n)
+    pred = zeros(Int64,n)
     value = zeros(Float64,n)
     for i in 1:n
         res = findmax(y[i]);
-        predic[i]=res[2];
+        pred[i]=res[2];
         value[i]=res[1]
     end
-    # broadcast((x,pred,val)->begin ;end,y,predic,value)
-    return model.class_mapping[predic],value
+    # broadcast((x,pred,val)->begin ;end,y,pred,value)
+    return model.class_mapping[pred],value
 end
 
 function multiclasspredict(model::SparseMultiClass,X_test::Array{T,N},all_class::Bool=false)  where {T,N}
@@ -316,14 +316,14 @@ function multiclasspredict(model::SparseMultiClass,X_test::Array{T,N},all_class:
     if all_class
         return y
     end
-    predic = zeros(Int64,n)
+    pred = zeros(Int64,n)
     value = zeros(Float64,n)
     for i in 1:n
         res = findmax(y[i]);
-        predic[i]=res[2];
+        pred[i]=res[2];
         value[i]=res[1]
     end
-    return model.class_mapping[predic],value
+    return model.class_mapping[pred],value
 end
 
 
