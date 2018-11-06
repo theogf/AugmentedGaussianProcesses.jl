@@ -22,9 +22,12 @@ maxx=5.0
 function latent(x)
     return x[:,1].*sin.(x[:,2])
 end
-ν=20.0
+ν=20.0; st = TDist(ν)
 kernel = RBFKernel(2.0); m = 40
 autotuning = false
+
+rmse(y,y_test) = norm(y-y_test,2)/sqrt(length(y_test))
+stlk(y,y_test) = logpdf.(st,y-y_test)
 
 X = rand(N_data,N_dim)*(maxx-minx).+minx
 x_test = range(minx,stop=maxx,length=N_test)
@@ -43,7 +46,10 @@ if fullm
     println("Testing the full model")
     t_full = @elapsed global fullmodel = AugmentedGaussianProcesses.BatchStudentT(X,y,noise=noise,kernel=kernel,verbose=verbose,Autotuning=autotuning,ν=ν)
     t_full += @elapsed fullmodel.train(iterations=100)
-    y_full = fullmodel.predict(X_test); rmse_full = norm(y_full-y_test,2)/sqrt(length(y_test))
+    _ =  fullmodel.predict(X_test)
+    global y_full = fullmodel.predict(X_test); rmse_full = rmse(y_full,y_test);
+    global y_fullg, y_fullcovg = fullmodel.predictproba(X_test)
+    global y_fullmc,y_fullcovmc = AugmentedGaussianProcesses.studentpredictprobamc(fullmodel,X_test)
     if doPlots
         p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="StudentT")
         push!(ps,p1)
@@ -54,6 +60,7 @@ if sparsem
     println("Testing the sparse model")
     t_sparse = @elapsed global sparsemodel = AugmentedGaussianProcesses.SparseStudentT(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=m,noise=noise,kernel=kernel,ν=ν)
     t_sparse += @elapsed sparsemodel.train(iterations=1000)
+    _ =  sparsemodel.predict(X_test)
     y_sparse = sparsemodel.predict(X_test); rmse_sparse = norm(y_sparse-y_test,2)/sqrt(length(y_test))
     if doPlots
         p2=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="Sparse StudentT")
@@ -66,6 +73,7 @@ if stochm
     println("Testing the sparse stochastic model")
     t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseStudentT(X,y,Stochastic=true,batchsize=20,Autotuning=autotuning,verbose=verbose,m=m,noise=noise,kernel=kernel,ν=ν)
     t_stoch += @elapsed stochmodel.train(iterations=1000)
+    _ =  stochmodel.predict(X_test)
     y_stoch = stochmodel.predict(X_test); rmse_stoch = norm(y_stoch-y_test,2)/sqrt(length(y_test))
     if doPlots
         p3=plot(x_test,x_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(minx*1.1,maxx*1.1),lab="",title="Stoch. Sparse StudentT")

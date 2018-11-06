@@ -8,9 +8,6 @@ There are 3 main stages for the GPs:
 
 ## Initialization
 
-One must first pick the model fitting the best its needs. The first criteria is the size of the datasets: if your datasets contains around 1000 samples or less it is better to use a `FullBatchModel` which is the most accurate (but also sometimes more prone to overfitting).
-If there is more, it is worth using a `SparseModel` based on inducing points.
-
 ### Sparse vs FullBatch
 
 - A `FullBatchModel` is a normal GP model, where the variational distribution is optimized over all the training points and no stochastic updates are possible. It is therefore fitted for small datasets (~10^3 samples)
@@ -26,9 +23,16 @@ For **regression** one can use the `GPRegression` or `StudentT` model. The latte
 
 For **classification** one can use the `XGPC` using the [logistic link](https://en.wikipedia.org/wiki/Logistic_function) or the `BSVM` model based on the [frequentist SVM](https://en.wikipedia.org/wiki/Support_vector_machine#Bayesian_SVM).
 
+
+### Model creation
+
+Creating a model is as simple as doing `GPModel(X,y;args...)` where `args` is described in the next section
+
 ### Parameters of the models
 
-All models except for `BatchGPRegression` use the same set of parameters for initialisation. Default values are showed as well
+All models except for `BatchGPRegression` use the same set of parameters for initialisation. Default values are showed as well.
+
+One of the main parameter is the kernel function (or covariance function). This detailed in [the kernel section](https://theogf.github.io/AugmentedGaussianProcesses.jl/latest/Kernels), by default an isotropic RBFKernel with lengthscale 1.0 is used.
 
 Common parameters :
 
@@ -57,6 +61,35 @@ Model specific :
 
 ## Training
 
-
+Training is straightforward after initializing the model by running :
+```julia
+model.train(;iterations=100,callback=callbackfunction)
+```
+Where the `callback` option is for running a function at every iteration. `callback function should be defined as`
+```julia
+function callbackfunction(model,iter)
+    "do things here"...
+end
+```
 
 ## Prediction
+
+Once the model has been trained it is finally possible to compute predictions. There always three possibilities :
+
+- `model.fstar(X_test,covf=true)` : Compute the parameters (mean and covariance) of the latent normal distributions of each test points. If `covf=false` return only the mean.
+- `model.predict(X_test)` : Compute the point estimate of the predictive likelihood for regression or the label of the most likely class for classification.
+- `model.predictproba(X_test)` : Compute the exact predictive likelihood for regression or the predictive likelihood to obtain the class `y=1` for classification.
+
+## Miscellaneous
+
+### Saving/Loading models
+
+Once a model has been trained it is possible to save its state in a file by using  `save_trained_model(filename,model)`, a partial version of the file will be save in `filename`.
+
+It is then possible to reload this file by using `load_trained_model(filename)`. !!!However note that it will not be possible to train the model further!!! This function is only meant to do further predictions.
+
+### Pre-made callback functions
+
+There is one (for now) premade function to return a a MVHistory object and callback function for the training of binary classification problems.
+The callback will store the ELBO and the variational parameters at every iterations included in iter_points
+If X_test and y_test are provided it will also store the test accuracy and the mean and median test loglikelihood

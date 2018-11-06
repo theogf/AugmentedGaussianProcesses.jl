@@ -244,7 +244,7 @@ function initFunctions!(model::GPModel)
             return
         end
         if model.ModelType == BSVM
-            probitpredict(model,X_test)
+            svmpredict(model,X_test)
         elseif model.ModelType == XGPC
             logitpredict(model,X_test)
         elseif model.ModelType == Regression
@@ -261,7 +261,7 @@ function initFunctions!(model::GPModel)
             return
         end
         if model.ModelType == BSVM
-            probitpredictproba(model,X_test)
+            svmpredictproba(model,X_test)
         elseif model.ModelType == XGPC
             logitpredictproba(model,X_test)
         elseif model.ModelType == Regression

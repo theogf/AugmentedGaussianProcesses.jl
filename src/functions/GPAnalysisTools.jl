@@ -9,9 +9,9 @@ export getLog, getMultiClassLog
     The callback will store the ELBO and the variational parameters at every iterations included in iter_points
     If X_test and y_test are provided it will also store the test accuracy and the mean and median test loglikelihood
 """
-function getLog(model;X_test=0,y_test=0,iter_points=vcat(1:1:9,10:5:99,100:50:999,1000:100:9999))
+function (model;X_test=0,y_test=0,iter_points=vcat(1:1:9,10:5:99,100:50:999,1000:100:9999))
     metrics = MVHistory()
-    function SaveLog(model,iter;hyper=false)
+    function measuremetrics(model,iter)
         if in(iter,iter_points)
                 if X_test!=0
                     y_p = model.predictproba(X_test)
@@ -25,8 +25,8 @@ function getLog(model;X_test=0,y_test=0,iter_points=vcat(1:1:9,10:5:99,100:50:99
                 push!(metrics,:ELBO,iter,model.elbo())
                 push!(metrics,:mu,iter,model.μ)
                 push!(metrics,:sigma,iter,diag(model.Σ))
-                push!(metrics,:kernel_variance,iter,getvalue(model.kernel.variance))
-                push!(metrics,:kernel_param,iter,getvalue(model.kernel.lengthscales[1]))
+                push!(metrics,:kernel_variance,iter,getvariance(model.kernel))
+                push!(metrics,:kernel_param,iter,getlengthscales(model.kernel))
         end
     end #end SaveLog
     return metrics,SaveLog

@@ -8,7 +8,7 @@ end
 "Compute the variational updates for the full GP StudentT"
 function variational_updates!(model::BatchStudentT,iter)
     local_update!(model)
-    natural_gradient_StudentT(model)
+    natural_gradient(model)
     global_update!(model)
 end
 
@@ -22,34 +22,19 @@ end
 "Compute the variational updates for the sparse GP StudentT"
 function variational_updates!(model::SparseStudentT,iter::Integer)
     local_update!(model)
-    (grad_η_1,grad_η_2) = natural_gradient_StudentT(model)
+    (grad_η_1,grad_η_2) = natural_gradient(model)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     global_update!(model,grad_η_1,grad_η_2)
 end
 
-# "Update the local variational parameters of the online GP StudentT"
-# function local_update!(model::OnlineStudentT)
-#     model.α = sqrt.(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ).^2)
-#     model.θ = 0.5*tanh.(0.5*model.α)./model.α
-# end
-
-# "Compute the variational updates for the online GP StudentT"
-# function variational_updates!(model::OnlineStudentT,iter::Integer)
-#     local_update!(model)
-#     θ = 0.5*tanh.(0.5*model.α)./model.α
-#     (grad_η_1,grad_η_2) = natural_gradient_StudentT(model)
-#     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
-#     global_update!(model,grad_η_1,grad_η_2)
-# end
-
 "Return the natural gradients of the ELBO given the natural parameters"
-function natural_gradient_StudentT(model::BatchStudentT)
+function natural_gradient(model::BatchStudentT)
     model.η_1 =  model.θ.*model.y
     model.η_2 = Symmetric(-0.5*(Diagonal{Float64}(model.θ) + model.invK))
 end
 
 "Return the natural gradients of the ELBO given the natural parameters"
-function natural_gradient_StudentT(model::SparseStudentT)
+function natural_gradient(model::SparseStudentT)
     grad_1 =  model.StochCoeff*model.κ'*(model.θ.*model.y[model.MBIndices])
     grad_2 = Symmetric(-0.5.*(model.StochCoeff*transpose(model.κ)*Diagonal{Float64}(model.θ)*model.κ + model.invKmm))
     return (grad_1,grad_2)

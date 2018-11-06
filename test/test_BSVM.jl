@@ -51,6 +51,7 @@ if fullm
     println("Testing the full batch model")
     t_full = @elapsed fullmodel = AugmentedGaussianProcesses.BatchBSVM(X,y,Autotuning=autotuning,noise=noise,kernel=kernel,verbose=verbose)
     t_full += @elapsed fullmodel.train(iterations=20)
+    _ = fullmodel.predict(X_test)
     y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
     if doPlots
         p1=plot(x1_test,x2_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="BSVM")
@@ -62,7 +63,8 @@ end
 if sparsem
     println("Testing the sparse model")
     t_sparse = @elapsed sparsemodel = AugmentedGaussianProcesses.SparseBSVM(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=40,noise=noise,kernel=kernel,OptimizeIndPoints=true)
-    t_sparse += @elapsed sparsemodel.train(iterations=1000)
+    t_sparse += @elapsed sparsemodel.train(iterations=100)
+    _ =  sparsemodel.predict(X_test)
     y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
     if doPlots
         p2=plot(x1_test,x2_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Sparse BSVM")
@@ -74,7 +76,8 @@ end
 if stochm
     println("Testing the sparse stochastic model")
     t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseBSVM(X,y,Stochastic=true,batchsize=10,Autotuning=autotuning,verbose=verbose,m=20,noise=noise,kernel=kernel,OptimizeIndPoints=true)
-    t_stoch += @elapsed stochmodel.train(iterations=1000)
+    t_stoch += @elapsed stochmodel.train(iterations=500)
+    _ =  stochmodel.predict(X_test)
     y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))
     if doPlots
         p3=plot(x1_test,x2_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse BSVM")

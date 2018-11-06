@@ -50,7 +50,7 @@ println("Testing the XGPC model")
 kernel = RBFKernel([3.0],dim=N_dim)
 autotuning=true
 optindpoints=true
-fullm = !true
+fullm = true
 sparsem = true
 ssparsem = true
 ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
@@ -59,6 +59,7 @@ if fullm
     println("Testing the full model")
     t_full = @elapsed fullmodel = AugmentedGaussianProcesses.BatchXGPC(X,y,noise=noise,kernel=kernel,verbose=verbose,Autotuning=autotuning)
     t_full += @elapsed fullmodel.train(iterations=20)
+    _ =  fullmodel.predict(X_test)
     y_full = fullmodel.predictproba(X_test); acc_full = 1-sum(abs.(sign.(y_full.-0.5)-y_test))/(2*length(y_test))
     if doPlots
         p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="XGPC")
@@ -69,8 +70,8 @@ end
 if sparsem
     println("Testing the sparse model")
     t_sparse = @elapsed sparsemodel = AugmentedGaussianProcesses.SparseXGPC(X,y,Stochastic=false,Autotuning=autotuning,ϵ=1e-6,verbose=verbose,m=N_indpoints,noise=1e-3,kernel=kernel,OptimizeIndPoints=optindpoints)
-    metrics,savelog = AugmentedGaussianProcesses.getLog(sparsemodel,X_test=X_test,y_test=y_test)
-    t_sparse += @elapsed sparsemodel.train(iterations=100)#,callback=savelog)
+    t_sparse += @elapsed sparsemodel.train(iterations=100)
+    _ =  sparsemodel.predict(X_test)
     y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
     if doPlots
         p2=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=(0,1),lab="",title="Sparse XGPC")
@@ -83,8 +84,8 @@ end
 if ssparsem
     println("Testing the sparse stochastic model")
     t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseXGPC(X,y,Stochastic=true,batchsize=40,Autotuning=autotuning,verbose=verbose,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=optindpoints)
-    metrics,savelog = AugmentedGaussianProcesses.getLog(stochmodel,X_test=X_test,y_test=y_test)
-    t_stoch += @elapsed stochmodel.train(iterations=5000)#,callback=savelog)
+    t_stoch += @elapsed stochmodel.train(iterations=500)
+    _ =  stochmodel.predict(X_test)
     y_stoch = stochmodel.predictproba(X_test); acc_stoch = 1-sum(abs.(sign.(y_stoch.-0.5)-y_test))/(2*length(y_test))
     if doPlots
         p3=plot(x_test,x_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(0,1),lab="",title="Stoch. Sparse XGPC")

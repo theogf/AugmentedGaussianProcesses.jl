@@ -24,7 +24,7 @@ end
 "Compute the variational updates for the full GP BSVM"
 function variational_updates!(model::BatchBSVM,iter::Integer)
     local_update!(model)
-    natural_gradient_BSVM(model)
+    natural_gradient(model)
     global_update!(model)
 end
 
@@ -36,19 +36,19 @@ end
 "Compute the variational updates for the sparse GP BSVM"
 function variational_updates!(model::SparseBSVM,iter::Integer)
     local_update!(model)
-    (grad_η_1,grad_η_2) = natural_gradient_BSVM(model)
+    (grad_η_1,grad_η_2) = natural_gradient(model)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     global_update!(model,grad_η_1,grad_η_2)
 end
 
 "Return the natural gradients of the ELBO given the natural parameters"
-function natural_gradient_BSVM(model::BatchBSVM)
+function natural_gradient(model::BatchBSVM)
   model.η_1 =  model.y.*(1.0./sqrt.(model.α).+1.0)
   model.η_2 = Symmetric(-0.5*(Diagonal(1.0./sqrt.(model.α)) + model.invK))
 end
 
 "Return the natural gradients of the ELBO given the natural parameters"
-function natural_gradient_BSVM(model::SparseBSVM)
+function natural_gradient(model::SparseBSVM)
   grad_1 =  model.StochCoeff*model.κ'*(model.y[model.MBIndices].*(1.0./sqrt.(model.α).+1.0))
   grad_2 = Symmetric(-0.5*(model.StochCoeff*model.κ'*Diagonal(1.0./sqrt.(model.α))*model.κ + model.invKmm))
   return (grad_1,grad_2)

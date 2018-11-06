@@ -9,7 +9,7 @@ end
 "Compute the variational updates for the full GP XGPC"
 function variational_updates!(model::BatchXGPC,iter)
     local_update!(model)
-    natural_gradient_XGPC(model)
+    natural_gradient(model)
     global_update!(model)
 end
 
@@ -23,7 +23,7 @@ end
 "Compute the variational updates for the sparse GP XGPC"
 function variational_updates!(model::SparseXGPC,iter::Integer)
     local_update!(model)
-    (grad_η_1,grad_η_2) = natural_gradient_XGPC(model)
+    (grad_η_1,grad_η_2) = natural_gradient(model)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     global_update!(model,grad_η_1,grad_η_2)
 end
@@ -43,13 +43,13 @@ function variational_updates!(model::OnlineXGPC,iter::Integer)
 end
 
 "Return the natural gradients of the ELBO given the natural parameters"
-function natural_gradient_XGPC(model::BatchXGPC)
+function natural_gradient(model::BatchXGPC)
     model.η_1 =  0.5*model.y
     model.η_2 = Symmetric(-0.5*(Diagonal{Float64}(model.θ) + model.invK))
 end
 
 "Return the natural gradients of the ELBO given the natural parameters"
-function natural_gradient_XGPC(model::SparseXGPC)
+function natural_gradient(model::SparseXGPC)
     grad_1 =  0.5*model.StochCoeff*model.κ'*model.y[model.MBIndices]
     grad_2 = Symmetric(-0.5*(model.StochCoeff*transpose(model.κ)*Diagonal{Float64}(model.θ)*model.κ .+ model.invKmm))
     return (grad_1,grad_2)

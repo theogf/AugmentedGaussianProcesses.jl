@@ -1,5 +1,12 @@
 #Specific functions of the Gaussian Process regression models
 
+
+function local_update!(model::BatchGPRegression)
+end
+
+function local_update!(model::SparseGPRegression)
+end
+
 "Update the variational parameters of the full batch model"
 function variational_updates!(model::BatchGPRegression,iter::Integer)
     #Nothing to do here
@@ -7,25 +14,25 @@ end
 
 "Update the variational parameters of the sparse model"
 function variational_updates!(model::SparseGPRegression,iter::Integer)
-    (grad_η_1,grad_η_2) = natural_gradient_Regression(model)
+    (grad_η_1,grad_η_2) = natural_gradient(model)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     global_update!(model,grad_η_1,grad_η_2)
 end
 
 "Update the variational parameters of the online model"
 function variational_updates!(model::OnlineGPRegression,iter::Integer)
-    (grad_η_1,grad_η_2) = natural_gradient_Regression(model)
+    (grad_η_1,grad_η_2) = natural_gradient(model)
     computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
     global_update!(model,grad_η_1,grad_η_2)
 end
 
-function natural_gradient_Regression(model::SparseGPRegression)
+function natural_gradient(model::SparseGPRegression)
     grad_1 = model.StochCoeff.*(model.κ'*model.y[model.MBIndices])./getvalue(model.noise)
-    grad_2 = -0.5*(model.StochCoeff*(model.κ')*model.κ./getvalue(model.noise)+model.invKmm)
+    grad_2 = -Symmetric(0.5*(model.StochCoeff*(model.κ')*model.κ./getvalue(model.noise)+model.invKmm))
     return (grad_1,grad_2)
 end
 
-function natural_gradient_Regression(model::OnlineGPRegression)
+function natural_gradient(model::OnlineGPRegression)
     grad_1 = model.StochCoeff*model.κ'*model.y./getvalue(model.noise)
     grad_2 = -0.5*(model.StochCoeff*(model.κ')*model.κ./getvalue(model.noise)+model.invKmm)
     return (grad_1,grad_2)

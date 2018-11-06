@@ -43,8 +43,7 @@ end
 if sparsem
     println("Testing the sparse model")
     t_sparse = @elapsed sparsemodel = AugmentedGaussianProcesses.SparseXGPC(X,y,Stochastic=false,Autotuning=true,ϵ=1e-6,verbose=verbose,m=N_indpoints,noise=1e-10,kernel=kernel,OptimizeIndPoints=false)
-    metrics,savelog = AugmentedGaussianProcesses.getLog(sparsemodel,X_test=X_test,y_test=y_test)
-    t_sparse += @elapsed sparsemodel.train(iterations=10)#,callback=savelog)
+    t_sparse += @elapsed sparsemodel.train(iterations=10)
     y_sparse = sparsemodel.predictproba(X_test); acc_sparse = 1-sum(abs.(sign.(y_sparse.-0.5)-y_test))/(2*length(y_test))
     save_trained_model("sparseXGPC_test.jld2",sparsemodel)
     smodel = load_trained_model("sparseXGPC_test.jld2")

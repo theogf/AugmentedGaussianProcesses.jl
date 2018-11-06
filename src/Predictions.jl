@@ -182,16 +182,24 @@ end
 
 
 "Return the point estimate of the likelihood of class y=1 via the SVM likelihood"
-function svmpredictproba(model::GPModel,X_test)
-    m_f = fstar(model,X_test,covf=false)
-    return svmlikelihood(m_f)
+function svmpredict(model::GPModel,X_test)
+    return sign.(fstar(model,X_test,covf=false))
 end
 
 "Return the likelihood of class y=1 via the SVM likelihood"
 function svmpredictproba(model::GPModel,X_test)
     m_f,cov_f = fstar(model,X_test,covf=true)
-
-    return svmlikelihood(m_f)
+    N_test = length(m_f)
+    pred = zero(m_f)
+    for i in 1:N_test
+        if covf[i] <= min_cov
+            pred[i] = svmlikelihood(m_f)
+        else
+            d = Normal(m_f[i],sqrt(cov_f[i]))
+            pred[i] = quadgk(x->pdf(d,x)*svmlikelihood(x),-Inf,Inf)[1]
+        end
+    end
+    return pred
 end
 
 "Return logit(x)"
@@ -209,14 +217,13 @@ end
 function logitpredictproba(model::GPModel,X_test)
     m_f,cov_f = fstar(model,X_test,covf=true)
     n_test = size(X_test,1)
-    # @assert minimum(cov_f)>0  error("Covariance under 0")
-    predic = zeros(Float64,n_test)
+    pred = zero(Float64,n_test)
     for i in 1:n_test
-        if cov_f[i] <= 0
-            predic[i] = logit(m_f[i])
+        if cov_f[i] <= min_cov
+            pred[i] = logit(m_f[i])
         else
             d = Normal(m_f[i],sqrt(cov_f[i]))
-            predic[i] = quadgk(x->logit(x)*pdf(d,x),-Inf,Inf)[1]
+            pred[i] = quadgk(x->logit(x)*pdf(d,x),-Inf,Inf)[1]
         end
     end
     return predic
@@ -238,7 +245,7 @@ end
 
 """Return the mean and variance of the predictive distribution of f"""
 function regpredictproba(model::GPModel,X_test)
-    return fstar(model,X_test,covf=false)
+    return fstar(model,X_test,covf=true)
 end
 
 """Return the mean of the predictive distribution of f"""
@@ -246,11 +253,37 @@ function studenttpredict(model::GPModel,X_test)
     return fstar(model,X_test,covf=false)
 end
 
-#TODO WRONG RETURN
+
 """Return the mean and variance of the predictive distribution of f"""
 function studenttpredictproba(model::GPModel,X_test)
-    return fstar(model,X_test)
+    return fstar(model,X_test,covf=true)
 end
+
+"Compute the mean and variance using MC integration"
+function studentpredictprobamc(model::GPModel,X_test;nSamples=100)
+    m_f,cov_f = fstar(model,X_test,covf=true)
+    nTest = length(m_f)
+    mean_pred = zero(m_f)
+    var_pred = zero(m_f)
+    st = TDist(model.ν)
+    temp_array = zeros(Float64,nSamples)
+    for i in 1:nTest
+        if cov_f[i] <= min_cov
+            pyf =  LocationScale(m_f[i],1.0,st)
+            for j in 1:nSamples
+                temp_array[j] = rand(pyf)
+            end
+        else
+            d = Normal(m_f[i],sqrt(cov_f[i]))
+            for j in 1:nSamples
+                temp_array[j] = rand(LocationScale(rand(d),1.0,st))
+            end
+        end
+        mean_pred[i] = mean(temp_array); var_pred[i] = cov(temp_array)
+    end
+    return mean_pred,var_pred
+end
+
 
 function multiclasspredict(model::MultiClass,X_test,all_class=false)
     n = size(X_test,1)
