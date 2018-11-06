@@ -51,7 +51,7 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,convergenc
         model.Σ = cov(hcat(model.estimate...),2)
     elseif isa(model,MultiClass) || isa(model,SparseMultiClass)
         model.Σ = broadcast(x->(-0.5*inv(x)),model.η_2)
-    elseif !isa(model,GPRegression)
+    elseif !isa(model,BatchGPRegression)
         model.Σ = -0.5*inv(model.η_2);
     end
     computeMatrices!(model)

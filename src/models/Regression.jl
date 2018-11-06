@@ -1,11 +1,11 @@
 
 #Batch Gaussian Process Regression (no inducing points)
 
-mutable struct GPRegression <: FullBatchModel
+mutable struct BatchGPRegression <: FullBatchModel
     @commonfields
     @functionfields
     @kernelfields
-    function GPRegression(X::AbstractArray,y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 10,
+    function BatchGPRegression(X::AbstractArray,y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 10,
                                     kernel=0,noise::Float64=1e-3,verbose::Integer=0)
             this = new(X,y)
             this.ModelType = Regression

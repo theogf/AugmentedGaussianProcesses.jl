@@ -14,7 +14,7 @@ AugmentedGaussianProcesses! is a Julia package in development for **Data Augment
     - **BSVM** : A Classifier with a likelihood equivalent to the classic SVM [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20BSVM.ipynb)/[Reference][arxivbsvm]
     - **XGPC** : A Classifier with a Bernoulli likelihood with the logistic link [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20XGPC.ipynb)/[Reference][arxivxgpc]
   - Two GP Regression models
-    - **GPRegression** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)/[Reference][arxivgpbigdata]
+    - **BatchGPRegression** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)/[Reference][arxivgpbigdata]
     - **StudentT** : The standard Gaussian Process regression with a Student-t likelihood (the degree of freedom ν is not optimizable for the moment) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)/[Reference][jmlrstudentt]
   - More models in development
     - **MultiClass** : A multiclass classifier model, relying on a modified version of softmax

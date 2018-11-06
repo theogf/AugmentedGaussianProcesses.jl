@@ -44,7 +44,12 @@ what `optimizer` to use
 """
 function initCommon!(model::GPModel,X::Array{T,N},y::Vector{T2},noise::Float64,ϵ::Float64,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer) where {T<:Real,T2<:Real,N}
     @assert (size(y,1)==size(X,1)) "There is a dimension problem with the data size(y)!=size(X)";
-    model.X = X; model.y = y;
+    if N == 1
+        model.X = reshape(X,length(X),1)
+    else
+        model.X = X;
+    end
+    model.y = y;
     @assert noise >= 0 "noise should be a positive float";  model.noise = KernelModule.HyperParameter{Float64}(noise,KernelModule.interval(KernelModule.OpenBound{Float64}(zero(Float64)),KernelModule.NullBound{Float64}()))
     @assert ϵ > 0 "ϵ should be a positive float"; model.ϵ = ϵ;
     @assert nEpochs > 0 "nEpochs should be positive"; model.nEpochs = nEpochs;

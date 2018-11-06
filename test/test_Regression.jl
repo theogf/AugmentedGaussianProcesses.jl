@@ -39,7 +39,7 @@ println("Testing the regression model")
 
 if fullm
     println("Testing the full model")
-    t_full = @elapsed fullmodel = AugmentedGaussianProcesses.GPRegression(X,y,noise=noise,Autotuning=autotuning,kernel=kernel,verbose=verbose)
+    t_full = @elapsed fullmodel = AugmentedGaussianProcesses.BatchGPRegression(X,y,noise=noise,Autotuning=autotuning,kernel=kernel,verbose=verbose)
     t_full += @elapsed fullmodel.train(iterations=50)
     y_full = fullmodel.predict(X_test); rmse_full = norm(y_full-y_test,2)/sqrt(length(y_test))
     if doPlots

@@ -1,5 +1,7 @@
 #File treating all the prediction functions
 
+min_cov = 1e-3
+
 """
 Compute the mean of the predicted latent distribution of f on X_test for full GP models
 Return also the variance if `covf=true`
@@ -69,7 +71,7 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for GP regression
 Return also the variance if `covf=true`
 """
-function fstar(model::GPRegression,X_test;covf::Bool=true)
+function fstar(model::BatchGPRegression,X_test;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.y
     end
@@ -167,6 +169,31 @@ function probitpredictproba(model::GPModel,X_test)
     return broadcast((m,c)->cdf(Normal(),m/(c+1)),m_f,cov_f)
 end
 
+"Return likelihood equivalent to SVM hinge loss"
+function svmlikelihood(x)
+    pos = svmpseudolikelihood(x)
+    return pos./(pos.+svmpseudolikelihood(-x))
+end
+
+"Return the pseudo likelihood of the SVM hinge loss"
+function svmpseudolikelihood(x)
+    return exp.(-2.0*max.(1.0.-x,0))
+end
+
+
+"Return the point estimate of the likelihood of class y=1 via the SVM likelihood"
+function svmpredictproba(model::GPModel,X_test)
+    m_f = fstar(model,X_test,covf=false)
+    return svmlikelihood(m_f)
+end
+
+"Return the likelihood of class y=1 via the SVM likelihood"
+function svmpredictproba(model::GPModel,X_test)
+    m_f,cov_f = fstar(model,X_test,covf=true)
+
+    return svmlikelihood(m_f)
+end
+
 "Return logit(x)"
 function logit(x)
     return 1.0./(1.0.+exp.(-x))
@@ -191,14 +218,12 @@ function logitpredictproba(model::GPModel,X_test)
             d = Normal(m_f[i],sqrt(cov_f[i]))
             predic[i] = quadgk(x->logit(x)*pdf(d,x),-Inf,Inf)[1]
         end
-        # predic[i] = quadgk(x->logit(x)*pdf(d,x),m_f[i]-10*sqrt(cov_f[i]),m_f[i]+10*sqrt(cov_f[i]))[1]
-        # err += abs(v-predic[i])
     end
     return predic
 end
 
 """Return the mean of the predictive distribution of f"""
-function regpredict(model::GPRegression,X_test)
+function regpredict(model::BatchGPRegression,X_test)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.y
     end

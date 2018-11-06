@@ -162,7 +162,7 @@ else
     display(plot(p1,p2,p3)); gui()
 end
 
-# model = AugmentedGaussianProcesses.GPRegression(X,f,kernel=kernel)
+# model = AugmentedGaussianProcesses.BatchGPRegression(X,f,kernel=kernel)
 #
 #
 # display(plotting2D(X,f,onstrgp.kmeansalg.centers,y_indstr,x1_test,x2_test,y_pred,"Streaming KMeans"))

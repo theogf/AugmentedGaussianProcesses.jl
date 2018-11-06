@@ -26,11 +26,11 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
             if callback != 0
                     callback(model,iter) #Use a callback method if put by user
             end
-            # if !isa(model,GPRegression)
+            # if !isa(model,BatchGPRegression)
             #     conv = Convergence(model,iter) #Check for convergence
             # else
             #     if model.verbose > 2
-            #         # warn("GPRegression does not need any convergence criteria")
+            #         # warn("BatchGPRegression does not need any convergence criteria")
             #     end
             #     conv = Inf
             # end
@@ -62,7 +62,7 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
         model.Σ = cov(hcat(model.estimate...),2)
     elseif isa(model,MultiClass) || isa(model,SparseMultiClass)
         model.Σ = -inv.(model.η_2).*0.5
-    elseif !isa(model,GPRegression)
+    elseif !isa(model,BatchGPRegression)
         model.Σ = -inv(model.η_2)*0.5;
     end
     model.Trained = true

@@ -25,8 +25,8 @@ end
 
 function save_trained_model(filename::String,model::GPModel)
     # try
-    if typeof(model) <: GPRegression
-        @warn "Model not saved, GPRegression (non sparse) does not require training, it does not make sense to save it"
+    if typeof(model) <: BatchGPRegression
+        @warn "Model not saved, BatchGPRegression (non sparse) does not require training, it does not make sense to save it"
         return nothing
     end
         jldopen(filename,"w") do file
@@ -134,7 +134,7 @@ function create_model(sparse::Bool,modeltype::AugmentedGaussianProcesses.GPModel
         return model = sparse ? SparseXGPC() : BatchXGPC()
     elseif modeltype == AugmentedGaussianProcesses.GPModelType(3) #Regression
         return model = sparse ? SparseGPRegression() :
-        GPRegression()
+        BatchGPRegression()
     elseif modeltype == AugmentedGaussianProcesses.GPModelType(4) #StudentT
         return model = sparse ? SparseStudentT() : BatchStudentT()
     else

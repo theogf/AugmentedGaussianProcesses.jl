@@ -195,7 +195,7 @@ end
 # end
 # println("Streaming KMeans ($t_str s)\n\tRMSE (train) : $(RMSE(onstrgp.predict(X),y))\n\tRMSE (test) : $(RMSE(y_str,y_test))")
 ### Non sparse GP :
-t_full = @elapsed fullgp = AugmentedGaussianProcesses.GPRegression(X,y,kernel=kernel,noise=noise)
+t_full = @elapsed fullgp = AugmentedGaussianProcesses.BatchGPRegression(X,y,kernel=kernel,noise=noise)
 t_full = @elapsed fullgp.train()
 y_full,sig_full = fullgp.predictproba(X_test)
 y_train,sig_train = fullgp.predictproba(X)
@@ -271,7 +271,7 @@ println("Sparsity efficiency :
 # \t Webscale : $(KLGP(y_trainweb,sig_trainweb,y,noise))
 # \t Streaming : $(KLGP(y_trainstr,sig_trainstr,y,noise))
 
-# model = AugmentedGaussianProcesses.GPRegression(X,f,kernel=kernel)
+# model = AugmentedGaussianProcesses.BatchGPRegression(X,f,kernel=kernel)
 #
 #
 # display(plotting2D(X,f,onstrgp.kmeansalg.centers,y_indstr,x1_test,x2_test,y_pred,"Streaming KMeans"))

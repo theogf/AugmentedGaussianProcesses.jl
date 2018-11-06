@@ -55,7 +55,7 @@ using Base: show
 export KMeansModule
 export LinearBSVM, BatchBSVM, SparseBSVM
 export BatchXGPC, SparseXGPC, OnlineXGPC, GibbsSamplerGPC
-export GPRegression, SparseGPRegression, OnlineGPRegression
+export BatchGPRegression, SparseGPRegression, OnlineGPRegression
 export BatchStudentT, SparseStudentT
 export MultiClass, SparseMultiClass
 #General class definitions

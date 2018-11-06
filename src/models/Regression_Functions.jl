@@ -1,7 +1,7 @@
 #Specific functions of the Gaussian Process regression models
 
 "Update the variational parameters of the full batch model"
-function variational_updates!(model::GPRegression,iter::Integer)
+function variational_updates!(model::BatchGPRegression,iter::Integer)
     #Nothing to do here
 end
 
@@ -33,7 +33,7 @@ end
 
 
 "ELBO function for the basic GP Regression"
-function ELBO(model::GPRegression)
+function ELBO(model::BatchGPRegression)
     return -ExpecLogLikelihood(model)
 end
 
@@ -51,7 +51,7 @@ function ELBO(model::SparseGPRegression)
     return -ELBO_v
 end
 
-function ExpecLogLikelihood(model::GPRegression)
+function ExpecLogLikelihood(model::BatchGPRegression)
     return -0.5*dot(model.y,model.invK*model.y)+0.5*logdet(model.invK)-0.5*model.nSamples*log(2*pi)
 end
 
@@ -62,7 +62,7 @@ function ExpecLogLikelihood(model::SparseGPRegression)
 end
 
 "Return a function computing the gradient of the ELBO given the kernel hyperparameters for a Regression Model"
-function hyperparameter_gradient_function(model::GPRegression)
+function hyperparameter_gradient_function(model::BatchGPRegression)
     A = model.invK*(model.y*transpose(model.y))-Diagonal{Float64}(I,model.nSamples)
     return (function(Jmm)
                 V = model.invK*Jmm
