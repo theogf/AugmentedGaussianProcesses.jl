@@ -1,6 +1,4 @@
-
-#Sparse Xtreme Gaussian Process Classifier
-
+"""Sparse Gaussian Process Regression with Gaussian Likelihood"""
 mutable struct SparseGPRegression <: SparseModel
     @commonfields
     @functionfields
@@ -8,7 +6,7 @@ mutable struct SparseGPRegression <: SparseModel
     @kernelfields
     @sparsefields
     @gaussianparametersfields
-
+    """Constructor Sparse Gaussian Process Regression with Gaussian Likelihood"""
     function SparseGPRegression(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::Real=1.0,τ_s::Integer=100,

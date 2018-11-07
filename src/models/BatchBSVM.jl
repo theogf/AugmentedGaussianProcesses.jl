@@ -1,4 +1,4 @@
-"Batch Bayesian Support Vector Machine (no sparse inducing points)"
+"""Batch Bayesian Support Vector Machine (no inducing points)"""
 mutable struct BatchBSVM <: FullBatchModel
     @commonfields
     @functionfields
@@ -12,7 +12,7 @@ mutable struct BatchBSVM <: FullBatchModel
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],verbose::Integer=0)
         this = new()
         this.ModelType = BSVM;
-        this.Name = "Full Batch Nonlinear Bayesian SVM"
+        this.Name = "Non-Sparse GP Classifier with Bayesian SVM likelihood"
         initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
         initFunctions!(this)
         initKernel!(this,kernel)

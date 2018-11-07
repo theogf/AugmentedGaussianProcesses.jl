@@ -50,7 +50,7 @@ Specific to sparse models :
 - `m::Integer=0` : Number of inducing points (if not given will be set to a default value depending of the number of points)
 - `Stochastic::Bool=true` : Is the method trained via mini batches
 - `batchsize::Integer=-1` : number of samples per minibatches (must be set to a correct value or model will fall back for a non stochastic inference)
-- `AdaptiveLearningRate::Bool=true` : Is the learning rate adapted via estimation of the gradient variance? see ["Adaptive Learning Rate for Stochastic Variational inference"]( https://pdfs.semanticscholar.org/9903/e08557f328d58e4ba7fce68faee380d30b12.pdf), if not use simple exponential decay with parameters `κ_s` and `τ_s` seen under `(1/(iter+τ_s))^-κ_s`
+- `AdaptiveLearningRate::Bool=true` : Is the learning rate adapted via estimation of the gradient variance? see ["Adaptive Learning Rate for Stochastic Variational inference"](https://pdfs.semanticscholar.org/9903/e08557f328d58e4ba7fce68faee380d30b12.pdf), if not use simple exponential decay with parameters `κ_s` and `τ_s` seen under `(1/(iter+τ_s))^-κ_s`
 - `κ_s::Real=1.0`
 - `τ_s::Real=100`
 - `optimizer::Optimizer=Adam()` : Type of optimizer for the inducing point locations

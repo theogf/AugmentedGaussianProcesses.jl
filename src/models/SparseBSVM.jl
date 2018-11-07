@@ -1,6 +1,4 @@
-
-#Sparse Bayesian Support Vector Machines (with inducing points)
-
+"""Sparse Gaussian Process Classifier with Bayesian SVM likelihood"""
 mutable struct SparseBSVM <: SparseModel
     @commonfields
     @functionfields

@@ -49,7 +49,7 @@ println("Testing the XGPC model")
 
 kernel = RBFKernel([3.0],dim=N_dim)
 autotuning=true
-optindpoints=true
+optindpoints=false
 fullm = true
 sparsem = true
 ssparsem = true

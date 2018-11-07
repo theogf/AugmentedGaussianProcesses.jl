@@ -1,25 +1,25 @@
 # Functions related to the Student T likelihood (StudentT)
-"Update the local variational parameters of the full batch GP StudentT"
+"""Update the local variational parameters of the full batch GP StudentT"""
 function local_update!(model::BatchStudentT)
     model.β = 0.5.*(diag(model.Σ)+(model.μ.-model.y).^2 .+model.ν)
     model.θ = 0.5.*(model.ν.+1.0)./model.β
 end
 
-"Compute the variational updates for the full GP StudentT"
+"""Compute the variational updates for the full GP StudentT"""
 function variational_updates!(model::BatchStudentT,iter)
     local_update!(model)
     natural_gradient(model)
     global_update!(model)
 end
 
-"Update the local variational parameters of the sparse GP StudentT"
+"""Update the local variational parameters of the sparse GP StudentT"""
 function local_update!(model::SparseStudentT)
     model.β = 0.5.*(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ.-model.y[model.MBIndices]).^2 .+model.ν)
     model.θ = 0.5.*(model.ν.+1.0)./model.β
 
 end
 
-"Compute the variational updates for the sparse GP StudentT"
+"""Compute the variational updates for the sparse GP StudentT"""
 function variational_updates!(model::SparseStudentT,iter::Integer)
     local_update!(model)
     (grad_η_1,grad_η_2) = natural_gradient(model)
@@ -27,13 +27,13 @@ function variational_updates!(model::SparseStudentT,iter::Integer)
     global_update!(model,grad_η_1,grad_η_2)
 end
 
-"Return the natural gradients of the ELBO given the natural parameters"
+"""Return the natural gradients of the ELBO given the natural parameters"""
 function natural_gradient(model::BatchStudentT)
     model.η_1 =  model.θ.*model.y
     model.η_2 = Symmetric(-0.5*(Diagonal{Float64}(model.θ) + model.invK))
 end
 
-"Return the natural gradients of the ELBO given the natural parameters"
+"""Return the natural gradients of the ELBO given the natural parameters"""
 function natural_gradient(model::SparseStudentT)
     grad_1 =  model.StochCoeff*model.κ'*(model.θ.*model.y[model.MBIndices])
     grad_2 = Symmetric(-0.5.*(model.StochCoeff*transpose(model.κ)*Diagonal{Float64}(model.θ)*model.κ + model.invKmm))
@@ -41,7 +41,7 @@ function natural_gradient(model::SparseStudentT)
 end
 
 
-"Compute the negative ELBO for the full batch StudentT Model"
+"""Compute the negative ELBO for the full batch StudentT Model"""
 function ELBO(model::BatchStudentT)
     ELBO_v = ExpecLogLikelihood(model)
     ELBO_v += -GaussianKL(model)
@@ -50,7 +50,7 @@ function ELBO(model::BatchStudentT)
 end
 
 
-"Compute the negative ELBO for the sparse StudentT Model"
+"""Compute the negative ELBO for the sparse StudentT Model"""
 function ELBO(model::SparseStudentT)
     ELBO_v = model.StochCoeff*ExpecLogLikelihood(model)
     ELBO_v += -GaussianKL(model)
@@ -58,7 +58,7 @@ function ELBO(model::SparseStudentT)
     return -ELBO_v
 end
 
-"Return the expected log likelihood for the batch StudentT Model"
+"""Return the expected log likelihood for the batch StudentT Model"""
 function ExpecLogLikelihood(model::BatchStudentT)
     tot = -0.5*model.nSamples*log(2*π)
     tot -= 0.5.*(sum(log.(model.β))-model.nSamples*digamma(model.α))
@@ -66,7 +66,7 @@ function ExpecLogLikelihood(model::BatchStudentT)
     return tot
 end
 
-"Return the expected log likelihood for the sparse StudentT Model"
+"""Return the expected log likelihood for the sparse StudentT Model"""
 function ExpecLogLikelihood(model::SparseStudentT)
     tot = -0.5*model.nSamplesUsed*log(2*π)
     tot -= 0.5.*(sum(log.(model.β))-model.nSamples*digamma(model.α))
@@ -74,14 +74,14 @@ function ExpecLogLikelihood(model::SparseStudentT)
     return tot
 end
 
-"Return the KL divergence for the inverse gamma distributions"
+"""Return the KL divergence for the inverse gamma distributions"""
 function InverseGammaKL(model::GPModel)
     α_p = β_p = model.ν/2;
     return (α_p.-model.α)*digamma(α_p).-log(gamma(α_p)).+log(gamma(model.α))
             .+ model.α*(log(β_p).-log.(model.β)).+α_p.*(model.β.-β_p)./β_p
 end
 
-"Return a function computing the gradient of the ELBO given the kernel hyperparameters for a StudentT Model"
+"""Return a function computing the gradient of the ELBO given the kernel hyperparameters for a StudentT Model"""
 function hyperparameter_gradient_function(model::SparseStudentT)
     F2 = Symmetric(model.μ*transpose(model.μ) + model.Σ)
     θ = Diagonal(model.θ)
@@ -104,7 +104,7 @@ function hyperparameter_gradient_function(model::SparseStudentT)
             end)
 end
 
-"Return a function computing the gradient of the ELBO given the kernel hyperparameters"
+"""Return a function computing the gradient of the ELBO given the kernel hyperparameters"""
 function inducingpoints_gradient(model::SparseStudentT)
     gradients_inducing_points = zeros(model.inducingPoints)
     B = model.μ*transpose(model.μ) + model.Σ

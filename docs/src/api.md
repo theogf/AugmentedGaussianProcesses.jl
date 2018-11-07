@@ -14,11 +14,28 @@ AugmentedGaussianProcesses
 ## Types
 
 ```@docs
+BatchGPRegression
+SparseGPRegression
+BatchStudentT
+SparseStudentT
+BatchXGPC
+SparseXGPC
+BatchBSVM
+SparseBSVM
 ```
 
 ## Functions and methods
 
 ```@docs
+train!
+regpredict
+regpredictproba
+studenttpredict
+studenttpredictproba
+logitpredict
+logitpredictproba
+svmpredict
+svmpredictproba
 ```
 
 ## Internals
@@ -30,6 +47,6 @@ AugmentedGaussianProcesses
 
 ```@index
 Pages = ["api.md"]
-Module = ["TaylorSeries"]
+Module = ["AugmentedGaussianProcesses"]
 Order = [:type, :function]
 ```

@@ -1,5 +1,4 @@
-"""Sparse Student T Gaussian Process Regression
-"""
+"""Sparse Gaussian Process Regression with Student T likelihood"""
 mutable struct SparseStudentT <: SparseModel
     @commonfields
     @functionfields
@@ -11,7 +10,7 @@ mutable struct SparseStudentT <: SparseModel
     α::Float64
     β::Vector{Float64}
     θ::Vector{Float64}
-    "SparseStudentT Constructor"
+    """SparseStudentT Constructor"""
     function SparseStudentT(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
@@ -20,7 +19,7 @@ mutable struct SparseStudentT <: SparseModel
                                     verbose::Integer=0,ν::Real=5.0)
             this = new();
             this.ModelType = StudentT;
-            this.Name = "Student T Sparse Gaussian Process Regression";
+            this.Name = "Sparse GP Regression with Student-T Likelihood";
             initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             if Stochastic
