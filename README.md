@@ -1,11 +1,7 @@
 # AugmentedGaussianProcesses!
+[![Docs Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable)
 [![Build Status](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl.svg?branch=master)](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl)
-  <!--a href="https://theogf.github.io/AugmentedGaussianProcesses.jl/stable">
-    <img src="https://img.shields.io/badge/docs-stable-blue.svg">
-  </a-->
-  <a href="https://theogf.github.io/AugmentedGaussianProcesses.jl/latest">
-    <img src="https://img.shields.io/badge/docs-latest-blue.svg">
-  </a>
+[![Coverage Status](https://coveralls.io/repos/github/theogf/AugmentedGaussianProcesses.jl/badge.svg)](https://coveralls.io/github/theogf/AugmentedGaussianProcesses.jl)
 
 AugmentedGaussianProcesses! is a Julia package in development for **Data Augmented Sparse Gaussian Processes**. It contains a collection of models for different **gaussian and non-gaussian likelihoods**, which are transformed via data augmentation into **conditionally conjugate likelihood** allowing for **extremely fast inference** via block coordinate updates.
 
