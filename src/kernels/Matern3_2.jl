@@ -92,7 +92,7 @@ end
 function kernelderivativematrix_K(X::Array{T,N},K::Symmetric{T,Array{T,N}},kernel::Matern3_2Kernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel)
     P = pairwise(Euclidean(),X')
-    return Symmetric(lmul!(3.0*v./(l^3),P.^2 .*exp.(-sqrt(3.0)./l*.P)))
+    return Symmetric(lmul!(3.0*v./(l^3),P.^2 .*exp.(-sqrt(3.0)./l.*P)))
 end
 
 "Return the derivatives of Knn for the ARD Matern3_2Kernel"
@@ -100,7 +100,7 @@ function kernelderivativematrix(X::Array{T,N},kernel::Matern3_2Kernel{T,ARDKerne
     v = getvariance(kernel); ls = getlengthscales(kernel)
     K = pairwise(getmetric(kernel),X')
     Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:length(ls)]
-    return Symmetric.(map((pi,l)->lmul!(3.0*v./(l^3),pi.^2 .*exp.(-sqrt(3.0)*K),Pi,ls)))
+    return Symmetric.(map((pi,l)->lmul!(3.0*v./(l^3),pi.^2 .*exp.(-sqrt(3.0).*K),Pi,ls)))
 end
 
 """Return the derivatives of Knn for the ARD Matern3_2Kernel with Knn precomputed"""
