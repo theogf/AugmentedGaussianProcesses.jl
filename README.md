@@ -1,4 +1,5 @@
 # AugmentedGaussianProcesses!
+[![Docs Latest](https://img.shields.io/badge/docs-dev-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/dev)
 [![Docs Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable)
 [![Build Status](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl.svg?branch=master)](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl)
 [![Coverage Status](https://coveralls.io/repos/github/theogf/AugmentedGaussianProcesses.jl/badge.svg)](https://coveralls.io/github/theogf/AugmentedGaussianProcesses.jl)
@@ -28,7 +29,7 @@ For each of these models you can either run the fullbatch or sparse version by a
 ## Install the package
 
 The package requires Julia 1.0
-Run in `Julia` press `]` and type `add AugmentedGaussianProcesses` (once it has been released), it will install the package and all its requirements
+Run in `Julia` press `]` and type `add AugmentedGaussianProcesses`, it will install the package and all its requirements
 
 ## Use the package
 
