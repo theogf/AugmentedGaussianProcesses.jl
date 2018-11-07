@@ -48,7 +48,7 @@ using LinearAlgebra
 using StatsBase
 using SpecialFunctions
 using Dates
-using QuadGK
+using Expectations
 using SparseArrays
 using Base: show
 #Exported models

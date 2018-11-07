@@ -1,7 +1,5 @@
 #File treating all the prediction functions
 
-min_cov = 1e-3
-
 """
 Compute the mean of the predicted latent distribution of f on X_test for full GP models
 Return also the variance if `covf=true`
@@ -192,11 +190,11 @@ function svmpredictproba(model::GPModel,X_test)
     nTest = length(m_f)
     pred = zero(m_f)
     for i in 1:nTest
-        if cov_f[i] <= min_cov
+        if cov_f[i] <= 0
             pred[i] = svmlikelihood(m_f[i])
         else
             d = Normal(m_f[i],sqrt(cov_f[i]))
-            pred[i] = quadgk(x->pdf(d,x)*svmlikelihood(x),-Inf,Inf)[1]
+            pred[i] = expectation(svmlikelihood,d)
         end
     end
     return pred
@@ -219,11 +217,11 @@ function logitpredictproba(model::GPModel,X_test)
     nTest = length(m_f)
     pred = zero(m_f)
     for i in 1:nTest
-        if cov_f[i] <= min_cov
+        if cov_f[i] <= 0
             pred[i] = logit(m_f[i])
         else
             d = Normal(m_f[i],sqrt(cov_f[i]))
-            pred[i] = quadgk(x->logit(x)*pdf(d,x),-Inf,Inf)[1]
+            pred[i] = expectation(logit,d)
         end
     end
     return pred
