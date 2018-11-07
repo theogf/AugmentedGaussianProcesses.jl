@@ -5,26 +5,11 @@ function local_update!(model::BatchStudentT)
     model.θ = 0.5.*(model.ν.+1.0)./model.β
 end
 
-"""Compute the variational updates for the full GP StudentT"""
-function variational_updates!(model::BatchStudentT,iter)
-    local_update!(model)
-    natural_gradient(model)
-    global_update!(model)
-end
-
 """Update the local variational parameters of the sparse GP StudentT"""
 function local_update!(model::SparseStudentT)
     model.β = 0.5.*(model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:]+(model.κ*model.μ.-model.y[model.MBIndices]).^2 .+model.ν)
     model.θ = 0.5.*(model.ν.+1.0)./model.β
 
-end
-
-"""Compute the variational updates for the sparse GP StudentT"""
-function variational_updates!(model::SparseStudentT,iter::Integer)
-    local_update!(model)
-    (grad_η_1,grad_η_2) = natural_gradient(model)
-    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
-    global_update!(model,grad_η_1,grad_η_2)
 end
 
 """Return the natural gradients of the ELBO given the natural parameters"""
@@ -104,7 +89,7 @@ function hyperparameter_gradient_function(model::SparseStudentT)
             end)
 end
 
-"""Return a function computing the gradient of the ELBO given the kernel hyperparameters"""
+"""Return a function computing the gradient of the ELBO given the inducing point locations"""
 function inducingpoints_gradient(model::SparseStudentT)
     gradients_inducing_points = zeros(model.inducingPoints)
     B = model.μ*transpose(model.μ) + model.Σ

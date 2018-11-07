@@ -2,11 +2,11 @@
 
 There are 3 main stages for the GPs:
 
-- Initialization
-- Training
-- Prediction
+- [Initialization](@ref init)
+- [Training](@ref train)
+- [Prediction](@ref pred)
 
-## Initialization
+## [Initialization](@id init)
 
 ### Sparse vs FullBatch
 
@@ -15,13 +15,15 @@ There are 3 main stages for the GPs:
 
 To pick between the two add `Batch` or `Sparse` in front of the name of the desired model.
 
+A better common interface is currently being developed.
+
 ### Regression
 
-For **regression** one can use the `GPRegression` or `StudentT` model. The latter is using the __Student-T__ likelihood and is therefore a lot more robust to ouliers.
+For **regression** one can use the `GPRegression` or `StudentT` model. The first one is the vanilla GP with **Gaussian noise** while the second is using the __Student-T__ likelihood and is therefore a lot more robust to ouliers.
 
 ### Classification
 
-For **classification** one can use the `XGPC` using the [logistic link](https://en.wikipedia.org/wiki/Logistic_function) or the `BSVM` model based on the [frequentist SVM](https://en.wikipedia.org/wiki/Support_vector_machine#Bayesian_SVM).
+For **classification** one can select the `XGPC` model using the [**logistic link**](https://en.wikipedia.org/wiki/Logistic_function) or the `BSVM` model based on the [**frequentist SVM**](https://en.wikipedia.org/wiki/Support_vector_machine#Bayesian_SVM).
 
 
 ### Model creation
@@ -59,7 +61,7 @@ Specific to sparse models :
 Model specific :
 `StudentT` : `ν::Real=5` : Number of degrees of freedom of the Student-T likelihood
 
-## Training
+## [Training](@id train)
 
 Training is straightforward after initializing the model by running :
 ```julia
@@ -72,7 +74,7 @@ function callbackfunction(model,iter)
 end
 ```
 
-## Prediction
+## [Prediction](@id pred)
 
 Once the model has been trained it is finally possible to compute predictions. There always three possibilities :
 
@@ -86,7 +88,7 @@ Once the model has been trained it is finally possible to compute predictions. T
 
 Once a model has been trained it is possible to save its state in a file by using  `save_trained_model(filename,model)`, a partial version of the file will be save in `filename`.
 
-It is then possible to reload this file by using `load_trained_model(filename)`. !!!However note that it will not be possible to train the model further!!! This function is only meant to do further predictions.
+It is then possible to reload this file by using `load_trained_model(filename)`. **!!!However note that it will not be possible to train the model further!!!** This function is only meant to do further predictions.
 
 ### Pre-made callback functions
 

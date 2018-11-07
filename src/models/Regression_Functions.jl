@@ -1,36 +1,29 @@
 #Specific functions of the Gaussian Process regression models
 
-
+"""Local updates for regression (empty)"""
 function local_update!(model::BatchGPRegression)
 end
 
+"""Local updates for regression (empty)"""
 function local_update!(model::SparseGPRegression)
 end
 
-"Update the variational parameters of the full batch model"
+"""Local updates for regression (empty)"""
+function local_update!(model::OnlineGPRegression)
+end
+
+"Update the variational parameters of the full batch model for GP regrssion (empty)"
 function variational_updates!(model::BatchGPRegression,iter::Integer)
     #Nothing to do here
 end
 
-"Update the variational parameters of the sparse model"
-function variational_updates!(model::SparseGPRegression,iter::Integer)
-    (grad_η_1,grad_η_2) = natural_gradient(model)
-    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
-    global_update!(model,grad_η_1,grad_η_2)
-end
-
-"Update the variational parameters of the online model"
-function variational_updates!(model::OnlineGPRegression,iter::Integer)
-    (grad_η_1,grad_η_2) = natural_gradient(model)
-    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
-    global_update!(model,grad_η_1,grad_η_2)
-end
-
+"""Natural gradient computation for the sparse case"""
 function natural_gradient(model::SparseGPRegression)
     grad_1 = model.StochCoeff.*(model.κ'*model.y[model.MBIndices])./getvalue(model.noise)
     grad_2 = -Symmetric(0.5*(model.StochCoeff*(model.κ')*model.κ./getvalue(model.noise)+model.invKmm))
     return (grad_1,grad_2)
 end
+
 
 function natural_gradient(model::OnlineGPRegression)
     grad_1 = model.StochCoeff*model.κ'*model.y./getvalue(model.noise)
@@ -39,36 +32,31 @@ function natural_gradient(model::OnlineGPRegression)
 end
 
 
-"ELBO function for the basic GP Regression"
+"""ELBO function for the basic GP Regression"""
 function ELBO(model::BatchGPRegression)
     return -ExpecLogLikelihood(model)
 end
 
-"ELBO function for the sparse variational GP Regression"
+"""ELBO function for the sparse variational GP Regression"""
 function ELBO(model::SparseGPRegression)
     ELBO_v = model.StochCoeff*ExpecLogLikelihood(model)
     ELBO_v -= GaussianKL(model)
-    # model.StochCoeff = model.nSamples/model.nSamplesUsed
-    # ELBO = -0.5*model.nSamples*(log(model.noise)+log(2*pi))
-    # ELBO += -0.5*model.StochCoeff*sum((model.y[model.MBIndices] - model.κ*model.μ).^2)/model.noise
-    # ELBO += -0.5*model.StochCoeff*sum(model.Ktilde)./model.noise
-    # ELBO += -0.5*model.StochCoeff/model.noise*sum((model.κ*model.Σ).*model.κ)
-    # ELBO += 0.5*(logdet(model.Σ)+logdet(model.invKmm))
-    # ELBO += -0.5*(sum(model.invKmm.*transpose(model.Σ+model.μ*transpose(model.μ))))
     return -ELBO_v
 end
 
+"""Return the expectation of the loglikelihood"""
 function ExpecLogLikelihood(model::BatchGPRegression)
     return -0.5*dot(model.y,model.invK*model.y)+0.5*logdet(model.invK)-0.5*model.nSamples*log(2*pi)
 end
 
+"""Return the expectation of the loglikelihood for the sparse model"""
 function ExpecLogLikelihood(model::SparseGPRegression)
     return -0.5*(model.nSamplesUsed*log(2π*getvalue(model.noise))
     + (sum((model.y[model.MBIndices]-model.κ*model.μ).^2)
     + sum(model.Ktilde)+sum((model.κ*model.Σ).*model.κ))/getvalue(model.noise))
 end
 
-"Return a function computing the gradient of the ELBO given the kernel hyperparameters for a Regression Model"
+"""Return functions computing the gradients of the ELBO given the kernel hyperparameters for a Regression Model"""
 function hyperparameter_gradient_function(model::BatchGPRegression)
     A = model.invK*(model.y*transpose(model.y))-Diagonal{Float64}(I,model.nSamples)
     return (function(Jmm)
@@ -83,7 +71,7 @@ function hyperparameter_gradient_function(model::BatchGPRegression)
             end)
 end
 
-"Return a function computing the gradient of the ELBO given the kernel hyperparameters for a sparse regression Model"
+"Return functions computing the gradients of the ELBO given the kernel hyperparameters for a sparse regression Model"
 function hyperparameter_gradient_function(model::SparseGPRegression)
     F2 = model.μ*transpose(model.μ) + model.Σ
     return (function(Jmm,Jnm,Jnn)
@@ -107,7 +95,7 @@ function hyperparameter_gradient_function(model::SparseGPRegression)
             end)
 end
 
-"Return a function computing the gradient of the ELBO given the kernel hyperparameters"
+"""Return a function computing the gradient of the ELBO given the inducing point locations"""
 function inducingpoints_gradient(model::SparseGPRegression)
         gradients_inducing_points = zero(model.inducingPoints)
         F2 = model.μ*transpose(model.μ) + model.Σ

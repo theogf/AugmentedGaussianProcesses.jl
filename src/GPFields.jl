@@ -89,9 +89,8 @@ function initStochastic!(model::GPModel,AdaptiveLearningRate::Bool,batchsize::In
     model.Stochastic = true; model.nSamplesUsed = batchsize; model.AdaptiveLearningRate = AdaptiveLearningRate;
     model.κ_s = κ_s; model.τ_s = τ_s; model.SmoothingWindow = SmoothingWindow;
     if (model.nSamplesUsed <= 0 || model.nSamplesUsed > model.nSamples)
-################### TODO MUST DECIDE FOR DEFAULT VALUE OR STOPPING STOCHASTICITY ######
-        @warn "Invalid value for the batchsize : $batchsize, assuming a full batch method"
-        model.nSamplesUsed = model.nSamples; model.Stochastic = false;
+        @warn "Invalid value for the batchsize : $batchsize, setting it to the number of inducing points"
+        model.nSamplesUsed = model.m;
     end
     model.StochCoeff = model.nSamples/model.nSamplesUsed
     model.τ = 50;

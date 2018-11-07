@@ -4,33 +4,26 @@
 Compute the mean of the predicted latent distribution of f on X_test for full GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::FullBatchModel,X_test;covf::Bool=true)
+function fstar(model::FullBatchModel,X_test::AbstractArray;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.μ
-    end
-    if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = (model.invK*(Diagonal{Float64}(I,model.nSamples)-model.Σ*model.invK))
     end
     k_star = kernelmatrix(X_test,model.X,model.kernel)
     mean_fstar = k_star*model.TopMatrixForPrediction
     if !covf
         return mean_fstar
-    else
-        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .+ getvalue(model.noise) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
-        return mean_fstar,cov_fstar
     end
+    model.DownMatrixForPrediction = (model.invK*(Diagonal{Float64}(I,model.nSamples)-model.Σ*model.invK))
+    cov_fstar = kerneldiagmatrix(X_test,model.kernel) .+ getvalue(model.noise) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
+    return mean_fstar,cov_fstar
 end
+
 """
 Compute the mean of the predicted latent distribution of f on X_test for sparse GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::SparseModel,X_test;covf::Bool=true)
-    # if model.HyperParametersUpdated
-    #     computeMatrices!(model)
-    # end
-    # if model.TopMatrixForPrediction == 0
+function fstar(model::SparseModel,X_test::AbstractArray;covf::Bool=true)
     model.TopMatrixForPrediction = model.invKmm*model.μ
-    # end
     if covf
         model.DownMatrixForPrediction = model.invKmm*(Diagonal{Float64}(I,model.nFeatures)-model.Σ*model.invKmm)
     end
@@ -38,17 +31,16 @@ function fstar(model::SparseModel,X_test;covf::Bool=true)
     mean_fstar = k_star*model.TopMatrixForPrediction
     if !covf
         return mean_fstar
-    else
-        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .+ getvalue(model.noise) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
-        return mean_fstar,cov_fstar
     end
+    cov_fstar = kerneldiagmatrix(X_test,model.kernel) .+ getvalue(model.noise) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
+    return mean_fstar,cov_fstar
 end
 
 """
 Compute the mean of the predicted latent distribution of f on X_test for online GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::OnlineGPModel,X_test;covf::Bool=true)
+function fstar(model::OnlineGPModel,X_test::AbstractArray;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invKmm*model.μ
     end
@@ -69,7 +61,7 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for GP regression
 Return also the variance if `covf=true`
 """
-function fstar(model::BatchGPRegression,X_test;covf::Bool=true)
+function fstar(model::BatchGPRegression,X_test::AbstractArray;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.y
     end
@@ -90,7 +82,7 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for Multiclass GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::MultiClass,X_test;covf::Bool=true)
+function fstar(model::MultiClass,X_test::AbstractArray;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = broadcast((mu,invK)->invK*mu,model.μ,model.invK)
     end
@@ -120,7 +112,7 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for multiclass sparse GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
+function fstar(model::SparseMultiClass,X_test::AbstractArray;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invKmm.*model.μ
     end
@@ -139,17 +131,17 @@ function fstar(model::SparseMultiClass,X_test;covf::Bool=true)
 end
 
 "Return the predicted class {-1,1} with a linear model via the probit link"
-function probitpredict(model::LinearModel,X_test)
+function probitpredict(model::LinearModel,X_test::AbstractArray)
     return sign.((model.Intercept ? [ones(Float64,size(X_test,1)) X_test]*model.μ : X_test*model.μ).-0.5)
 end
 
 "Return the predicted class {-1,1} with a GP model via the probit link"
-function probitpredict(model::GPModel,X_test)
+function probitpredict(model::GPModel,X_test::AbstractArray)
     return sign.(fstar(model,X_test,covf=false).-0.5)
 end
 
 "Return the mean of likelihood p(y*=1|X,x*) via the probit link with a linear model"
-function probitpredictproba(model::LinearModel,X_test)
+function probitpredictproba(model::LinearModel,X_test::AbstractArray)
     if model.Intercept
       X_test = [ones(Float64,size(X_test,1)) X_test]
     end
@@ -161,31 +153,31 @@ function probitpredictproba(model::LinearModel,X_test)
     return pred
 end
 
-"Return the mean of likelihood p(y*=1|X,x*) via the probit link with a GP model"
-function probitpredictproba(model::GPModel,X_test)
+"""Return the mean of likelihood p(y*=1|X,x*) via the probit link with a GP model"""
+function probitpredictproba(model::GPModel,X_test::AbstractArray)
     m_f,cov_f = fstar(model,X_test,covf=true)
     return broadcast((m,c)->cdf(Normal(),m/(c+1)),m_f,cov_f)
 end
 
-"Return likelihood equivalent to SVM hinge loss"
+"""Return likelihood equivalent to SVM hinge loss"""
 function svmlikelihood(x)
     pos = svmpseudolikelihood(x)
     return pos./(pos.+svmpseudolikelihood(-x))
 end
 
-"Return the pseudo likelihood of the SVM hinge loss"
+"""Return the pseudo likelihood of the SVM hinge loss"""
 function svmpseudolikelihood(x)
     return exp.(-2.0*max.(1.0.-x,0))
 end
 
 
-"Return the point estimate of the likelihood of class y=1 via the SVM likelihood"
-function svmpredict(model::GPModel,X_test)
+"""Return the point estimate of the likelihood of class y=1 via the SVM likelihood"""
+function svmpredict(model::GPModel,X_test::AbstractArray)
     return sign.(fstar(model,X_test,covf=false))
 end
 
-"Return the likelihood of class y=1 via the SVM likelihood"
-function svmpredictproba(model::GPModel,X_test)
+"""Return the likelihood of class y=1 via the SVM likelihood"""
+function svmpredictproba(model::GPModel,X_test::AbstractArray)
     m_f,cov_f = fstar(model,X_test,covf=true)
     nTest = length(m_f)
     pred = zero(m_f)
@@ -200,19 +192,19 @@ function svmpredictproba(model::GPModel,X_test)
     return pred
 end
 
-"Return logit(x)"
+"""Return logit(x)"""
 function logit(x)
     return 1.0./(1.0.+exp.(-x))
 end
 
 
-"Return the predicted class {-1,1} with a GP model via the logit link"
-function logitpredict(model::GPModel,X_test)
+"""Return the predicted class {-1,1} with a GP model via the logit link"""
+function logitpredict(model::GPModel,X_test::AbstractArray)
     return sign.(fstar(model,X_test,covf=false))
 end
 
-"Return the mean of likelihood p(y*=1|X,x*) via the logit link with a GP model"
-function logitpredictproba(model::GPModel,X_test)
+"""Return the mean of likelihood p(y*=1|X,x*) via the logit link with a GP model"""
+function logitpredictproba(model::GPModel,X_test::AbstractArray)
     m_f,cov_f = fstar(model,X_test,covf=true)
     nTest = length(m_f)
     pred = zero(m_f)
@@ -228,7 +220,7 @@ function logitpredictproba(model::GPModel,X_test)
 end
 
 """Return the mean of the predictive distribution of f"""
-function regpredict(model::BatchGPRegression,X_test)
+function regpredict(model::BatchGPRegression,X_test::AbstractArray)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.y
     end
@@ -237,28 +229,28 @@ function regpredict(model::BatchGPRegression,X_test)
 end
 
 """Return the mean of the predictive distribution of f"""
-function regpredict(model::GPModel,X_test)
+function regpredict(model::GPModel,X_test::AbstractArray)
     return fstar(model,X_test,covf=false)
 end
 
 """Return the mean and variance of the predictive distribution of f"""
-function regpredictproba(model::GPModel,X_test)
+function regpredictproba(model::GPModel,X_test::AbstractArray)
     return fstar(model,X_test,covf=true)
 end
 
 """Return the mean of the predictive distribution of f"""
-function studenttpredict(model::GPModel,X_test)
+function studenttpredict(model::GPModel,X_test::AbstractArray)
     return fstar(model,X_test,covf=false)
 end
 
 
 """Return the mean and variance of the predictive distribution of f"""
-function studenttpredictproba(model::GPModel,X_test)
+function studenttpredictproba(model::GPModel,X_test::AbstractArray)
     return fstar(model,X_test,covf=true)
 end
 
 "Compute the mean and variance using MC integration"
-function studentpredictprobamc(model::GPModel,X_test;nSamples=100)
+function studentpredictprobamc(model::GPModel,X_test::AbstractArray;nSamples=100)
     m_f,cov_f = fstar(model,X_test,covf=true)
     nTest = length(m_f)
     mean_pred = zero(m_f)
@@ -283,7 +275,7 @@ function studentpredictprobamc(model::GPModel,X_test;nSamples=100)
 end
 
 
-function multiclasspredict(model::MultiClass,X_test,all_class=false)
+function multiclasspredict(model::MultiClass,X_test::AbstractArray,all_class=false)
     n = size(X_test,1)
     m_f = fstar(model,X_test,covf=false)
     σ = hcat(logit.(m_f)...)

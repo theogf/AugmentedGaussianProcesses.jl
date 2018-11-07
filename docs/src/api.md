@@ -27,8 +27,8 @@ SparseBSVM
 ## Functions and methods
 
 ```@docs
-train!
-regpredict
+train!(::OfflineGPModel)
+regpredict(::GPModel,::AbstractArray)
 regpredictproba
 studenttpredict
 studenttpredictproba
@@ -38,10 +38,21 @@ svmpredict
 svmpredictproba
 ```
 
-## Internals
+## Kernels
 
 ```@docs
+RBFKernel
 ```
+
+## Kernel functions
+
+```@docs
+kernelmatrix
+kernelmatrix!
+getvariance
+getlengthscales
+```
+
 
 ## Index
 

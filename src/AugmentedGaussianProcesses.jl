@@ -64,7 +64,7 @@ export getLog, getMultiClassLog
 export Kernel, kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 export Matern3_2Kernel, Matern5_2Kernel
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
-export setvalue!,getvalue,setfixed!,setfree!,getvariance, getlengthscales
+export setvalue!,getvalue,setfixed!,setfree!,getvariance,getlengthscales
 export KMeansInducingPoints
 # export save_trained_model,save_model,load_trained_model,load_model
 

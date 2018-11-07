@@ -196,8 +196,8 @@ end
 "Function to obtain the weighted KMeans for one class"
 function Ind_KMeans(nSamples::Int64,N_inst::Int64,Y::SparseVector{Int64},X,m::Int64)
     K_corr = nSamples/N_inst-1.0
-    weights = [Y...].*(K_corr-1.0).+(1.0)
-    return KMeansInducingPoints(X,m,10,weights=weights)
+    kweights = [Y...].*(K_corr-1.0).+(1.0)
+    return KMeansInducingPoints(X,m,10,weights=kweights)
 end
 
 
@@ -227,9 +227,8 @@ function initMultiClassStochastic!(model::GPModel,AdaptiveLearningRate,batchsize
     model.nInnerLoops = 10;
     model.κ_s = κ_s; model.τ_s = τ_s; model.SmoothingWindow = SmoothingWindow;
     if (model.nSamplesUsed <= 0 || model.nSamplesUsed > model.nSamples)
-################### TODO MUST DECIDE FOR DEFAULT VALUE OR STOPPING STOCHASTICITY ######
-        @warn "Invalid value for the batchsize : $batchsize, setting it to min(10%,50)"
-        model.nSamplesUsed = min(floor(Int64,0.1*model.nSamples),50);
+        @warn "Invalid value for the batchsize : $batchsize, setting it to the number of inducing points"
+        model.nSamplesUsed = model.m;
     end
     model.StochCoeff = model.nSamples/model.nSamplesUsed
     model.τ = 10.0*ones(Float64,model.K);

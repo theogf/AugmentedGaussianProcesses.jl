@@ -6,7 +6,7 @@ mutable struct BatchBSVM <: FullBatchModel
     @kernelfields
     α::Vector{Float64}
     θ::Vector{Float64}
-    "BatchBSVM Constructor"
+    """BatchBSVM Constructor"""
     function BatchBSVM(X::AbstractArray,y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 100,
                                     kernel=0,noise::Real=1e-3,AutotuningFrequency::Integer=1,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],verbose::Integer=0)
@@ -22,7 +22,7 @@ mutable struct BatchBSVM <: FullBatchModel
         this.θ = zero(this.α)
         return this
     end
-    "Empty constructor for loading models"
+    """Empty constructor for loading models"""
     function BatchBSVM()
         this = new()
         this.ModelType = BSVM

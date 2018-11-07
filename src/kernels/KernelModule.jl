@@ -33,7 +33,7 @@ using .HyperParametersModule:
 
 import Base: *, +, getindex, show
 export Kernel, KernelSum, KernelProduct
-export RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2Kernel, Matern5_2Kernel
+export RBFKernel, SEKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2Kernel, Matern5_2Kernel
 export kernelmatrix,kernelmatrix!,kerneldiagmatrix,kerneldiagmatrix!
 export computeIndPointsJ
 export apply_gradients_lengthscale!, apply_gradients_variance!, apply_gradients!
@@ -66,22 +66,25 @@ end
 
 # params::HyperParameters{T} #Parameters of the kernel
 # Nparam::Int64 #Number of parameters
-"Abstract type for all kernels"
+"""Abstract type for all kernels"""
 abstract type Kernel{T<:Real, KT<:KernelType} end;
 
-"Return the metric of a kernel"
+"""Return the metric of a kernel"""
 function getmetric(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType}
     return k.fields.metric
 end
 
+"""Return the variance of the kernel"""
 function getvariance(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType}
     return getvalue(k.fields.variance)
 end
 
+"""Return the lengthscale of the IsoKernel"""
 function getlengthscales(k::Kernel{T,IsoKernel}) where {T<:Real}
     return getvalue(k.fields.lengthscales[1])
 end
 
+"""Return the lengthscales of the ARD Kernel"""
 function getlengthscales(k::Kernel{T,ARDKernel}) where {T<:Real}
     return getvalue(k.fields.lengthscales)
 end
@@ -95,17 +98,18 @@ end
 
 include("KernelSum.jl")
 include("KernelProduct.jl")
-include("RBFKernel.jl")
+include("RBF.jl")
+include("Matern3_2.jl")
 include("KernelMatrix.jl")
 include("KernelMatrixDerivatives.jl")
 include("KernelGradients.jl")
 
-"Standard conversion when giving scalar and not vectors"
+"""Standard conversion when giving scalar and not vectors"""
 function compute(k::Kernel{T,KT},X1::T,X2::T) where {T<:Real,KT<:KernelType}
     compute(k,[X1],[X2])
 end
 
-"Function to determine most adapted type between a selection"
+"""Function to determine most adapted type between a selection"""
 function floattype(T_i::DataType...)
     T_max = promote_type(T_i...)
     T_max <: AbstractFloat ? T_max : Float64

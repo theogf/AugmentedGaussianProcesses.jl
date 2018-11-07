@@ -1,6 +1,7 @@
 *.result
 *.json
 *.jld2
+*.cov
 
 #Do not save checkpoints and testpoints
 examples/.ipynb_checkpoints/*

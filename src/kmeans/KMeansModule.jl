@@ -288,26 +288,17 @@ end
 
 
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
-function KMeansInducingPoints(X::Array{T,N},nC::Integer;nMarkov::Integer=10,weights::Vector{T}=[0.0]) where {T,N}
+function KMeansInducingPoints(X::Array{T,N},nC::Integer;nMarkov::Integer=10,kweights::Vector{T}=[0.0]) where {T,N}
     C = copy(transpose(KmeansSeed(X,nC,nMarkov)))
-    if weights!=[0.0]
-        Clustering.kmeans!(copy(transpose(X)),C,weights=weights,tol=1e-3)
+    if kweights!=[0.0]
+        Clustering.kmeans!(copy(transpose(X)),C,weights=kweights,tol=1e-3)
     else
         Clustering.kmeans!(copy(transpose(X)),C)
     end
     return copy(transpose(C))
 end
 
-# function KMeansInducingPoints(X::AbstractArray{T,N},nC::Integer;nMarkov::Integer=10,weights::AbstractArray{T,1}=[0.0]) where {T,N}
-#     C = copy(transpose(KmeansSeed(X,nC,nMarkov)))
-#     if weights!=[0.0]
-#         Clustering.kmeans!(copy(transpose(X)),C,weights=weights,tol=1e-3)
-#     else
-#         Clustering.kmeans!(copy(transpose(X)),C)
-#     end
-#     return copy(transpose(C))
-# end
-#Fast and efficient seeding for KMeans
+"""Fast and efficient seeding for KMeans based on [`Fast and Provably Good Seeding for k-Means](https://las.inf.ethz.ch/files/bachem16fast.pdf)"""
 function KmeansSeed(X::AbstractArray{T,N},nC::Integer,nMarkov::Integer) where {T,N} #X is the data, nC the number of centers wanted, m the number of Markov iterations
   NSamples = size(X,1)
   #Preprocessing, sample first random center
