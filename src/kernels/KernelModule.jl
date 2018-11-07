@@ -101,7 +101,6 @@ include("KernelProduct.jl")
 include("RBF.jl")
 include("Matern3_2.jl")
 include("KernelMatrix.jl")
-include("KernelMatrixDerivatives.jl")
 include("KernelGradients.jl")
 
 """Standard conversion when giving scalar and not vectors"""

@@ -5,8 +5,8 @@ A [Julia](http://julialang.org) package for Augmented and Normal Gaussian Proces
 ---
 
 ### Authors
-- [Theo Galy-Fajou](https://github.com/theogf) PhD Student at Technical University of Berlin.
-- [Florian Wenzel](http://www.florian-wenzel.de) PhD Student at Technical University of Kaiserslautern
+- [Théo Galy-Fajou](https://theogf.github.io) PhD Student at Technical University of Berlin.
+- [Florian Wenzel](http://www.florian-wenzel.de) PhD Student at Technical University of Kaiserslautern and Humboldt University of Berlin
 
 ### Installation
 

@@ -5,7 +5,9 @@
 To quote [Wikipedia](https://en.wikipedia.org/wiki/Gaussian_process)
 *"A Gaussian process is a stochastic process (a collection of random variables indexed by time or space), such that every finite collection of those random variables has a multivariate normal distribution, i.e. every finite linear combination of them is normally distributed. The distribution of a Gaussian process is the joint distribution of all those (infinitely many) random variables, and as such, it is a distribution over functions with a continuous domain, e.g. time or space."*
 
-Gaussian Processes are extremely practical model since they are non-parametric and are Bayesian.
+For a detailed understanding of Gaussian processes, check the [wonderful book of Rasmussen and Williams](http://www.gaussianprocess.org/gpml/) and for a quick introduction, check [this tutorial by Zoubin Ghahramani](http://mlss2011.comp.nus.edu.sg/uploads/Site/lect1gp.pdf)
+
+Gaussian Processes are extremely practical model since they are non-parametric and are Bayesian. However the basic model is limited to regression with Gaussian noise and does not scale very well to large datasets (>1000 samples). The Augmented Gaussian Processes solve both these problems by adding inducing points as well as transforming the likelihood to get efficient variational inference.
 
 
 ## Augmented Gaussian Processes

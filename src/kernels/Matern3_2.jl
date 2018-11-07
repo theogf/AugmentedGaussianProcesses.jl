@@ -45,7 +45,7 @@ end
 
 @inline matern3_2kernel(z::T, l::T) where {T<:Real} = (one(T)+sqrt(3)*z/l)*exp(-sqrt(3)*z/l)
 
-@inline matern3_2kernel(z::Real) = (1.0+sqrt(3)*z)*exp(-sqrt(3)*z)
+@inline matern3_2kernel(z::T) where {T<:Real}= (one(T)+sqrt(3)*z)*exp(-sqrt(3)*z)
 
 function kappa(k::Matern3_2Kernel{T,IsoKernel}) where {T<:Real,KT}
     return z->matern3_2kernel(z,getlengthscales(k))
@@ -60,85 +60,98 @@ function updateweights!(k::Matern3_2Kernel{T,KT},w::Vector{T}) where {T,KT}
 end
 
 function computeIndPointsJmm(k::Matern3_2Kernel{T,KT},X::Matrix{T},iPoint::Integer,K::Symmetric{T,Matrix{T}}) where {T,KT}
-    l2 = (getlengthscales(k)).^2
-    return 2.0*sqrt(3.0)*((X[iPoint,:]'.-X)./l2').*K[:,iPoint]
+    l = (getlengthscales(k))
+    P = pairwise(getmetric(k),X')
+    if KT == IsoKernel
+        return -3.0*((X[iPoint,:]'.-X)./(l^2) .* exp.(-sqrt(3.0)/l.*P[iPoint,:]))
+    else
+        return -3.0*((X[iPoint,:]'.-X)./(l.^2)' .* exp.(-sqrt(3.0).*P[iPoint,:]))
+    end
 end
 
 function computeIndPointsJnm(k::Matern3_2Kernel{T,KT},X::Matrix{T},x::Vector{T},iPoint::Integer,K::Matrix{T}) where {T,KT}
     l2 = (getlengthscales(k)).^2
-    return -2.0*sqrt(3.0)*((x'.-X)./l2').*K[:,iPoint]
+    P = pairwise(getmetric(k),x',X')
+    if KT == IsoKernel
+        return -3.0*((x'.-X)./(l^2) .* exp.(-sqrt(3.0)/l.*P))
+    else
+        return -3.0*((x'.-X)./(l.^2)' .* exp.(-sqrt(3.0).*P)) #TODO check if it works
+    end
 end
 
 
 ################# Matrix derivatives for the Matern3_2 kernel###################################
-"Return the kernel matrix derivative for the Iso Matern3_2Kernel"
+"""Return the derivatives of Knn for the Iso Matern3_2Kernel"""
 function kernelderivativematrix(X::Array{T,N},kernel::Matern3_2Kernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel)
     P = pairwise(Euclidean(),X');
-    return Symmetric(lmul!(v./(l^3),P.^2 .*exp.(-sqrt(3.0)*P./l)))
+    return Symmetric(lmul!(3.0*v./(l^3),P.^2 .*exp.(-sqrt(3.0)./l.*P)))
 end
 
-"""Return the matrix derivative for the Iso Matern3_2Kernel with the covariance matrix precomputed"""
+"""Return the derivatives of Knn for the Iso Matern3_2Kernel with Knn precomputed"""
 function kernelderivativematrix_K(X::Array{T,N},K::Symmetric{T,Array{T,N}},kernel::Matern3_2Kernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel)
     P = pairwise(Euclidean(),X')
-    return Symmetric(lmul!(v./(l^3),P.^2 .*exp.(-sqrt(3.0)*P./l)))
+    return Symmetric(lmul!(3.0*v./(l^3),P.^2 .*exp.(-sqrt(3.0)./l*.P)))
 end
 
-"Return the matrix derivative for the ARD Matern3_2Kernel"
+"Return the derivatives of Knn for the ARD Matern3_2Kernel"
 function kernelderivativematrix(X::Array{T,N},kernel::Matern3_2Kernel{T,ARDKernel}) where {T,N}
     v = getvariance(kernel); ls = getlengthscales(kernel)
     K = pairwise(getmetric(kernel),X')
     Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:length(ls)]
-    return Symmetric.(map((pi,l)->lmul!(v./(l^3),pi.^2 .*exp.(-sqrt(3.0)*K),Pi,ls)))
+    return Symmetric.(map((pi,l)->lmul!(3.0*v./(l^3),pi.^2 .*exp.(-sqrt(3.0)*K),Pi,ls)))
 end
 
-"""Return the matrix derivative for the Iso Matern3_2Kernel with the covariance matrix precomputed"""
+"""Return the derivatives of Knn for the ARD Matern3_2Kernel with Knn precomputed"""
 function kernelderivativematrix_K(X::Array{T,N},K::Symmetric{T,Array{T,N}},kernel::Matern3_2Kernel{T,ARDKernel}) where {T,N}
     v = getvariance(kernel); ls = getlengthscales(kernel)
-    K = pairwise(getmetric(kernel),X')
+    K .= pairwise(getmetric(kernel),X')
     Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:length(ls)]
-    return Symmetric.(map((pi,l)->lmul!(v./(l^3),pi.^2 .*exp.(-sqrt(3.0)*K),Pi,ls)))
+    return Symmetric.(map((pi,l)->lmul!(3.0*v./(l^3),pi.^2 .*exp.(-sqrt(3.0)*K),Pi,ls)))
 end
 
 ########## DERIVATIVE MATRICES FOR TWO MATRICES #######
-
+"""Return the derivatives of Knm for the Iso Matern3_2Kernel"""
 function kernelderivativematrix(X::Array{T,N},Y::Array{T,N},kernel::Matern3_2Kernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel)
-    P = pairwise(SqEuclidean(),X',Y'); K = zero(P);
-    return lmul!(v./(l^3),P.*=K)
+    P = pairwise(Euclidean(),X',Y');
+    return lmul!(3.0*v./(l^3),P.^2 .* exp.(-sqrt(3.0)./l.*P))
 end
 
-"When K has already been computed"
+"""Return the derivatives of Knn for the Iso Matern3_2Kernel with Knm precomputed"""
 function kernelderivativematrix_K(X::Array{T,N},Y::Array{T,N},K::Array{T,N},kernel::Matern3_2Kernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel)
-    P = pairwise(SqEuclidean(),X',Y')
-    return lmul!(v./(l^3),P.*=K)
+    P = pairwise(Euclidean(),X',Y')
+    return lmul!(3.0*v./(l^3),P.^2 .*exp.(-sqrt(3.0./l.*P)))
 end
 
+"""Return the derivatives of Knm for the ARD Matern3_2Kernel"""
 function kernelderivativematrix(X::Array{T,N},Y::Array{T,N},kernel::Matern3_2Kernel{T,ARDKernel}) where {T,N}
     v = getvariance(kernel); ls = getlengthscales(kernel)
     K = pairwise(getmetric(kernel),X',Y')
-    Pi = [pairwise(SqEuclidean(),X[:,i]',Y[:,i]') for i in 1:length(ls)]
-    map!(kappa(kernel),K,K)
-    return map((pi,l)->lmul!(v./(l^3),pi.*=K),Pi,ls)
+    Pi = [pairwise(Euclidean(),X[:,i]',Y[:,i]') for i in 1:length(ls)]
+    return map((pi,l)->lmul!(3.0*v./(l^3),pi.^2 .*exp.(-sqrt(3.0).*K)),Pi,ls)
 end
 
-"When K has already been computed"
+"""Return the derivatives of Knn for the ARD Matern3_2Kernel with Knm precomputed"""
 function kernelderivativematrix_K(X::Array{T,N},Y::Array{T,N},K::Array{T,N},kernel::Matern3_2Kernel{T,ARDKernel}) where {T,N}
     v = getvariance(kernel); ls = getlengthscales(kernel)
-    Pi = [pairwise(SqEuclidean(),X[:,i]',Y[:,i]') for i in 1:length(ls)]
-    return map((pi,l)->lmul!(v./(l^3),pi.*=K),Pi,ls)
+    K .= pairwise(getmetric(kernel),X',Y')
+    Pi = [pairwise(Euclidean(),X[:,i]',Y[:,i]') for i in 1:length(ls)]
+    return map((pi,l)->lmul!(3.0*v./(l^3),pi.^2 .* exp.(-sqrt(3.0).*K)),Pi,ls)
 end
-
 
 ############ DIAGONAL DERIVATIVES ###################
 
+
+"""Return the derivate of the diagonal covariance matrix for the Iso Matern3_2Kernel"""
 function kernelderivativediagmatrix(X::Array{T,N},kernel::Matern3_2Kernel{T,IsoKernel}) where {T,N}
     n = size(X,1); P = zeros(T,n)
     return P
 end
 
+"""Return the derivate of the diagonal covariance matrix for the Iso Matern3_2Kernel"""
 function kernelderivativediagmatrix(X::Array{T,N},kernel::Matern3_2Kernel{T,ARDKernel}) where {T,N}
     n = size(X,1); P = zeros(T,n);
     return [P for _ in 1:kernel.fields.Ndim]
