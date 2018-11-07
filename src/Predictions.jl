@@ -266,7 +266,7 @@ function studentpredictprobamc(model::GPModel,X_test;nSamples=100)
     st = TDist(model.ν)
     temp_array = zeros(Float64,nSamples)
     for i in 1:nTest
-        if cov_f[i] <= min_cov
+        if cov_f[i] <= 1e-3
             pyf =  LocationScale(m_f[i],1.0,st)
             for j in 1:nSamples
                 temp_array[j] = rand(pyf)

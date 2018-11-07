@@ -54,7 +54,7 @@ function correctedpredict(model,X_test)
         f=function(x)
             return logit(x)*pdf(d,x)
         end
-        predic[i] = quadgk(f,meanfstar_corr[i]-10*covfstar_corr[i],meanfstar_corr[i]+10*covfstar_corr[i])[1]
+        predic[i] = expectation(logit,d)
     end
     return predic,meanfstar_corr,covfstar_corr
 end
