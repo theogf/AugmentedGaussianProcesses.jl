@@ -1,15 +1,12 @@
 julia 0.7
 
 Clustering
-Dates
 Distances
 Distributions
 FileIO
 JLD2
 LaTeXStrings
-QuadGK
-SparseArrays
+Expectations
 SpecialFunctions
-Statistics
 StatsBase
 ValueHistories
