@@ -1,7 +1,6 @@
 module HyperParametersModule
-using AugmentedGaussianProcesses.GradDescent
 import Base: convert, eltype, promote_type, show, string, ==, *, /, +, -, ^, isless;
-
+using GradDescent
 export
     Bound,
         LeftBound,

@@ -1,9 +1,9 @@
 """
     Matern 3/2 Kernel
 """
-struct Matern3_2Kernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
+struct MaternKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
     fields::KernelFields{T,KT}
-    function Matern3_2Kernel{T,KT}(θ::Vector{T};variance::T=one(T),dim::Integer=0) where {T<:AbstractFloat,KT<:KernelType}
+    function Matern3_2Kernel{T,KT}(θ::Vector{T},ν::Real;variance::T=one(T),dim::Integer=0) where {T<:AbstractFloat,KT<:KernelType}
         if KT == ARDKernel
             if length(θ)==1 && dim ==0
                 error("You defined an ARD Matern3_2 kernel without precising the number of dimensions or giving a vector for the lengthscale                   Please set dim in your kernel initialization")
@@ -18,7 +18,7 @@ struct Matern3_2Kernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
                                         "Radial Basis",
                                         HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
                                         HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}()) for _ in 1:dim]),dim,
-                                        Euclidean(one(T)./(θ.^2))))
+                                        WeightedEuclidean(one(T)./(θ.^2))))
         else
             return new{T,IsoKernel}(KernelFields{T,IsoKernel}(
                                         "Matern3_2",
@@ -99,8 +99,8 @@ end
 function kernelderivativematrix(X::Array{T,N},kernel::Matern3_2Kernel{T,ARDKernel}) where {T,N}
     v = getvariance(kernel); ls = getlengthscales(kernel)
     K = pairwise(getmetric(kernel),X')
-    Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:length(ls)]
-    return Symmetric.(map((pi,l)->lmul!(3.0*v./(l^3),pi.^2 .*exp.(-sqrt(3.0).*K),Pi,ls)))
+    Pi = [pairwise(Euclidean(),X[:,i]') for i in 1:length(ls)]
+    return Symmetric.(map((pi,l)->lmul!(3.0*v./(l^3),pi.^2 .*exp.(-sqrt(3.0).*K)),Pi,ls))
 end
 
 """Return the derivatives of Knn for the ARD Matern3_2Kernel with Knn precomputed"""

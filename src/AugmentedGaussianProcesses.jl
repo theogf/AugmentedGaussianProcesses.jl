@@ -27,7 +27,7 @@ abstract type FullBatchModel <: NonLinearModel end
 
 export GPModel, OnlineGPModel, OfflineGPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel, GPMOdelType
 
-include("graddescent/GradDescent.jl")
+# include("graddescent/GradDescent.jl")
 include("kernels/KernelModule.jl")
 include("kmeans/KMeansModule.jl")
 include("functions/PGSampler.jl")
@@ -40,9 +40,9 @@ using .KMeansModule
 using .PGSampler
 using .PerturbativeCorrection
 using .GPAnalysisTools
-using .GradDescent
 # using .IO_model
 #General modules
+using GradDescent
 using Distributions
 using LinearAlgebra
 using StatsBase
