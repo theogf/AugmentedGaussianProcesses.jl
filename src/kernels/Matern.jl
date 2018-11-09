@@ -99,13 +99,13 @@ function computeIndPointsJmm(k::MaternKernel{T,KT},X::Matrix{T},iPoint::Integer,
 end
 
 function computeIndPointsJnm(k::MaternKernel{T,KT},X::Matrix{T},x::Vector{T},iPoint::Integer,K::Matrix{T}) where {T,KT}
-    l2 = (getlengthscales(k)).^2
-    P = sqrt(2.0*ν).*pairwise(getmetric(k),x',X')
+    l = (getlengthscales(k)); v = getvariance(k); ν = k.ν; C = 2^(1.0-ν)/gamma(ν)
+    P = sqrt(2.0*ν).*pairwise(getmetric(k),x[:,:],X')[:]
     P .= ifelse.(P.<eps(T),eps(T),P)
     if KT == IsoKernel
         return -(2.0*C*v*ν).* (x'.-X)./(l^2) .* (P./l).^(ν-1.0) .* besselk.(ν-1.0,P./l)
     else
-        return -(2.0*C*v*ν).* (x'.-X)./(l^2) .* (P).^(ν-1.0) .* besselk.(ν-1.0,P)
+        return -(2.0*C*v*ν).* (x'.-X)./(l.^2)' .* (P).^(ν-1.0) .* besselk.(ν-1.0,P)
     end
 end
 
@@ -137,12 +137,12 @@ function kernelderivativematrix(X::Array{T,N},kernel::MaternKernel{T,ARDKernel})
 end
 
 """Return the derivatives of Knn for the ARD MaternKernel with Knn precomputed"""
-function kernelderivativematrix_K(X::Array{T,N},P::Symmetric{T,Array{T,N}},kernel::MaternKernel{T,ARDKernel}) where {T,N}
-    v = getvariance(kernel); ls = getlengthscales(kernel); ν = kernel.ν; C = 2^(1.0-ν)/gamma(ν)
-    P .= (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X') #d/ρ
+function kernelderivativematrix_K(X::Array{T,N},K::Symmetric{T,Array{T,N}},kernel::MaternKernel{T,ARDKernel}) where {T,N}
+    v = getvariance(kernel); ls = getlengthscales(kernel); ν = kernel.ν; C = (2^(1.0-ν))/gamma(ν)
+    P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X') #d/ρ
     P .= ifelse.(P.<eps(T),eps(T),P)
     Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:length(ls)] # (x_i-x_i')
-    return Symmetric.(map((pi,l)->lmul!(2.0*C*v/(l^3),pi .* P.^(ν-1.0).*besselk.(ν-1.0,P)),Pi,ls))
+    return Symmetric.(map((pi,l)->lmul!(2.0*C*v*ν/(l^3),pi .* P.^(ν-1.0) .* besselk.(ν-1.0,P)),Pi,ls))
 end
 
 ########## DERIVATIVE MATRICES FOR TWO MATRICES #######
