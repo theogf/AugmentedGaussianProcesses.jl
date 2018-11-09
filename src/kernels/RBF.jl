@@ -15,13 +15,13 @@ struct RBFKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
             end
             dim = length(θ)
             return new{T,ARDKernel}(KernelFields{T,ARDKernel}(
-                                        "Radial Basis",
+                                        "Radial Basis ",
                                         HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
                                         HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}()) for _ in 1:dim]),dim,
                                         WeightedSqEuclidean(one(T)./(θ.^2))))
         else
             return new{T,IsoKernel}(KernelFields{T,IsoKernel}(
-                                        "RBF",
+                                        "RBF ",
                                         HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
                                         HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}())]),1,
                                         SqEuclidean()))
@@ -62,13 +62,13 @@ function updateweights!(k::RBFKernel{T,KT},w::Vector{T}) where {T,KT}
 end
 
 function computeIndPointsJmm(k::RBFKernel{T,KT},X::Matrix{T},iPoint::Integer,K::Symmetric{T,Matrix{T}}) where {T,KT}
-    l2 = (getlengthscales(k)).^2
-    return -((X[iPoint,:]'.-X)./l2').*K[:,iPoint]
+    l2 = (getlengthscales(k)).^2; v = getvariance(k)
+    return -v.*((X[iPoint,:]'.-X)./l2').*K[:,iPoint]
 end
 
 function computeIndPointsJnm(k::RBFKernel{T,KT},X::Matrix{T},x::Vector{T},iPoint::Integer,K::Matrix{T}) where {T,KT}
-    l2 = (getlengthscales(k)).^2
-    return -((x'.-X)./l2').*K[:,iPoint]
+    l2 = (getlengthscales(k)).^2; v = getvariance(k)
+    return -v.*((x'.-X)./l2').*K[:,iPoint]
 end
 
 

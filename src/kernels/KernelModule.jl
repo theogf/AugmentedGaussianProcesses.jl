@@ -2,13 +2,15 @@
      Module for the kernel functions, also create kernel matrices
      Mostly from the list http://crsouza.com/2010/03/17/kernel-functions-for-machine-learning-applications/
      Kernels are created by calling the constructor (available right now :
-     RBFKernel, LaplaceKernel, SigmoidKernel, ARDKernel, PolynomialKernel, Matern3_2Kernel, Matern5_2Kernel
+     RBFKernel,
      Arguments are kernel specific, see for each one
 """
+#LaplaceKernel, SigmoidKernel, ARDKernel, PolynomialKernel, Matern3_2Kernel, Matern5_2Kernel
 module KernelModule
 
 using LinearAlgebra
 using Distances
+using SpecialFunctions
 include("hyperparameters/HyperParametersModule.jl")
 using .HyperParametersModule:
     Bound,
@@ -33,7 +35,7 @@ using .HyperParametersModule:
 
 import Base: *, +, getindex, show
 export Kernel, KernelSum, KernelProduct
-export RBFKernel, SEKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, Matern3_2Kernel, Matern5_2Kernel
+export RBFKernel, SEKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, MaternKernel, Matern5_2Kernel
 export kernelmatrix,kernelmatrix!,kerneldiagmatrix,kerneldiagmatrix!
 export computeIndPointsJ
 export apply_gradients_lengthscale!, apply_gradients_variance!, apply_gradients!
@@ -99,7 +101,7 @@ end
 include("KernelSum.jl")
 include("KernelProduct.jl")
 include("RBF.jl")
-include("Matern3_2.jl")
+include("Matern.jl")
 include("KernelMatrix.jl")
 include("KernelGradients.jl")
 

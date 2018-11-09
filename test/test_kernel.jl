@@ -1,11 +1,11 @@
 using AugmentedGaussianProcesses.KernelModule
 using Profile, ProfileView, BenchmarkTools, Test
 using Random: seed!
-using MLKernels, Statistics
+using MLKernels, Statistics, LinearAlgebra
 using ForwardDiff
 seed!(42)
 dims= 2
-A = rand(1000,dims)
+A = sort(rand(1000,dims),dims=1)
 B = rand(100,dims)
 #Compare kernel results with MLKernels package
 
@@ -24,8 +24,8 @@ agpKab = KernelModule.kernelmatrix(A,B,agpk)
 #Matern3_2Kernel
 
 θ = 1.0
-mlk = MLKernels.MaternKernel(1.5,θ)
-agpk = KernelModule.Matern3_2Kernel(θ)
+mlk = MLKernels.MaternKernel(2.0,θ)
+agpk = KernelModule.MaternKernel(θ,2.0)
 mlK = MLKernels.kernelmatrix(mlk,A)
 agpK = KernelModule.kernelmatrix(A,agpk)
 mlKab = MLKernels.kernelmatrix(mlk,A,B)
@@ -34,50 +34,31 @@ agpKab = KernelModule.kernelmatrix(A,B,agpk)
 @test sum(abs.(mlK-agpK)) ≈ 0 atol = 1e-5
 @test sum(abs.(mlKab-agpKab)) ≈ 0 atol = 1e-5
 
+global derivK = KernelModule.kernelderivativematrix(A,agpk)
+
+
 #Check for derivatives
-θ = 1.0; ϵ=1e-7
-for model in [RBFKernel,Matern3_2Kernel]
-    k = model([θ,θ])
-    keps = model([θ+ϵ,θ])
-    diffK  = (KernelModule.kernelmatrix(A,keps) - KernelModule.kernelmatrix(A,k))./ϵ
-    derivK = KernelModule.kernelderivativematrix(A,k)[1]
-    diffKmn =  (KernelModule.kernelmatrix(A,B,keps) - KernelModule.kernelmatrix(A,B,k))./ϵ
-    derivKmn = KernelModule.kernelderivativematrix(A,B,k)[1]
-    display(@test sum(abs.(diffK-derivK)) ≈ 0 atol = 1e-1)
-    display(@test sum(abs.(diffKmn-derivKmn)) ≈ 0 atol = 1e-1)
+θ = 1.0; ϵ=1e-7; ν=2.0; Aeps = copy(A); Aeps[1] = Aeps[1]+ϵ
+for params in [([θ,θ],[θ+ϵ,θ]),(θ,θ+ϵ)]
+    println("Testing params $params")
+    for model in [KernelModule.MaternKernel,RBFKernel]
+        println("Testing model $model")
+        if model == KernelModule.MaternKernel
+            k = model(params[1],ν)
+            keps = model(params[2],ν)
+        elseif model == KernelModule.RBFKernel
+            k = model(params[1])
+            keps = model(params[2])
+        end
+        global diffK  = (KernelModule.kernelmatrix(A,keps) - KernelModule.kernelmatrix(A,k))./ϵ
+        global derivK = typeof(params[1]) <:AbstractArray ? KernelModule.kernelderivativematrix(A,k)[1] : KernelModule.kernelderivativematrix(A,k)
+        global diffKmn =  (KernelModule.kernelmatrix(A,B,keps) - KernelModule.kernelmatrix(A,B,k))./ϵ
+        global derivKmn = typeof(params[1]) <: AbstractArray ?  KernelModule.kernelderivativematrix(A,B,k)[1] : KernelModule.kernelderivativematrix(A,B,k)
+        global diffInd = ((KernelModule.kernelmatrix(Aeps,k) - KernelModule.kernelmatrix(A,k))./ϵ)[:,1]
+        K = Symmetric(KernelModule.kernelmatrix(A,k))
+        global derivInd = KernelModule.computeIndPointsJmm(k,A,1,K)[:,1]
+        display(@test sum(abs.(diffK-derivK)) ≈ 0 atol = 1e-1)
+        display(@test sum(abs.(diffKmn-derivKmn)) ≈ 0 atol = 1e-1)
+        display(@test sum(abs.(diffInd-derivInd)) ≈ 0 atol = 1e-1)
+    end
 end
-
-k = Matern3_2Kernel([1.0,1.0])
-
-## Compute matrix variations via finite differences and compare with analytical
-mlk = MLKernels.SquaredExponentialKernel(0.5/θ^2)
-agpk = KernelModule.SEKernel([θ],dim=dims)
-agpkepsilon = KernelModule.SEKernel([θ+ϵ,θ])
-
-dagpK = (KernelModule.kernelmatrix(A,agpkepsilon) - KernelModule.kernelmatrix(A,agpk))./ϵ
-dagpKana = KernelModule.kernelderivativematrix(A,agpk)
-
-
-agpk = KernelModule.SEKernel(θ)
-agpkepsilon = KernelModule.SEKernel(θ+ϵ)
-
-dagpK = (KernelModule.kernelmatrix(A,agpkepsilon) - KernelModule.kernelmatrix(A,agpk))./ϵ
-dagpKana = KernelModule.kernelderivativematrix(A,agpk)
-
-
-
-
-
-using Plots; plotlyjs()
-
-plot(heatmap(dagpK),heatmap(dagpKana),)
-heatmap()
-@btime mlK = MLKernels.kernelmatrix($mlk,$A);
-@btime agpK = KernelModule.kernelmatrix($A,$agpk);
-mlK = MLKernels.kernelmatrix(mlk,A);
-agpK = KernelModule.kernelmatrix(A,agpk);
-
-@test sum(agpK-mlK)≈0 atol=1e-3
-
-mlK-agpK
-ForwardDiff.gradient(make_matrix,[0.5])
