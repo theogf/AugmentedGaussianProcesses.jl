@@ -8,9 +8,7 @@ end
 function local_update!(model::SparseGPRegression)
     model.gnoise = 1.0/model.nSamplesUsed * ( dot(model.y[model.MBIndices],model.y[model.MBIndices])
     - 2.0*dot(model.y[model.MBIndices],model.κ*model.μ)
-    + sum((model.κ'*model.κ).*(model.μ*model.μ'))#+model.Σ))
-    + sum(model.Ktilde) )
-    println("gnoise : $(model.gnoise)")
+    + sum((model.κ'*model.κ).*(model.μ*model.μ'+model.Σ)) + sum(model.Ktilde) )
 end
 
 """Local updates for regression (empty)"""

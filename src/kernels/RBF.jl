@@ -15,13 +15,13 @@ struct RBFKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
             end
             dim = length(θ)
             return new{T,ARDKernel}(KernelFields{T,ARDKernel}(
-                                        "Radial Basis ",
+                                        "Radial Basis",
                                         HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
                                         HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}()) for _ in 1:dim]),dim,
                                         WeightedSqEuclidean(one(T)./(θ.^2))))
         else
             return new{T,IsoKernel}(KernelFields{T,IsoKernel}(
-                                        "RBF ",
+                                        "Radial Basis",
                                         HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
                                         HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}())]),1,
                                         SqEuclidean()))
