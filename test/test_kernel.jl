@@ -10,7 +10,7 @@ B = rand(100,dims)
 #Compare kernel results with MLKernels package
 
 #RBF Kernel
-θ = 0.1
+θ = 0.5
 mlk = MLKernels.SquaredExponentialKernel(0.5/θ^2)
 agpk = KernelModule.SEKernel(θ)
 mlK = MLKernels.kernelmatrix(mlk,A)
@@ -23,7 +23,7 @@ agpKab = KernelModule.kernelmatrix(A,B,agpk)
 end
 #Matern3_2Kernel
 
-θ = 1.0
+θ = 0.5
 mlk = MLKernels.MaternKernel(2.0,θ)
 agpk = KernelModule.MaternKernel(θ,2.0)
 mlK = MLKernels.kernelmatrix(mlk,A)
@@ -31,10 +31,10 @@ agpK = KernelModule.kernelmatrix(A,agpk)
 mlKab = MLKernels.kernelmatrix(mlk,A,B)
 agpKab = KernelModule.kernelmatrix(A,B,agpk)
 
-# @testset "MaternKernel Tests" begin
-#     @test sum(abs.(mlK-agpK)) ≈ 0 atol = 1e-5
-#     @test sum(abs.(mlKab-agpKab)) ≈ 0 atol = 1e-5
-# end
+@testset "MaternKernel Tests" begin
+    @test sum(abs.(mlK-agpK)) ≈ 0 atol = 1e-5
+    @test sum(abs.(mlKab-agpKab)) ≈ 0 atol = 1e-5
+end
 
 #Check for derivatives
 θ = 1.0; ϵ=1e-7; ν=2.0; Aeps = copy(A); Aeps[1] = Aeps[1]+ϵ; atol=1e-5
