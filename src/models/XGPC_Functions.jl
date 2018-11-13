@@ -100,7 +100,7 @@ function hyperparameter_gradient_function(model::SparseXGPC)
                 ι = -model.κ*model.invKmm
                 Jtilde = ones(Float64,model.nSamplesUsed) - sum(ι.*model.Knm,dims=2)[:]
                 V = model.invKmm
-                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*θ*model.κ + model.κ'*θ*ι)) .* transpose(F2)) - tr(V) - model.StochCoeff*dot(model.θ,Jtilde)
+                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*θ*model.κ + model.κ'*θ*ι)) .* F2) - tr(V) - model.StochCoeff*dot(model.θ,Jtilde)
                     + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
             end)
 end

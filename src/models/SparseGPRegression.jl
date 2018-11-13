@@ -6,6 +6,7 @@ mutable struct SparseGPRegression <: SparseModel
     @kernelfields
     @sparsefields
     @gaussianparametersfields
+    gnoise::Float64
     """Constructor Sparse Gaussian Process Regression with Gaussian Likelihood"""
     function SparseGPRegression(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false,
@@ -29,6 +30,7 @@ mutable struct SparseGPRegression <: SparseModel
             if this.Stochastic && this.AdaptiveLearningRate
                 MCInit!(this)
             end
+            this.gnoise = noise
             return this;
     end
     "Empty constructor for loading models"

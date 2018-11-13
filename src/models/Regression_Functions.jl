@@ -6,28 +6,33 @@ end
 
 """Local updates for regression (empty)"""
 function local_update!(model::SparseGPRegression)
+    model.gnoise = 1.0/model.nSamplesUsed * ( dot(model.y[model.MBIndices],model.y[model.MBIndices])
+    - 2.0*dot(model.y[model.MBIndices],model.κ*model.μ)
+    + sum((model.κ'*model.κ).*(model.μ*model.μ'))#+model.Σ))
+    + sum(model.Ktilde) )
+    println("gnoise : $(model.gnoise)")
 end
 
 """Local updates for regression (empty)"""
 function local_update!(model::OnlineGPRegression)
 end
 
-"Update the variational parameters of the full batch model for GP regrssion (empty)"
+"Update the variational parameters of the full batch model for GP regression (empty)"
 function variational_updates!(model::BatchGPRegression,iter::Integer)
     #Nothing to do here
 end
 
 """Natural gradient computation for the sparse case"""
 function natural_gradient(model::SparseGPRegression)
-    grad_1 = model.StochCoeff.*(model.κ'*model.y[model.MBIndices])./getvalue(model.noise)
-    grad_2 = -Symmetric(0.5*(model.StochCoeff*(model.κ')*model.κ./getvalue(model.noise)+model.invKmm))
+    grad_1 = model.StochCoeff.*(model.κ'*model.y[model.MBIndices])./model.gnoise
+    grad_2 = Symmetric(-0.5*(model.StochCoeff*(model.κ')*model.κ./model.gnoise+model.invKmm))
     return (grad_1,grad_2)
 end
 
 
 function natural_gradient(model::OnlineGPRegression)
-    grad_1 = model.StochCoeff*model.κ'*model.y./getvalue(model.noise)
-    grad_2 = -0.5*(model.StochCoeff*(model.κ')*model.κ./getvalue(model.noise)+model.invKmm)
+    grad_1 = model.StochCoeff*model.κ'*model.y./model.gnoise
+    grad_2 = -0.5*(model.StochCoeff*(model.κ')*model.κ./model.gnoise+model.invKmm)
     return (grad_1,grad_2)
 end
 
@@ -46,14 +51,14 @@ end
 
 """Return the expectation of the loglikelihood"""
 function ExpecLogLikelihood(model::BatchGPRegression)
-    return -0.5*dot(model.y,model.invK*model.y)+0.5*logdet(model.invK)-0.5*model.nSamples*log(2*pi)
+    return -0.5*dot(model.y,model.invK*model.y)+0.5*logdet(model.invK)-0.5*model.nSamples*log(2π)
 end
 
 """Return the expectation of the loglikelihood for the sparse model"""
 function ExpecLogLikelihood(model::SparseGPRegression)
-    return -0.5*(model.nSamplesUsed*log(2π*getvalue(model.noise))
+    return -0.5*(model.nSamplesUsed*log(2π*model.gnoise)
     + (sum((model.y[model.MBIndices]-model.κ*model.μ).^2)
-    + sum(model.Ktilde)+sum((model.κ*model.Σ).*model.κ))/getvalue(model.noise))
+    + sum(model.Ktilde)+sum((model.κ*model.Σ).*model.κ))/model.gnoise)
 end
 
 """Return functions computing the gradients of the ELBO given the kernel hyperparameters for a Regression Model"""
@@ -79,19 +84,21 @@ function hyperparameter_gradient_function(model::SparseGPRegression)
             Jtilde = Jnn - sum(ι.*model.Knm,dims=2) - sum(model.κ.*Jnm,dims=2)
             V = model.invKmm*Jmm
             return 0.5*(sum( (V*model.invKmm).*F2)
-            - model.StochCoeff/getvalue(model.noise)*sum((ι'*model.κ + model.κ'*ι).*F2) - tr(V) - model.StochCoeff/getvalue(model.noise)*sum(Jtilde)
-            + 2*model.StochCoeff/getvalue(model.noise)*dot(model.y[model.MBIndices],ι*model.μ))
+            - model.StochCoeff/model.gnoise*sum((ι'*model.κ + model.κ'*ι).*F2) - tr(V)
+            - model.StochCoeff/model.gnoise*sum(Jtilde)
+            + 2*model.StochCoeff/model.gnoise*dot(model.y[model.MBIndices],ι*model.μ))
             end,
             function(kernel)
-                return 0.5/(getvariance(kernel))*(sum(model.invKmm.*F2)-model.m-model.StochCoeff/getvalue(model.noise)*sum(model.Ktilde))
+                return 0.5/(getvariance(kernel))*(sum(model.invKmm.*F2)-model.m-model.StochCoeff/model.gnoise*sum(model.Ktilde))
             end,
             function()
                 ι = -model.κ*model.invKmm
                 Jtilde = ones(Float64,model.nSamplesUsed) - sum(ι.*model.Knm,dims=2)[:]
                 V = model.invKmm
                 return 0.5*(sum( (V*model.invKmm).*F2)
-                - model.StochCoeff/getvalue(model.noise)*sum((ι'*model.κ + model.κ'*ι).*F2) - tr(V) - model.StochCoeff/getvalue(model.noise)*sum(Jtilde)
-                + 2*model.StochCoeff/getvalue(model.noise)*dot(model.y[model.MBIndices],ι*model.μ))
+                - model.StochCoeff/model.gnoise*sum((ι'*model.κ + model.κ'*ι).*F2) - tr(V)
+                - model.StochCoeff/model.gnoise*sum(Jtilde)
+                + 2*model.StochCoeff/model.gnoise*dot(model.y[model.MBIndices],ι*model.μ))
             end)
 end
 
@@ -106,8 +113,8 @@ function inducingpoints_gradient(model::SparseGPRegression)
                 Jtilde = -sum(ι.*model.Knm,dims=2)-sum(model.κ.*Jnm[j,:,:],dims=2)
                 V = model.invKmm*Jmm[j,:,:]
                 gradients_inducing_points[i,j] = 0.5*(sum( (V*model.invKmm).*F2)
-                - model.StochCoeff/getvalue(model.noise)*sum((ι'*model.κ + model.κ'*ι).*F2) - tr(V) - model.StochCoeff/getvalue(model.noise)*sum(Jtilde)
-                + 2*model.StochCoeff/getvalue(model.noise)*dot(model.y[model.MBIndices],ι*model.μ))
+                - model.StochCoeff/model.gnoise*sum((ι'*model.κ + model.κ'*ι).*F2) - tr(V) - model.StochCoeff/model.gnoise*sum(Jtilde)
+                + 2*model.StochCoeff/model.gnoise*dot(model.y[model.MBIndices],ι*model.μ))
             end
         end
         return gradients_inducing_points
