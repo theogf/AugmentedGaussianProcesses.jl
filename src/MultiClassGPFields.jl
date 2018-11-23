@@ -197,7 +197,7 @@ end
 function Ind_KMeans(nSamples::Int64,N_inst::Int64,Y::SparseVector{Int64},X,m::Int64)
     K_corr = nSamples/N_inst-1.0
     kweights = [Y...].*(K_corr-1.0).+(1.0)
-    return KMeansInducingPoints(X,m,10,weights=kweights)
+    return KMeansInducingPoints(X,m,nMarkov=10,kweights=kweights)
 end
 
 

@@ -40,6 +40,8 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
             #     print("Iteration : $iter, convergence = $conv \n")
                  print("Neg. ELBO is : $(ELBO(model))")
                  print("\n")
+                 print("New neg elbo is : $(ELBO2(model))")
+                 print("\n")
              end
             (iter < model.nEpochs) || break; #Verify if the number of maximum iterations has been reached
             # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken

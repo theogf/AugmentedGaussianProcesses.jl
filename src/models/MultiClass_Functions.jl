@@ -94,15 +94,91 @@ end
 
 """Return the negative ELBO for the MultiClass model"""
 function ELBO(model::MultiClass)
-    ELBO_v = model.nSamples*(0.5*model.K.-log(2))-sum(model.α./model.β)+sum(model.α-log.(model.β)+log.(gamma.(model.α))+(1.0.-model.α).*digamma.(model.α))
-    if model.KStochastic
-        ELBO_v += model.KStochCoeff*sum([model.K_map[i]!=nothing ? -log.(cosh.(0.5.*model.f2[model.K_map[i]][i]))+0.5*model.θ[1][i]*(model.f2[model.K_map[i]][i]^2) : 0 for i in 1:model.nSamples])
-    else
-        ELBO_v += sum([-log.(cosh.(0.5.*model.f2[model.y_class[i]][i]))+0.5*model.θ[1][i]*(model.f2[model.y_class[i]][i]^2) for i in 1:model.nSamples])
-    end
-    ELBO_v += 0.5*model.KStochCoeff*sum(broadcast((invK,y,gam,mu,theta,sigma)->logdet(invK)+logdet(sigma)+dot(y-gam,mu)-sum((Diagonal(y.*model.θ[1]+theta)+invK).*transpose(sigma+mu*(mu'))),model.invK[model.KIndices],model.Y[model.KIndices],model.γ,model.μ[model.KIndices],model.θ[2:end],model.Σ[model.KIndices]))
-    ELBO_v += sum(broadcast((gam,f2,theta)->dot(gam,-(model.α.-log.(model.β).+log.(gamma.(model.α)).+(1.0.-model.α).*digamma.(model.α)).-log(2.0).-log.(gam).+1.0.-log.(cosh.(0.5.*f2))).+0.5*dot(f2,f2.*theta),model.γ,model.f2,model.θ[2:end]))
+    ELBO_v = 0.0
+    ELBO_v += ExpecLogLikelihood(model)
+    ELBO_v += -model.KStochCoeff*GaussianKL(model)
+    ELBO_v += -GammaImproperKL(model)
+    ELBO_v += -model.KStochCoeff*PoissonKL(model)
+    ELBO_v += -model.KStochCoeff*PolyaGammaKL(model)
     return -ELBO_v
+end
+
+"""Return the negative ELBO for the Sparse MultiClass model"""
+function ELBO2(model::SparseMultiClass)
+    ELBO_v = 0.0
+    ELBO_v += model.StochCoeff*ExpecLogLikelihood(model)
+    ELBO_v += -model.KStochCoeff*GaussianKL(model)
+    ELBO_v += -GammaImproperKL(model)
+    ELBO_v += -model.KStochCoeff*model.StochCoeff*PoissonKL(model)
+    ELBO_v += -model.KStochCoeff*model.StochCoeff*PolyaGammaKL(model)
+    return -ELBO_v
+end
+
+
+
+function ExpecLogLikelihood(model::MultiClass)
+    tot = 0.0
+    tot += -model.nSamples*log(2.0)
+    if model.KStochastic
+        tot += 0.5*sum(model.K_map[i] != nothing ? model.μ[model.K_map[i]][i]-model.θ[1][i].*model.f2[model.K_map[i]][i] : 0.0 for i in 1:model.nSamples)
+    else
+        tot += 0.5*sum(model.μ[model.y_class[i]][i]-model.θ[1][i]*model.f2[model.y_class[i]][i] for i in 1:model.nSamples)
+    end
+    tot += -sum(sum.(model.γ[model.KIndices]))*log(2.0)
+    tot += 0.5*sum(broadcast((μ,γ,θ,c)->sum(-μ.*γ-θ.*c),model.μ,model.γ,model.θ[2:end],model.f2))
+end
+
+function ExpecLogLikelihood(model::SparseMultiClass)
+    tot = 0.0
+    tot += -model.nSamplesUsed*log(2.0)
+    if model.KStochastic
+        tot += 0.5*sum(model.K_map[i] != nothing ? model.μ[model.K_map[i]][i]-model.θ[1][i].*model.f2[model.K_map[i]][i] : 0.0 for i in model.MBIndices)
+        tot += 0.5*sum(broadcast((μ,γ,θ,c)->sum(-μ.*γ-θ.*c),model.κ.*model.μ,model.γ,model.θ[2:end],model.f2))
+    else
+        tot += 0.5*sum(model.μ[model.y_class[i]][i]-model.θ[1][i]*model.f2[model.y_class[i]][i] for i in model.MBIndices)
+        tot += 0.5*sum(broadcast((μ,γ,θ,c)->sum(-μ.*γ-θ.*c),[model.κ[1]].*model.μ,model.γ,model.θ[2:end],model.f2))
+    end
+    tot += -sum(sum.(model.γ[model.KIndices]))*log(2.0)
+end
+
+"""Return KL Divergence for MvNormal for the MultiClass Model"""
+function GaussianKL(model::MultiClass)
+    if model.IndependentGPs
+        return sum(0.5*(sum(model.invK[i].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.nSamples-logdet(model.Σ[i])-logdet(model.invK[i])) for i in model.KIndices)
+    else
+        return        sum(0.5*(sum(model.invK[1].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.nSamples-logdet(model.Σ[i])-logdet(model.invK[1])) for i in model.KIndices)
+    end
+end
+
+"""Return KL Divergence for MvNormal for the Sparse MultiClass Model"""
+function GaussianKL(model::SparseMultiClass)
+    if model.IndependentGPs
+        return sum(0.5*(sum(model.invKmm[i].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.m-logdet(model.Σ[i])-logdet(model.invKmm[i])) for i in model.KIndices)
+    else
+        return        sum(0.5*(sum(model.invKmm[1].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.m-logdet(model.Σ[i])-logdet(model.invKmm[1])) for i in model.KIndices)
+    end
+end
+
+function GammaImproperKL(model::GPModel)
+    return sum(-model.α+log.(model.β)-log.(gamma.(model.α))-(1.0.-model.α).*digamma.(model.α))
+end
+
+function PoissonKL(model::MultiClass)
+    return sum(γ->sum(γ.*(log.(γ).-1.0-log.(model.β)+model.α+log.(gamma.(model.α))+(1.0.-model.α).*digamma.(model.α))+model.α./model.β),model.γ[model.KIndices])
+end
+
+function PoissonKL(model::SparseMultiClass)
+    return sum(γ->sum(γ.*(log.(γ).-1.0-log.(model.β[model.MBIndices])+model.α[model.MBIndices]+log.(gamma.(model.α[model.MBIndices]))+(1.0.-model.α[model.MBIndices]).*digamma.(model.α[model.MBIndices]))+model.α[model.MBIndices]./model.β[model.MBIndices]),model.γ[model.KIndices])
+end
+
+function PolyaGammaKL(model::GPModel)
+    tot = 0.0
+    if model.KStochastic
+        tot += sum(model.K_map[i]!=nothing ? log.(cosh.(0.5.*sqrt(model.f2[model.K_map[i]][i])))-0.5*model.θ[1][i]*(model.f2[model.K_map[i]][i]^2) : 0 for i in 1:model.nSamples) #KL for omega 0
+    else
+        tot += sum(log.(cosh.(0.5.*sqrt(model.f2[model.y_class[i]][i])))-0.5*model.θ[1][i]*(model.f2[model.y_class[i]][i]^2) for i in 1:model.nSamples) #KL for omega 0
+    end
+    tot += sum(broadcast((γ,θ,c)->sum(γ.*log.(cosh.(0.5.*sqrt.(c)))-0.5*c.*θ),model.γ[model.KIndices],model.θ[model.KIndices.+1],model.f2[model.KIndices])) #KL for omega_k s
 end
 
 """Return the negative ELBO for the sparse MultiClass model"""

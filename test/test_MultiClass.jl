@@ -1,18 +1,17 @@
-# include("../src/AugmentedGaussianProcesses.jl")
-
-import AugmentedGaussianProcesses
+using AugmentedGaussianProcesses
 using Distributions
 using StatsBase, Distances
-# using Gallium
+using Random: seed!
+using BenchmarkTools
 using Dates
 using PyCall
 using ProfileView, Profile, Traceur
 
-
+seed!(42)
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
 N_data = 500
-N_class = 4
+N_class = 5
 N_test = 50
 minx=-5.0
 maxx=5.0
@@ -25,7 +24,7 @@ println("$(now()): Starting testing multiclass")
 function latent(X)
     return sqrt.(X[:,1].^2+X[:,2].^2)
 end
-N_dim=20
+N_dim=2
 # X = (rand(N_data,N_dim)*(maxx-minx)).+minx
 # trunc_d = Truncated(Normal(0,3),minx,maxx)
 # X = rand(trunc_d,N_data,N_dim)
@@ -96,9 +95,9 @@ X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 
 ##Which algorithm are tested
 fullm = !true
-sfullm = false
+sfullm = !true
 sparsem = true
-ssparsem = false
+ssparsem = !true
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
 function initial_lengthscale(X)
@@ -112,7 +111,7 @@ kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim)
 AugmentedGaussianProcesses.setvalue!(kernel.fields.variance,1.0)
 # kernel= AugmentedGaussianProcesses.PolynomialKernel([1.0,0.0,1.0])
 if fullm
-    global fmodel = AugmentedGaussianProcesses.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true)
+    global fmodel = AugmentedGaussianProcesses.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=5,IndependentGPs=false)
     fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(fmodel,X_test=X_test,y_test=y_test)
     # full_model.AutotuningFrequency=1
     t_full = @elapsed fmodel.train(iterations=50)#,callback=callback)
@@ -177,15 +176,15 @@ if sparsem
 end
 
 1
-    model = smodel;
-    AugmentedGaussianProcesses.computeMatrices!(model)
-    AugmentedGaussianProcesses.updateHyperParameters!(model)
-    AugmentedGaussianProcesses.computeMatrices!(model)
-    @btime AugmentedGaussianProcesses.updateHyperParameters!(model)
-    Profile.clear()
-    AugmentedGaussianProcesses.computeMatrices!(model)
-    @profile AugmentedGaussianProcesses.updateHyperParameters!(model)
-    ProfileView.view()
+    # model = smodel;
+    # AugmentedGaussianProcesses.computeMatrices!(model)
+    # AugmentedGaussianProcesses.updateHyperParameters!(model)
+    # AugmentedGaussianProcesses.computeMatrices!(model)
+    # @btime AugmentedGaussianProcesses.updateHyperParameters!(model)
+    # Profile.clear()
+    # AugmentedGaussianProcesses.computeMatrices!(model)
+    # @profile AugmentedGaussianProcesses.updateHyperParameters!(model)
+    # ProfileView.view()
 
 1
 
