@@ -44,7 +44,7 @@ Parameters for the multiclass version of the classifier based of softmax
     η_1::Vector{Vector{Float64}} #Natural parameter #1 for each class
     Σ::Vector{Symmetric{Float64,Matrix{Float64}}} #Covariance matrix for each class
     η_2::Vector{Symmetric{Float64,Matrix{Float64}}} #Natural parameter #2 for each class
-    f2::Vector{Vector{Float64}} #Sqrt of the expectation of f^2
+    c::Vector{Vector{Float64}} #Sqrt of the expectation of f^2
     α::Vector{Float64} #Gamma shape parameters
     β::Vector{Float64} #Gamma rate parameters
     θ::Vector{Vector{Float64}} #Expectations of PG
@@ -99,7 +99,7 @@ end
 
 function initMultiClassVariables!(model,μ_init)
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
-      model.μ = [randn(model.nFeatures) for _ in 1:model.K]
+      model.μ = [zeros(model.nFeatures) for _ in 1:model.K]
     else
       model.μ = [μ_init for _ in 1:model.K]
     end
@@ -111,13 +111,13 @@ function initMultiClassVariables!(model,μ_init)
         model.β = model.K*ones(model.nSamplesUsed)
         model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.K+1)]
         model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.K]
-        model.f2 = [ones(Float64,model.nSamplesUsed) for i in 1:model.K]
+        model.c = [ones(Float64,model.nSamplesUsed) for i in 1:model.K]
     else
         model.α = model.K*ones(model.nSamples)
         model.β = model.K*ones(model.nSamples)
         model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.nClassesUsed+1)]
         model.γ = [abs.(rand(model.nSamples)) for i in 1:model.nClassesUsed]
-        model.f2 = [ones(Float64,model.nSamples) for i in 1:model.nClassesUsed]
+        model.c = [ones(Float64,model.nSamples) for i in 1:model.nClassesUsed]
     end
 end
 
@@ -127,7 +127,7 @@ function reinit_variational_parameters!(model)
         model.β = model.K*ones(model.nSamplesUsed)
         model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.nClassesUsed+1)]
         model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.nClassesUsed]
-        model.f2 = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
+        model.c = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
         model.Ktilde = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
         model.κ = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.nClassesUsed]
         model.Knm = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.nClassesUsed]

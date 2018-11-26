@@ -6,6 +6,7 @@ using BenchmarkTools
 using Dates
 using PyCall
 using ProfileView, Profile, Traceur
+using ValueHistories
 
 seed!(42)
 @pyimport sklearn.datasets as sk
@@ -13,6 +14,7 @@ seed!(42)
 N_data = 500
 N_class = 5
 N_test = 50
+N_grid = 50
 minx=-5.0
 maxx=5.0
 noise = 1.0
@@ -48,9 +50,10 @@ y = sample(1:N_class,N_data)
 for i in 1:N_data
     X[i,:] = rand(MvNormal(centers[y[i],:],variance[y[i]]))
 end
+xmin = minimum(X); xmax = maximum(X)
 X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
-
-
+x_grid = range(xmin,length=N_grid,stop=xmax)
+X_grid = hcat([j for i in x_grid, j in x_grid][:],[i for i in x_grid, j in x_grid][:])
 # X,y = MNIST.traindata()
 # X=Float64.(reshape(X,28*28,60000)')
 # X_test,y_test = MNIST.testdata()
@@ -110,15 +113,29 @@ kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim)
 # kernel = AugmentedGaussianProcesses.RBFKernel(l)
 AugmentedGaussianProcesses.setvalue!(kernel.fields.variance,1.0)
 # kernel= AugmentedGaussianProcesses.PolynomialKernel([1.0,0.0,1.0])
+metrics = MVHistory()
+function callback(model,iter)
+    push!(metrics,:loglike,iter,-AugmentedGaussianProcesses.ExpecLogLikelihood(model))
+    push!(metrics,:gaussian,iter,AugmentedGaussianProcesses.GaussianKL(model))
+    push!(metrics,:gamma,iter,AugmentedGaussianProcesses.GammaImproperKL(model))
+    push!(metrics,:poisson,iter,AugmentedGaussianProcesses.PoissonKL(model))
+    push!(metrics,:polyagamma,iter,AugmentedGaussianProcesses.PolyaGammaKL(model))
+    push!(metrics,:ELBO,iter,AugmentedGaussianProcesses.ELBO2(model))
+    y_fgrid, =  model.predict(X_grid)
+    p1= plot(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),t=:contour,fill=true)
+    p1=plot!(p1,X[:,1],X[:,2],color=y,t=:scatter,lab="")
+    display(p1)
+end
 if fullm
-    global fmodel = AugmentedGaussianProcesses.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=5,IndependentGPs=false)
-    fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(fmodel,X_test=X_test,y_test=y_test)
+    global fmodel = AugmentedGaussianProcesses.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=!false,AutotuningFrequency=2,IndependentGPs=true)
+    # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(fmodel,X_test=X_test,y_test=y_test)
     # full_model.AutotuningFrequency=1
-    t_full = @elapsed fmodel.train(iterations=50)#,callback=callback)
+    t_full = @elapsed fmodel.train(iterations=50,callback=callback)
 
     global y_full,sig_full = fmodel.predict(X_test)
     global y_fall = AugmentedGaussianProcesses.multiclasspredict(fmodel,X_test,true)
     global y_ftrain, = fmodel.predict(X)
+    global y_fgrid, = fmodel.predict(X_grid)
     println("Full predictions computed")
     full_score = 0
     for (i,pred) in enumerate(y_full)
@@ -128,7 +145,6 @@ if fullm
     end
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s for l = $l")
 end
-
 
 
 if sfullm
@@ -152,14 +168,14 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=100,IndependentGPs=true)
+    global smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=!true,AutotuningFrequency=1,Stochastic=false,batchsize=100,IndependentGPs=true)
     # smodel.AutotuningFrequency=5
-    smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
+    # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
-    smodel.train(iterations=4)
+    smodel.train(iterations=100,callback=callback)
     Profile.clear()
-    @profile smodel.train(iterations=10)
-    @time smodel.train(iterations=10)
+    # @profile smodel.train(iterations=10)
+    # @time smodel.train(iterations=10)
     # t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
     global y_sparse, = smodel.predict(X_test)
     global y_strain, = smodel.predict(X)
@@ -175,6 +191,8 @@ if sparsem
     println("Sparse model Accuracy is $(sparse_score/length(y_test))")#" in $t_sparse s")
 end
 
+
+display(plot(metrics))
 1
     # model = smodel;
     # AugmentedGaussianProcesses.computeMatrices!(model)
