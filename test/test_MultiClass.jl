@@ -7,6 +7,7 @@ using Dates
 using PyCall
 using ProfileView, Profile, Traceur
 using ValueHistories
+using Plots
 
 seed!(42)
 @pyimport sklearn.datasets as sk
@@ -120,14 +121,14 @@ function callback(model,iter)
     push!(metrics,:gamma,iter,AugmentedGaussianProcesses.GammaImproperKL(model))
     push!(metrics,:poisson,iter,AugmentedGaussianProcesses.PoissonKL(model))
     push!(metrics,:polyagamma,iter,AugmentedGaussianProcesses.PolyaGammaKL(model))
-    push!(metrics,:ELBO,iter,AugmentedGaussianProcesses.ELBO2(model))
+    push!(metrics,:ELBO,iter,AugmentedGaussianProcesses.ELBO(model))
     y_fgrid, =  model.predict(X_grid)
     p1= plot(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),t=:contour,fill=true)
     p1=plot!(p1,X[:,1],X[:,2],color=y,t=:scatter,lab="")
     display(p1)
 end
 if fullm
-    global fmodel = AugmentedGaussianProcesses.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=!false,AutotuningFrequency=2,IndependentGPs=true)
+    global fmodel = AugmentedGaussianProcesses.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=2,IndependentGPs=true)
     # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(fmodel,X_test=X_test,y_test=y_test)
     # full_model.AutotuningFrequency=1
     t_full = @elapsed fmodel.train(iterations=50,callback=callback)
@@ -168,11 +169,11 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=!true,AutotuningFrequency=1,Stochastic=false,batchsize=100,IndependentGPs=true)
+    global smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=!true,AutotuningFrequency=1,Stochastic=false,batchsize=100,IndependentGPs=false)
     # smodel.AutotuningFrequency=5
     # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
-    smodel.train(iterations=100,callback=callback)
+    smodel.train(iterations=20,callback=callback)
     Profile.clear()
     # @profile smodel.train(iterations=10)
     # @time smodel.train(iterations=10)

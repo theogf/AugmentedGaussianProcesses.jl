@@ -3,17 +3,11 @@
 "Update the local variational parameters of the full batch GP Multiclass"
 function local_update!(model::MultiClass)
     model.c .= broadcast((Σ,μ)->sqrt.(Σ.+μ.^2),diag.(model.Σ[model.KIndices]),model.μ[model.KIndices])
-    if model.KStochastic
-        model.K_map = [findnext(x->x==model.y_class[i],model.KIndices,1) for i in 1:model.nSamples]
-        model.θ[1] .= [model.K_map[i] != nothing ? 0.5./model.c[model.K_map[i]][i]*tanh(0.5*model.c[model.K_map[i]][i]) : 0 for i in 1:model.nSamples];
-    else
-        model.θ[1] .= [0.5./model.c[model.y_class[i]][i]*tanh(0.5*model.c[model.y_class[i]][i]) for i in 1:model.nSamples];
-    end
     for _ in 1:2
         model.γ .= broadcast((c,μ)->0.5./(model.β.*cosh.(0.5.*c)).*exp.(digamma.(model.α).-0.5.*μ),model.c,model.μ[model.KIndices])
         model.α .= [1+model.KStochCoeff*sum([γ[i] for γ in model.γ]) for i in 1:model.nSamples]
     end
-    model.θ[2:end] .= broadcast((γ,c)->0.5.*γ./c.*tanh.(0.5.*c),model.γ,model.c)
+    model.θ .= broadcast((y,γ,c)->0.5.*Array(y+γ)./c.*tanh.(0.5.*c),model.Y[model.KIndices],model.γ,model.c)
 end
 
 "Compute the variational updates for the full GP MultiClass"
@@ -33,17 +27,11 @@ end
 "Compute the variational updates for the sparse GP XGPC"
 function local_update!(model::SparseMultiClass)
     model.c = broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}},κ::Matrix{Float64},ktilde::Vector{Float64})->sqrt.(ktilde+vec(sum((κ*Σ).*κ,dims=2))+(κ*μ).^2),model.μ[model.KIndices],model.Σ[model.KIndices],model.κ,model.Ktilde)
-    if model.KStochastic
-        model.K_map = [findnext(x->x==model.y_class[i],model.KIndices,1) for i in model.MBIndices]
-        model.θ[1] .= [model.K_map[i] != nothing ? 0.5./model.c[model.K_map[i]][i]*tanh(0.5*model.c[model.K_map[i]][i]) : 0 for i in 1:model.nSamplesUsed];
-    else
-        model.θ[1] .= [0.5./model.c[model.y_class[i]][iter]*tanh(0.5*model.c[model.y_class[i]][iter]) for (iter,i) in enumerate(model.MBIndices)];
-    end
     for _ in 1:model.nInnerLoops
-        model.γ .= broadcast((c,κ,μ)->0.5./(model.β.*cosh.(0.5.*c)).*exp.(digamma.(model.α).-0.5.*κ*μ),model.c,model.κ,model.μ)
-        model.α[model.MBIndices] .= [1+model.KStochCoeff*sum([gam[i] for gam in model.γ]) for i in 1:model.nSamplesUsed]
+        model.γ .= broadcast((c,κ,μ)->0.5./(model.β.*cosh.(0.5.*c)).*exp.(digamma.(model.α).-0.5.*κ*μ),model.c,model.κ,model.μ[model.KIndices])
+        model.α[model.MBIndices] .= [1+model.KStochCoeff*sum([γ[i] for γ in model.γ]) for i in 1:model.nSamplesUsed]
     end
-    model.θ[2:end] .= broadcast((γ::Vector{Float64},c::Vector{Float64})->0.5.*γ./c.*tanh.(0.5.*c),model.γ,model.c)
+    model.θ .= broadcast((y,γ::Vector{Float64},c::Vector{Float64})->0.5.*Array(γ+y[model.MBIndices])./c.*tanh.(0.5.*c),model.Y[model.KIndices],model.γ,model.c)
 end
 
 "Compute the variational updates for the sparse GP MultiClass"
@@ -67,18 +55,18 @@ end
 
 """Compute the natural gradient of the ELBO given the natural parameters"""
 function natural_gradient!(model::MultiClass)
-        model.η_1[model.KIndices] .= broadcast((y,γ)->0.5*(y-γ),model.Y[model.KIndices],model.γ)
+        model.η_1[model.KIndices] .= broadcast((y,γ)->0.5*Array(y-γ),model.Y[model.KIndices],model.γ)
         if model.IndependentGPs
-            model.η_2[model.KIndices] .= broadcast((y,θ,invK)->Symmetric(-0.5*(Diagonal(y.*model.θ[1]+θ)+invK)),model.Y[model.KIndices],model.θ[2:end],model.invK[model.KIndices])
+            model.η_2[model.KIndices] .= broadcast((y,θ,invK)->Symmetric(-0.5*(Diagonal(θ)+invK)),model.Y[model.KIndices],model.θ,model.invK[model.KIndices])
         else
-            model.η_2[model.KIndices] .= broadcast((y,θ)->Symmetric(-0.5*(Diagonal(y.*model.θ[1]+θ)+model.invK[1])),model.Y[model.KIndices],model.θ[2:end])
+            model.η_2[model.KIndices] .= broadcast((y,θ)->Symmetric(-0.5*(Diagonal(θ)+model.invK[1])),model.Y[model.KIndices],model.θ[2:end])
         end
 end
 
 """Compute the natural gradient of the ELBO given the natural parameters"""
 function natural_gradient(model::SparseMultiClass)
-    grad_1 = broadcast((y::SparseVector{Int64,Int64},κ::Matrix{Float64},γ::Vector{Float64})->0.5*model.StochCoeff*transpose(κ)*Array(y[model.MBIndices]-γ),model.Y[model.KIndices],model.κ,model.γ)
-    grad_2 = broadcast((y::SparseVector{Int64,Int64},κ::Matrix{Float64},θ::Vector{Float64},invKmm::Symmetric{Float64,Matrix{Float64}})->-0.5*(model.StochCoeff*κ'*Diagonal(y[model.MBIndices].*model.θ[1]+θ)*κ+invKmm),model.Y[model.KIndices],model.κ,model.θ[2:end],model.invKmm[model.IndependentGPs ? model.KIndices : :])
+    grad_1 = broadcast((y::SparseVector{Int64,Int64},κ::Matrix{Float64},γ::Vector{Float64})->0.5*model.StochCoeff*κ'*Array(y[model.MBIndices]-γ),model.Y[model.KIndices],model.κ,model.γ)
+    grad_2 = broadcast((y::SparseVector{Int64,Int64},κ::Matrix{Float64},θ::Vector{Float64},invKmm::Symmetric{Float64,Matrix{Float64}})->-0.5*(model.StochCoeff*κ'*Diagonal(θ)*κ+invKmm),model.Y[model.KIndices],model.κ,model.θ,model.invKmm[model.IndependentGPs ? model.KIndices : :])
     return grad_1, grad_2
 end
 
@@ -91,22 +79,18 @@ function ELBO(model::MultiClass)
     ELBO_v += -model.KStochCoeff*GaussianKL(model)
     ELBO_v += -GammaImproperKL(model)
     ELBO_v += -model.KStochCoeff*PoissonKL(model)
-    ELBO_v += -PolyaGammaTildeKL(model)
     ELBO_v += -model.KStochCoeff*PolyaGammaKL(model)
     return -ELBO_v
 end
 
-ELBO2(model::MultiClass) = ELBO(model)
-
 """Return the negative ELBO for the Sparse MultiClass model"""
-function ELBO2(model::SparseMultiClass)
+function ELBO(model::SparseMultiClass)
     ELBO_v = 0.0
     ELBO_v += model.StochCoeff*ExpecLogLikelihood(model)
     ELBO_v += -model.KStochCoeff*GaussianKL(model)
     ELBO_v += -GammaImproperKL(model)
     ELBO_v += -model.KStochCoeff*model.StochCoeff*PoissonKL(model)
-    ELBO_v += -model.StochCoeff*PolyaGammaKL(model)
-    ELBO_v += -PolyaGammaTildeKL(model)
+    ELBO_v += -model.KStochCoeff*model.StochCoeff*PolyaGammaKL(model)
     return -ELBO_v
 end
 
@@ -116,26 +100,14 @@ function ExpecLogLikelihood(model::MultiClass)
     tot = 0.0
     tot += -model.nSamples*log(2.0)
     tot += -sum(sum.(model.γ[model.KIndices]))*log(2.0)
-    if model.KStochastic
-        tot += 0.5*sum(model.K_map[i] != nothing ? model.μ[model.K_map[i]][i]-model.θ[1][i].*(model.c[model.K_map[i]][i])^2 : 0.0 for i in 1:model.nSamples)
-    else
-        tot += 0.5*sum(model.μ[model.y_class[i]][i]-model.θ[1][i]*(model.c[model.y_class[i]][i])^2 for i in 1:model.nSamples)
-    end
-    tot += 0.5*sum(broadcast((μ,γ,θ,c)->sum(-μ.*γ-θ.*(c.^2)),model.μ[model.KIndices],model.γ,model.θ[2:end],model.c))
+    tot += 0.5*sum(broadcast((y,μ,γ,θ,c)->sum(μ.*Array(y-γ)-θ.*(c.^2)),model.Y[model.KIndices],model.μ[model.KIndices],model.γ,model.θ,model.c))
 end
 
 function ExpecLogLikelihood(model::SparseMultiClass)
     tot = 0.0
     tot += -model.nSamplesUsed*log(2.0)
     tot += -sum(sum.(model.γ))*log(2.0)
-    if model.KStochastic
-        tot += 0.5*sum(model.K_map[i] != nothing ? dot(model.κ[model.K_map[i]][i,:],model.μ[model.K_map[i]])-
-        model.θ[1][i]*model.c[model.K_map[i]][i]^2 : 0.0 for (i,ib) in enumerate(model.MBIndices))
-    else
-        tot += 0.5*sum(dot(model.κ[model.y_class[ib]][i,:],model.μ[model.y_class[ib]])-
-        model.θ[1][i]*(model.c[model.y_class[ib]][i])^2 for (i,ib) in enumerate(model.MBIndices))
-    end
-    tot += 0.5*sum(broadcast((κ,μ,γ,θ,c)->sum(-(κ*μ).*γ-θ.*(c.^2)),model.κ,model.μ,model.γ,model.θ[2:end],model.c))
+    tot += 0.5*sum(broadcast((y,κ,μ,γ,θ,c)->sum((κ*μ).*Array(y[model.MBIndices]-γ)-θ.*(c.^2)),model.Y[model.KIndices],model.κ,model.μ[model.KIndices],model.γ,model.θ,model.c))
 end
 
 """Return KL Divergence for MvNormal for the MultiClass Model"""
@@ -169,55 +141,12 @@ function PoissonKL(model::SparseMultiClass)
 end
 
 function PolyaGammaKL(model::MultiClass)
-    return sum(broadcast((γ,c,θ)->sum(γ.*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.γ,model.c,model.θ[2:end])) #KL for omega_k s
-end
-
-
-function PolyaGammaTildeKL(model::MultiClass)
-    if model.KStochastic
-        return sum(model.K_map[i]!=nothing ? log.(cosh.(0.5.*model.c[model.K_map[i]][i])) - 0.5*(model.c[model.K_map[i]][i])^2*model.θ[1][i] : 0 for i in 1:model.nSamples) #KL for omega 0
-    else
-        return sum(log.(cosh.(0.5.*model.c[model.y_class[i]][i]))-0.5*(model.c[model.y_class[i]][i])^2*model.θ[1][i] for i in 1:model.nSamples) #KL for omega 0
-    end
+    return sum(broadcast((y,γ,c,θ)->sum(Array(y+γ).*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.Y[model.KIndices],model.γ,model.c,model.θ))
 end
 
 
 function PolyaGammaKL(model::SparseMultiClass)
-    return sum(broadcast((γ,c,θ)->sum(γ.*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.γ,model.c,model.θ[2:end])) #KL for omega_k s
-end
-
-function PolyaGammaTildeKL(model::SparseMultiClass)
-    if model.KStochastic
-        return sum(model.K_map[i]!=nothing ? log.(cosh.(0.5.*model.c[model.K_map[i]][i])) - 0.5*(model.c[model.K_map[i]][i])^2*model.θ[1][i] : 0 for (i,ib) in enumerate(model.MBIndices)) #KL for omega 0
-    else
-        return sum(log.(cosh.(0.5.*model.c[model.y_class[ib]][i])) - 0.5*(model.c[model.y_class[ib]][i])^2*model.θ[1][i] for (i,ib) in enumerate(model.MBIndices)) #KL for omega 0
-    end
-end
-
-
-"""Return the negative ELBO for the sparse MultiClass model"""
-function ELBO(model::SparseMultiClass)
-    ELBO_v = -model.nSamples*log(2.0)+0.5*model.K*model.m+model.StochCoeff*(sum(model.α[model.MBIndices]-log.(model.β)+log.(gamma.(model.α[model.MBIndices])))+dot(1.0.-model.α[model.MBIndices],digamma.(model.α[model.MBIndices])))
-    if model.IndependentGPs
-        ELBO_v += 0.5*model.KStochCoeff*sum(broadcast((y,gam,mu,theta,sigma,invK,κ,ktilde)->model.StochCoeff*dot(y[model.MBIndices]-gam,κ*mu)-
-                      sum((model.StochCoeff*κ'*Diagonal(y[model.MBIndices].*model.θ[1]+theta)*κ+invK).*(sigma+mu*(mu')))-
-                      model.StochCoeff*dot(y[model.MBIndices].*model.θ[1]+theta,ktilde),model.Y[model.KIndices],model.γ,model.μ[model.KIndices],model.θ[2:end],
-                      model.Σ[model.KIndices],model.invKmm[model.KIndices],model.κ,model.Ktilde))
-        ELBO_v += 0.5*model.KStochCoeff*sum(logdet.(model.invKmm[model.KIndices]).+logdet.(model.Σ[model.KIndices]))
-    else
-        ELBO_v += 0.5*model.KStochCoeff*sum(broadcast((y,gam,mu,theta,sigma)->model.StochCoeff*dot(y[model.MBIndices]-gam,model.κ[1]*mu)-
-                      sum((model.StochCoeff*model.κ[1]'*Diagonal(y[model.MBIndices].*model.θ[1]+theta)*model.κ[1]+model.invKmm[1]).*(sigma+mu*(mu')))-
-                      model.StochCoeff*dot(y[model.MBIndices].*model.θ[1]+theta,model.Ktilde[1]),
-                      model.Y[model.KIndices],model.γ,model.μ[model.KIndices],model.θ[2:end],model.Σ[model.KIndices]))
-        ELBO_v += 0.5*(model.K*logdet(model.invKmm[1])+model.KStochCoeff*sum(logdet.(model.Σ[model.KIndices])))
-    end
-    ELBO_v += model.StochCoeff*model.KStochCoeff*sum(broadcast((gam,c,theta)->dot(gam,-log(2).-log.(gam).+1.0.+digamma.(model.α[model.MBIndices])-log.(model.β))-sum(log.(cosh.(0.5*c)))+0.5*dot(c,c.*theta),model.γ,model.c,model.θ[2:end]))
-    if model.KStochastic
-        ELBO_v += model.StochCoeff*model.KStochCoeff*sum([model.K_map[i] != nothing ? -log.(cosh.(0.5*model.c[model.K_map[i]][i]))-0.5*model.θ[1][i]*(model.c[model.K_map[i]][i]^2) : 0 for i in 1:model.nSamplesUsed])
-    else
-        ELBO_v += model.StochCoeff*sum([-log.(cosh.(0.5*model.c[model.y_class[i]][iter]))-0.5*model.θ[1][iter]*(model.c[model.y_class[i]][iter]^2) for (iter,i) in enumerate(model.MBIndices)])
-    end
-    return -ELBO_v
+    return sum(broadcast((y,γ,c,θ)->sum(Array(y[model.MBIndices]+γ).*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.Y[model.KIndices],model.γ,model.c,model.θ))
 end
 
 """Return the gradient of the ELBO given the kernel hyperparameters"""

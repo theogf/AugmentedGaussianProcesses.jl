@@ -109,13 +109,13 @@ function initMultiClassVariables!(model,μ_init)
     if model.Stochastic
         model.α = model.K*ones(model.nSamples)
         model.β = model.K*ones(model.nSamplesUsed)
-        model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.K+1)]
+        model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:model.K]
         model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.K]
         model.c = [ones(Float64,model.nSamplesUsed) for i in 1:model.K]
     else
         model.α = model.K*ones(model.nSamples)
         model.β = model.K*ones(model.nSamples)
-        model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.nClassesUsed+1)]
+        model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.nClassesUsed)]
         model.γ = [abs.(rand(model.nSamples)) for i in 1:model.nClassesUsed]
         model.c = [ones(Float64,model.nSamples) for i in 1:model.nClassesUsed]
     end
@@ -125,7 +125,7 @@ end
 function reinit_variational_parameters!(model)
         model.α = model.K*ones(model.nSamples)
         model.β = model.K*ones(model.nSamplesUsed)
-        model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.nClassesUsed+1)]
+        model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.nClassesUsed)]
         model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.nClassesUsed]
         model.c = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
         model.Ktilde = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
@@ -173,7 +173,7 @@ function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool)
     if model.IndependentGPs
         model.inducingPoints = Ind_KMeans.(model.nSamples,Ninst_per_K,model.Y,[model.X],model.m)
     else
-        model.inducingPoints = [KMeansInducingPoints(model.X,model.m,10)]
+        model.inducingPoints = [KMeansInducingPoints(model.X,model.m,nMarkov=10)]
     end
     if model.verbose>2
         println("$(now()): Inducing points determined through KMeans algorithm")
