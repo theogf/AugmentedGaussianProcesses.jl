@@ -5,7 +5,7 @@ function local_update!(model::MultiClass)
     model.c .= broadcast((Σ,μ)->sqrt.(Σ.+μ.^2),diag.(model.Σ[model.KIndices]),model.μ[model.KIndices])
     for _ in 1:2
         model.γ .= broadcast((c,μ)->0.5./(model.β.*cosh.(0.5.*c)).*exp.(digamma.(model.α).-0.5.*μ),model.c,model.μ[model.KIndices])
-        model.α .= [1+model.KStochCoeff*sum([γ[i] for γ in model.γ]) for i in 1:model.nSamples]
+        model.α .= [1.0+model.KStochCoeff*sum([γ[i] for γ in model.γ]) for i in 1:model.nSamples]
     end
     model.θ .= broadcast((y,γ,c)->0.5.*Array(y+γ)./c.*tanh.(0.5.*c),model.Y[model.KIndices],model.γ,model.c)
 end
@@ -28,10 +28,10 @@ end
 function local_update!(model::SparseMultiClass)
     model.c = broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}},κ::Matrix{Float64},ktilde::Vector{Float64})->sqrt.(ktilde+vec(sum((κ*Σ).*κ,dims=2))+(κ*μ).^2),model.μ[model.KIndices],model.Σ[model.KIndices],model.κ,model.Ktilde)
     for _ in 1:model.nInnerLoops
-        model.γ .= broadcast((c,κ,μ)->0.5./(model.β.*cosh.(0.5.*c)).*exp.(digamma.(model.α).-0.5.*κ*μ),model.c,model.κ,model.μ[model.KIndices])
-        model.α[model.MBIndices] .= [1+model.KStochCoeff*sum([γ[i] for γ in model.γ]) for i in 1:model.nSamplesUsed]
+        model.γ .= broadcast((c,κ,μ)->0.5./(model.β.*cosh.(0.5.*c)).*exp.(digamma.(model.α[model.MBIndices]).-0.5.*κ*μ),model.c,model.κ,model.μ[model.KIndices])
+        model.α[model.MBIndices] .= [1.0+model.KStochCoeff*sum(γ[i] for γ in model.γ) for i in 1:model.nSamplesUsed]
     end
-    model.θ .= broadcast((y,γ::Vector{Float64},c::Vector{Float64})->0.5.*Array(γ+y[model.MBIndices])./c.*tanh.(0.5.*c),model.Y[model.KIndices],model.γ,model.c)
+    model.θ .= broadcast((y,γ::Vector{Float64},c::Vector{Float64})->0.5.*Array(y[model.MBIndices]+γ)./c.*tanh.(0.5.*c),model.Y[model.KIndices],model.γ,model.c)
 end
 
 "Compute the variational updates for the sparse GP MultiClass"
@@ -59,7 +59,7 @@ function natural_gradient!(model::MultiClass)
         if model.IndependentGPs
             model.η_2[model.KIndices] .= broadcast((y,θ,invK)->Symmetric(-0.5*(Diagonal(θ)+invK)),model.Y[model.KIndices],model.θ,model.invK[model.KIndices])
         else
-            model.η_2[model.KIndices] .= broadcast((y,θ)->Symmetric(-0.5*(Diagonal(θ)+model.invK[1])),model.Y[model.KIndices],model.θ[2:end])
+            model.η_2[model.KIndices] .= broadcast((y,θ)->Symmetric(-0.5*(Diagonal(θ)+model.invK[1])),model.Y[model.KIndices],model.θ)
         end
 end
 
@@ -75,7 +75,7 @@ end
 function ELBO(model::MultiClass)
     model.c .= broadcast((Σ,μ)->sqrt.(Σ.+μ.^2),diag.(model.Σ[model.KIndices]),model.μ[model.KIndices])
     ELBO_v = 0.0
-    ELBO_v += ExpecLogLikelihood(model)
+    ELBO_v += model.KStochCoeff*ExpecLogLikelihood(model)
     ELBO_v += -model.KStochCoeff*GaussianKL(model)
     ELBO_v += -GammaImproperKL(model)
     ELBO_v += -model.KStochCoeff*PoissonKL(model)
@@ -85,8 +85,9 @@ end
 
 """Return the negative ELBO for the Sparse MultiClass model"""
 function ELBO(model::SparseMultiClass)
+    model.c = broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}},κ::Matrix{Float64},ktilde::Vector{Float64})->sqrt.(ktilde+vec(sum((κ*Σ).*κ,dims=2))+(κ*μ).^2),model.μ[model.KIndices],model.Σ[model.KIndices],model.κ,model.Ktilde)
     ELBO_v = 0.0
-    ELBO_v += model.StochCoeff*ExpecLogLikelihood(model)
+    ELBO_v +=  model.KStochCoeff*model.StochCoeff*ExpecLogLikelihood(model)
     ELBO_v += -model.KStochCoeff*GaussianKL(model)
     ELBO_v += -GammaImproperKL(model)
     ELBO_v += -model.KStochCoeff*model.StochCoeff*PoissonKL(model)
@@ -181,13 +182,12 @@ end
 function hyperparameter_gradient_function(model::SparseMultiClass)
     #General values used for all gradients
     C2 = broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}})->μ*transpose(μ) + Σ,model.μ[model.KIndices],model.Σ[model.KIndices])
-    C = broadcast((y::SparseVector{Int64,Int64},θ::Vector{Float64})->Array(y[model.MBIndices].*model.θ[1]).+θ,model.Y[model.KIndices],model.θ[2:end])
     #preallocation
     ι = Matrix{Float64}(undef,model.nSamplesUsed,model.m)
     Jtilde = Vector{Float64}(undef,model.nSamplesUsed)
     V = Matrix{Float64}(undef,model.m,model.m)
+    κθ = model.κ'.*Diagonal.(model.θ)
     if model.IndependentGPs
-        KC = transpose.(model.κ).*Diagonal.(C)
         A = Matrix{Float64}(undef,model.m,model.m)
         return (function(Jmm::LinearAlgebra.Symmetric{Float64,Matrix{Float64}},Jnm::Matrix{T},Jnn::Vector{T},Kindex::Int64,index::Int64) where {T}
                     # ι = (Jnm-model.κ[index]*Jmm)*model.invKmm[Kindex]
@@ -198,40 +198,78 @@ function hyperparameter_gradient_function(model::SparseMultiClass)
                     mul!(V,model.invKmm[Kindex],Matrix(Jmm))
                     trV = tr(V)
                     V *= model.invKmm[Kindex]
-                    A = add_transpose!(KC[index]*ι)
+                    A = add_transpose!(κθ[index]*ι)
                     grad = sum(V.*C2[index])
                     grad += - model.StochCoeff*sum(A.*C2[index])
                     grad += - trV
-                    grad += - model.StochCoeff*dot(C[index],Jnn)
+                    grad += - model.StochCoeff*dot(model.θ[index],Jnn)
                     grad += model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex])
                     grad *= 0.5
                     return grad
                     # return 0.5*(sum((V*model.invKmm[Kindex]).*F2[index])-model.StochCoeff*sum(A.*F2[index])
                     #         - trV
-                    #         - model.StochCoeff*dot(C[index],Jtilde)
+                    #         - model.StochCoeff*dot(model.θ[index],Jtilde)
                     #         + model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex]))
          end, #end of function(Js)
                 function(kernel::Kernel,Kindex::Int64,index::Int64)
-                    return 0.5/(getvariance(kernel))*(sum(model.invKmm[Kindex].*C2[index])-model.StochCoeff * dot(C[index],model.Ktilde[index])-model.m)
+                    return 0.5/(getvariance(kernel))*(sum(model.invKmm[Kindex].*C2[index])-model.StochCoeff * dot(model.θ[index],model.Ktilde[index])-model.m)
                 end)
     else
-        KC = broadcast(c->transpose(model.κ[1])*Diagonal(c),C)
         A = [Matrix{Float64}(undef,model.m,model.m) for _ in 1:model.nClassesUsed]
         return (function(Jmm::LinearAlgebra.Symmetric{Float64,Matrix{Float64}},Jnm::Matrix{T},Jnn::Vector{T},Kindex::Int64,index::Int64) where {T}
                     mul!((Jnm-model.κ[1]*Jmm),model.invKmm[1])
                     Jnn .+= - sum(ι.*model.Knm[1],dims=2)[:] - sum(model.κ[1].*Jnm,dims=2)[:]
-                    A .= broadcast(kc::Matrix{T}->add_transpose!(kc*ι),KC)
+                    A .= broadcast(kc::Matrix{T}->add_transpose!(kc*ι),κθ)
                     mul!(V,Matrix(model.invKmm[1]),Matrix(Jmm))
                     TraceV = -tr(V)
                     V*= model.invKmm[1]
-                    return 0.5*(model.KStochCoeff*sum(broadcast((c2,a,c,y,γ,μ)->                (sum(V.*c2)-sum(a.*c2)*model.StochCoeff)
-                        -model.StochCoeff*dot(c,Jtilde)
-                        + model.StochCoeff*dot(Array(y[model.MBIndices])-γ,ι*μ),
-                        C2,A,C,model.Y[model.KIndices],model.γ,model.μ[model.KIndices]))+model.K*TraceV)
+                    return 0.5*(model.KStochCoeff*sum(broadcast((c2,a,θ,y,γ,μ)->(sum(V.*c2)-sum(a.*c2)*model.StochCoeff)-
+                        model.StochCoeff*dot(θ,Jtilde)+
+                        model.StochCoeff*dot(Array(y[model.MBIndices])-γ,ι*μ),
+                        C2,A,model.θ,model.Y[model.KIndices],model.γ,model.μ[model.KIndices]))+model.K*TraceV)
         end,#end of function(Js)
         function(kernel::Kernel)
             # println(mean(F2[index]))
-            return 0.5/(getvariance(kernel))*sum(broadcast((c2,c)->sum(model.invKmm[1].*c2)-model.StochCoeff * dot(c,model.Ktilde[1])-model.m,C2,C))
+            return 0.5/(getvariance(kernel))*sum(broadcast((c2,θ)->sum(model.invKmm[1].*c2)-model.StochCoeff * dot(θ,model.Ktilde[1])-model.m,C2,model.θ))
         end)
        end
+end
+
+
+"""Return a function computing the gradient of the ELBO given the inducing point locations"""
+function inducingpoints_gradient(model::SparseMultiClass)
+    if model.IndependentGPs
+        gradients_inducing_points = zero(model.inducingPoints[1])
+        C2 = broadcast((μ::Vector{Float64},Σ::Symmetric{Float64,Matrix{Float64}})->μ*transpose(μ) + Σ,model.μ[model.KIndices],model.Σ[model.KIndices])
+        #preallocation
+        ι = Matrix{Float64}(undef,model.nSamplesUsed,model.m)
+        Jtilde = Vector{Float64}(undef,model.nSamplesUsed)
+        V = Matrix{Float64}(undef,model.m,model.m)
+        κθ = model.κ'.*Diagonal.(model.θ)
+        for (ic,c) in enumerate(model.KIndices)
+            for i in 1:model.m #Iterate over the points
+                Jnm,Jmm = computeIndPointsJ(model,i) #TODO
+                for j in 1:model.nDim #iterate over the dimensions
+                    mul!(ι,(Jnm[j,:,:]-model.κ[ic]*Jmm[j,:,:]),model.invKmm[c])
+                    Jtilde = - sum(ι.*model.Knm[i],dims=2)[:] - sum(model.κ[index].*Jnm,dims=2)[:]
+                    # V = Matrix(model.invKmm[Kindex])*Matrix(Jmm)
+                    mul!(V,model.invKmm[Kindex],Matrix(Jmm))
+                    trV = tr(V)
+                    V *= model.invKmm[Kindex]
+                    A = add_transpose!(κθ[index]*ι)
+                    grad = sum(V.*C2[index])
+                    grad += - model.StochCoeff*sum(A.*C2[index])
+                    grad += - trV
+                    grad += - model.StochCoeff*dot(model.θ[index],Jnn)
+                    grad += model.StochCoeff * dot(Array(model.Y[Kindex][model.MBIndices]) - model.γ[index], ι*model.μ[Kindex])
+                    grad *= 0.5
+                    gradients_inducing_points[c][i,j] = grad
+                end
+            end
+        end
+        return gradients_inducing_points
+    else
+        gradients_inducing_points = zero(model.inducingPoints[1])
+
+    end
 end

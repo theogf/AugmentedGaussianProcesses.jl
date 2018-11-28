@@ -332,11 +332,11 @@ function multiclasspredictproba(model::MultiClass,X_test::Array{T,N},covf::Bool=
     hess_h = hessian_mod_soft_max.(σ,normsig)
     m_predic = h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f)
     if !covf
-        return m_predic
+        return [m[model.class_mapping] for m in m_predic]
     end
     grad_h = grad_mod_soft_max.(σ,normsig)
     cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov-0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
-    return m_predic,cov_predic
+    return [m[model.class_mapping] for m in m_predic] ,[cov[model.class_mapping] for cov in cov_predic]
 end
 
 function multiclasspredictproba(model::SparseMultiClass,X_test::Array{T,N},covf::Bool=false) where {T,N}
@@ -351,11 +351,11 @@ function multiclasspredictproba(model::SparseMultiClass,X_test::Array{T,N},covf:
     hess_h = hessian_mod_soft_max.(σ,normsig)
     m_predic = broadcast(m->max.(m,eps(T)),h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f))
     if !covf
-        return m_predic
+        return [m[model.class_mapping] for m in m_predic]
     end
     grad_h = grad_mod_soft_max.(σ,normsig)
     cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov-0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
-    return m_predic,cov_predic
+    return [m[model.class_mapping] for m in m_predic] ,[cov[model.class_mapping] for cov in cov_predic]
 end
 
 function expec_logit(f::Vector{T},μ::Vector{T},σ::Vector{T},result::Vector{T}) where {T}

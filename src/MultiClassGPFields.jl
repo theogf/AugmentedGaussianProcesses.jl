@@ -225,7 +225,7 @@ function initMultiClassStochastic!(model::GPModel,AdaptiveLearningRate,batchsize
     #Initialize parameters specific to models using SVI and check for consistency
     model.Stochastic = true; model.nSamplesUsed = batchsize; model.AdaptiveLearningRate = AdaptiveLearningRate;
     model.nInnerLoops = 10;
-    model.κ_s = κ_s; model.τ_s = τ_s; model.SmoothingWindow = SmoothingWindow;
+    model.κ_s = κ_s; model.τ_s = τ_s; model.SmoothingWindow = SmoothingWindow; model.ρ_s = ones(model.K)
     if (model.nSamplesUsed <= 0 || model.nSamplesUsed > model.nSamples)
         @warn "Invalid value for the batchsize : $batchsize, setting it to the number of inducing points"
         model.nSamplesUsed = model.m;

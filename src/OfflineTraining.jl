@@ -14,6 +14,7 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
     end
     model.evol_conv = [] #Array to check on the evolution of convergence
     iter::Int64 = 1; conv = Inf;
+
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             updateParameters!(model,iter) #Update all the variational parameters
@@ -24,7 +25,7 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
             end
             reset_prediction_matrices!(model) #Reset predicton matrices
             if callback != 0
-                    callback(model,iter) #Use a callback method if put by user
+                callback(model,iter) #Use a callback method if put by user
             end
             # if !isa(model,BatchGPRegression)
             #     conv = Convergence(model,iter) #Check for convergence
@@ -191,7 +192,7 @@ function MCInit!(model::GPModel)
             model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
             model.KIndices = collect(1:model.K)
             computeMatrices!(model);local_update!(model);
-            (grad_η_1, grad_η_2) = natural_gradient_MultiClass(model)
+            (grad_η_1, grad_η_2) = natural_gradient(model)
             model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_η_1,model.η_1,grad_η_2,model.η_2)
             model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η_1,model.η_1,grad_η_2,model.η_2)
         end
@@ -253,7 +254,7 @@ function computeLearningRate_Stochastic!(model::MultiClassGPModel,iter::Integer,
             model.τ[model.KIndices] .= broadcast((rho,tau)->(1.0 - rho)*tau + 1.0,model.ρ_s[model.KIndices],model.τ[model.KIndices])
         else
             #Simple model of time decreasing learning rate
-            model.ρ_s[model.KIndices] .= [(iter+model.τ_s)^(-model.κ_s) for i in 1:model.KIndices]
+            model.ρ_s[model.KIndices] = [(iter+model.τ_s)^(-model.κ_s) for i in model.KIndices]
         end
     else
       #Non-Stochastic case

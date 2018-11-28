@@ -8,12 +8,12 @@ using PyCall
 using ProfileView, Profile, Traceur
 using ValueHistories
 using Plots
-
+pyplot()
 seed!(42)
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
 N_data = 500
-N_class = 5
+N_class = 3
 N_test = 50
 N_grid = 50
 minx=-5.0
@@ -43,7 +43,7 @@ N_dim=2
 
 for c in 1:N_class
     global centers = rand(Uniform(-1,1),N_class,N_dim)
-    global variance = 1/N_class*ones(N_class)#rand(Gamma(1.0,0.5),150)
+    global variance = 0.7*1/N_class*ones(N_class)#rand(Gamma(1.0,0.5),150)
 end
 
 X = zeros(N_data,N_dim)
@@ -115,6 +115,7 @@ kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim)
 AugmentedGaussianProcesses.setvalue!(kernel.fields.variance,1.0)
 # kernel= AugmentedGaussianProcesses.PolynomialKernel([1.0,0.0,1.0])
 metrics = MVHistory()
+anim  = Animation()
 function callback(model,iter)
     push!(metrics,:loglike,iter,-AugmentedGaussianProcesses.ExpecLogLikelihood(model))
     push!(metrics,:gaussian,iter,AugmentedGaussianProcesses.GaussianKL(model))
@@ -123,8 +124,14 @@ function callback(model,iter)
     push!(metrics,:polyagamma,iter,AugmentedGaussianProcesses.PolyaGammaKL(model))
     push!(metrics,:ELBO,iter,AugmentedGaussianProcesses.ELBO(model))
     y_fgrid, =  model.predict(X_grid)
-    p1= plot(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),t=:contour,fill=true)
-    p1=plot!(p1,X[:,1],X[:,2],color=y,t=:scatter,lab="")
+    global py_fgrid = model.predictproba(X_grid)
+    global cols = reshape(broadcast(x->RGB(x...),py_fgrid),N_grid,N_grid)
+    col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
+    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false)
+    p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=[1.5,2.5],t=:contour,colorbar=false)
+    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="")
+    p1=plot!(p1,model.inducingPoints[1][:,1],model.inducingPoints[1][:,2],color=:black,t=:scatter,lab="")
+    frame(anim,p1)
     display(p1)
 end
 if fullm
@@ -169,11 +176,11 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=!true,AutotuningFrequency=1,Stochastic=false,batchsize=100,IndependentGPs=false)
+    global smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=50,IndependentGPs=true,AdaptiveLearningRate=false,OptimizeIndPoints=!true)
     # smodel.AutotuningFrequency=5
     # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
-    smodel.train(iterations=20,callback=callback)
+    smodel.train(iterations=100,callback=callback)
     Profile.clear()
     # @profile smodel.train(iterations=10)
     # @time smodel.train(iterations=10)
