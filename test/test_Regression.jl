@@ -54,7 +54,7 @@ if sparsem
     println("Testing the sparse model")
     t_sparse = @elapsed sparsemodel = AugmentedGaussianProcesses.SparseGPRegression(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=20,noise=noise,kernel=kernel,OptimizeIndPoints=optindpoints)
     # setfixed!(sparsemodel.noise)
-    t_sparse += @elapsed sparsemodel.train(iterations=1000)
+    t_sparse += @elapsed sparsemodel.train(iterations=100)
     y_sparse = sparsemodel.predict(X_test); rmse_sparse = norm(y_sparse-y_test,2)/sqrt(length(y_test))
     if doPlots
         p2=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="Sparse Regression")
