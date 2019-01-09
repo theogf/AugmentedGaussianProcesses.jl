@@ -136,9 +136,9 @@ end
 function computeMatrices!(model::SparseMultiClass)
     if model.HyperParametersUpdated
         if model.IndependentGPs
-            model.Kmm .= broadcast((points,kernel)->Symmetric(kernelmatrix(points,kernel)+Diagonal{Float64}(getvalue(model.noise)*I,model.nFeatures)),model.inducingPoints,model.kernel)
+            model.Kmm .= broadcast((points,kernel)->Symmetric(kernelmatrix(points,kernel)+jittering*I),model.inducingPoints,model.kernel)
         else
-            model.Kmm .= [Symmetric(kernelmatrix(model.inducingPoints[1],model.kernel[1])+Diagonal{Float64}(getvalue(model.noise)*I,model.nFeatures))]
+            model.Kmm .= [Symmetric(kernelmatrix(model.inducingPoints[1],model.kernel[1])+jittering*I)]
         end
         model.invKmm .= inv.(model.Kmm)
     end
@@ -148,11 +148,11 @@ function computeMatrices!(model::SparseMultiClass)
             # model.Knm .= broadcast((points,kernel)->kernelmatrix(model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices])
             broadcast((points,kernel,Knm)->kernelmatrix!(Knm,model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices],model.Knm)
             model.κ .= model.Knm.*model.invKmm[model.KIndices]
-            model.Ktilde .= broadcast((knm,kappa,kernel)->kerneldiagmatrix(model.X[model.MBIndices,:],kernel)+ getvalue(model.noise)*ones(model.nSamplesUsed) - sum(kappa.*knm,dims=2)[:],model.Knm,model.κ,model.kernel[model.KIndices])
+            model.Ktilde .= broadcast((knm,kappa,kernel)->kerneldiagmatrix(model.X[model.MBIndices,:],kernel).+ jittering - sum(kappa.*knm,dims=2)[:],model.Knm,model.κ,model.kernel[model.KIndices])
         else
             kernelmatrix!(model.Knm[1],model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1])
             model.κ .= [model.Knm[1]/model.Kmm[1]]
-            model.Ktilde .= [kerneldiagmatrix(model.X[model.MBIndices,:],model.kernel[1]) - sum(model.κ[1].*model.Knm[1],dims=2)[:]]
+            model.Ktilde .= [kerneldiagmatrix(model.X[model.MBIndices,:],model.kernel[1]).+jittering - sum(model.κ[1].*model.Knm[1],dims=2)[:]]
         end
         @assert sum(count.(broadcast(x->x.<0,model.Ktilde)))==0 "Ktilde has negative values"
     end
