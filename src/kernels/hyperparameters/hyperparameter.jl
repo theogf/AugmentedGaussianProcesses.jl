@@ -64,9 +64,9 @@ setfixed!(θ::HyperParameter) = θ.fixed = true
 
 setfree!(θ::HyperParameter) = θ.fixed = false
 
-mutable struct HyperParameters{T<:AbstractFloat}
+mutable struct HyperParameters{T<:Real}
     hyperparameters::Array{HyperParameter{T},1}
-    function HyperParameters{T}(θ::Vector{T},intervals::Array{Interval{T,A,B}}) where {A<:Bound{T},B<:Bound{T}} where {T<:AbstractFloat}
+    function HyperParameters{T}(θ::Vector{T},intervals::Array{Interval{T,A,B}}) where {A<:Bound{T},B<:Bound{T}} where {T<:Real}
         this = new(Vector{HyperParameter{T}}(undef,length(θ)))
         for i in 1:length(θ)
             this.hyperparameters[i] = HyperParameter{T}(θ[i],intervals[i])

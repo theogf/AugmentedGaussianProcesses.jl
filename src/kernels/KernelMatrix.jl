@@ -1,12 +1,12 @@
 """Create the covariance matrix between the matrix X1 and X2 with the covariance function `kernel`"""
-function kernelmatrix(X1::Array{T,N1},X2::Array{T,N2},kernel::Kernel{T,KT}) where {T,N1,N2,KT}
+function kernelmatrix(X1::Array{T1,N1},X2::Array{T2,N2},kernel::Kernel{T3,KT}) where {T1,T2,T3,N1,N2,KT}
     K = pairwise(getmetric(kernel),X1',X2')
     v = getvariance(kernel)
     return lmul!(v,map!(kappa(kernel),K,K))
 end
 
 """Compute the covariance matrix between the matrix X1 and X2 with the covariance function `kernel` in preallocated matrix K"""
-function kernelmatrix!(K::Array{T,N},X1::Array{T,N2},X2::Array{T,N3},kernel::Kernel{T,KT}) where {T,N,N2,N3,KT}
+function kernelmatrix!(K::Array{T1,N},X1::Array{T2,N2},X2::Array{T2,N3},kernel::Kernel{T3,KT}) where {T1,T2,T3,N,N2,N3,KT}
     (n1,n2) = size(K)
     @assert n1==size(X1,1)
     @assert n2==size(X2,1)
@@ -17,7 +17,7 @@ function kernelmatrix!(K::Array{T,N},X1::Array{T,N2},X2::Array{T,N3},kernel::Ker
 end
 
 """Compute the covariance matrix of the matrix X, optionally only compute the diagonal terms"""
-function kernelmatrix(X::Array{T,N},kernel::Kernel{T,KT};diag::Bool=false) where {T,N,KT}
+function kernelmatrix(X::Array{T1,N},kernel::Kernel{T2,KT};diag::Bool=false) where {T1,T2,N,KT}
     if diag
         return kerneldiagmatrix(X,kernel)
     end
@@ -27,7 +27,7 @@ function kernelmatrix(X::Array{T,N},kernel::Kernel{T,KT};diag::Bool=false) where
 end
 
 """Compute the covariance matrix of the matrix X in preallocated matrix K, optionally only compute the diagonal terms"""
-function kernelmatrix!(K::Array{T,N},X::Array{T,N2},kernel::Kernel{T,KT}; diag::Bool=false) where {T,N,N2,KT}
+function kernelmatrix!(K::Array{T1,N},X::Array{T2,N2},kernel::Kernel{T3,KT}; diag::Bool=false) where {T1,T2,T3,N,N2,KT}
     if diag
         kerneldiagmatrix!(K,X,kernel)
     end
@@ -41,9 +41,9 @@ function kernelmatrix!(K::Array{T,N},X::Array{T,N2},kernel::Kernel{T,KT}; diag::
 end
 
 """Compute only the diagonal elements of the covariance matrix"""
-function kerneldiagmatrix(X::Array{T,N},kernel::Kernel{T,KT}) where {T,N,KT}
+function kerneldiagmatrix(X::Array{T1,N},kernel::Kernel{T2,KT}) where {T1,T2,N,KT}
     n = size(X,1)
-    K = zeros(T,n)
+    K = zeros(T2,n)
     v = getvariance(kernel)
     f = kappa(kernel)
     @simd for i in eachindex(K)

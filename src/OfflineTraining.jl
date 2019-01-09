@@ -97,13 +97,14 @@ end
 "Computate of kernel matrices for the sparse GPs"
 function computeMatrices!(model::SparseModel)
     if model.HyperParametersUpdated
-        model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+Diagonal{Float64}((getvalue(model.noise)+getvariance(model.kernel)*jittering)*I,model.nFeatures))
+        model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+jittering*I)
+        # model.Kmm = Symmetric(kernelmatrix(model.inducingPoints,model.kernel)+getvariance(model.kernel)*jittering*I)
         model.invKmm = inv(model.Kmm)
     end
     if model.HyperParametersUpdated || model.Stochastic #Also when batches change
-        kernelmatrix!(model.Knm,model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
+        model.Knm = kernelmatrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel)
         model.κ = model.Knm*model.invKmm
-        model.Ktilde = kerneldiagmatrix(model.X[model.MBIndices,:],model.kernel).+ getvalue(model.noise) - sum(model.κ.*model.Knm,dims=2)[:]
+        model.Ktilde = kerneldiagmatrix(model.X[model.MBIndices,:],model.kernel)- sum(model.κ.*model.Knm,dims=2)[:]
         @assert count(model.Ktilde.<0)==0 "Ktilde has negative values"
     end
     model.HyperParametersUpdated=false

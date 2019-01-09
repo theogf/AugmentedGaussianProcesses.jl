@@ -35,7 +35,7 @@ mutable struct SparseXGPC <: SparseModel
             this = new();
             this.ModelType = XGPC;
             this.Name = "Sparse Gaussian Process Classifier with Logistic Likelihood";
-            initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
+            initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             if Stochastic
                 initStochastic!(this,AdaptiveLearningRate,batchsize,κ_s,τ_s,SmoothingWindow);

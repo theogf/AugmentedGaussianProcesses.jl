@@ -11,14 +11,13 @@ end
 
 @def commonfields begin
     #Data
-    X::Matrix{Float64} #Feature vectors
+    X::Matrix #Feature vectors
     y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
     ModelType::GPModelType; #Type of model
     Name::String #Name of the model
     nSamples::Int64 # Number of data points
     nDim::Int64
     nFeatures::Int64 # Number of features
-    noise::KernelModule.HyperParameter{Float64}  #Regularization parameter of the noise
     ϵ::Float64  #Desired Precision on ||ELBO(t+1)-ELBO(t)||))
     evol_conv::Vector{Float64} #Used for convergence estimation
     prev_params::Any
@@ -38,11 +37,11 @@ end
     initCommon!(model,...)
 
 Initialize all the common fields of the different models, i.e. the dataset inputs `X` and outputs `y`,
-the noise `noise`, the convergence threshold `ϵ`, the initial number of iterations `nEpochs`,
+the convergence threshold `ϵ`, the initial number of iterations `nEpochs`,
 the `verboseLevel` (from 0 to 3), enabling `Autotuning`, the `AutotuningFrequency` and
 what `optimizer` to use
 """
-function initCommon!(model::GPModel,X::Array{T,N},y::Vector{T2},noise::Float64,ϵ::Float64,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer) where {T<:Real,T2<:Real,N}
+function initCommon!(model::GPModel,X::Array{T,N},y::Vector{T2},ϵ::Float64,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer) where {T<:Real,T2<:Real,N}
     @assert (size(y,1)==size(X,1)) "There is a dimension problem with the data size(y)!=size(X)";
     if N == 1
         model.X = reshape(X,length(X),1)
@@ -50,7 +49,6 @@ function initCommon!(model::GPModel,X::Array{T,N},y::Vector{T2},noise::Float64,�
         model.X = X;
     end
     model.y = y;
-    @assert noise >= 0 "noise should be a positive float";  model.noise = KernelModule.HyperParameter{Float64}(noise,KernelModule.interval(KernelModule.OpenBound{Float64}(zero(Float64)),KernelModule.NullBound{Float64}()))
     @assert ϵ > 0 "ϵ should be a positive float"; model.ϵ = ϵ;
     @assert nEpochs > 0 "nEpochs should be positive"; model.nEpochs = nEpochs;
     @assert (verbose > -1 && verbose < 4) "verbose should be in {0,1,2,3}, here value is $verbose"; model.verbose = verbose;
@@ -69,16 +67,16 @@ end
 """
 @def stochasticfields begin
     nSamplesUsed::Int64 #Size of the minibatch used
-    StochCoeff::Float64 #Stochastic Coefficient
+    StochCoeff::Real #Stochastic Coefficient
     MBIndices #MiniBatch Indices
     #Flag for adaptative learning rate for the SVI
     AdaptiveLearningRate::Bool
-      κ_s::Float64 #Parameters for decay of learning rate (iter + κ)^-τ in case adaptative learning rate is not used
-      τ_s::Float64
-    ρ_s::Float64 #Learning rate for CAVI
-    g::Vector{Float64} # g & h are expected gradient value for computing the adaptive learning rate and τ is an intermediate
-    h::Float64
-    τ::Float64
+      κ_s::Real #Parameters for decay of learning rate (iter + κ)^-τ in case adaptative learning rate is not used
+      τ_s::Real
+    ρ_s::Real #Learning rate for CAVI
+    g::Vector # g & h are expected gradient value for computing the adaptive learning rate and τ is an intermediate
+    h::Real
+    τ::Real
     SmoothingWindow::Int64
 end
 """
@@ -102,8 +100,8 @@ end
 """
 @def kernelfields begin
     kernel::Kernel #Kernels function used
-    Knn::Symmetric{Float64,Matrix{Float64}} #Kernel matrix of the GP prior
-    invK::Symmetric{Float64,Matrix{Float64}} #Inverse Kernel Matrix for the nonlinear case
+    Knn::AbstractArray #Kernel matrix of the GP prior
+    invK::AbstractArray #Inverse Kernel Matrix for the nonlinear case
 end
 """
 Function initializing the kernelfields
@@ -122,14 +120,14 @@ end
 """
 @def sparsefields begin
     m::Int64 #Number of inducing points
-    inducingPoints::Matrix{Float64} #Inducing points coordinates for the Big Data GP
+    inducingPoints::AbstractArray #Inducing points coordinates for the Big Data GP
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
     optimizer::Optimizer #Optimizer for the inducing points
-    Kmm::Symmetric{Float64,Matrix{Float64}} #Kernel matrix
-    invKmm::Symmetric{Float64,Matrix{Float64}} #Inverse Kernel matrix of inducing points
-    Ktilde::Vector{Float64} #Diagonal of the covariance matrix between inducing points and generative points
-    κ::Matrix{Float64} #Kmn*invKmm
-    Knm::Matrix{Float64}
+    Kmm::AbstractArray #Kernel matrix
+    invKmm::AbstractArray #Inverse Kernel matrix of inducing points
+    Ktilde::AbstractArray #Diagonal of the covariance matrix between inducing points and generative points
+    κ::AbstractArray #Kmn*invKmm
+    Knm::AbstractArray
 end
 """
 Function initializing the sparsefields parameters

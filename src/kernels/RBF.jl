@@ -1,7 +1,7 @@
 """
     Radial Basis Function Kernel also called RBF or SE(Squared Exponential)
 """
-struct RBFKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
+struct RBFKernel{T<:Real,KT<:KernelType} <: Kernel{T,KT}
     fields::KernelFields{T,KT}
     function RBFKernel{T,KT}(θ::Vector{T};variance::T=one(T),dim::Integer=0) where {T<:Real,KT<:KernelType}
         if KT == ARDKernel
@@ -40,7 +40,7 @@ function RBFKernel(θ::T1=1.0;variance::T2=one(T1),dim::Integer=0,ARD::Bool=fals
  end
 
 function RBFKernel(θ::Array{T1,1};variance::T2=one(T1),dim::Integer=0) where {T1<:Real,T2<:Real}
-    RBFKernel{floattype(T1,T2),ARDKernel}(θ,variance=variance,dim=dim)
+    RBFKernel{T1,ARDKernel}(θ,variance=variance,dim=dim)
 end
 
 
