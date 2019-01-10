@@ -1,6 +1,6 @@
 """Basic displaying function"""
 function Base.show(io::IO,model::GPModel)
-    print("$(model.Name) model")
+    print(io,"$(model.Name) model")
 end
 
 def_atfrequency = 2

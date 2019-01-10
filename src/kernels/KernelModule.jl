@@ -95,7 +95,7 @@ isARD(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: ARDKernel
 isIso(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: IsoKernel
 
 function Base.show(io::IO,k::Kernel{T,KT}) where {T,KT}
-    print("$(k.fields.name)"*(isARD(k) ? " ARD" : "")*" kernel, with variance $(getvariance(k)) and lengthscales $(getlengthscales(k))")
+    print(io,"$(k.fields.name)"*(isARD(k) ? " ARD" : "")*" kernel, with variance $(getvariance(k)) and lengthscales $(getlengthscales(k))")
 end
 
 include("KernelSum.jl")

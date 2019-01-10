@@ -276,29 +276,7 @@ function studentpredictprobamc(model::GPModel,X_test::AbstractArray;nSamples=100
     return mean_pred,var_pred
 end
 
-
-function multiclasspredict(model::MultiClass,X_test::AbstractArray,all_class=false)
-    n = size(X_test,1)
-    m_f = fstar(model,X_test,covf=false)
-    σ = hcat(logit.(m_f)...)
-    σ = [σ[i,:] for i in 1:n]
-    normsig = sum.(σ)
-    y = mod_soft_max.(σ,normsig)
-    if all_class
-            return y
-    end
-    pred = zeros(Int64,n)
-    value = zeros(Float64,n)
-    for i in 1:n
-        res = findmax(y[i]);
-        pred[i]=res[2];
-        value[i]=res[1]
-    end
-    # broadcast((x,pred,val)->begin ;end,y,pred,value)
-    return model.class_mapping[pred],value
-end
-
-function multiclasspredict(model::SparseMultiClass,X_test::Array{T,N},all_class::Bool=false)  where {T,N}
+function multiclasspredict(model::GPModel,X_test::Array{T,N},all_class::Bool=false)  where {T,N}
     n=size(X_test,1)
     m_f = fstar(model,X_test,covf=false)
     σ = hcat(logit.(m_f)...)
@@ -318,28 +296,7 @@ function multiclasspredict(model::SparseMultiClass,X_test::Array{T,N},all_class:
     return model.class_mapping[pred],value
 end
 
-
-
-function multiclasspredictproba(model::MultiClass,X_test::Array{T,N},covf::Bool=false) where {T,N}
-    n = size(X_test,1)
-    m_f,cov_f = fstar(model,X_test)
-    σ = hcat(logit.(m_f)...)
-    σ = [σ[i,:] for i in 1:n]
-    cov_f = hcat(cov_f...)
-    cov_f = [cov_f[i,:] for i in 1:n]
-    normsig = sum.(σ)
-    h = mod_soft_max.(σ,normsig)
-    hess_h = hessian_mod_soft_max.(σ,normsig)
-    m_predic = h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f)
-    if !covf
-        return [m[model.class_mapping] for m in m_predic]
-    end
-    grad_h = grad_mod_soft_max.(σ,normsig)
-    cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov-0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
-    return [m[model.class_mapping] for m in m_predic] ,[cov[model.class_mapping] for cov in cov_predic]
-end
-
-function multiclasspredictproba(model::SparseMultiClass,X_test::Array{T,N},covf::Bool=false) where {T,N}
+function multiclasspredictproba(model::GPModel,X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
     σ = hcat(logit.(m_f)...)
@@ -351,12 +308,15 @@ function multiclasspredictproba(model::SparseMultiClass,X_test::Array{T,N},covf:
     hess_h = hessian_mod_soft_max.(σ,normsig)
     m_predic = broadcast(m->max.(m,eps(T)),h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f))
     if !covf
-        return [m[model.class_mapping] for m in m_predic]
+        return DataFrame(hcat(m_predic...)',Symbol.(model.class_mapping))
+        # return [m[model.class_mapping] for m in m_predic]
     end
     grad_h = grad_mod_soft_max.(σ,normsig)
     cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov-0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
-    return [m[model.class_mapping] for m in m_predic] ,[cov[model.class_mapping] for cov in cov_predic]
+    return DataFrame(hcat(hcat(m_predic...)',hcat(cov_predic...)'),[Symbol.(string.(model.class_mapping).+"_μ"),Symbol.(string.(model.class_mapping).+"_σ")])
+    # return [m[model.class_mapping] for m in m_predic] ,[cov[model.class_mapping] for cov in cov_predic]
 end
+
 
 function expec_logit(f::Vector{T},μ::Vector{T},σ::Vector{T},result::Vector{T}) where {T}
     return result[:]=[sigma_max(f,c)*prod(pdf.(Normal.(μ,sqrt.(σ)),f)) for c in 1:length(f)]

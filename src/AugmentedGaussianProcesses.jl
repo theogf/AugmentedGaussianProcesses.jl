@@ -43,6 +43,7 @@ using .GPAnalysisTools
 # using .IO_model
 #General modules
 using GradDescent
+using DataFrames
 using Distributions
 using LinearAlgebra
 using StatsBase

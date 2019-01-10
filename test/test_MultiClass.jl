@@ -125,7 +125,7 @@ function callback(model,iter)
     push!(metrics,:ELBO,iter,AugmentedGaussianProcesses.ELBO(model))
     y_fgrid, =  model.predict(X_grid)
     global py_fgrid = model.predictproba(X_grid)
-    global cols = reshape(broadcast(x->RGB(x...),py_fgrid),N_grid,N_grid)
+    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
     global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false)
     p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=[1.5,2.5],t=:contour,colorbar=false)
