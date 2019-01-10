@@ -1,10 +1,11 @@
-using ForwardDiff
+# using ForwardDiff
+using Zygote
 using AugmentedGaussianProcesses
 using AugmentedGaussianProcesses.KernelModule
 using LinearAlgebra
 using Distributions
 
-N_data = 1000;N_test = 20
+N_data = 100;N_test = 20
 N_indpoints = 80; N_dim = 2
 noise = 2.0
 minx=-5.0; maxx=5.0
@@ -16,13 +17,17 @@ x_test = range(minx,stop=maxx,length=N_test)
 X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
 y = sign.(latent(X)+rand(Normal(0,noise),size(X,1)))
 y_test = sign.(latent(X_test))
+A = rand(N_data,N_data)
 
-function tracekernel(sigma::Array)
+
+function tracekernel(sigma)
      k= RBFKernel(sigma,dim=N_dim)
      K = kernelmatrix(X,k)
      tr(A*K)
 end
 
+tracekernel(3.0)
+tracekernel'(3.0)
 
 model = SparseXGPC(X,y,Autotuning=true,m=10,kernel=RBFKernel(ones(N_dim)))
 
@@ -36,6 +41,8 @@ function ADELBO(kernelparams_and_indpoints::AbstractArray)
     AugmentedGaussianProcesses.computeMatrices!(model)
     AugmentedGaussianProcesses.ELBO(model)
 end
+
+tracekernel'(3.0)
 grads = ForwardDiff.gradient(ADELBO,vcat(getlengthscales(model.kernel),getvariance(model.kernel),model.inducingPoints[:]))
 vcat(getlengthscales(model.kernel),getvariance(model.kernel),model.inducingPoints[:])
 # end
