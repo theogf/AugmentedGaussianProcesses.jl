@@ -82,7 +82,7 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for Multiclass GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::MultiClass,X_test::AbstractArray;covf::Bool=true)
+function fstar(model::MultiClassGPModel,X_test::AbstractArray;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = broadcast((mu,invK)->invK*mu,model.μ,model.invK)
     end
@@ -90,9 +90,9 @@ function fstar(model::MultiClass,X_test::AbstractArray;covf::Bool=true)
       model.DownMatrixForPrediction = broadcast((Σ,invK)->invK*(I-Σ*invK),model.Σ,model.invK)
     end
     if model.IndependentGPs
-        k_star = [kernelmatrix(X_test,model.X,model.kernel[i]) for i in 1:model.K]
+        k_star = [KernelModule.kernelmatrix(X_test,model.X,model.kernel[i]) for i in 1:model.K]
     else
-        k_star = [kernelmatrix(X_test,model.X,model.kernel[1])]
+        k_star = [KernelModule.kernelmatrix(X_test,model.X,model.kernel[1])]
     end
     mean_fstar = broadcast((k_s,m)->k_s*m,k_star,model.TopMatrixForPrediction)
     if !covf
@@ -276,16 +276,18 @@ function studentpredictprobamc(model::GPModel,X_test::AbstractArray{T};nSamples=
     return mean_pred,var_pred
 end
 
-function multiclasspredict(model::GPModel,X_test::AbstractArray{T},all_class::Bool=false) where {T<:Real}
-    n=size(X_test,1)
+function multiclasspredict(model::MultiClassGPModel,X_test::AbstractArray{T},likelihood::Bool=false) where {T<:Real}
+    n=size(X_test,1);
     m_f = fstar(model,X_test,covf=false)
-    σ = hcat(logit.(m_f)...)
-    σ = [σ[i,:] for i in 1:n]
-    normsig = sum.(σ)
-    y = mod_soft_max.(σ,normsig)
-    if all_class
-        return y
+    if !likelihood
+        return [model.class_mapping[argmax([mu[i] for mu in m_f])] for i in 1:n]
     end
+    return compute_proba(model,m_f)
+end
+
+function compute_proba(model::Union{MultiClass,SparseMultiClass},m_f::Vector{Vector{T}}) where T
+    σ = hcat(logit.(m_f)...); σ = [σ[i,:] for i in 1:n]
+    normsig = sum.(σ); y = mod_soft_max.(σ,normsig)
     pred = zeros(Int64,n)
     value = zeros(T,n)
     for i in 1:n
@@ -296,7 +298,20 @@ function multiclasspredict(model::GPModel,X_test::AbstractArray{T},all_class::Bo
     return model.class_mapping[pred],value
 end
 
-function multiclasspredictproba(model::GPModel,X_test::Array{T,N},covf::Bool=false) where {T,N}
+function compute_proba(model::SoftMaxMultiClass,m_f::Vector{Vector{T}}) where T
+    n = length(m_f[1])
+    m_f = hcat(m_f...); y = [softmax(m_f[i,:]) for i in 1:n]
+    pred = zeros(Int64,n)
+    value = zeros(T,n)
+    for i in 1:n
+        res = findmax(y[i]);
+        pred[i]=res[2];
+        value[i]=res[1]
+    end
+    return model.class_mapping[pred],value
+end
+
+function multiclasspredictproba(model::Union{MultiClass,SparseMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
     σ = hcat(logit.(m_f)...)
@@ -317,33 +332,23 @@ function multiclasspredictproba(model::GPModel,X_test::Array{T,N},covf::Bool=fal
     # return [m[model.class_mapping] for m in m_predic] ,[cov[model.class_mapping] for cov in cov_predic]
 end
 
-
-function expec_logit(f::Vector{T},μ::Vector{T},σ::Vector{T},result::Vector{T}) where {T}
-    return result[:]=[sigma_max(f,c)*prod(pdf.(Normal.(μ,sqrt.(σ)),f)) for c in 1:length(f)]
-end
-
-function expecsquare_logit(f::Vector{T},μ::Vector{T},σ::Vector{T},result::Vector{T}) where {T}
-    return result[:]=[sigma_max(f,c)^2*prod(pdf.(Normal.(μ,sqrt.(σ)),f)) for c in 1:length(f)]
-end
-
-
-function multiclasspredictproba_cubature(model::SparseMultiClass,X_test::Array{T,N},covf::Bool=false) where {T,N}
+function multiclasspredictproba(model::SoftMaxMultiClass,X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
-    m_predic = [zeros(T,model.K) for _ in 1:n]
     m_f = hcat(m_f...)
     m_f = [m_f[i,:] for i in 1:n]
     cov_f = hcat(cov_f...)
     cov_f = [cov_f[i,:] for i in 1:n]
-    m_predic .= broadcast((μ,σ)->hcubature(model.K,(x,r)->expec_logit(x,μ,σ,r),μ.-10.0.*sqrt.(σ),μ.+10.0.*sqrt.(σ),abstol=1e-4)[1],m_f,cov_f)
-    if !covf
-        return m_predic
+    m_predic = zeros(n,model.K)
+    nSamples = 200
+    for i in 1:n
+        p = MvNormal(m_f[i],sqrt.(cov_f[i]))
+        for _ in 1:nSamples
+            m_predic[i,:] += softmax(rand(p))/nSamples
+        end
     end
-    cov_predic = [zeros(T,model.K) for _ in 1:n]
-    cov_predic .= broadcast((μ,σ,μ_pred)->hcubature(model.K,(x,r)->expecsquare_logit(x,μ,σ,r),μ.-10.0.*sqrt.(σ),μ.+10.0.*sqrt.(σ),abstol=1e-4)[1] .- μ_pred.^2,m_f,cov_f,m_predic)
-    return m_predic,cov_predic
+    return DataFrame(m_predic,Symbol.(model.class_mapping))
 end
-
 
 function multiclasspredictprobamcmc(model,X_test::AbstractArray{T,N},NSamples=100) where {T,N}
     n = size(X_test,1)

@@ -61,10 +61,6 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
     if isa(model,GibbsSamplerGPC) #Compute the mean and covariance of the samples
         model.μ = squeeze(mean(hcat(model.estimate...),2),2)
         model.Σ = cov(hcat(model.estimate...),2)
-    elseif isa(model,MultiClass) || isa(model,SparseMultiClass)
-        model.Σ = -inv.(model.η_2).*0.5
-    elseif !isa(model,BatchGPRegression)
-        model.Σ = -inv(model.η_2)*0.5;
     end
     model.Trained = true
 end
@@ -88,7 +84,7 @@ end
 "Compute of kernel matrices for the full batch GPs"
 function computeMatrices!(model::FullBatchModel{T}) where T
     if model.HyperParametersUpdated
-        model.Knn = Symmetric(kernelmatrix(model.X,model.kernel) + Diagonal{T}((getvalue(model.noise)+getvariance(model.kernel)*jittering)*I,model.nFeatures))
+        model.Knn = Symmetric(kernelmatrix(model.X,model.kernel) + getvariance(model.kernel)*convert(T,Jittering())*I)
         model.invK = inv(model.Knn)
         model.HyperParametersUpdated = false
     end
@@ -112,20 +108,20 @@ end
 
 "Computate of kernel matrices for the linear model"
 function computeMatrices!(model::LinearModel{T}) where T
-    if model.HyperParametersUpdated
+    if model.HyperParametersUpdated #TODO
         model.invΣ = Matrix{T}(I/getvalue(model.noise),model.nFeatures,model.nFeatures)
         model.HyperParametersUpdated = false
     end
 end
 
 "Compute of kernel matrices for the fullbatch multiclass GPs"
-function computeMatrices!(model::MultiClass{T}) where T
+function computeMatrices!(model::MultiClassGPModel{T}) where T
     if model.HyperParametersUpdated
         if model.IndependentGPs
-            model.Knn[model.KIndices] .= [Symmetric(kernelmatrix(model.X,model.kernel[i]) + convert(T,Jittering())*I) for i in model.KIndices]
+            model.Knn[model.KIndices] .= [Symmetric(KernelModule.kernelmatrix(model.X,model.kernel[i]) + convert(T,Jittering())*I) for i in model.KIndices]
             model.invK[model.KIndices] .= inv.(model.Knn)
         else
-            model.Knn .= [Symmetric(kernelmatrix(model.X,model.kernel[1]) + convert(T,Jittering())*I)]
+            model.Knn .= [Symmetric(KernelModule.kernelmatrix(model.X,model.kernel[1]) + convert(T,Jittering())*I)]
             model.invK .= inv.(model.Knn)
         end
         model.HyperParametersUpdated = false

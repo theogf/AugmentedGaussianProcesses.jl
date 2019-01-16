@@ -115,7 +115,7 @@ Computate all necessary kernel matrices
 """
 function computeMatrices!(model::OnlineGPModel)
     if model.HyperParametersUpdated || model.indpoints_updated
-        model.Kmm = Symmetric(kernelmatrix(model.kmeansalg.centers,model.kernel)+Diagonal{Float64}(model.noise*I,model.m))
+        model.Kmm = Symmetric(kernelmatrix(model.kmeansalg.centers,model.kernel)+getvariance(model.kernel)*convert(T,Jittering())*I)
         model.invKmm = inv(model.Kmm)
         Knm = kernelmatrix(model.X[model.MBIndices,:],model.kmeansalg.centers,model.kernel)
         model.κ = Knm/model.Kmm
@@ -159,7 +159,7 @@ function MCInit!(model::OnlineGPModel)
         model.g = zeros(model.m*(model.m+1));
         model.h = 0;
         #Make a MC estimation using τ samples
-        for i in 1:model.τ
+        for i in 1:model.τ #TODO Correct all this!
             model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
             computeMatrices!(model)
             # local_updates!(model)

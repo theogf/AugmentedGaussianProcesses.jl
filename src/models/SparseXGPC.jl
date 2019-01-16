@@ -9,7 +9,6 @@ Create a GP model taking the  training data and labels X & y as required argumen
 - κ_s::Real
 - τ_s::Real
 - kernel::Kernel : Kernel for the model
-- noise::Float64 : noise added in the model
 - m::Integer : Number of inducing points
 - ϵ::Float64 : minimum value for convergence
 - SmoothingWindow::Integer : Window size for averaging convergence in the stochastic case
@@ -28,7 +27,7 @@ mutable struct SparseXGPC{T<:Real} <: SparseModel{T}
     function SparseXGPC(X::AbstractArray{T},y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::Real=1.0,τ_s::Integer=100,
-                                    kernel=0,noise::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=1,
+                                    kernel=0,m::Integer=0,AutotuningFrequency::Integer=1,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
                                     verbose::Integer=0) where {T<:Real}
             this = new{T}();

@@ -95,7 +95,13 @@ function ELBO(model::SparseMultiClass)
     return -ELBO_v
 end
 
-
+"""Return the negative ELBO for the Sparse MultiClass model"""
+function ELBO(model::SoftMaxMultiClass)
+    ELBO_v = 0.0
+    ELBO_v += ExpecLogLikelihood(model)
+    ELBO_v -= GaussianKL(model)
+    return -ELBO_v
+end
 
 function ExpecLogLikelihood(model::MultiClass)
     tot = 0.0
@@ -111,11 +117,43 @@ function ExpecLogLikelihood(model::SparseMultiClass)
     tot += 0.5*sum(broadcast((y,κ,μ,γ,θ,c)->sum((κ*μ).*Array(y[model.MBIndices]-γ)-θ.*(c.^2)),model.Y[model.KIndices],model.κ,model.μ[model.KIndices],model.γ,model.θ,model.c))
 end
 
+function ExpecLogLikelihood(model::SoftMaxMultiClass)
+    tot = 0.0
+    nSamples = 200
+    for i in 1:model.nSamples
+        p = MvNormal([model.μ[k][i] for k in 1:model.K],[sqrt(model.Σ[k][i,i]) for k in 1:model.K])
+        class = model.ind_mapping[model.y[i]]
+        for _ in 1:nSamples
+            tot += log(softmax(rand(p),class))/nSamples
+        end
+    end
+    return tot
+end
+
 "Compute the variational updates for the full GP MultiClass"
 function variational_updates!(model::SoftMaxMultiClass,iter::Integer)
+    if iter == 1
+        # model.L = [cholesky(model.Knn[1]).L for _ in 1:model.K]
+        # model.Σ .= copy.(model.Knn.+1e-3I)
+        # println("Init check")
+    end
     g_μ, g_Σ = Gradient_ELBO(model)
-    model.optimizer
+    k=1
+    # display(update(model.Σ_optimizer[k],g_Σ[k]))
+    display(g_Σ[k]*(model.L[k]+model.L[k]'))
+    # println(norm(g_Σ[k]*(model.L[k]+model.L[k]')-(model.L[k]+model.L[k]'*g_Σ[k])))
+    for k in 1:model.K
+        model.μ[k] .+= update(model.μ_optimizer[k],g_μ[k])
+        model.Σ[k] = Symmetric(model.Σ[k]+update(model.Σ_optimizer[k],g_Σ[k]))
+        # model.L[k] = LowerTriangular(model.L[k]+update(model.Σ_optimizer[k],g_Σ[k]*(model.L[k]+model.L[k]')))
+        model.L[k] = cholesky(model.Σ[k]).L
+        # model.Σ[k] = Symmetric(model.L[k]*model.L[k]')
+    end
+    # println([model.μ[1][1],model.μ[2][1],model.μ[3][1]])
 end
+
+3
+###
 
 function Gradient_ELBO(model::SoftMaxMultiClass)
     nSamples = 200
@@ -125,10 +163,10 @@ function Gradient_ELBO(model::SoftMaxMultiClass)
         p = MvNormal([model.μ[k][i] for k in 1:model.K],[sqrt(model.Σ[k][i,i]) for k in 1:model.K])
         grad_μ = zeros(model.K)
         grad_Σ = zeros(model.K)
-        class = class_mapping(model.y[i])
+        class = model.ind_mapping[model.y[i]]
         for _ in 1:nSamples
-            samp = rand(p)
-            s = softmax(samp,class)
+            samp = softmax(rand(p))
+            s = samp[class]
             g_μ = grad_softmax(samp,class)
             grad_μ += g_μ./s
             grad_Σ += diag(hessian_softmax(samp,class))./s.-g_μ./s^2
@@ -139,8 +177,8 @@ function Gradient_ELBO(model::SoftMaxMultiClass)
         end
     end
     for k in 1:model.K
-        full_grad_μ[k] += model.invK[k]*model.μ[k]
-        full_grad_Σ[k] += 0.5*(-model.invK[k] + inv(model.Σ[k]))
+        full_grad_μ[k] += -model.Knn[k]*model.μ[k]
+        full_grad_Σ[k] += 0.5*(inv(model.Σ[k])-model.invK[k])
     end
     return full_grad_μ,full_grad_Σ
 end
@@ -161,6 +199,7 @@ function grad_softmax(s::AbstractVector{<:Real},i::Integer)
 end
 
 function hessian_softmax(s::AbstractVector{<:Real},i::Integer)
+    m = length(s)
     hessian = zeros(m,m)
     for j in 1:m
         for k in 1:m
@@ -170,14 +209,12 @@ function hessian_softmax(s::AbstractVector{<:Real},i::Integer)
     return hessian
 end
 
-
-
 function δ(i::Integer,j::Integer)
     i == j ? 1.0 : 0.0
 end
 
 """Return KL Divergence for MvNormal for the MultiClass Model"""
-function GaussianKL(model::MultiClass)
+function GaussianKL(model::MultiClassGPModel)
     if model.IndependentGPs
         return sum(0.5*(sum(model.invK[i].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.nSamples-logdet(model.Σ[i])-logdet(model.invK[i])) for i in model.KIndices)
     else

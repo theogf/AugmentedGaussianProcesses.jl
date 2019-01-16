@@ -12,13 +12,13 @@ mutable struct SparseBSVM{T<:Real} <: SparseModel{T}
     function SparseBSVM(X::AbstractArray{T},y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::T=1.0,τ_s::Integer=100,
-                                    kernel=0,noise::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=2,
+                                    kernel=0,m::Integer=0,AutotuningFrequency::Integer=2,
                                     ϵ::T=1e-5,μ_init::Vector{T}=ones(T,1),SmoothingWindow::Integer=10,
                                     verbose::Integer=0) where {T<:Real}
             this = new{T}()
             this.ModelType = BSVM
             this.Name = "Sparse Nonlinear Bayesian SVM"
-            initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency);
+            initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency);
             initFunctions!(this);
             if Stochastic
                 initStochastic!(this,AdaptiveLearningRate,batchsize,κ_s,τ_s,SmoothingWindow);

@@ -8,11 +8,13 @@ using PyCall
 using ProfileView, Profile, Traceur
 using ValueHistories
 using Plots
+using GradDescent
+using LinearAlgebra
 pyplot()
 seed!(42)
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
-N_data = 500
+N_data = 30
 N_class = 3
 N_test = 50
 N_grid = 50
@@ -95,7 +97,20 @@ X_grid = hcat([j for i in x_grid, j in x_grid][:],[i for i in x_grid, j in x_gri
 # y_test= X_test[:,1]; X_test=X_test[:,2:end]
 # println("$(now()): Artificial Characters data loaded")
 
-
+metrics = MVHistory()
+anim  = Animation()
+function callback(model,iter)
+    y_fgrid =  model.predict(X_grid)
+    global py_fgrid = model.predictproba(X_grid)
+    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))...) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
+    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false)
+    p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=[1.5,2.5],t=:contour,colorbar=false)
+    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="")
+    # p1=plot!(p1,model.inducingPoints[1][:,1],model.inducingPoints[1][:,2],color=:black,t=:scatter,lab="")
+    frame(anim,p1)
+    display(p1)
+end
 
 ##Which algorithm are tested
 fullm = !true
@@ -110,22 +125,22 @@ function initial_lengthscale(X)
 end
  l = sqrt(initial_lengthscale(X))
 
-kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim)
+kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim,variance=10.0)
 # kernel = AugmentedGaussianProcesses.RBFKernel(l)
 
 
-fmodel = AugmentedGaussianProcesses.SoftMaxMultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=2,IndependentGPs=true)
-# fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(fmodel,X_test=X_test,y_test=y_test)
-# full_model.AutotuningFrequency=1
-t_full = @elapsed fmodel.train(iterations=50,callback=callback)
+model = AugmentedGaussianProcesses.SoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.01,Autotuning=false,AutotuningFrequency=2,IndependentGPs=true)
+# fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(model,X_test=X_test,y_test=y_test)
+# model.AutotuningFrequency=1
+t_full = @elapsed model.train(iterations=10)#,callback=callback)
 
-global y_full,sig_full = fmodel.predict(X_test)
-global y_fall = AugmentedGaussianProcesses.multiclasspredict(fmodel,X_test,true)
-global y_ftrain, = fmodel.predict(X)
-global y_fgrid, = fmodel.predict(X_grid)
+global y_full,sig_full = model.predict(X_test)
+global y_fall = AugmentedGaussianProcesses.multiclasspredict(model,X_test,true)
+global y_ftrain = model.predict(X)
+global y_fgrid = model.predict(X_grid)
 println("Full predictions computed")
 full_score = 0
-for (i,pred) in enumerate(y_full)
+for (i,pred) in enumerate(y_fall[1])
     if pred == y_test[i]
         global full_score += 1
     end

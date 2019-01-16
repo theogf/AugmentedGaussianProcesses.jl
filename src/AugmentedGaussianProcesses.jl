@@ -99,7 +99,7 @@ include("models/BatchStudentT.jl")
 include("models/SparseStudentT.jl")
 include("models/MultiClass.jl")
 include("models/SparseMultiClass.jl")
-include("models/SoftmaxMultiClass.jl")
+include("models/SoftMaxMultiClass.jl")
 #Functions
 include("OnlineTraining.jl")
 include("OfflineTraining.jl")

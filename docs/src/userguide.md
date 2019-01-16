@@ -41,7 +41,6 @@ Common parameters :
 - `Autotuning::Bool=true` : Are the hyperparameters trained
 - `nEpochs::Integer=100` : How many iteration steps are used (can also be set at training time)
 - kernel::Kernel : Kernel for the model
-- `noise::Real=1e-3` : noise added in the model (is also optimized)
 - `ϵ::Real=1e-5` : minimum value for convergence
 - `SmoothingWindow::Integer=5` : Window size for averaging convergence in the stochastic case
 - `verbose::Integer=0` : How much information is displayed (from 0 to 3)
