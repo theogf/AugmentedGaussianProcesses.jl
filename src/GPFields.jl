@@ -41,7 +41,7 @@ the convergence threshold `ϵ`, the initial number of iterations `nEpochs`,
 the `verboseLevel` (from 0 to 3), enabling `Autotuning`, the `AutotuningFrequency` and
 what `optimizer` to use
 """
-function initCommon!(model::GPModel{T},X::Array{T,N},y::Vector{T2},ϵ::Real,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer) where {N,T<:Real,T2<:Real}
+function initCommon!(model::GPModel{T},X::Array{T,N},y::Vector{T2},ϵ::Real,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer) where {N,T<:Real,T2<:Real}
     @assert (size(y,1)==size(X,1)) "There is a dimension problem with the data size(y)!=size(X)";
     if N == 1
         model.X = reshape(X,length(X),1)
@@ -53,7 +53,6 @@ function initCommon!(model::GPModel{T},X::Array{T,N},y::Vector{T2},ϵ::Real,nEpo
     @assert nEpochs > 0 "nEpochs should be positive"; model.nEpochs = nEpochs;
     @assert (verbose > -1 && verbose < 4) "verbose should be in {0,1,2,3}, here value is $verbose"; model.verbose = verbose;
     model.Autotuning = Autotuning; model.AutotuningFrequency = AutotuningFrequency;
-    # model.opt_type = optimizer;
     model.nSamples = size(X,1); #model.nSamplesUsed = model.nSamples;
     model.nDim= size(X,2);
     model.Trained = false; model.Stochastic = false;

@@ -3,7 +3,6 @@ Create a GP model taking the  training data and labels X & y as required argumen
 - Stochastic::Bool : Is the method trained via mini batches
 - AdaptiveLearningRate::Bool : Is the learning rate adapted via estimation of the gradient variance? see "Adaptive Learning Rate for Stochastic Variational inference" https://pdfs.semanticscholar.org/9903/e08557f328d58e4ba7fce68faee380d30b12.pdf, if not use simple exponential decay with parameters κ_s and τ_s seen under (1/(iter+τ_s))^-κ_s
 - Autotuning::Bool : Are the hyperparameters trained as well
-- optimizer::Optimizer : Type of optimizer for the hyperparameters
 - OptimizeIndPoints::Bool : Is the location of inducing points optimized
 - nEpochs::Integer : How many iteration steps
 - batchsize::Integer : number of samples per minibatches
@@ -27,7 +26,7 @@ mutable struct SparseXGPC{T<:Real} <: SparseModel{T}
     θ::Vector{T}
     "SparseXGPC Constructor"
     function SparseXGPC(X::AbstractArray{T},y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
-                                    Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false,
+                                    Autotuning::Bool=false,OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::Real=1.0,τ_s::Integer=100,
                                     kernel=0,noise::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=1,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
@@ -35,7 +34,7 @@ mutable struct SparseXGPC{T<:Real} <: SparseModel{T}
             this = new{T}();
             this.ModelType = XGPC;
             this.Name = "Sparse Gaussian Process Classifier with Logistic Likelihood";
-            initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
+            initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency);
             initFunctions!(this);
             if Stochastic
                 initStochastic!(this,AdaptiveLearningRate,batchsize,κ_s,τ_s,SmoothingWindow);

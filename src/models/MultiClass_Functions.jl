@@ -111,7 +111,13 @@ function ExpecLogLikelihood(model::SparseMultiClass)
     tot += 0.5*sum(broadcast((y,κ,μ,γ,θ,c)->sum((κ*μ).*Array(y[model.MBIndices]-γ)-θ.*(c.^2)),model.Y[model.KIndices],model.κ,model.μ[model.KIndices],model.γ,model.θ,model.c))
 end
 
-function Gradient_ELBO(model::MultiClass)
+"Compute the variational updates for the full GP MultiClass"
+function variational_updates!(model::SoftMaxMultiClass,iter::Integer)
+    g_μ, g_Σ = Gradient_ELBO(model)
+    model.optimizer
+end
+
+function Gradient_ELBO(model::SoftMaxMultiClass)
     nSamples = 200
     full_grad_μ = [zeros(model.nFeatures) for _ in 1:model.K]
     full_grad_Σ = [zeros(model.nFeatures,model.nFeatures) for _ in 1:model.K]
@@ -122,8 +128,10 @@ function Gradient_ELBO(model::MultiClass)
         class = class_mapping(model.y[i])
         for _ in 1:nSamples
             samp = rand(p)
-            grad_μ += grad_softmax(samp,class)
-            grad_Σ += diag(hessian_softmax(samp,class))
+            s = softmax(samp,class)
+            g_μ = grad_softmax(samp,class)
+            grad_μ += g_μ./s
+            grad_Σ += diag(hessian_softmax(samp,class))./s.-g_μ./s^2
         end
         for k in 1:model.K
             full_grad_μ[k][i] = grad_μ[k]/nSamples
@@ -132,7 +140,7 @@ function Gradient_ELBO(model::MultiClass)
     end
     for k in 1:model.K
         full_grad_μ[k] += model.invK[k]*model.μ[k]
-        full_grad_Σ[k] += 0.5*(model.invK[k] - inv(model.Σ[k]))
+        full_grad_Σ[k] += 0.5*(-model.invK[k] + inv(model.Σ[k]))
     end
     return full_grad_μ,full_grad_Σ
 end

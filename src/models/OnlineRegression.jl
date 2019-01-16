@@ -10,7 +10,7 @@ mutable struct OnlineGPRegression{T<:Real} <: OnlineGPModel{T}
     @onlinefields
     noise::T
     function OnlineGPRegression(X::AbstractArray{T},y::AbstractArray;kmeansalg::KMeansAlg=StreamOnline(),Sequential::Bool=false,AdaptiveLearningRate::Bool=false,
-                                    Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false,
+                                    Autotuning::Bool=false,OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::T=1.0,τ_s::Integer=100,
                                     kernel=0,noise::T=1e-3,m::Integer=0,AutotuningFrequency::Integer=2,
                                     ϵ::Real=1e-5,μ_init::Vector{T}=ones(T,1),SmoothingWindow::Integer=5,
@@ -18,7 +18,7 @@ mutable struct OnlineGPRegression{T<:Real} <: OnlineGPModel{T}
             this = new{T}();
             this.ModelType = Regression;
             this.Name = "Online Sparse Gaussian Process Regression";
-            initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
+            initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency);
             this.nSamplesUsed = batchsize
             initKernel!(this,kernel);
             initFunctions!(this);

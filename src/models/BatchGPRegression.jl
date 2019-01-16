@@ -10,7 +10,7 @@ mutable struct BatchGPRegression{T<:Real} <: FullBatchModel{T}
             this = new{T}()
             this.ModelType = Regression
             this.Name = "Non Sparse GP Regression with Gaussian Likelihood"
-            initCommon!(this,X,y,1e-16,nEpochs,verbose,Autotuning,1,Adam());
+            initCommon!(this,X,y,1e-16,nEpochs,verbose,Autotuning,1);
             initFunctions!(this);
             initKernel!(this,kernel);
             this.gnoise = noise

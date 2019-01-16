@@ -1,6 +1,6 @@
 """Basic displaying function"""
-function Base.show(io::IO,model::GPModel)
-    print(io,"$(model.Name){$(eltype(model))} model")
+function Base.show(io::IO,model::GPModel{T}) where T
+    print(io,"$(model.Name){$T} model")
 end
 
 def_atfrequency = 2

@@ -7,13 +7,13 @@ mutable struct BatchXGPC{T<:Real} <: FullBatchModel{T}
     c::Vector{T}
     θ::Vector{T}
     """BatchXGPC Constructor"""
-    function BatchXGPC(X::AbstractArray{T},y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 200,
+    function BatchXGPC(X::AbstractArray{T},y::AbstractArray;Autotuning::Bool=false,nEpochs::Integer = 200,
                                     kernel=0,AutotuningFrequency::Integer=1,
                                     ϵ::T=1e-5,μ_init::Vector{T}=ones(T,1),verbose::Integer=0) where {T<:Real}
             this = new{T}()
             this.ModelType = XGPC
             this.Name = "Non Sparse GP Classifier with Logistic Likelihood"
-            initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
+            initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency);
             initFunctions!(this);
             initKernel!(this,kernel);
             initGaussian!(this,μ_init);

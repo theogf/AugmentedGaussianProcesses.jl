@@ -7,13 +7,13 @@ mutable struct BatchBSVM{T<:Real} <: FullBatchModel{T}
     α::Vector{T}
     θ::Vector{T}
     """BatchBSVM Constructor"""
-    function BatchBSVM(X::AbstractArray{T},y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 100,
+    function BatchBSVM(X::AbstractArray{T},y::AbstractArray;Autotuning::Bool=false,nEpochs::Integer = 100,
                                     kernel=0,AutotuningFrequency::Integer=1,
                                     ϵ::T=T(1e-5),μ_init::Vector{T}=ones(T,1),verbose::Integer=0) where T
         this = new{T}()
         this.ModelType = BSVM;
         this.Name = "Non-Sparse GP Classifier with Bayesian SVM likelihood"
-        initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
+        initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency);
         initFunctions!(this)
         initKernel!(this,kernel)
         initGaussian!(this,μ_init)
