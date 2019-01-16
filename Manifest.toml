@@ -172,6 +172,14 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 [[Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
+[[MLKernels]]
+deps = ["LinearAlgebra", "SpecialFunctions", "Statistics", "Test"]
+git-tree-sha1 = "63ffae5f794c3dc2ff145ec38f577c9b7d3a7cce"
+repo-rev = "master"
+repo-url = "https://github.com/trthatcher/MLKernels.jl.git"
+uuid = "48eadcf2-8ff1-11e8-289d-f103432a0bb3"
+version = "0.4.0"
+
 [[Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"

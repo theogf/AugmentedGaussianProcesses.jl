@@ -3,7 +3,7 @@
 """
 struct RBFKernel{T<:Real,KT<:KernelType} <: Kernel{T,KT}
     fields::KernelFields{T,KT}
-    function RBFKernel{T,KT}(θ::Vector{T};variance::T=one(T),dim::Integer=0) where {T<:Real,KT<:KernelType}
+    function RBFKernel{T,KT}(θ::Vector{T};variance=one(T),dim::Integer=0) where {T<:Real,KT<:KernelType}
         if KT == ARDKernel
             if length(θ)==1 && dim ==0
                 error("You defined an ARD RBF kernel without precising the number of dimensions or giving a vector for the lengthscale                   Please set dim in your kernel initialization")
@@ -33,9 +33,9 @@ const SEKernel = RBFKernel
 
 function RBFKernel(θ::T1=1.0;variance::T2=one(T1),dim::Integer=0,ARD::Bool=false) where {T1<:Real,T2<:Real}
     if ARD
-        RBFKernel{floattype(T1,T2),ARDKernel}([θ],variance=variance,dim=dim)
+        RBFKernel{T1,ARDKernel}([θ],variance=variance,dim=dim)
     else
-        RBFKernel{floattype(T1,T2),IsoKernel}([θ],variance=variance)
+        RBFKernel{T1,IsoKernel}([θ],variance=variance)
     end
  end
 
@@ -45,7 +45,7 @@ end
 
 
 
-@inline rbfkernel(z::T, l::T) where {T<:Real} = exp(-0.5*z/(l^2))
+@inline rbfkernel(z::Real, l::Real) = exp(-0.5*z/(l^2))
 
 @inline rbfkernel(z::Real) = exp(-0.5*z)
 

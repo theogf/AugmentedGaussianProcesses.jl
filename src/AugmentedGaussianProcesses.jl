@@ -9,21 +9,21 @@ module AugmentedGaussianProcesses
 
 #Class arborescence
 
-abstract type GPModel end
+abstract type GPModel{T<:Real} end
 
-abstract type OnlineGPModel <: GPModel end
+abstract type OnlineGPModel{T<:Real} <: GPModel{T} end
 
-abstract type OfflineGPModel <: GPModel end
+abstract type OfflineGPModel{T<:Real} <: GPModel{T} end
 
-abstract type LinearModel <: OfflineGPModel end
+abstract type LinearModel{T<:Real} <: OfflineGPModel{T} end
 
-abstract type NonLinearModel <: OfflineGPModel end
+abstract type NonLinearModel{T<:Real} <: OfflineGPModel{T} end
 
-abstract type MultiClassGPModel <: OfflineGPModel end
+abstract type MultiClassGPModel{T<:Real} <: OfflineGPModel{T} end
 
-abstract type SparseModel <: NonLinearModel end
+abstract type SparseModel{T<:Real} <: NonLinearModel{T} end
 
-abstract type FullBatchModel <: NonLinearModel end
+abstract type FullBatchModel{T<:Real} <: NonLinearModel{T} end
 
 export GPModel, OnlineGPModel, OfflineGPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel, GPMOdelType
 
@@ -36,6 +36,7 @@ include("functions/GPAnalysisTools.jl")
 include("functions/IO_model.jl")
 #Custom modules
 using .KernelModule
+using MLKernels
 using .KMeansModule
 using .PGSampler
 using .PerturbativeCorrection

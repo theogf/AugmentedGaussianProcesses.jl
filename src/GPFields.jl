@@ -11,15 +11,15 @@ end
 
 @def commonfields begin
     #Data
-    X::Matrix #Feature vectors
+    X::AbstractMatrix{T} #Feature vectors
     y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
     ModelType::GPModelType; #Type of model
     Name::String #Name of the model
     nSamples::Int64 # Number of data points
     nDim::Int64
     nFeatures::Int64 # Number of features
-    ϵ::Float64  #Desired Precision on ||ELBO(t+1)-ELBO(t)||))
-    evol_conv::Vector{Float64} #Used for convergence estimation
+    ϵ::T  #Desired Precision on ||ELBO(t+1)-ELBO(t)||))
+    evol_conv::Vector{T} #Used for convergence estimation
     prev_params::Any
     nEpochs::Int64; #Maximum number of iterations
     verbose::Int64 #Level of printing information
@@ -41,7 +41,7 @@ the convergence threshold `ϵ`, the initial number of iterations `nEpochs`,
 the `verboseLevel` (from 0 to 3), enabling `Autotuning`, the `AutotuningFrequency` and
 what `optimizer` to use
 """
-function initCommon!(model::GPModel,X::Array{T,N},y::Vector{T2},ϵ::Float64,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer) where {T<:Real,T2<:Real,N}
+function initCommon!(model::GPModel{T},X::Array{T},y::Vector{T2},ϵ::T,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer) where {T<:Real,T2<:Real}
     @assert (size(y,1)==size(X,1)) "There is a dimension problem with the data size(y)!=size(X)";
     if N == 1
         model.X = reshape(X,length(X),1)
@@ -99,14 +99,14 @@ end
     Parameters for the kernel parameters, including the covariance matrix of the prior
 """
 @def kernelfields begin
-    kernel::Kernel #Kernels function used
+    kernel::KernelModule.Kernel #Kernels function used
     Knn::AbstractArray #Kernel matrix of the GP prior
     invK::AbstractArray #Inverse Kernel Matrix for the nonlinear case
 end
 """
 Function initializing the kernelfields
 """
-function initKernel!(model::GPModel,kernel::Kernel)
+function initKernel!(model::GPModel,kernel::KernelModule.Kernel)
     #Initialize parameters common to all models containing kernels and check for consistency
     if kernel == 0
       @warn "No kernel indicated, a rbf kernel function with lengthscale 1 is used"
@@ -120,14 +120,14 @@ end
 """
 @def sparsefields begin
     m::Int64 #Number of inducing points
-    inducingPoints::AbstractArray #Inducing points coordinates for the Big Data GP
+    inducingPoints::AbstractArray{T} #Inducing points coordinates for the Big Data GP
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
     optimizer::Optimizer #Optimizer for the inducing points
-    Kmm::AbstractArray #Kernel matrix
-    invKmm::AbstractArray #Inverse Kernel matrix of inducing points
-    Ktilde::AbstractArray #Diagonal of the covariance matrix between inducing points and generative points
-    κ::AbstractArray #Kmn*invKmm
-    Knm::AbstractArray
+    Kmm::AbstractArray{T} #Kernel matrix
+    invKmm::AbstractArray{T} #Inverse Kernel matrix of inducing points
+    Ktilde::AbstractArray{T} #Diagonal of the covariance matrix between inducing points and generative points
+    κ::AbstractArray{T} #Kmn*invKmm
+    Knm::AbstractArray{T}
 end
 """
 Function initializing the sparsefields parameters
@@ -149,11 +149,11 @@ function initSparse!(model::GPModel,m,optimizeIndPoints)
     if model.verbose>1
         println("Inducing points determined through KMeans algorithm")
     end
-    model.Kmm = Symmetric(Matrix{Float64}(undef,model.m,model.m)) #Kernel matrix
-    model.invKmm = Symmetric(Matrix{Float64}(undef,model.m,model.m)) #Inverse Kernel matrix of inducing points
-    model.Ktilde = Vector{Float64}(undef,model.m) #Diagonal of the covariance matrix between inducing points and generative points
-    model.κ = Matrix{Float64}(undef,model.nSamplesUsed,model.m) #Kmn*invKmm
-    model.Knm = Matrix{Float64}(undef,model.nSamplesUsed,model.m)
+    model.Kmm = Symmetric(Matrix{T}(undef,model.m,model.m)) #Kernel matrix
+    model.invKmm = Symmetric(Matrix{T}(undef,model.m,model.m)) #Inverse Kernel matrix of inducing points
+    model.Ktilde = Vector{T}(undef,model.m) #Diagonal of the covariance matrix between inducing points and generative points
+    model.κ = Matrix{T}(undef,model.nSamplesUsed,model.m) #Kmn*invKmm
+    model.Knm = Matrix{T}(undef,model.nSamplesUsed,model.m)
     # model.inducingPoints += rand(Normal(0,0.1),size(model.inducingPoints)...)
 end
 
@@ -162,15 +162,15 @@ end
 Parameters for the variational multivariate gaussian distribution
 """
 @def gaussianparametersfields begin
-    μ::Vector{Float64} # Mean for variational distribution
-    η_1::Vector{Float64}#Natural Parameter #1
-    Σ::Symmetric{Float64,Matrix{Float64}} # Covariance matrix of variational distribution
-    η_2::Symmetric{Float64,Matrix{Float64}} #Natural Parameter #2
+    μ::Vector{T} # Mean for variational distribution
+    η_1::Vector{T}#Natural Parameter #1
+    Σ::Symmetric{T,Matrix{T}} # Covariance matrix of variational distribution
+    η_2::Symmetric{T,Matrix{T}} #Natural Parameter #2
 end
 """
 Function for initialisation of the variational multivariate parameters
 """
-function initGaussian!(model::GPModel,μ_init::Vector{Float64})
+function initGaussian!(model::GPModel{T},μ_init::Vector{T}) where {T<:Real}
     #Initialize gaussian parameters and check for consistency
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
       if model.verbose > 2
@@ -180,7 +180,7 @@ function initGaussian!(model::GPModel,μ_init::Vector{Float64})
     else
       model.μ = μ_init
     end
-    model.Σ = Symmetric(Matrix{Float64}(I,model.nFeatures,model.nFeatures))
+    model.Σ = Symmetric(Matrix{T}(I,model.nFeatures,model.nFeatures))
     model.η_2 = -inv(model.Σ)*0.5
     model.η_1 = -2.0*model.η_2*model.μ
 end
@@ -199,7 +199,7 @@ end
 """
 Default function to estimate convergence, based on a window on the variational parameters
 """
-function DefaultConvergence(model::GPModel,iter::Integer)
+function DefaultConvergence(model::GPModel{T<:Real},iter::Integer)
     #Default convergence function
     if iter == 1
         if typeof(model) <: MultiClassGPModel
@@ -227,7 +227,7 @@ end
 """
     Appropriately assign the functions
 """
-function initFunctions!(model::GPModel)
+function initFunctions!(model::GPModel{T<:Real})
     #Initialize all functions according to the type of models
     model.train = function(;iterations::Integer=0,callback=0,convergence=DefaultConvergence)
         train!(model;iterations=iterations,callback=callback,Convergence=convergence)
@@ -281,38 +281,38 @@ end
 """
 @def linearfields begin
     Intercept::Bool
-    invΣ::Matrix{Float64} #Inverse Prior Matrix
+    invΣ::Matrix{T} #Inverse Prior Matrix
 end
 """
     Initialization of the linear model
 """
-function initLinear!(model::GPModel,Intercept::Bool)
+function initLinear!(model::GPModel{T<:Real},Intercept::Bool)
     model.Intercept = Intercept;
     model.nFeatures = size(model.X,2);
     if model.Intercept
       model.Intercept = true;
       model.nFeatures += 1
-      model.X = [ones(Float64,model.nSamples) model.X]
+      model.X = [ones(T,model.nSamples) model.X]
     end
 end
 """
     Parameters of the variational distribution of the augmented variable
 """
 @def latentfields begin
-    α::Vector{Float64}
-    θ::Vector{Float64}
+    α::Vector{T}
+    θ::Vector{T}
 end
 
 "Initialize the latent variables"
-function initLatentVariables!(model::FullBatchModel)
-    model.α = abs.(rand(model.nSamples))*2;
-    model.θ = zeros(Float64,model.nSamples)
+function initLatentVariables!(model::FullBatchModel{T<:Real})
+    model.α = abs.(T.(rand(model.nSamples)))*2;
+    model.θ = zeros(T,model.nSamples)
 end
 
 "Initialize the latent variables"
-function initLatentVariables!(model::SparseModel)
+function initLatentVariables!(model::SparseModel{T<:Real})
     model.α = abs.(rand(model.nSamplesUsed))*2;
-    model.θ = zeros(Float64,model.nSamplesUsed)
+    model.θ = zeros(T,model.nSamplesUsed)
 end
 
 """
@@ -325,16 +325,16 @@ end
     kmeansalg::KMeansAlg # Online KMean algorithm
     indpoints_updated::Bool#Trigger for matrix computations
     m::Int64 #Number of wanted inducing points
-    Kmm::Matrix{Float64} #Kernel matrix
-    invKmm::Matrix{Float64} #Inverse Kernel matrix of inducing points
-    Ktilde::Vector{Float64} #Diagonal of the covariance matrix between inducing points and generative points
-    κ::Matrix{Float64} #Kmn*invKmm
+    Kmm::Matrix{T} #Kernel matrix
+    invKmm::Matrix{T} #Inverse Kernel matrix of inducing points
+    Ktilde::Vector{T} #Diagonal of the covariance matrix between inducing points and generative points
+    κ::Matrix{T} #Kmn*invKmm
 end
 
 """
 Function for initiating online parameters
 """
-function initOnline!(model,alg::KMeansAlg,Sequential::Bool,m::Int64)
+function initOnline!(model::GPModel{T<:Real},alg::KMeansAlg,Sequential::Bool,m::Int64)
     model.m = m
     model.kmeansalg = alg
     model.Sequential = Sequential
@@ -367,17 +367,17 @@ end
 @def samplingfields begin
     burninsamples::Integer
     samplefrequency::Integer
-    samplehistory_α::Vector{Vector{Float64}}
-    samplehistory_f::Vector{Vector{Float64}}
-    estimate::Vector{Vector{Float64}}
+    samplehistory_α::Vector{Vector{T}}
+    samplehistory_f::Vector{Vector{T}}
+    estimate::Vector{Vector{T}}
     pgsampler::PolyaGammaDist
 end
 
-function initSampling!(model,burninsamples,samplefrequency)
+function initSampling!(model::GPModel{T<:Real},burninsamples::Integer,samplefrequency::Integer)
     model.burninsamples = burninsamples
     model.samplefrequency = samplefrequency
-    model.samplehistory_f = Vector{Vector{Float64}}()
-    model.samplehistory_α = Vector{Vector{Float64}}()
-    model.estimate = Vector{Vector{Float64}}()
+    model.samplehistory_f = Vector{Vector{T}}()
+    model.samplehistory_α = Vector{Vector{T}}()
+    model.estimate = Vector{Vector{T}}()
     model.pgsampler = PolyaGammaDist()
 end

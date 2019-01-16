@@ -4,9 +4,11 @@
 """
 @def multiclasskernelfields begin
     IndependentGPs::Bool
-    kernel::Vector{Kernel} #Kernels function used
-    Knn::Vector{Symmetric{Float64,Matrix{Float64}}} #Kernel matrix of the GP prior
-    invK::Vector{Symmetric{Float64,Matrix{Float64}}} #Inverse Kernel Matrix for the nonlinear case
+    kernel::Vector{KernelModule.Kernel} #Kernels function used
+    altkernel::Vector{MLKernels.Kernel}
+    altvar::Vector{T}
+    Knn::Vector{Symmetric{T,Matrix{T}}} #Kernel matrix of the GP prior
+    invK::Vector{Symmetric{T,Matrix{T}}} #Inverse Kernel Matrix for the nonlinear case
 end
 """
 Function initializing the kernelfields
@@ -15,13 +17,20 @@ function initMultiClassKernel!(model::GPModel,kernel,IndependentGPs)
     #Initialize parameters common to all models containing kernels and check for consistency
     if kernel == 0
       @warn "No kernel indicated, a rbf kernel function with lengthscale 1 is used"
-      kernel = RBFKernel(1.0)
+      kernel = KernelModule.RBFKernel(1.0)
     end
+    l = getlengthscales(kernel)
+    v = getvariance(kernel)
+    println(l)
     model.IndependentGPs = IndependentGPs
     if model.IndependentGPs
-        model.kernel = [deepcopy(kernel) for i in 1:model.K]
+        model.kernel = [deepcopy(kernel) for _ in 1:model.K]
+        model.altkernel = [MLKernels.SquaredExponentialKernel(1.0./l.^2) for _ in 1:model.K]
+        model.altvar = [v for _ in 1:model.K]
     else
         model.kernel = [deepcopy(kernel)]
+        model.altkernel = [SquaredExponentialKernel(1.0./sqrt.(l))]
+        model.altvar = [v]
     end
     model.nFeatures = model.nSamples
 end
@@ -35,20 +44,20 @@ Parameters for the multiclass version of the classifier based of softmax
     K::Int64 #Number of classes
     KStochastic::Bool #Stochasticity in the number of classes
     nClassesUsed::Int64 #Size of class subset
-    KStochCoeff::Float64 #Scaling factor for updates
+    KStochCoeff::T #Scaling factor for updates
     KIndices::Vector{Int64} #Indices of class subset
     K_map::Vector{Any} #Mapping from the subset of samples to the subset of classes
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
-    μ::Vector{Vector{Float64}} #Mean for each class
-    η_1::Vector{Vector{Float64}} #Natural parameter #1 for each class
-    Σ::Vector{Symmetric{Float64,Matrix{Float64}}} #Covariance matrix for each class
-    η_2::Vector{Symmetric{Float64,Matrix{Float64}}} #Natural parameter #2 for each class
-    c::Vector{Vector{Float64}} #Sqrt of the expectation of f^2
-    α::Vector{Float64} #Gamma shape parameters
-    β::Vector{Float64} #Gamma rate parameters
-    θ::Vector{Vector{Float64}} #Expectations of PG
-    γ::Vector{Vector{Float64}} #Poisson rate parameters
+    μ::Vector{Vector{T}} #Mean for each class
+    η_1::Vector{Vector{T}} #Natural parameter #1 for each class
+    Σ::Vector{Symmetric{T,Matrix{T}}} #Covariance matrix for each class
+    η_2::Vector{Symmetric{T,Matrix{T}}} #Natural parameter #2 for each class
+    c::Vector{Vector{T}} #Sqrt of the expectation of f^2
+    α::Vector{T} #Gamma shape parameters
+    β::Vector{T} #Gamma rate parameters
+    θ::Vector{Vector{T}} #Expectations of PG
+    γ::Vector{Vector{T}} #Poisson rate parameters
 end
 
 """
@@ -74,7 +83,7 @@ end
 """
     Initialise the parameters of the multiclass model
 """
-function initMultiClass!(model,Y,y_class,y_mapping,ind_mapping,KStochastic,nClassesUsed)
+function initMultiClass!(model::MultiClassGPModel{T},Y,y_class,y_mapping,ind_mapping,KStochastic,nClassesUsed) where T
     model.K = length(y_mapping)
     model.Y = Y
     model.KStochastic = KStochastic
@@ -97,40 +106,40 @@ function initMultiClass!(model,Y,y_class,y_mapping,ind_mapping,KStochastic,nClas
 end
 
 
-function initMultiClassVariables!(model,μ_init)
+function initMultiClassVariables!(model::MultiClassGPModel{T},μ_init) where T
     if µ_init == [0.0] || length(µ_init) != model.nFeatures
-      model.μ = [zeros(model.nFeatures) for _ in 1:model.K]
+      model.μ = [zeros(T,model.nFeatures) for _ in 1:model.K]
     else
       model.μ = [μ_init for _ in 1:model.K]
     end
-    model.Σ = [Symmetric(Matrix{Float64}(I,model.nFeatures,model.nFeatures)) for _ in 1:model.K]
+    model.Σ = [Symmetric(Matrix{T}(I,model.nFeatures,model.nFeatures)) for _ in 1:model.K]
     model.η_2 = -inv.(model.Σ)*0.5
     model.η_1 = -2.0*model.η_2.*model.μ
     if model.Stochastic
-        model.α = model.K*ones(model.nSamples)
-        model.β = model.K*ones(model.nSamplesUsed)
-        model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:model.K]
-        model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.K]
-        model.c = [ones(Float64,model.nSamplesUsed) for i in 1:model.K]
+        model.α = model.K*ones(T,model.nSamples)
+        model.β = model.K*ones(T,model.nSamplesUsed)
+        model.θ = [abs.(T.(rand(model.nSamplesUsed)))*2 for i in 1:model.K]
+        model.γ = [abs.(T.(rand(model.nSamplesUsed))) for i in 1:model.K]
+        model.c = [ones(T,model.nSamplesUsed) for i in 1:model.K]
     else
-        model.α = model.K*ones(model.nSamples)
-        model.β = model.K*ones(model.nSamples)
-        model.θ = [abs.(rand(model.nSamples))*2 for i in 1:(model.nClassesUsed)]
-        model.γ = [abs.(rand(model.nSamples)) for i in 1:model.nClassesUsed]
-        model.c = [ones(Float64,model.nSamples) for i in 1:model.nClassesUsed]
+        model.α = model.K*ones(T,model.nSamples)
+        model.β = model.K*ones(T,model.nSamples)
+        model.θ = [abs.(T.(rand(model.nSamples)))*2 for i in 1:(model.nClassesUsed)]
+        model.γ = [abs.(T.(rand(model.nSamples))) for i in 1:model.nClassesUsed]
+        model.c = [ones(T,model.nSamples) for i in 1:model.nClassesUsed]
     end
 end
 
 "Reinitialize vector size after MCInitialization"
-function reinit_variational_parameters!(model)
-        model.α = model.K*ones(model.nSamples)
-        model.β = model.K*ones(model.nSamplesUsed)
-        model.θ = [abs.(rand(model.nSamplesUsed))*2 for i in 1:(model.nClassesUsed)]
-        model.γ = [abs.(rand(model.nSamplesUsed)) for i in 1:model.nClassesUsed]
-        model.c = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
-        model.Ktilde = [ones(Float64,model.nSamplesUsed) for i in 1:model.nClassesUsed]
-        model.κ = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.nClassesUsed]
-        model.Knm = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.nClassesUsed]
+function reinit_variational_parameters!(model::MultiClassGPModel{T}) where T
+        model.α = model.K*ones(T,model.nSamples)
+        model.β = model.K*ones(T,model.nSamplesUsed)
+        model.θ = [abs.(T.(rand(model.nSamplesUsed)))*2 for i in 1:(model.nClassesUsed)]
+        model.γ = [abs.(T.(rand(model.nSamplesUsed))) for i in 1:model.nClassesUsed]
+        model.c = [ones(T,model.nSamplesUsed) for i in 1:model.nClassesUsed]
+        model.Ktilde = [ones(T,model.nSamplesUsed) for i in 1:model.nClassesUsed]
+        model.κ = [Matrix{T}(undef,model.nSamplesUsed,model.m) for i in 1:model.nClassesUsed]
+        model.Knm = [Matrix{T}(undef,model.nSamplesUsed,model.m) for i in 1:model.nClassesUsed]
 end
 
 """
@@ -138,20 +147,20 @@ end
 """
 @def multiclass_sparsefields begin
     m::Int64 #Number of inducing points
-    inducingPoints::Vector{Matrix{Float64}} #Inducing points coordinates for the Big Data GP
+    inducingPoints::Vector{Matrix{T}} #Inducing points coordinates for the Big Data GP
     OptimizeInducingPoints::Bool #Flag for optimizing the points during training
     optimizer::Optimizer #Optimizer for the inducing points
     nInnerLoops::Int64 #Number of updates for converging α and γ
-    Kmm::Vector{Symmetric{Float64,Matrix{Float64}}} #Kernel matrix
-    invKmm::Vector{Symmetric{Float64,Matrix{Float64}}} #Inverse Kernel matrix of inducing points
-    Knm::Vector{Matrix{Float64}}
-    Ktilde::Vector{Vector{Float64}} #Diagonal of the covariance matrix between inducing points and generative points
-    κ::Vector{Matrix{Float64}} #Kmn*invKmm
+    Kmm::Vector{AbstractMatrix{T}} #Kernel matrix
+    invKmm::Vector{AbstractMatrix{T}} #Inverse Kernel matrix of inducing points
+    Knm::Vector{AbstractMatrix{T}}
+    Ktilde::Vector{AbstractVector{T}} #Diagonal of the covariance matrix between inducing points and generative points
+    κ::Vector{AbstractMatrix{T}} #Kmn*invKmm
 end
 """
 Function initializing the multiclass sparsefields parameters
 """
-function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool)
+function initMultiClassSparse!(model::MultiClassGPModel{T},m::Int64,optimizeIndPoints::Bool) where T
     #Initialize parameters for the sparse model and check consistency
     minpoints = 56;
     if m > model.nSamples
@@ -179,17 +188,17 @@ function initMultiClassSparse!(model::GPModel,m::Int64,optimizeIndPoints::Bool)
         println("$(now()): Inducing points determined through KMeans algorithm")
     end
     if model.IndependentGPs
-        model.Kmm = [Symmetric(Matrix{Float64}(undef,model.m,model.m)) for i in 1:model.K]
-        model.invKmm = [Symmetric(Matrix{Float64}(undef,model.m,model.m)) for i in 1:model.K]
-        model.Ktilde = [ones(Float64,model.nSamplesUsed) for i in 1:model.K]
-        model.κ = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.K]
-        model.Knm = [Matrix{Float64}(undef,model.nSamplesUsed,model.m) for i in 1:model.K]
+        model.Kmm = [Symmetric(Matrix{T}(undef,model.m,model.m)) for i in 1:model.K]
+        model.invKmm = [Symmetric(Matrix{T}(undef,model.m,model.m)) for i in 1:model.K]
+        model.Ktilde = [ones(T,model.nSamplesUsed) for i in 1:model.K]
+        model.κ = [Matrix{T}(undef,model.nSamplesUsed,model.m) for i in 1:model.K]
+        model.Knm = [Matrix{T}(undef,model.nSamplesUsed,model.m) for i in 1:model.K]
     else
-        model.Kmm = [Symmetric(Matrix{Float64}(undef,model.m,model.m))]
-        model.invKmm = [Symmetric(Matrix{Float64}(undef,model.m,model.m))]
-        model.Ktilde = [ones(Float64,model.nSamplesUsed)]
-        model.κ = [Matrix{Float64}(undef,model.nSamplesUsed,model.m)]
-        model.Knm = [Matrix{Float64}(undef,model.nSamplesUsed,model.m)]
+        model.Kmm = [Symmetric(Matrix{T}(undef,model.m,model.m))]
+        model.invKmm = [Symmetric(Matrix{T}(undef,model.m,model.m))]
+        model.Ktilde = [ones(T,model.nSamplesUsed)]
+        model.κ = [Matrix{T}(undef,model.nSamplesUsed,model.m)]
+        model.Knm = [Matrix{T}(undef,model.nSamplesUsed,model.m)]
     end
 end
 
@@ -206,22 +215,22 @@ end
 """
 @def multiclassstochasticfields begin
     nSamplesUsed::Int64 #Size of the minibatch used
-    StochCoeff::Float64 #Stochastic Coefficient
+    StochCoeff::T #Stochastic Coefficient
     MBIndices::Vector{Int64} #MiniBatch Indices
     #Flag for adaptative learning rate for the SVI
     AdaptiveLearningRate::Bool
-      κ_s::Float64 #Parameters for decay of learning rate (iter + κ)^-τ in case adaptative learning rate is not used
-      τ_s::Float64
-    ρ_s::Vector{Float64} #Learning rate for CAVI
-    g::Vector{Vector{Float64}} # g & h are expected gradient value for computing the adaptive learning rate and τ is an intermediate
-    h::Vector{Float64}
-    τ::Vector{Float64}
+      κ_s::T #Parameters for decay of learning rate (iter + κ)^-τ in case adaptative learning rate is not used
+      τ_s::T
+    ρ_s::Vector{T} #Learning rate for CAVI
+    g::Vector{Vector{T}} # g & h are expected gradient value for computing the adaptive learning rate and τ is an intermediate
+    h::Vector{T}
+    τ::Vector{T}
     SmoothingWindow::Int64
 end
 """
     Function initializing the stochasticfields parameters
 """
-function initMultiClassStochastic!(model::GPModel,AdaptiveLearningRate,batchsize,κ_s,τ_s,SmoothingWindow)
+function initMultiClassStochastic!(model::MultiClassGPModel{T},AdaptiveLearningRate,batchsize,κ_s,τ_s,SmoothingWindow) where T
     #Initialize parameters specific to models using SVI and check for consistency
     model.Stochastic = true; model.nSamplesUsed = batchsize; model.AdaptiveLearningRate = AdaptiveLearningRate;
     model.nInnerLoops = 10;
@@ -231,5 +240,5 @@ function initMultiClassStochastic!(model::GPModel,AdaptiveLearningRate,batchsize
         model.nSamplesUsed = model.m;
     end
     model.StochCoeff = model.nSamples/model.nSamplesUsed
-    model.τ = 10.0*ones(Float64,model.K);
+    model.τ = 10.0*ones(T,model.K);
 end
