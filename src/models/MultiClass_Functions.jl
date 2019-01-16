@@ -134,6 +134,7 @@ function Gradient_ELBO(model::MultiClass)
         full_grad_μ[k] += model.invK[k]*model.μ[k]
         full_grad_Σ[k] += 0.5*(model.invK[k] - inv(model.Σ[k]))
     end
+    return full_grad_μ,full_grad_Σ
 end
 
 function softmax(f::AbstractVector{<:Real})
@@ -160,6 +161,8 @@ function hessian_softmax(s::AbstractVector{<:Real},i::Integer)
     end
     return hessian
 end
+
+
 
 function δ(i::Integer,j::Integer)
     i == j ? 1.0 : 0.0

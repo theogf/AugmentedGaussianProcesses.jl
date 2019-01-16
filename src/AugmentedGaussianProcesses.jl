@@ -52,7 +52,7 @@ using SpecialFunctions
 using Dates
 using Expectations
 using SparseArrays
-using Base: show
+import Base: convert, show
 #Exported models
 export KMeansModule
 export LinearBSVM, BatchBSVM, SparseBSVM
@@ -70,7 +70,15 @@ export setvalue!,getvalue,setfixed!,setfree!,getvariance,getlengthscales
 export KMeansInducingPoints
 # export save_trained_model,save_model,load_trained_model,load_model
 
-global jittering = 1e-3
+struct Jittering
+function Jittering()
+    new()
+end
+end;
+
+Base.convert(::Type{Float64},::Jittering) = Float64(1e-3)
+Base.convert(::Type{Float32},::Jittering) = Float32(1e-2)
+Base.convert(::Type{Float16},::Jittering) = Float16(1e-1)
 
 #using Plots
 

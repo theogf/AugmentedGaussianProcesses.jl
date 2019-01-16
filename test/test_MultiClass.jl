@@ -176,12 +176,12 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = AugmentedGaussianProcesses.SparseMultiClass(Float32.(X),y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=false,AutotuningFrequency=1,Stochastic=true,batchsize=50,IndependentGPs=true,AdaptiveLearningRate=false,OptimizeIndPoints=!true)
+    global smodel = AugmentedGaussianProcesses.SparseMultiClass(Float64.(X),y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=false,AutotuningFrequency=1,Stochastic=true,batchsize=50,IndependentGPs=true,AdaptiveLearningRate=false,OptimizeIndPoints=!true)
     # smodel.AutotuningFrequency=5
     # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
-    smodel.train(iterations=100,callback=callback)
-    Profile.clear()
+    @time smodel.train(iterations=100)#,callback=callback)
+    # Profile.clear()
     # @profile smodel.train(iterations=10)
     # @time smodel.train(iterations=10)
     # t_sparse = @elapsed smodel.train(iterations=100,callback=callback)

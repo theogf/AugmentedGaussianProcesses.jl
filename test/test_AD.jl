@@ -119,6 +119,7 @@ function grad_mod(s,σ,i)
     return [(δ(i,j)-s[i])*s[j]*(1-σ[j]) for j in 1:length(s)]
 end
 function hessian_mod(s,σ,i)
+end
 function δ(i::Integer,j::Integer)
     i == j ? 1.0 : 0.0
 end
