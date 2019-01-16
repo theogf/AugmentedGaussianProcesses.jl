@@ -125,7 +125,7 @@ function callback(model,iter)
     push!(metrics,:ELBO,iter,AugmentedGaussianProcesses.ELBO(model))
     y_fgrid, =  model.predict(X_grid)
     global py_fgrid = model.predictproba(X_grid)
-    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
     global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false)
     p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=[1.5,2.5],t=:contour,colorbar=false)
@@ -176,7 +176,7 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=true,batchsize=50,IndependentGPs=true,AdaptiveLearningRate=false,OptimizeIndPoints=!true)
+    global smodel = AugmentedGaussianProcesses.SparseMultiClass(Float32.(X),y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=false,AutotuningFrequency=1,Stochastic=true,batchsize=50,IndependentGPs=true,AdaptiveLearningRate=false,OptimizeIndPoints=!true)
     # smodel.AutotuningFrequency=5
     # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)

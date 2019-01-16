@@ -41,7 +41,7 @@ the convergence threshold `ϵ`, the initial number of iterations `nEpochs`,
 the `verboseLevel` (from 0 to 3), enabling `Autotuning`, the `AutotuningFrequency` and
 what `optimizer` to use
 """
-function initCommon!(model::GPModel{T},X::Array{T},y::Vector{T2},ϵ::T,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer) where {T<:Real,T2<:Real}
+function initCommon!(model::GPModel{T},X::Array{T,N},y::Vector{T2},ϵ::Real,nEpochs::Integer,verbose::Integer,Autotuning::Bool,AutotuningFrequency::Integer,optimizer::Optimizer) where {N,T<:Real,T2<:Real}
     @assert (size(y,1)==size(X,1)) "There is a dimension problem with the data size(y)!=size(X)";
     if N == 1
         model.X = reshape(X,length(X),1)
@@ -199,7 +199,7 @@ end
 """
 Default function to estimate convergence, based on a window on the variational parameters
 """
-function DefaultConvergence(model::GPModel{T<:Real},iter::Integer)
+function DefaultConvergence(model::GPModel{T},iter::Integer) where T
     #Default convergence function
     if iter == 1
         if typeof(model) <: MultiClassGPModel
@@ -227,7 +227,7 @@ end
 """
     Appropriately assign the functions
 """
-function initFunctions!(model::GPModel{T<:Real})
+function initFunctions!(model::GPModel{T}) where T
     #Initialize all functions according to the type of models
     model.train = function(;iterations::Integer=0,callback=0,convergence=DefaultConvergence)
         train!(model;iterations=iterations,callback=callback,Convergence=convergence)
@@ -286,7 +286,7 @@ end
 """
     Initialization of the linear model
 """
-function initLinear!(model::GPModel{T<:Real},Intercept::Bool)
+function initLinear!(model::GPModel{T},Intercept::Bool) where T
     model.Intercept = Intercept;
     model.nFeatures = size(model.X,2);
     if model.Intercept
@@ -304,13 +304,13 @@ end
 end
 
 "Initialize the latent variables"
-function initLatentVariables!(model::FullBatchModel{T<:Real})
+function initLatentVariables!(model::FullBatchModel{T}) where T
     model.α = abs.(T.(rand(model.nSamples)))*2;
     model.θ = zeros(T,model.nSamples)
 end
 
 "Initialize the latent variables"
-function initLatentVariables!(model::SparseModel{T<:Real})
+function initLatentVariables!(model::SparseModel{T}) where T
     model.α = abs.(rand(model.nSamplesUsed))*2;
     model.θ = zeros(T,model.nSamplesUsed)
 end
@@ -334,7 +334,7 @@ end
 """
 Function for initiating online parameters
 """
-function initOnline!(model::GPModel{T<:Real},alg::KMeansAlg,Sequential::Bool,m::Int64)
+function initOnline!(model::GPModel{T},alg::KMeansAlg,Sequential::Bool,m::Int64) where T
     model.m = m
     model.kmeansalg = alg
     model.Sequential = Sequential
@@ -373,7 +373,7 @@ end
     pgsampler::PolyaGammaDist
 end
 
-function initSampling!(model::GPModel{T<:Real},burninsamples::Integer,samplefrequency::Integer)
+function initSampling!(model::GPModel{T},burninsamples::Integer,samplefrequency::Integer) where T
     model.burninsamples = burninsamples
     model.samplefrequency = samplefrequency
     model.samplehistory_f = Vector{Vector{T}}()

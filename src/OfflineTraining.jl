@@ -125,7 +125,7 @@ function computeMatrices!(model::MultiClass{T}) where T
             model.Knn[model.KIndices] .= [Symmetric(kernelmatrix(model.X,model.kernel[i]) + Diagonal{T}(getvalue(model.noise)*I,model.nFeatures)) for i in model.KIndices]
             model.invK[model.KIndices] .= inv.(model.Knn)
         else
-            model.Knn .= [Symmetric(kernelmatrix(model.X,model.kernel[1]) + jittering*I,model.nFeatures))]
+            model.Knn .= [Symmetric(kernelmatrix(model.X,model.kernel[1]) + jittering*I)]
             model.invK .= inv.(model.Knn)
         end
         model.HyperParametersUpdated = false

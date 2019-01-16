@@ -288,7 +288,7 @@ end
 
 
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
-function KMeansInducingPoints(X::Array{T,N},nC::Integer;nMarkov::Integer=10,kweights::Vector{T}=[0.0]) where {T,N}
+function KMeansInducingPoints(X::Array{T,N},nC::Integer;nMarkov::Integer=10,kweights::Vector{<:Real}=[0.0]) where {T<:Real,N}
     C = copy(transpose(KmeansSeed(X,nC,nMarkov)))
     if kweights!=[0.0]
         Clustering.kmeans!(copy(transpose(X)),C,weights=kweights,tol=1e-3)
@@ -299,11 +299,11 @@ function KMeansInducingPoints(X::Array{T,N},nC::Integer;nMarkov::Integer=10,kwei
 end
 
 """Fast and efficient seeding for KMeans based on [`Fast and Provably Good Seeding for k-Means](https://las.inf.ethz.ch/files/bachem16fast.pdf)"""
-function KmeansSeed(X::AbstractArray{T,N},nC::Integer,nMarkov::Integer) where {T,N} #X is the data, nC the number of centers wanted, m the number of Markov iterations
+function KmeansSeed(X::AbstractArray{T,N},nC::Integer,nMarkov::Integer) where {T<:Real,N} #X is the data, nC the number of centers wanted, m the number of Markov iterations
   NSamples = size(X,1)
   #Preprocessing, sample first random center
   init = StatsBase.sample(1:NSamples,1)
-  C = zeros(nC,size(X,2))
+  C = zeros(T,nC,size(X,2))
   C[1,:] = X[init,:]
   q = zeros(NSamples)
   for i in 1:NSamples

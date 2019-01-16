@@ -1,5 +1,5 @@
 "Efficient Gaussian Process Classifier with Inference done via Gibbs Sampling"
-mutable struct GibbsSamplerGPC <: FullBatchModel
+mutable struct GibbsSamplerGPC{T<:Real} <: FullBatchModel{T}
     @commonfields
     @functionfields
     @latentfields
@@ -8,14 +8,14 @@ mutable struct GibbsSamplerGPC <: FullBatchModel
     @kernelfields
     @samplingfields
     "GibbsSamplerGPC Constructor"
-    function GibbsSamplerGPC(X::AbstractArray,y::AbstractArray;burninsamples::Integer = 200, samplefrequency::Integer=100,
+    function GibbsSamplerGPC(X::AbstractArray{T},y::AbstractArray;burninsamples::Integer = 200, samplefrequency::Integer=100,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(),nEpochs::Integer = 200,
-                                    kernel=0,noise::Float64=1e-3,AutotuningFrequency::Integer=10,
-                                    ϵ::Float64=1e-5,μ_init::Array{Float64,1}=[0.0],verbose::Integer=0)
-            this = new(X,y)
+                                    kernel=0,AutotuningFrequency::Integer=10,
+                                    ϵ::T=1e-5,μ_init::Vector{T}=ones(T,1),verbose::Integer=0) where {T<:Real}
+            this = new{T}(X,y)
             this.ModelType = XGPC
             this.Name = "Polya-Gamma Gaussian Process Classifier by sampling"
-            initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
+            initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             initKernel!(this,kernel);
             initGaussian!(this,μ_init);
@@ -27,7 +27,7 @@ mutable struct GibbsSamplerGPC <: FullBatchModel
 end
 
 "Compute one sample of all parameters via Gibbs Sampling"
-function updateParameters!(model::GibbsSamplerGPC,iter::Integer)
+function updateParameters!(model::GibbsSamplerGPC{T},iter::Integer) where T
     computeMatrices!(model)
     model.α = broadcast(model.pgsampler.draw,1.0,model.μ) #Sample from a polya-gamm distribution
     push!(model.samplehistory_α,model.α)

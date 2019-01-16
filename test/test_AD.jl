@@ -105,18 +105,25 @@ function sig_elbo(args)
     sum(0.5*(sum(invKmm[i].*(Σ[i]+μ[i]*transpose(μ[i])))-logdet(Σ[i])-logdet(invKmm[i])) for i in 1:K)
 end
 
-
-sig_elbo(vcat(vcat(m.μ...),vcat(diag.(m.Σ)...)))
-ForwardDiff.gradient(sig_elbo,vcat(vcat(m.μ...),vcat(diag.(m.Σ)...)))
-m.μ
-
-
-function hessian_softmax(s::AbstractVector{<:Real},grad::AbstractVector{<:Real},i::Integer,stot::Real=0.0)
-    hessian = zeros(m,m)
-    for j in 1:m
-        for k in 1:m
-            hessian[j,k] = s[i]*((δ(i,k)-s[k])*(δ(i,j)-s[j])-s[j]*(δ(j,k)-s[k]))
-        end
-    end
-    return hessian
+function logit(x)
+    return 1.0./(1.0.+exp.(-x))
 end
+
+function mod_soft_max(x,i::Integer)
+    return logit(x[i])/sum(logit(x))
+end
+function mod_soft_max(x)
+    return logit(x)./sum(logit(x))
+end
+function grad_mod(s,σ,i)
+    return [(δ(i,j)-s[i])*s[j]*(1-σ[j]) for j in 1:length(s)]
+end
+function hessian_mod(s,σ,i)
+function δ(i::Integer,j::Integer)
+    i == j ? 1.0 : 0.0
+end
+a=rand(10)
+logit(a[1])
+mod_soft_max(a,1)
+ForwardDiff.gradient(x->mod_soft_max(x,1),a)
+grad_mod(mod_soft_max(a),logit(a),1)

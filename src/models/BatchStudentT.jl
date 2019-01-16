@@ -1,22 +1,22 @@
 """Batch Student T Gaussian Process Regression (no inducing points)"""
-mutable struct BatchStudentT <: FullBatchModel
+mutable struct BatchStudentT{T<:Real} <: FullBatchModel{T}
     @commonfields
     @functionfields
     @gaussianparametersfields
     @kernelfields
-    ν::Float64
-    α::Float64
-    β::Vector{Float64}
-    θ::Vector{Float64}
+    ν::T
+    α::T
+    β::Vector{T}
+    θ::Vector{T}
     """BatchStudentT Constructor"""
-    function BatchStudentT(X::AbstractArray,y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),
+    function BatchStudentT(X::AbstractArray{T},y::AbstractArray;Autotuning::Bool=false,optimizer::Optimizer=Adam(),
                                     nEpochs::Integer = 200,
-                                    kernel=0,noise::Real=1e-3,AutotuningFrequency::Integer=1,
-                                    ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],verbose::Integer=0,ν::Real=5.0)
-            this = new()
+                                    kernel=0,AutotuningFrequency::Integer=1,
+                                    ϵ::Real=1e-5,μ_init::Vector{T}=ones(T,1),verbose::Integer=0,ν::T=5.0) where {T<:Real}
+            this = new{T}()
             this.ModelType = StudentT
             this.Name = "Non Sparse GP Regression with Student-T Likelihood"
-            initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
+            initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             initKernel!(this,kernel);
             initGaussian!(this,μ_init);
@@ -27,8 +27,8 @@ mutable struct BatchStudentT <: FullBatchModel
             return this;
     end
     """Empty constructor for loading models"""
-    function BatchStudentT()
-        this = new()
+    function BatchStudentT{T}() where T
+        this = new{T}()
         this.ModelType = StudentT
         this.Name = "Student T Gaussian Process Regression"
         initFunctions!(this)

@@ -1,26 +1,26 @@
 """Sparse Gaussian Process Regression with Student T likelihood"""
-mutable struct SparseStudentT <: SparseModel
+mutable struct SparseStudentT{T<:Real} <: SparseModel{T}
     @commonfields
     @functionfields
     @stochasticfields
     @kernelfields
     @sparsefields
     @gaussianparametersfields
-    ν::Float64
-    α::Float64
-    β::Vector{Float64}
-    θ::Vector{Float64}
+    ν::T
+    α::T
+    β::Vector{T}
+    θ::Vector{T}
     """SparseStudentT Constructor"""
-    function SparseStudentT(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
+    function SparseStudentT(X::AbstractArray{T},y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
-                                    kernel=0,noise::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=1,
+                                    kernel=0,m::Integer=0,AutotuningFrequency::Integer=1,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
-                                    verbose::Integer=0,ν::Real=5.0)
-            this = new();
+                                    verbose::Integer=0,ν::Real=5.0) where T
+            this = new{T}();
             this.ModelType = StudentT;
             this.Name = "Sparse GP Regression with Student-T Likelihood";
-            initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
+            initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
             initFunctions!(this);
             if Stochastic
                 initStochastic!(this,AdaptiveLearningRate,batchsize,κ_s,τ_s,SmoothingWindow);
@@ -32,7 +32,7 @@ mutable struct SparseStudentT <: SparseModel
             initGaussian!(this,μ_init);
             this.ν = ν
             this.α = (this.ν+1.0)/2.0
-            this.β = abs.(rand(this.nSamplesUsed))*2;
+            this.β = abs.(T.(rand(this.nSamplesUsed)))*2;
             this.θ = zero(this.β)
             if this.Stochastic && this.AdaptiveLearningRate
                 MCInit!(this)
@@ -40,8 +40,8 @@ mutable struct SparseStudentT <: SparseModel
             return this;
     end
     "Empty constructor for loading models"
-    function SparseStudentT()
-        this = new()
+    function SparseStudentT{T}() where T
+        this = new{T}()
         this.ModelType = StudentT
         this.Name = "Student T Sparse Gaussian Process Regression";
         initFunctions!(this)

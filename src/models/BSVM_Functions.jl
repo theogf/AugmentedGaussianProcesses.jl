@@ -1,12 +1,12 @@
 ### Functions related to the BSVM Likelihood ###
 
 """Update the local variational parameters of the linear BSVM"""
-function local_update!(model::LinearBSVM,Z::Matrix{Float64})
+function local_update!(model::LinearBSVM{T},Z::Matrix{T}) where T
     model.α = (1.0 .- Z*model.μ).^2 +  dropdims(sum((-0.5*Z/model.η_2).*Z,dims=2),dims=2);
 end
 
 """Compute the variational updates for the linear BSVM"""
-function variational_updates!(model::LinearBSVM,iter::Integer)
+function variational_updates!(model::LinearBSVM{T},iter::Integer) where T
     Z = Diagonal{Float64}(model.y[model.MBIndices])*model.X[model.MBIndices,:];
     local_update!(model,Z)
     (grad_η_1,grad_η_2) = natural_gradient_BSVM(model.α,Z, model.invΣ, model.Stochastic ? model.StochCoeff : 1.0)
@@ -15,30 +15,30 @@ function variational_updates!(model::LinearBSVM,iter::Integer)
 end
 
 """Update the local variational parameters of full batch GP BSVM"""
-function local_update!(model::BatchBSVM)
+function local_update!(model::BatchBSVM{T}) where T
     model.α = (1.0 .- model.y.*model.μ).^2 .+ diag(model.Σ);
 end
 
 """Update the local variational parameters of the sparse GP BSVM"""
-function local_update!(model::SparseBSVM)
+function local_update!(model::SparseBSVM{T}) where T
     model.α = (1.0 .- Diagonal(model.y[model.MBIndices])*model.κ*model.μ).^2 + sum((model.κ*model.Σ).*model.κ,dims=2)[:] .+ model.Ktilde;
 end
 
 """Return the natural gradients of the ELBO given the natural parameters"""
-function natural_gradient(model::BatchBSVM)
+function natural_gradient(model::BatchBSVM{T}) where T
   model.η_1 =  model.y.*(1.0./sqrt.(model.α).+1.0)
   model.η_2 = Symmetric(-0.5*(Diagonal(1.0./sqrt.(model.α)) + model.invK))
 end
 
 """Return the natural gradients of the ELBO given the natural parameters"""
-function natural_gradient(model::SparseBSVM)
+function natural_gradient(model::SparseBSVM{T}) where T
   grad_1 =  model.StochCoeff*model.κ'*(model.y[model.MBIndices].*(1.0./sqrt.(model.α).+1.0))
   grad_2 = Symmetric(-0.5*(model.StochCoeff*model.κ'*Diagonal(1.0./sqrt.(model.α))*model.κ + model.invKmm))
   return (grad_1,grad_2)
 end
 
 """Compute the negative ELBO for the linear BSVM Model"""
-function ELBO(model::LinearBSVM)
+function ELBO(model::LinearBSVM{T}) where T
     Z = Diagonal{Float64}(model.y[model.MBIndices])*model.X[model.MBIndices,:]
     ELBO = 0.5*(logdet(model.Σ)+logdet(model.invΣ)-tr(model.invΣ*(model.Σ+model.μ*transpose(model.μ))));
     ELBO += sum(model.StochCoeff*(2.0*log.(model.α) + log.(besselk.(0.5,model.α))
@@ -47,7 +47,7 @@ function ELBO(model::LinearBSVM)
 end
 
 """Compute the ELBO for the full batch GP BSVM Model"""
-function ELBO(model::BatchBSVM) #TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
+function ELBO(model::BatchBSVM{T}) where T #TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
     # print("\n")
     ELBO_v = ExpecLogLikelihood(model)
     # println(ExpecLogLikelihood(model))
@@ -61,7 +61,7 @@ function ELBO(model::BatchBSVM) #TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATI
 end
 
 """Compute the ELBO for the sparse GP BSVM Model"""
-function ELBO(model::SparseBSVM)#TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
+function ELBO(model::SparseBSVM{T}) where T#TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATION
     ELBO_v = model.StochCoeff*ExpecLogLikelihood(model)
     ELBO_v -= GaussianKL(model)
     ELBO_v -= model.StochCoeff*GIGKL(model)
@@ -75,7 +75,7 @@ function ELBO(model::SparseBSVM)#TODO THERE IS A PROBLEM WITH THE ELBO COMPUTATI
 end
 
 """Return the expected log likelihood for the batch BSVM Model"""
-function ExpecLogLikelihood(model::BatchBSVM)
+function ExpecLogLikelihood(model::BatchBSVM{T}) where T
     tot = -model.nSamples*(0.5*log(2π)+1)
     tot += sum(model.y.*model.μ - 0.5*((1.0.-model.y.*model.μ).^2+diag(model.Σ))./sqrt.(model.α))
     # tot = sum((model.Ktilde+(1.0-model.y.*model.μ).^2+)./sqrt.(model.α))
@@ -83,7 +83,7 @@ function ExpecLogLikelihood(model::BatchBSVM)
 end
 
 """Return the expected log likelihood for the sparse BSVM Model"""
-function ExpecLogLikelihood(model::SparseBSVM)
+function ExpecLogLikelihood(model::SparseBSVM{T}) where T
     tot = -model.nSamplesUsed*(0.5*log(2π)+1)
     tot += sum(model.y[model.MBIndices].*(model.κ*model.μ) - 0.5*((1.0.-model.y[model.MBIndices].*(model.κ*model.μ)).^2+model.Ktilde+sum((model.κ*model.Σ).*model.κ,dims=2)[:])./model.α)
     # tot = sum((model.Ktilde+(1.0-model.y.*model.μ).^2+)./sqrt.(model.α))
@@ -91,12 +91,12 @@ function ExpecLogLikelihood(model::SparseBSVM)
 end
 
 """Return the KL divergence for the Generalized Inverse Gaussian distributions (for the improper prior p(lambda)=1)"""
-function GIGKL(model::GPModel)
+function GIGKL(model::GPModel{T}) where T
     return -0.25*sum(model.α)-sum(log.(besselk.(0.5,sqrt.(model.α))))-0.5*sum(sqrt.(model.α))
 end
 
 """Return a function computing the gradient of the ELBO given the kernel hyperparameters for a BSVM Model"""
-function hyperparameter_gradient_function(model::SparseBSVM)
+function hyperparameter_gradient_function(model::SparseBSVM{T}) where T
     F2 = Symmetric(model.μ*transpose(model.μ) + model.Σ)
     A = Diagonal(1.0./sqrt.(model.α))
     return (function(Jmm,Jnm,Jnn)
@@ -119,7 +119,7 @@ function hyperparameter_gradient_function(model::SparseBSVM)
 end
 
 """Return a function computing the gradient of the ELBO given the inducing point locations"""
-function inducingpoints_gradient(model::SparseBSVM)
+function inducingpoints_gradient(model::SparseBSVM{T}) where T
     gradients_inducing_points = zero(model.inducingPoints)
     B = model.μ*transpose(model.μ) + model.Σ
     A = Diagonal(1.0./sqrt.(model.α))

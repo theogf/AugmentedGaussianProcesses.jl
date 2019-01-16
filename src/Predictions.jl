@@ -4,7 +4,7 @@
 Compute the mean of the predicted latent distribution of f on X_test for full GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::FullBatchModel{T},X_test::AbstractArray;covf::Bool=true)
+function fstar(model::FullBatchModel,X_test::AbstractArray;covf::Bool=true) where T
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.μ
     end
@@ -112,14 +112,14 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for multiclass sparse GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::SparseMultiClass,X_test::AbstractArray{T<:Real};covf::Bool=true)
+function fstar(model::SparseMultiClass,X_test::AbstractArray;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invKmm.*model.μ
     end
     if covf && model.DownMatrixForPrediction == 0
         model.DownMatrixForPrediction = broadcast((Σ,invKmm)->invKmm*(I-Σ*invKmm),model.Σ,model.invKmm)
     end
-    k_star = broadcast((points,kernel)->kernelmatrix(X_test,points,kernel),model.inducingPoints,model.kernel)
+    k_star = broadcast((points,kernel)->MLKernels.kernelmatrix(kernel,X_test,points),model.inducingPoints,model.altkernel)
     mean_fstar = k_star.*model.TopMatrixForPrediction
     if !covf
         return mean_fstar
@@ -141,7 +141,7 @@ function probitpredict(model::GPModel,X_test::AbstractArray)
 end
 
 "Return the mean of likelihood p(y*=1|X,x*) via the probit link with a linear model"
-function probitpredictproba(model::LinearModel,X_test::AbstractArray{T<:Real})
+function probitpredictproba(model::LinearModel,X_test::AbstractArray{T}) where {T<:Real}
     if model.Intercept
       X_test = [ones(T,size(X_test,1)) X_test]
     end
@@ -252,7 +252,7 @@ function studenttpredictproba(model::GPModel,X_test::AbstractArray)
 end
 
 "Compute the mean and variance using MC integration"
-function studentpredictprobamc(model::GPModel,X_test::AbstractArray{T<:Real};nSamples=100)
+function studentpredictprobamc(model::GPModel,X_test::AbstractArray{T};nSamples=100) where {T<:Real}
     m_f,cov_f = fstar(model,X_test,covf=true)
     nTest = length(m_f)
     mean_pred = zero(m_f)
@@ -276,7 +276,7 @@ function studentpredictprobamc(model::GPModel,X_test::AbstractArray{T<:Real};nSa
     return mean_pred,var_pred
 end
 
-function multiclasspredict(model::GPModel,X_test::AbstractArray{T<:Real},all_class::Bool=false)
+function multiclasspredict(model::GPModel,X_test::AbstractArray{T},all_class::Bool=false) where {T<:Real}
     n=size(X_test,1)
     m_f = fstar(model,X_test,covf=false)
     σ = hcat(logit.(m_f)...)
@@ -384,7 +384,7 @@ end
 
 
 "Return the gradient of the modified softmax likelihood given 'σ' and their sum (can be given via sumsig)"
-function grad_mod_soft_max(σ::Array{T,1},sumsig::T=zero(T) where {T<:Real}
+function grad_mod_soft_max(σ::Array{T,1},sumsig::T=zero(T)) where {T<:Real}
     sumsig = sumsig == 0 ? sum(σ) : sumsig
     shortened_sum = sumsig.-σ
     sum_square = sumsig^2
@@ -404,7 +404,7 @@ function grad_mod_soft_max(σ::Array{T,1},sumsig::T=zero(T) where {T<:Real}
 end
 
 "Return the hessian of the modified softmax likelihood given 'σ' and their sum (can be given via sumsig)"
-function hessian_mod_soft_max(σ::AbstractVector{T}},sumsig::T=zero(T)) where {T<:Real}
+function hessian_mod_soft_max(σ::AbstractVector{T},sumsig::T=zero(T)) where {T<:Real}
     sumsig = sumsig == 0 ? sum(σ) : sumsig
     shortened_sum = sumsig.-σ
     sum_square = sumsig^2

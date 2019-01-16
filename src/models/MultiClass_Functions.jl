@@ -46,7 +46,7 @@ end
 
 
 """Update the global variational parameters for the sparse multiclass model"""
-function global_update!(model::SparseMultiClass,grad_1::Vector{Vector{T}},grad_2::Vector{Matrix{T}})
+function global_update!(model::SparseMultiClass,grad_1::Vector{Vector{T}},grad_2::Vector{Matrix{T}}) where T
     model.η_1[model.KIndices] .= (1.0.-model.ρ_s[model.KIndices]).*model.η_1[model.KIndices] + model.ρ_s[model.KIndices].*grad_1;
     model.η_2[model.KIndices] .= Symmetric.(model.η_2[model.KIndices].*(1.0.-model.ρ_s[model.KIndices]) + model.ρ_s[model.KIndices].*grad_2) #Update of the natural parameters with noisy/full natural gradient
     #TODO Temporary fix until LinearAlgebra has corrected it
@@ -112,7 +112,6 @@ function ExpecLogLikelihood(model::SparseMultiClass)
 end
 
 function Gradient_ELBO(model::MultiClass)
-    s = exp.(m.)
     nSamples = 200
     full_grad_μ = [zeros(model.nFeatures) for _ in 1:model.K]
     full_grad_Σ = [zeros(model.nFeatures,model.nFeatures) for _ in 1:model.K]

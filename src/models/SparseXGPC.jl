@@ -16,23 +16,23 @@ Create a GP model taking the  training data and labels X & y as required argumen
 - SmoothingWindow::Integer : Window size for averaging convergence in the stochastic case
 - verbose::Integer : How much information is displayed (from 0 to 3)
 """
-mutable struct SparseXGPC <: SparseModel
+mutable struct SparseXGPC{T<:Real} <: SparseModel{T}
     @commonfields
     @functionfields
     @stochasticfields
     @kernelfields
     @sparsefields
     @gaussianparametersfields
-    c::Vector{Float64}
-    θ::Vector{Float64}
+    c::Vector{T}
+    θ::Vector{T}
     "SparseXGPC Constructor"
-    function SparseXGPC(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
+    function SparseXGPC(X::AbstractArray{T},y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(α=0.1),OptimizeIndPoints::Bool=false,
                                     nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::Real=1.0,τ_s::Integer=100,
                                     kernel=0,noise::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=1,
                                     ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,
-                                    verbose::Integer=0)
-            this = new();
+                                    verbose::Integer=0) where {T<:Real}
+            this = new{T}();
             this.ModelType = XGPC;
             this.Name = "Sparse Gaussian Process Classifier with Logistic Likelihood";
             initCommon!(this,X,y,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
@@ -53,8 +53,8 @@ mutable struct SparseXGPC <: SparseModel
             return this;
     end
     "Empty constructor for loading models"
-    function SparseXGPC()
-        this = new()
+    function SparseXGPC{T}() where T
+        this = new{T}()
         this.ModelType = XGPC
         this.Name = "Sparse Gaussian Process Classifier with Logistic Likelihood";
         initFunctions!(this)

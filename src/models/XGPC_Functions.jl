@@ -28,13 +28,13 @@ end
 """Return the natural gradients of the ELBO given the natural parameters"""
 function natural_gradient(model::BatchXGPC)
     model.η_1 =  0.5*model.y
-    model.η_2 = Symmetric(-0.5*(Diagonal{Float64}(model.θ) + model.invK))
+    model.η_2 = Symmetric(-0.5*(Diagonal(model.θ) + model.invK))
 end
 
 """Return the natural gradients of the ELBO given the natural parameters"""
 function natural_gradient(model::SparseXGPC)
     grad_1 =  0.5*model.StochCoeff*model.κ'*model.y[model.MBIndices]
-    grad_2 = Symmetric(-0.5*(model.StochCoeff*transpose(model.κ)*Diagonal{Float64}(model.θ)*model.κ .+ model.invKmm))
+    grad_2 = Symmetric(-0.5*(model.StochCoeff*transpose(model.κ)*Diagonal(model.θ)*model.κ .+ model.invKmm))
     return (grad_1,grad_2)
 end
 
@@ -95,13 +95,6 @@ function hyperparameter_gradient_function(model::SparseXGPC)
             end,
             function(kernel)
                 return  0.5/(getvariance(kernel))*(sum(model.invKmm.*F2)-model.StochCoeff*dot(model.θ,model.Ktilde)-model.m)
-            end,
-            function()
-                ι = -model.κ*model.invKmm
-                Jtilde = ones(Float64,model.nSamplesUsed) - sum(ι.*model.Knm,dims=2)[:]
-                V = model.invKmm
-                return 0.5*(sum( (V*model.invKmm - model.StochCoeff*(ι'*θ*model.κ + model.κ'*θ*ι)) .* F2) - tr(V) - model.StochCoeff*dot(model.θ,Jtilde)
-                    + model.StochCoeff*dot(model.y[model.MBIndices],ι*model.μ))
             end)
 end
 

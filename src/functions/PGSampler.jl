@@ -5,10 +5,10 @@ using Distributions
 __TRUNC = 0.64;
 __TRUNC_RECIP = 1.0 / __TRUNC;
 export PolyaGammaDist
-mutable struct PolyaGammaDist
+mutable struct PolyaGammaDist{T}
   # For sum of Gammas.
   T::Int64;
-  bvec::Array{Float64,1}
+  bvec::Vector{T}
 
   # Draw functions
   draw::Function
@@ -20,8 +20,8 @@ mutable struct PolyaGammaDist
 
   # Helper.
   #Constructor
-  function PolyaGammaDist(;trunc = 200)
-    this = new()
+  function PolyaGammaDist{T}(;trunc = 200) where T
+    this = new{T}()
     this.set_trunc = function(trunc)
       set_trunc(this,trunc)
     end
@@ -39,7 +39,9 @@ mutable struct PolyaGammaDist
   end
 end
 
-
+function PolyaGammaDist(;trunc=200)
+	PolyaGammaDist{Float64}()
+end
 # ////////////////////////////////////////////////////////////////////////////////
 # 				 // Utility //
 # ////////////////////////////////////////////////////////////////////////////////
@@ -60,7 +62,7 @@ function set_trunc(pg::PolyaGammaDist,trunc::Int64)
   end
 end # set_trunc
 
-function a(n::Int64, x::Float64)
+function a(n::Int64, x::T) where {T<:Real}
   K = (n + 0.5) * pi;
   y = 0;
   if x > __TRUNC
@@ -72,7 +74,7 @@ function a(n::Int64, x::Float64)
   return y;
 end
 
-function pigauss(x::Float64, Z::Float64)
+function pigauss(x::T, Z::T) where {T<:Real}
   #Z = 1/μ, λ= 1.0
   b = sqrt(1.0 / x) * (x * Z - 1);
   a = -sqrt(1.0 / x) * (x * Z + 1);
@@ -80,7 +82,7 @@ function pigauss(x::Float64, Z::Float64)
   return y;
 end
 
-function mass_texpon(Z::Float64)
+function mass_texpon(Z::T) where {T<:Real}
   t = __TRUNC;
 
   fz = 0.125 * pi*pi + 0.5 * Z^2;
@@ -96,7 +98,7 @@ function mass_texpon(Z::Float64)
   return 1.0 / (1.0 + qdivp);
 end # mass_texpon
 
-function rtigauss(Z::Float64)
+function rtigauss(Z::T) where {T<:Real}
   Z = abs(Z);
   t = __TRUNC;
   X = t + 1.0;
@@ -135,7 +137,7 @@ end
 # ////////////////////////////////////////////////////////////////////////////////
 
 
-function draw(n::Float64, z::Float64)
+function draw(n::T, z::T) where {T<:Real}
   if n < 1
     @warn "PolyaGamma::draw: n < 1.  Set n = 1."
     n = 1;
@@ -147,7 +149,7 @@ function draw(n::Float64, z::Float64)
   return sum;
 end # draw
 
-function draw_sum_of_gammas(n::Float64, z::Float64, pg::PolyaGammaDist)
+function draw_sum_of_gammas(n::T, z::T, pg::PolyaGammaDist) where {T<:Real}
   x = 0.0;
   kappa = z * z;
   Gam = Gamma(n,1.0);
@@ -157,7 +159,7 @@ function draw_sum_of_gammas(n::Float64, z::Float64, pg::PolyaGammaDist)
   return 2.0 * x;
 end
 
-function draw_like_devroye(Z::Float64)
+function draw_like_devroye(Z::T) where {T<:Real}
   # Change the parameter.
   Z = abs(Z) * 0.5;
 
@@ -206,7 +208,7 @@ end # draw_like_devroye
 # 			      // Static Members //
 # ////////////////////////////////////////////////////////////////////////////////
 
-function jj_m1(b::Float64, z::Float64)
+function jj_m1(b::T, z::T) where T<:Real
     z = abs(z);
     m1 = 0.0;
     if z > 1e-12
@@ -217,7 +219,7 @@ function jj_m1(b::Float64, z::Float64)
     return m1;
 end
 
-function jj_m2(b::Float64, z::Float64)
+function jj_m2(b::T, z::T) where {T<:Real}
     z = abs(z);
     m2 = 0.0;
     if (z > 1e-12)
@@ -229,11 +231,11 @@ function jj_m2(b::Float64, z::Float64)
     return m2;
 end
 
-function pg_m1(b::Float64, z::Float64)
+function pg_m1(b::T, z::T) where {T<:Real}
     return jj_m1(b, 0.5 * z) * 0.25;
 end
 
-function pg_m2(b::Float64, z::Float64)
+function pg_m2(b::T, z::T) where {T<:Real}
     return jj_m2(b, 0.5 * z) * 0.0625;
 end
 

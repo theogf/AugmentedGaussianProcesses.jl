@@ -60,8 +60,8 @@ function ExpecLogLikelihood(model::SparseGPRegression)
 end
 
 """Return functions computing the gradients of the ELBO given the kernel hyperparameters for a Regression Model"""
-function hyperparameter_gradient_function(model::BatchGPRegression)
-    A = model.invK*(model.y*transpose(model.y))-Diagonal{Float64}(I,model.nSamples)
+function hyperparameter_gradient_function(model::BatchGPRegression{T}) where {T<:Real}
+    A = model.invK*(model.y*transpose(model.y))-I
     return (function(Jmm)
                 V = model.invK*Jmm
                 return 0.5*sum(V.*transpose(A))
@@ -75,7 +75,7 @@ function hyperparameter_gradient_function(model::BatchGPRegression)
 end
 
 "Return functions computing the gradients of the ELBO given the kernel hyperparameters for a sparse regression Model"
-function hyperparameter_gradient_function(model::SparseGPRegression)
+function hyperparameter_gradient_function(model::SparseGPRegression{T}) where {T<:Real}
     F2 = model.μ*transpose(model.μ) + model.Σ
     return (function(Jmm,Jnm,Jnn)
             ι = (Jnm-model.κ*Jmm)*model.invKmm
@@ -91,7 +91,7 @@ function hyperparameter_gradient_function(model::SparseGPRegression)
             end,
             function()
                 ι = -model.κ*model.invKmm
-                Jtilde = ones(Float64,model.nSamplesUsed) - sum(ι.*model.Knm,dims=2)[:]
+                Jtilde = ones(T,model.nSamplesUsed) - sum(ι.*model.Knm,dims=2)[:]
                 V = model.invKmm
                 return 0.5*(sum( (V*model.invKmm).*F2)
                 - model.StochCoeff/model.gnoise*sum((ι'*model.κ + model.κ'*ι).*F2) - tr(V)

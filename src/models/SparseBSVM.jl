@@ -1,21 +1,21 @@
 """Sparse Gaussian Process Classifier with Bayesian SVM likelihood"""
-mutable struct SparseBSVM <: SparseModel
+mutable struct SparseBSVM{T<:Real} <: SparseModel{T}
     @commonfields
     @functionfields
     @stochasticfields
     @kernelfields
     @sparsefields
     @gaussianparametersfields
-    α::Vector{Float64}
-    θ::Vector{Float64}
+    α::Vector{T}
+    θ::Vector{T}
     "SparseBSVM Constructor"
-    function SparseBSVM(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
+    function SparseBSVM(X::AbstractArray{T},y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,optimizer::Optimizer=Adam(),OptimizeIndPoints::Bool=false,
-                                    nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
+                                    nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::T=1.0,τ_s::Integer=100,
                                     kernel=0,noise::Real=1e-3,m::Integer=0,AutotuningFrequency::Integer=2,
-                                    ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=10,
-                                    verbose::Integer=0)
-            this = new()
+                                    ϵ::T=1e-5,μ_init::Vector{T}=ones(T,1),SmoothingWindow::Integer=10,
+                                    verbose::Integer=0) where {T<:Real}
+            this = new{T}()
             this.ModelType = BSVM
             this.Name = "Sparse Nonlinear Bayesian SVM"
             initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
@@ -36,8 +36,8 @@ mutable struct SparseBSVM <: SparseModel
             return this;
     end
     "Empty constructor for loading models"
-    function SparseBSVM()
-        this = new()
+    function SparseBSVM{T}() where T
+        this = new{T}()
         this.ModelType = BSVM
         this.Name = "Sparse Nonlinear Bayesian SVM";
         initFunctions!(this)

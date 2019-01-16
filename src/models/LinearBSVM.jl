@@ -1,7 +1,7 @@
 
 #Linear Bayesian Support Vector Machines
 
-mutable struct LinearBSVM <: LinearModel
+mutable struct LinearBSVM{T<:Real} <: LinearModel{T}
     @commonfields
     @functionfields
     @linearfields
@@ -10,11 +10,11 @@ mutable struct LinearBSVM <: LinearModel
 
     @stochasticfields
     #Constructor
-    function LinearBSVM(X::AbstractArray,y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,Autotuning::Bool=false,optimizer::Optimizer=Adam(),
-                                    nEpochs::Integer = 2000,batchsize::Integer=-1,κ_s::Float64=1.0,τ_s::Integer=100,
-                                    noise::Real=1e-3,AutotuningFrequency::Integer=4, Intercept::Bool=true,ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],
-                                    SmoothingWindow::Integer=5, verbose::Integer=0)
-        this = new()
+    function LinearBSVM(X::AbstractArray{T},y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,Autotuning::Bool=false,optimizer::Optimizer=Adam(),
+                                    nEpochs::Integer = 2000,batchsize::Integer=-1,κ_s::T=one(T),τ_s::Integer=100,
+                                    noise::Real=1e-3,AutotuningFrequency::Integer=4, Intercept::Bool=true,ϵ::T=T(1e-5),μ_init::Vector{T}=ones(T,1),
+                                    SmoothingWindow::Integer=5, verbose::Integer=0) where T
+        this = new{T}()
         this.ModelType = BSVM
         this.Name = "Linear Bayesian SVM"
         initCommon!(this,X,y,noise,ϵ,nEpochs,verbose,Autotuning,AutotuningFrequency,optimizer);
