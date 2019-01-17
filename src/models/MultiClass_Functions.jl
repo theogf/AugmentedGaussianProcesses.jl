@@ -131,24 +131,37 @@ function ExpecLogLikelihood(model::SoftMaxMultiClass)
 end
 
 "Compute the variational updates for the full GP MultiClass"
-function variational_updates!(model::SoftMaxMultiClass,iter::Integer)
+function variational_updates!(model::SoftMaxMultiClass{T},iter::Integer) where T
     if iter == 1
-        # model.L = [cholesky(model.Knn[1]).L for _ in 1:model.K]
-        # model.Σ .= copy.(model.Knn.+1e-3I)
+        model.L = [cholesky(model.Knn[1]).L for _ in 1:model.K]
+        model.Σ .= copy.(model.Knn)
         # println("Init check")
     end
     g_μ, g_Σ = Gradient_ELBO(model)
     k=1
-    # display(update(model.Σ_optimizer[k],g_Σ[k]))
-    display(g_Σ[k]*(model.L[k]+model.L[k]'))
+    # display(g_Σ[k])
+    # display(g_Σ[k]*(model.L[k]+model.L[k]'))
     # println(norm(g_Σ[k]*(model.L[k]+model.L[k]')-(model.L[k]+model.L[k]'*g_Σ[k])))
     for k in 1:model.K
+        # model.μ[k] = model.Knn[k]*g_μ[k]
         model.μ[k] .+= update(model.μ_optimizer[k],g_μ[k])
-        model.Σ[k] = Symmetric(model.Σ[k]+update(model.Σ_optimizer[k],g_Σ[k]))
-        # model.L[k] = LowerTriangular(model.L[k]+update(model.Σ_optimizer[k],g_Σ[k]*(model.L[k]+model.L[k]')))
-        model.L[k] = cholesky(model.Σ[k]).L
-        # model.Σ[k] = Symmetric(model.L[k]*model.L[k]')
+        # model.Σ[k] = Symmetric(model.Σ[k]+update(model.Σ_optimizer[k],g_Σ[k]))
+        grad_L = zero(model.L[k])
+        for i in 1:model.nFeatures
+            for j in 1:i
+                L_spec = Array(zero(model.L[k]))
+                L_spec[j,:] = model.L[k][i,:]
+                # display(L_spec)
+                grad_L[i,j] = tr(g_Σ[k]'*(L_spec+L_spec'))
+            end
+        end
+        # display(grad_L)
+        model.L[k] = model.L[k]+update(model.Σ_optimizer[k],grad_L)
+        # model.L[k] = model.L[k]+update(model.Σ_optimizer[k],g_Σ[k]*(model.L[k]+model.L[k]'))
+        # model.L[k] = cholesky(model.Σ[k]).L
+        model.Σ[k] = Symmetric(model.L[k]*model.L[k]'+convert(T,Jittering())*I)
     end
+    display(det.(model.Σ))
     # println([model.μ[1][1],model.μ[2][1],model.μ[3][1]])
 end
 
@@ -169,7 +182,7 @@ function Gradient_ELBO(model::SoftMaxMultiClass)
             s = samp[class]
             g_μ = grad_softmax(samp,class)
             grad_μ += g_μ./s
-            grad_Σ += diag(hessian_softmax(samp,class))./s.-g_μ./s^2
+            grad_Σ += diag(hessian_softmax(samp,class))./s.-g_μ.^2 ./s^2
         end
         for k in 1:model.K
             full_grad_μ[k][i] = grad_μ[k]/nSamples
@@ -177,8 +190,10 @@ function Gradient_ELBO(model::SoftMaxMultiClass)
         end
     end
     for k in 1:model.K
-        full_grad_μ[k] += -model.Knn[k]*model.μ[k]
-        full_grad_Σ[k] += 0.5*(inv(model.Σ[k])-model.invK[k])
+        # display(diag(full_grad_Σ[k]))
+        full_grad_μ[k] .+= -model.invK[k]*model.μ[k]
+        # full_grad_Σ[k] = 0.5*(inv(model.Σ[k])-model.invK[k])
+        # full_grad_Σ[k] = full_grad_Σ[k] + 0.5*(inv(model.Σ[k])-model.invK[k])
     end
     return full_grad_μ,full_grad_Σ
 end
@@ -193,7 +208,7 @@ function softmax(f::AbstractVector{<:Real},i::Integer)
 end
 
 function grad_softmax(s::AbstractVector{<:Real},i::Integer)
-    base_grad = s.*s[i]
+    base_grad = -s.*s[i]
     base_grad[i] += s[i]
     return base_grad
 end
@@ -221,6 +236,7 @@ function GaussianKL(model::MultiClassGPModel)
         return        sum(0.5*(sum(model.invK[1].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.nSamples-logdet(model.Σ[i])-logdet(model.invK[1])) for i in model.KIndices)
     end
 end
+
 
 """Return KL Divergence for MvNormal for the Sparse MultiClass Model"""
 function GaussianKL(model::SparseMultiClass)

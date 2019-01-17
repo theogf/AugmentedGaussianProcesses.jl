@@ -100,13 +100,16 @@ X_grid = hcat([j for i in x_grid, j in x_grid][:],[i for i in x_grid, j in x_gri
 metrics = MVHistory()
 anim  = Animation()
 function callback(model,iter)
+    if iter%5 !=0
+        return
+    end
     y_fgrid =  model.predict(X_grid)
     global py_fgrid = model.predictproba(X_grid)
     global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
     global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false)
     p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=[1.5,2.5],t=:contour,colorbar=false)
-    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="")
+    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[model.class_mapping[y]],t=:scatter,lab="")
     # p1=plot!(p1,model.inducingPoints[1][:,1],model.inducingPoints[1][:,2],color=:black,t=:scatter,lab="")
     frame(anim,p1)
     display(p1)
@@ -132,9 +135,9 @@ kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim,variance=10.0)
 model = AugmentedGaussianProcesses.SoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.01,Autotuning=false,AutotuningFrequency=2,IndependentGPs=true)
 # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(model,X_test=X_test,y_test=y_test)
 # model.AutotuningFrequency=1
-t_full = @elapsed model.train(iterations=10)#,callback=callback)
+t_full = @elapsed model.train(iterations=20,callback=callback)
 
-global y_full,sig_full = model.predict(X_test)
+global y_full = model.predictproba(X_test)
 global y_fall = AugmentedGaussianProcesses.multiclasspredict(model,X_test,true)
 global y_ftrain = model.predict(X)
 global y_fgrid = model.predict(X_grid)
