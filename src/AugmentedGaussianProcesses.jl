@@ -100,6 +100,7 @@ include("models/SparseStudentT.jl")
 include("models/MultiClass.jl")
 include("models/SparseMultiClass.jl")
 include("models/SoftMaxMultiClass.jl")
+include("models/LogisticSoftMaxMultiClass.jl")
 #Functions
 include("OnlineTraining.jl")
 include("OfflineTraining.jl")

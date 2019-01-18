@@ -311,6 +311,19 @@ function compute_proba(model::SoftMaxMultiClass,m_f::Vector{Vector{T}}) where T
     return model.class_mapping[pred],value
 end
 
+function compute_proba(model::LogisticSoftMaxMultiClass,m_f::Vector{Vector{T}}) where T
+    n = length(m_f[1])
+    m_f = hcat(m_f...); y = [logisticsoftmax(m_f[i,:]) for i in 1:n]
+    pred = zeros(Int64,n)
+    value = zeros(T,n)
+    for i in 1:n
+        res = findmax(y[i]);
+        pred[i]=res[2];
+        value[i]=res[1]
+    end
+    return model.class_mapping[pred],value
+end
+
 function multiclasspredictproba(model::Union{MultiClass,SparseMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
@@ -342,13 +355,33 @@ function multiclasspredictproba(model::SoftMaxMultiClass,X_test::Array{T,N},covf
     m_predic = zeros(n,model.K)
     nSamples = 200
     for i in 1:n
-        p = MvNormal(m_f[i],sqrt.(cov_f[i]))
+        p = MvNormal(m_f[i],sqrt.(max.(eps(T),cov_f[i])))
         for _ in 1:nSamples
             m_predic[i,:] += softmax(rand(p))/nSamples
         end
     end
     return DataFrame(m_predic,Symbol.(model.class_mapping))
 end
+
+
+function multiclasspredictproba(model::LogisticSoftMaxMultiClass,X_test::Array{T,N},covf::Bool=false) where {T,N}
+    n = size(X_test,1)
+    m_f,cov_f = fstar(model,X_test)
+    m_f = hcat(m_f...)
+    m_f = [m_f[i,:] for i in 1:n]
+    cov_f = hcat(cov_f...)
+    cov_f = [cov_f[i,:] for i in 1:n]
+    m_predic = zeros(n,model.K)
+    nSamples = 200
+    for i in 1:n
+        p = MvNormal(m_f[i],sqrt.(max.(eps(T),cov_f[i])))
+        for _ in 1:nSamples
+            m_predic[i,:] += logisticsoftmax(rand(p))/nSamples
+        end
+    end
+    return DataFrame(m_predic,Symbol.(model.class_mapping))
+end
+
 
 function multiclasspredictprobamcmc(model,X_test::AbstractArray{T,N},NSamples=100) where {T,N}
     n = size(X_test,1)

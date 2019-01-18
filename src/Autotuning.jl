@@ -42,7 +42,7 @@ end
 
 
 "Update all hyperparameters for the multiclass GP models"
-function updateHyperParameters!(model::MultiClass)
+function updateHyperParameters!(model::MultiClassGPModel)
     f_l,f_v = hyperparameter_gradient_function(model)
     if model.IndependentGPs
         Jnn = [kernelderivativematrix(model.X,model.kernel[i]) for i in model.KIndices]
