@@ -147,7 +147,8 @@ function ExpecLogLikelihood(model::SparseLogisticSoftMaxMultiClass)
     tot = 0.0
     nSamples = 200
     μ = model.κ.*model.μ;
-    Σ = model.Ktilde.+diag.(model.κ.*model.Σ.*transpose.(model.κ))
+    Σ = broadcast((κ,Σ,Ktilde)->[Ktilde[i] + dot(κ[i,:],Σ*κ[i,:]) for i in 1:model.nSamplesUsed],model.κ,model.Σ,model.Ktilde)
+
     for i in 1:model.nSamples
         p = MvNormal([μ[k][i] for k in 1:model.K],[sqrt(Σ[k][i]) for k in 1:model.K])
         class = model.ind_mapping[model.y[i]]
@@ -163,7 +164,7 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
     if iter == 1
         if typeof(model) <: SparseLogisticSoftMaxMultiClass
             model.L = [cholesky(model.Kmm[1]).L for _ in 1:model.K]
-            model.Σ .= copy.(model.Kmm[1])
+            model.Σ .= copy.(model.Kmm)
         else
             model.L = [cholesky(model.Knn[1]).L for _ in 1:model.K]
             model.Σ .= copy.(model.Knn)
@@ -371,55 +372,24 @@ end
 """Return the gradient of the ELBO given the kernel hyperparameters"""
 function hyperparameter_gradient_function(model::MultiClassGPModel{T}) where T
     if model.IndependentGPs
-        A = [model.invK[i]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{T}(I,model.nSamples) for i in model.KIndices]
+        A = [(model.invK[i]*(model.Σ[i]+model.µ[i]*model.μ[i]')-I)*model.invK[i] for i in model.KIndices]
         return (function(J,Kindex,index)
-                    return 0.5*sum((model.invK[Kindex]*J).*transpose(A[index]))
+                    return 0.5*sum(J.*transpose(A[index]))
                 end,
                 function(kernel,Kindex,index)
-                    return 0.5/getvariance(kernel)*tr(A[index])
+                    return 0.5/getvariance(kernel)*sum(model.Knn[i].*A[index]')
                 end)
     else
-        A = [model.invK[1]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{T}(I,model.nSamples) for i in model.KIndices]
+        A = [(model.invK[1]*(model.Σ[i]+model.µ[i]*model.μ[i]')-I)*model.invK[i] for i in model.KIndices]
         V = Matrix{T}(undef,model.nSamples,model.nSamples)
         return (function(J,Kindex,index)
-            V = model.invK[1]*J #invK*J
-            return 0.5*model.KStochCoeff*sum([sum(V.*transpose(A[i])) for i in 1:model.nClassesUsed])
+            return 0.5*model.KStochCoeff*sum([sum(J.*transpose(A[i])) for i in 1:model.nClassesUsed])
                 end,
                 function(kernel)
                     return 0.5/getvariance(kernel)*sum(tr.(A))
                 end)
     end
 end
-
-"""Return the gradient of the ELBO given the kernel hyperparameters"""
-function hyperparameter_gradient_function(model::SparseLogisticSoftMaxMultiClass{T}) where T
-    if model.IndependentGPs
-        A = [model.invKmm[i]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{T}(I,model.nSamples) for i in model.KIndices]
-        ι = Matrix{T}(undef,model.nSamplesUsed,model.m)
-        Jtilde = Vector{T}(undef,model.nSamplesUsed)
-        return (function(Jmm::LinearAlgebra.Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},Kindex::Int64,index::Int64) where {T}
-                    mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[Kindex])
-                    Jnn .+= - sum(ι.*model.Knm[index],dims=2)[:] - sum(model.κ[index].*Jnm,dims=2)[:]
-                    dμ = dot(model.grad_μ[Kindex],model.ι[index]*model.μ[Kindex])
-                    dΣ = tr(Diagonal(model.grad_Σ[Kindex])*(Jnn+ι*model.Σ[Kindex]*model.κ[index]'+model.κ[index]*model.Σ[Kindex]*ι'))
-                    return model.StochCoeff*(dμ+dΣ)+ 0.5*sum((model.invKmm[Kindex]*J).*transpose(A[index]))
-                end,
-                function(kernel,Kindex,index)
-                    return 0.5/getvariance(kernel)*(model.StochCoeff*dot(model.grad_Σ[Kindex],model.Ktilde[index])+tr(A[index]))
-                end)
-    else
-        A = [model.invK[1]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{T}(I,model.nSamples) for i in model.KIndices]
-        V = Matrix{T}(undef,model.nSamples,model.nSamples)
-        return (function(J,Kindex,index)
-            V = model.invK[1]*J #invK*J
-            return 0.5*model.KStochCoeff*sum([sum(V.*transpose(A[i])) for i in 1:model.nClassesUsed])
-                end,
-                function(kernel)
-                    return 0.5/getvariance(kernel)*sum(tr.(A))
-                end)
-    end
-end
-
 
 """Return the gradient of the ELBO given the kernel hyperparameters"""
 function hyperparameter_gradient_function(model::SparseMultiClass{T}) where T
@@ -476,6 +446,35 @@ function hyperparameter_gradient_function(model::SparseMultiClass{T}) where T
             return 0.5/(getvariance(kernel))*sum(broadcast((c2,θ)->sum(model.invKmm[1].*c2)-model.StochCoeff * dot(θ,model.Ktilde[1])-model.m,C2,model.θ))
         end)
        end
+end
+
+"""Return the gradient of the ELBO given the kernel hyperparameters"""
+function hyperparameter_gradient_function(model::SparseLogisticSoftMaxMultiClass{T}) where T
+    if model.IndependentGPs
+        A = [(model.invKmm[i]*(model.Σ[i]+model.µ[i]*model.μ[i]')-I)*model.invKmm[i] for i in model.KIndices]
+        ι = Matrix{T}(undef,model.nSamplesUsed,model.m)
+        # Jtilde = Vector{T}(undef,model.nSamplesUsed)
+        return (function(Jmm::LinearAlgebra.Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},Kindex::Int64,index::Int64) where {T}
+                    mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[Kindex])
+                    Jnn .+= - sum(ι.*model.Knm[index],dims=2)[:] - sum(model.κ[index].*Jnm,dims=2)[:]
+                    dμ = dot(model.grad_μ[Kindex],ι*model.μ[Kindex])
+                    dΣ = dot(model.grad_Σ[Kindex],(Jnn+diag(ι*model.Σ[Kindex]*model.κ[index]')+diag(model.κ[index]*model.Σ[Kindex]*ι')))
+                    return model.StochCoeff*(dμ+dΣ)+ 0.5*sum(Jmm.*transpose(A[index]))
+                end,
+                function(kernel,Kindex,index)
+                    return 0.5/getvariance(kernel)*(2.0*model.StochCoeff*dot(model.grad_Σ[Kindex],model.Ktilde[index])+sum(model.invKmm[index].*A[index]'))
+                end)
+    else
+        A = [model.invK[1]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{T}(I,model.nSamples) for i in model.KIndices]
+        V = Matrix{T}(undef,model.nSamples,model.nSamples)
+        return (function(J,Kindex,index)
+            V = model.invK[1]*J #invK*J
+            return 0.5*model.KStochCoeff*sum([sum(V.*transpose(A[i])) for i in 1:model.nClassesUsed])
+                end,
+                function(kernel)
+                    return 0.5/getvariance(kernel)*sum(tr.(A))
+                end)
+    end
 end
 
 

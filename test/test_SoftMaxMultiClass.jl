@@ -14,7 +14,7 @@ pyplot()
 seed!(42)
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
-N_data = 100
+N_data = 300
 N_class = 3
 N_test = 50
 N_grid = 50
@@ -98,6 +98,8 @@ X_grid = hcat([j for i in x_grid, j in x_grid][:],[i for i in x_grid, j in x_gri
 # println("$(now()): Artificial Characters data loaded")
 
 metrics = MVHistory()
+kerparams = MVHistory()
+elbos = MVHistory()
 anim  = Animation()
 function callback(model,iter)
     if iter%2 !=0
@@ -133,6 +135,14 @@ function callback2(model,iter)
     py_pred = model.predictproba(X_test)
     push!(metrics,:err,1-acc(y_test,y_pred))
     push!(metrics,:ll,-loglike(y_test,py_pred))
+    push!(elbos,:ELBO,ELBO(model))
+    push!(elbos,:GaussianKL,-AugmentedGaussianProcesses.GaussianKL(model))
+    push!(elbos,:ExpecLogLike,AugmentedGaussianProcesses.ExpecLogLikelihood(model))
+    push!(elbos,:ELBO,ELBO(model))
+    for i in 1:model.K
+        push!(kerparams,Symbol("l",i),getlengthscales(model.kernel[i]))
+        push!(kerparams,Symbol("v",i),getvariance(model.kernel[i]))
+    end
 end
 
 ##Which algorithm are tested
@@ -148,16 +158,18 @@ function initial_lengthscale(X)
 end
  l = sqrt(initial_lengthscale(X))
 
-kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim,variance=10.0)
-# kernel = AugmentedGaussianProcesses.RBFKernel(l)
+# kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim,variance=10.0)
+kernel = AugmentedGaussianProcesses.RBFKernel(l)
 
 
 # model = AugmentedGaussianProcesses.SoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=true,AutotuningFrequency=2,IndependentGPs=true)
 # model = AugmentedGaussianProcesses.LogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=false,AutotuningFrequency=2,IndependentGPs=true)
-model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=1.0,Autotuning=true,AutotuningFrequency=2,IndependentGPs=true,m=50)
+setfixed!(kernel.fields.lengthscales)
+# setfixed!(kernel.fields.variance)
+model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
 # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(model,X_test=X_test,y_test=y_test)
 # model.AutotuningFrequency=1
-t_full = @elapsed model.train(iterations=1000,callback=callback2)
+t_full = @elapsed model.train(iterations=300,callback=callback2)
 
 global y_full = model.predictproba(X_test)
 global y_fall = AugmentedGaussianProcesses.multiclasspredict(model,X_test,true)
@@ -172,3 +184,5 @@ for (i,pred) in enumerate(y_fall[1])
 end
 println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s for l = $l")
 plot(metrics,title="Metrics")
+plot(elbos,title="ELBO")
+plot(kerparams,title="Kernel parameters")

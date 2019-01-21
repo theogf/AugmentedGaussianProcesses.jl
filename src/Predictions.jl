@@ -300,7 +300,7 @@ function compute_proba(model::Union{MultiClass,SparseMultiClass},m_f::Vector{Vec
     return model.class_mapping[pred],value
 end
 
-function compute_proba(model::SoftMaxMultiClass,m_f::Vector{Vector{T}}) where T
+function compute_proba(model::Union{SoftMaxMultiClass,SparseLogisticSoftMaxMultiClass},m_f::Vector{Vector{T}}) where T
     n = length(m_f[1])
     m_f = hcat(m_f...); y = [softmax(m_f[i,:]) for i in 1:n]
     pred = zeros(Int64,n)
