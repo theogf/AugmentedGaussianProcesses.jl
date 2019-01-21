@@ -112,7 +112,7 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for multiclass sparse GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::SparseMultiClass,X_test::AbstractArray;covf::Bool=true)
+function fstar(model::Union{SparseMultiClass,SparseLogisticSoftMaxMultiClass},X_test::AbstractArray;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invKmm.*model.μ
     end
@@ -367,7 +367,7 @@ function multiclasspredictproba(model::SoftMaxMultiClass,X_test::Array{T,N},covf
 end
 
 
-function multiclasspredictproba(model::LogisticSoftMaxMultiClass,X_test::Array{T,N},covf::Bool=false) where {T,N}
+function multiclasspredictproba(model::Union{LogisticSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
     m_f = hcat(m_f...)

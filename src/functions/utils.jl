@@ -1,8 +1,9 @@
+"""File containing different utility functions"""
+
 
 function δ(i::Integer,j::Integer)
     i == j ? 1.0 : 0.0
 end
-
 
 function logisticsoftmax(f::AbstractVector{<:Real})
     s = logit.(f)

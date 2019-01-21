@@ -10,6 +10,8 @@ mutable struct SparseLogisticSoftMaxMultiClass{T<:Real} <: MultiClassGPModel{T}
     @multiclass_sparsefields
     μ_optimizer::Vector
     Σ_optimizer::Vector
+    grad_μ::Vector{AbstractVector}
+    grad_Σ::Vector{AbstractVector}
     L::Vector{AbstractArray{T}}
     function SparseLogisticSoftMaxMultiClass(X::AbstractArray{T},y::AbstractArray;Stochastic::Bool=false,KStochastic::Bool=false,nClassesUsed::Int=0,AdaptiveLearningRate::Bool=true,
                                     Autotuning::Bool=false,OptimizeIndPoints::Bool=false, IndependentGPs::Bool=true,
@@ -41,6 +43,8 @@ mutable struct SparseLogisticSoftMaxMultiClass{T<:Real} <: MultiClassGPModel{T}
             this.L = [LowerTriangular(Diagonal(one(T)*I,this.nFeatures)) for _ in 1:this.K]
             this.μ_optimizer = [Adam(α=optimizer) for _ in 1:this.K]
             this.Σ_optimizer = [Adam(α=optimizer) for _ in 1:this.K]
+            this.grad_μ = [zeros(T,this.nSamplesUsed) for _ in 1:this.K]
+            this.grad_Σ = [zeros(T,this.nSamplesUsed) for _ in 1:this.K]
             return this;
     end
 end

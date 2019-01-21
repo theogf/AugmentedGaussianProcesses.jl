@@ -96,7 +96,7 @@ function ELBO(model::SparseMultiClass)
 end
 
 """Return the negative ELBO for the Sparse MultiClass model"""
-function ELBO(model::Union{SoftMaxMultiClass,LogisticSoftMaxMultiClass})
+function ELBO(model::Union{SoftMaxMultiClass,LogisticSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass})
     ELBO_v = 0.0
     ELBO_v += ExpecLogLikelihood(model)
     ELBO_v -= GaussianKL(model)
@@ -143,30 +143,52 @@ function ExpecLogLikelihood(model::LogisticSoftMaxMultiClass)
     return tot
 end
 
+function ExpecLogLikelihood(model::SparseLogisticSoftMaxMultiClass)
+    tot = 0.0
+    nSamples = 200
+    μ = model.κ.*model.μ;
+    Σ = model.Ktilde.+diag.(model.κ.*model.Σ.*transpose.(model.κ))
+    for i in 1:model.nSamples
+        p = MvNormal([μ[k][i] for k in 1:model.K],[sqrt(Σ[k][i]) for k in 1:model.K])
+        class = model.ind_mapping[model.y[i]]
+        for _ in 1:nSamples
+            tot += log(logisticsoftmax(rand(p),class))/nSamples
+        end
+    end
+    return tot
+end
+
 "Compute the variational updates for the full GP MultiClass"
-function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxMultiClass{T}},iter::Integer) where T
+function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxMultiClass{T},SparseLogisticSoftMaxMultiClass{T}},iter::Integer) where T
     if iter == 1
-        model.L = [cholesky(model.Knn[1]).L for _ in 1:model.K]
-        model.Σ .= copy.(model.Knn)
+        if typeof(model) <: SparseLogisticSoftMaxMultiClass
+            model.L = [cholesky(model.Kmm[1]).L for _ in 1:model.K]
+            model.Σ .= copy.(model.Kmm[1])
+        else
+            model.L = [cholesky(model.Knn[1]).L for _ in 1:model.K]
+            model.Σ .= copy.(model.Knn)
+        end
         # println("Init check")
     end
-    g_μ, g_Σ = Gradient_Expec(model)
+    Gradient_Expec(model)
 
-    g_μ,g_L = compute_gradient_L(model,g_μ,g_Σ)
-    g_μ,g_Σ = compute_gradient_Σ(model,g_μ,g_Σ)
+    # g_μ,g_L = compute_gradient_L(model,g_μ,g_Σ)
+    g_μ,g_Σ = compute_gradient_Σ(model,model.grad_μ,model.grad_Σ)
     # compute_gradient_η(model,g_μ,g_Σ)
-
-    k=1
     for k in 1:model.K
         updated = false; correct_coeff=1.0
-        up = update(model.Σ_optimizer[k],grad_L)
-        # up = update(model.Σ_optimizer[k],grad_Σ)
+        # up = update(model.Σ_optimizer[k],g_L)
+        up = update(model.Σ_optimizer[k],g_Σ[k])
         while !updated
             try
-                # model.Σ[k] = Symmetric(model.Σ[k]+update(model.Σ_optimizer[k],g_Σ[k]))
-                @assert det(model.L[k]+correct_coeff*up) > 0
-                model.L[k] = LowerTriangular(model.L[k]+correct_coeff*up)
-                model.Σ[k] = Symmetric(model.L[k]*model.L[k]')
+                # @assert det(model.L[k]+correct_coeff*up) > 0
+                # model.L[k] = LowerTriangular(model.L[k]+correct_coeff*up)
+                # model.Σ[k] = Symmetric(model.L[k]*model.L[k]')
+
+                @assert det(model.Σ[k]+correct_coeff*up) > 0
+                model.Σ[k] = Symmetric(model.Σ[k]+correct_coeff*up)
+
+
                 model.μ[k] .+= update(model.μ_optimizer[k],g_μ[k])
                 updated = true
             catch
@@ -175,24 +197,32 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
                 println("Reducing value of α[$k], new value : $(model.Σ_optimizer[k].α)")
             end
         end
-        # model.L[k] = model.L[k]+update(model.Σ_optimizer[k],g_Σ[k]*(model.L[k]+model.L[k]'))
     end
     display(det.(model.L))
-    # println([model.μ[1][1],model.μ[2][1],model.μ[3][1]])
 end
-function compute_gradient_Σ(model,g_μ,g_Σ)
-    grad_μ = [zero(model.μ) for _ in m]
-    grad_Σ = [zero(model.Σ) for _ in m]
+function compute_gradient_Σ(model::MultiClassGPModel,g_μ,g_Σ)
+    grad_μ = [zero(model.μ[1]) for _ in 1:model.K]
+    grad_Σ = [zero(model.Σ[1]) for _ in 1:model.K]
     for k in 1:model.K
-        grad_μ[k] .+= g_μ - model.invK[k]*model.μ[k]
-        grad_Σ[k] .+= Diagonal(grad_Σ) + 0.5*(inv(model.Σ[k])-model.invK[k])
+        grad_μ[k] .= g_μ[k] - model.invK[k]*model.μ[k]
+        grad_Σ[k] .= Diagonal(grad_Σ[k]) + Symmetric(0.5*(inv(model.Σ[k])-model.invK[k]))
     end
     return grad_μ,grad_Σ
 end
 
-function compute_gradient_L(model,g_μ,g_Σ)
-    grad_μ = [zero(model.μ) for _ in m]
-    grad_Σ = [zero(model.L) for _ in m]
+function compute_gradient_Σ(model::SparseLogisticSoftMaxMultiClass,g_μ,g_Σ)
+    grad_μ = [zero(model.μ[1]) for _ in 1:model.K]
+    grad_Σ = [zero(model.Σ[1]) for _ in 1:model.K]
+    for k in 1:model.K
+        grad_μ[k] .= model.κ[k]'*g_μ[k] - model.invKmm[k]*model.μ[k]
+        grad_Σ[k] .= Symmetric(Diagonal(grad_Σ[k]) + 0.5*(inv(model.Σ[k])-model.invKmm[k]))
+    end
+    return grad_μ,grad_Σ
+end
+
+function compute_gradient_L(model::MultiClassGPModel,g_μ,g_Σ)
+    grad_μ = [zero(model.μ[1]) for _ in 1:model.K]
+    grad_Σ = [zero(model.L[1]) for _ in 1:model.K]
     for k in 1:model.K
         grad_L = zero(model.L[k])
         for i in 1:model.nFeatures
@@ -210,14 +240,14 @@ function compute_gradient_L(model,g_μ,g_Σ)
             end
         end
         grad_μ[k] .= g_μ - model.invK[k]*model.μ[k]
-        grad_L[k] .= grad_L + (transpose(inv(model.L[k]))-model.L[k]*model.invK[k])
+        grad_L[k] .= grad_L + LowerTriangular(transpose(pinv(Array(model.L[k])))-model.L[k]*model.invK[k])
     end
     return grad_μ,grad_L
 end
+
 function compute_gradient_η(model,g_μ,g_Σ)
     #TODO
 end
-
 
 ""
 ###
@@ -246,36 +276,10 @@ function Gradient_Expec(model::SoftMaxMultiClass)
     return full_grad_μ,full_grad_Σ
 end
 
-function softmax(f::AbstractVector{<:Real})
-    s = exp.(f)
-    return s./sum(s)
-end
-
-function softmax(f::AbstractVector{<:Real},i::Integer)
-    return softmax(f)[i]
-end
-
-function grad_softmax(s::AbstractVector{<:Real},i::Integer)
-    base_grad = -s.*s[i]
-    base_grad[i] += s[i]
-    return base_grad
-end
-
-function hessian_softmax(s::AbstractVector{<:Real},i::Integer)
-    m = length(s)
-    hessian = zeros(m,m)
-    for j in 1:m
-        for k in 1:m
-            hessian[j,k] = s[i]*((δ(i,k)-s[k])*(δ(i,j)-s[j])-s[j]*(δ(j,k)-s[k]))
-        end
-    end
-    return hessian
-end
-
-function Gradient_ELBO(model::LogisticSoftMaxMultiClass)
+function Gradient_Expec(model::LogisticSoftMaxMultiClass)
     nSamples = 200
     full_grad_μ = [zeros(model.nFeatures) for _ in 1:model.K]
-    full_grad_Σ = [zeros(model.nFeatures,model.nFeatures) for _ in 1:model.K]
+    full_grad_Σ = [zeros(model.nFeatures) for _ in 1:model.K]
     for i in 1:model.nSamples
         p = MvNormal([model.μ[k][i] for k in 1:model.K],[sqrt(model.Σ[k][i,i]) for k in 1:model.K])
         grad_μ = zeros(model.K)
@@ -292,65 +296,54 @@ function Gradient_ELBO(model::LogisticSoftMaxMultiClass)
         end
         for k in 1:model.K
             full_grad_μ[k][i] = grad_μ[k]/nSamples
-            full_grad_Σ[k][i,i] = 0.5*grad_Σ[k]/nSamples
+            full_grad_Σ[k][i] = 0.5*grad_Σ[k]/nSamples
         end
-    end
-    for k in 1:model.K
-        full_grad_μ[k] .+= -model.invK[k]*model.μ[k]
-        full_grad_Σ[k] .+= 0.5*(inv(model.Σ[k])-model.invK[k])
     end
     return full_grad_μ,full_grad_Σ
 end
 
-function logisticsoftmax(f::AbstractVector{<:Real})
-    s = logit.(f)
-    return s./sum(s)
-end
-
-function logisticsoftmax(f::AbstractVector{<:Real},i::Integer)
-    return logisticsoftmax(f)[i]
-end
-
-function grad_logisticsoftmax(s::AbstractVector{<:Real},σ::AbstractVector{<:Real},i::Integer)
-    base_grad = -s.*(1.0.-σ).*s[i]
-    base_grad[i] += s[i]*(1.0-σ[i])
-    return base_grad
-end
-
-function hessian_logisticsoftmax(s::AbstractVector{<:Real},σ::AbstractVector{<:Real},i::Integer)
-    m = length(s)
-    hessian = zeros(m,m)
-    for j in 1:m
-        for k in 1:m
-            hessian[j,k] = (1-σ[j])*s[i]*(
-            (δ(i,k)-s[k])*(1.0-σ[k])*(δ(i,j)-s[j])
-            -s[j]*(δ(j,k)-s[k])*(1.0-σ[k])
-            -δ(k,j)*σ[j]*(δ(i,j)-s[j]))
+function Gradient_Expec(model::SparseLogisticSoftMaxMultiClass)
+    nSamples = 200
+    μ = model.κ.*model.μ; Σ = broadcast((κ,Σ,Ktilde)->[Ktilde[i] + dot(κ[i,:],Σ*κ[i,:]) for i in 1:model.nSamplesUsed],model.κ,model.Σ,model.Ktilde)
+    # display
+    for (iter,i) in enumerate(model.MBIndices)
+        p = MvNormal([μ[k][iter] for k in 1:model.K],[sqrt(Σ[k][iter]) for k in 1:model.K])
+        grad_μ = zeros(model.K)
+        grad_Σ = zeros(model.K)
+        class = model.ind_mapping[model.y[i]]
+        for _ in 1:nSamples
+            x = rand(p)
+            samp = logisticsoftmax(x)
+            σ = logit(x)
+            s = samp[class]
+            g_μ = grad_logisticsoftmax(samp,σ,class)
+            grad_μ += g_μ./s
+            grad_Σ += diag(hessian_logisticsoftmax(samp,σ,class))./s.-g_μ.^2 ./s^2
+        end
+        for k in 1:model.K
+            model.grad_μ[k][iter] = grad_μ[k]/nSamples
+            model.grad_Σ[k][iter] = 0.5*grad_Σ[k]/nSamples
         end
     end
-    return hessian
-end
-
-function δ(i::Integer,j::Integer)
-    i == j ? 1.0 : 0.0
+    return model.grad_μ,model.grad_Σ
 end
 
 """Return KL Divergence for MvNormal for the MultiClass Model"""
 function GaussianKL(model::MultiClassGPModel)
     if model.IndependentGPs
-        return sum(0.5*(sum(model.invK[i].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.nSamples-2*log(det(model.L[i]))-logdet(model.invK[i])) for i in model.KIndices)
+        return sum(0.5*(sum(model.invK[i].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.nSamples-logdet(model.Σ[i])-logdet(model.invK[i])) for i in model.KIndices)
     else
-        return        sum(0.5*(sum(model.invK[1].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.nSamples-logdet(model.Σ[i])-logdet(model.invK[1])) for i in model.KIndices)
+        return sum(0.5*(sum(model.invK[1].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.nSamples-logdet(model.Σ[i])-logdet(model.invK[1])) for i in model.KIndices)
     end
 end
 
 
 """Return KL Divergence for MvNormal for the Sparse MultiClass Model"""
-function GaussianKL(model::SparseMultiClass)
+function GaussianKL(model::Union{SparseMultiClass,SparseLogisticSoftMaxMultiClass})
     if model.IndependentGPs
         return sum(0.5*(sum(model.invKmm[i].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.m-logdet(model.Σ[i])-logdet(model.invKmm[i])) for i in model.KIndices)
     else
-        return        sum(0.5*(sum(model.invKmm[1].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.m-logdet(model.Σ[i])-logdet(model.invKmm[1])) for i in model.KIndices)
+        return sum(0.5*(sum(model.invKmm[1].*(model.Σ[i]+model.μ[i]*transpose(model.μ[i])))-model.m-logdet(model.Σ[i])-logdet(model.invKmm[1])) for i in model.KIndices)
     end
 end
 
@@ -398,8 +391,33 @@ function hyperparameter_gradient_function(model::MultiClassGPModel{T}) where T
     end
 end
 
-function add_transpose!(A::Matrix{T}) where {T}
-    A .+= A'
+"""Return the gradient of the ELBO given the kernel hyperparameters"""
+function hyperparameter_gradient_function(model::SparseLogisticSoftMaxMultiClass{T}) where T
+    if model.IndependentGPs
+        A = [model.invKmm[i]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{T}(I,model.nSamples) for i in model.KIndices]
+        ι = Matrix{T}(undef,model.nSamplesUsed,model.m)
+        Jtilde = Vector{T}(undef,model.nSamplesUsed)
+        return (function(Jmm::LinearAlgebra.Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},Kindex::Int64,index::Int64) where {T}
+                    mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[Kindex])
+                    Jnn .+= - sum(ι.*model.Knm[index],dims=2)[:] - sum(model.κ[index].*Jnm,dims=2)[:]
+                    dμ = dot(model.grad_μ[Kindex],model.ι[index]*model.μ[Kindex])
+                    dΣ = tr(Diagonal(model.grad_Σ[Kindex])*(Jnn+ι*model.Σ[Kindex]*model.κ[index]'+model.κ[index]*model.Σ[Kindex]*ι'))
+                    return model.StochCoeff*(dμ+dΣ)+ 0.5*sum((model.invKmm[Kindex]*J).*transpose(A[index]))
+                end,
+                function(kernel,Kindex,index)
+                    return 0.5/getvariance(kernel)*(model.StochCoeff*dot(model.grad_Σ[Kindex],model.Ktilde[index])+tr(A[index]))
+                end)
+    else
+        A = [model.invK[1]*(model.Σ[i]+model.µ[i]*model.μ[i]')-Diagonal{T}(I,model.nSamples) for i in model.KIndices]
+        V = Matrix{T}(undef,model.nSamples,model.nSamples)
+        return (function(J,Kindex,index)
+            V = model.invK[1]*J #invK*J
+            return 0.5*model.KStochCoeff*sum([sum(V.*transpose(A[i])) for i in 1:model.nClassesUsed])
+                end,
+                function(kernel)
+                    return 0.5/getvariance(kernel)*sum(tr.(A))
+                end)
+    end
 end
 
 

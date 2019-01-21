@@ -61,7 +61,7 @@ function updateHyperParameters!(model::MultiClassGPModel)
 end
 
 
-function updateHyperParameters!(model::SparseMultiClass)
+function updateHyperParameters!(model::Union{SparseMultiClass,SparseLogisticSoftMaxMultiClass})
     f_l,f_v = hyperparameter_gradient_function(model)
     if model.IndependentGPs
         matrix_derivatives =[[kernelderivativematrix(model.inducingPoints[kiter],model.kernel[kiter]),

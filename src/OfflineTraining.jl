@@ -129,7 +129,7 @@ function computeMatrices!(model::MultiClassGPModel{T}) where T
 end
 
 "Compute of kernel matrices for the sparse multiclass GPs"
-function computeMatrices!(model::SparseMultiClass{T}) where T
+function computeMatrices!(model::Union{SparseMultiClass{T},SparseLogisticSoftMaxMultiClass{T}}) where T
     if model.HyperParametersUpdated
         if model.IndependentGPs
             model.Kmm .= broadcast((points,kernel)->Symmetric(KernelModule.kernelmatrix(points,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.inducingPoints,model.kernel)

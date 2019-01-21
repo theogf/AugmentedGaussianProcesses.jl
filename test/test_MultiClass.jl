@@ -376,19 +376,20 @@ k = Array(exp(Symmetric(rand(10,10))))
 a = cholesky(Array(exp(Symmetric(rand(10,10))))).L
 isposdef(k)
 # a = rand(10)
-function foo(a)
-    return -logdet(a*a') + tr(k*a*a')
+function foo(s)
+    a = s[1]*k
+    return sum(sin.(a*a))
 end
 
-function foo_tilde(ka)
-    return sum(sin.(ka))
+function foo_tilde(sk)
+    return sum(sin.(sk*sk))
+end
+a= 3.0
+foo(3.0)
+g = ForwardDiff.gradient(foo,[a])
+g̃ = ForwardDiff.gradient(foo_tilde,a*k)
+function grad_foo(a,g̃)
+    return tr(g̃'*k)
 end
 
-foo(a)
-g = ForwardDiff.gradient(foo,a)
-g̃ = ForwardDiff.gradient(foo_tilde,k*a)
-function grad_foo(a)
-    return LowerTriangular(-2*transpose(inv(a))+2*a*k)
-end
-
-grad_foo(a)
+grad_foo(a,g̃)
