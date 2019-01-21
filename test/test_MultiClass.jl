@@ -202,6 +202,7 @@ end
 # end #End for loop on kernel lengthscale
 if sparsem
     global smodel = AugmentedGaussianProcesses.SparseMultiClass(Float64.(X),y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=false,batchsize=50,IndependentGPs=true,AdaptiveLearningRate=false,OptimizeIndPoints=!true)
+    global smodel = AugmentedGaussianProcesses.SparseMultiClass(Float64.(X),y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=false,batchsize=50,IndependentGPs=true,AdaptiveLearningRate=false,OptimizeIndPoints=!true)
     # smodel.AutotuningFrequency=5
     # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
@@ -369,3 +370,25 @@ end
 #
 # end
 # end
+
+using LinearAlgebra, ForwardDiff
+k = Array(exp(Symmetric(rand(10,10))))
+a = cholesky(Array(exp(Symmetric(rand(10,10))))).L
+isposdef(k)
+# a = rand(10)
+function foo(a)
+    return -logdet(a*a') + tr(k*a*a')
+end
+
+function foo_tilde(ka)
+    return sum(sin.(ka))
+end
+
+foo(a)
+g = ForwardDiff.gradient(foo,a)
+g̃ = ForwardDiff.gradient(foo_tilde,k*a)
+function grad_foo(a)
+    return LowerTriangular(-2*transpose(inv(a))+2*a*k)
+end
+
+grad_foo(a)

@@ -150,21 +150,17 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
         model.Σ .= copy.(model.Knn)
         # println("Init check")
     end
-    display(getlengthscales.(model.kernel))
-    g_μ, g_Σ = Gradient_ELBO(model)
+    g_μ, g_Σ = Gradient_Expec(model)
+
+    g_μ,g_L = compute_gradient_L(model,g_μ,g_Σ)
+    g_μ,g_Σ = compute_gradient_Σ(model,g_μ,g_Σ)
+    # compute_gradient_η(model,g_μ,g_Σ)
+
     k=1
     for k in 1:model.K
-        # model.μ[k] = model.Knn[k]*g_μ[k]
-        grad_L = zero(model.L[k])
-        for i in 1:model.nFeatures
-            for j in 1:i
-                L_spec = Array(zero(model.L[k]))
-                L_spec[j,:] = model.L[k][i,:]
-                grad_L[i,j] = tr(g_Σ[k]'*(L_spec+L_spec'))
-            end
-        end
         updated = false; correct_coeff=1.0
         up = update(model.Σ_optimizer[k],grad_L)
+        # up = update(model.Σ_optimizer[k],grad_Σ)
         while !updated
             try
                 # model.Σ[k] = Symmetric(model.Σ[k]+update(model.Σ_optimizer[k],g_Σ[k]))
@@ -184,14 +180,52 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
     display(det.(model.L))
     # println([model.μ[1][1],model.μ[2][1],model.μ[3][1]])
 end
+function compute_gradient_Σ(model,g_μ,g_Σ)
+    grad_μ = [zero(model.μ) for _ in m]
+    grad_Σ = [zero(model.Σ) for _ in m]
+    for k in 1:model.K
+        grad_μ[k] .+= g_μ - model.invK[k]*model.μ[k]
+        grad_Σ[k] .+= Diagonal(grad_Σ) + 0.5*(inv(model.Σ[k])-model.invK[k])
+    end
+    return grad_μ,grad_Σ
+end
+
+function compute_gradient_L(model,g_μ,g_Σ)
+    grad_μ = [zero(model.μ) for _ in m]
+    grad_Σ = [zero(model.L) for _ in m]
+    for k in 1:model.K
+        grad_L = zero(model.L[k])
+        for i in 1:model.nFeatures
+            for j in 1:i
+                L_spec = Array(zero(model.L[k]))
+                L_spec[j,:] = model.L[k][i,:]
+                grad_L[i,j] = tr(Diagonal(g_Σ[k])*(L_spec+L_spec'))
+            end
+        end
+        for i in 1:length(grad_μ[k])
+            for j in 1:i
+                L_spec = Array(zero(model.L[k]))
+                L_spec[j,:] = model.L[k][i,:]
+                grad_L[i,j] = tr(g_Σ[k]'*(L_spec+L_spec'))
+            end
+        end
+        grad_μ[k] .= g_μ - model.invK[k]*model.μ[k]
+        grad_L[k] .= grad_L + (transpose(inv(model.L[k]))-model.L[k]*model.invK[k])
+    end
+    return grad_μ,grad_L
+end
+function compute_gradient_η(model,g_μ,g_Σ)
+    #TODO
+end
+
 
 ""
 ###
 
-function Gradient_ELBO(model::SoftMaxMultiClass)
+function Gradient_Expec(model::SoftMaxMultiClass)
     nSamples = 200
     full_grad_μ = [zeros(model.nFeatures) for _ in 1:model.K]
-    full_grad_Σ = [zeros(model.nFeatures,model.nFeatures) for _ in 1:model.K]
+    full_grad_Σ = [zeros(model.nFeatures) for _ in 1:model.K]
     for i in 1:model.nSamples
         p = MvNormal([model.μ[k][i] for k in 1:model.K],[sqrt(model.Σ[k][i,i]) for k in 1:model.K])
         grad_μ = zeros(model.K)
@@ -206,14 +240,8 @@ function Gradient_ELBO(model::SoftMaxMultiClass)
         end
         for k in 1:model.K
             full_grad_μ[k][i] = grad_μ[k]/nSamples
-            full_grad_Σ[k][i,i] = 0.5*grad_Σ[k]/nSamples
+            full_grad_Σ[k][i] = 0.5*grad_Σ[k]/nSamples
         end
-    end
-    for k in 1:model.K
-        # display(diag(full_grad_Σ[k]))
-        full_grad_μ[k] .+= -model.invK[k]*model.μ[k]
-        # full_grad_Σ[k] = 0.5*(inv(model.Σ[k])-model.invK[k])
-        full_grad_Σ[k] = full_grad_Σ[k] + 0.5*(inv(model.L[k])'*inv(model.L[k])-model.invK[k])
     end
     return full_grad_μ,full_grad_Σ
 end

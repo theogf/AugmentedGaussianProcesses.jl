@@ -34,6 +34,7 @@ include("functions/PGSampler.jl")
 include("functions/PerturbativeCorrection.jl")
 include("functions/GPAnalysisTools.jl")
 include("functions/IO_model.jl")
+include("functions/utils.jl")
 #Custom modules
 using .KernelModule
 # using MLKernels
@@ -101,6 +102,7 @@ include("models/MultiClass.jl")
 include("models/SparseMultiClass.jl")
 include("models/SoftMaxMultiClass.jl")
 include("models/LogisticSoftMaxMultiClass.jl")
+include("models/SparseLogisticSoftMaxMultiClass.jl")
 #Functions
 include("OnlineTraining.jl")
 include("OfflineTraining.jl")
