@@ -115,6 +115,26 @@ function callback(model,iter)
     display(p1)
 end
 
+function acc(y_test,y_pred)
+    count(y_test.==y_pred)/length(y_pred)
+end
+
+function loglike(y_test,y_pred)
+    ll = 0.0
+    for i in 1:length(y_test)
+        ll += log(y_pred[Symbol(y_test[i])][i])
+    end
+    ll /= length(y_test)
+    return ll
+end
+
+function callback2(model,iter)
+    y_pred = model.predict(X_test)
+    py_pred = model.predictproba(X_test)
+    push!(metrics,:acc,acc(y_test,y_pred))
+    push!(metrics,:ll,-loglike(y_test,py_pred))
+end
+
 ##Which algorithm are tested
 fullm = !true
 sfullm = !true
@@ -136,7 +156,7 @@ model = AugmentedGaussianProcesses.SoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kern
 # model = AugmentedGaussianProcesses.LogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=true,AutotuningFrequency=2,IndependentGPs=true)
 # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(model,X_test=X_test,y_test=y_test)
 # model.AutotuningFrequency=1
-t_full = @elapsed model.train(iterations=200,callback=callback)
+t_full = @elapsed model.train(iterations=1000,callback=callback2)
 
 global y_full = model.predictproba(X_test)
 global y_fall = AugmentedGaussianProcesses.multiclasspredict(model,X_test,true)

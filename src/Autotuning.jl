@@ -73,7 +73,6 @@ function updateHyperParameters!(model::SparseMultiClass)
         # println("Variances grad :", grads_v)
         apply_gradients_lengthscale!.(model.kernel[model.KIndices],grads_l)
         apply_gradients_variance!.(model.kernel[model.KIndices],grads_v)
-        # setvariance(model)
     else
         matrix_derivatives = [kernelderivativematrix(model.inducingPoints[1],model.kernel[1]),
                             kernelderivativematrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1]),

@@ -5,8 +5,8 @@
 @def multiclasskernelfields begin
     IndependentGPs::Bool
     kernel::Vector{KernelModule.Kernel} #Kernels function used
-    altkernel::Vector{MLKernels.Kernel}
-    altvar::Vector{T}
+    # altkernel::Vector{MLKernels.Kernel}
+    # altvar::Vector{T}
     Knn::Vector{Symmetric{T,Matrix{T}}} #Kernel matrix of the GP prior
     invK::Vector{Symmetric{T,Matrix{T}}} #Inverse Kernel Matrix for the nonlinear case
 end
@@ -25,12 +25,12 @@ function initMultiClassKernel!(model::GPModel,kernel,IndependentGPs)
     model.IndependentGPs = IndependentGPs
     if model.IndependentGPs
         model.kernel = [deepcopy(kernel) for _ in 1:model.K]
-        model.altkernel = [MLKernels.SquaredExponentialKernel(1.0./l.^2) for _ in 1:model.K]
-        model.altvar = [v for _ in 1:model.K]
+        # model.altkernel = [MLKernels.SquaredExponentialKernel(1.0./l.^2) for _ in 1:model.K]
+        # model.altvar = [v for _ in 1:model.K]
     else
         model.kernel = [deepcopy(kernel)]
-        model.altkernel = [SquaredExponentialKernel(1.0./sqrt.(l))]
-        model.altvar = [v]
+        # model.altkernel = [SquaredExponentialKernel(1.0./sqrt.(l))]
+        # model.altvar = [v]
     end
     model.nFeatures = model.nSamples
 end

@@ -150,6 +150,7 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
         model.Σ .= copy.(model.Knn)
         # println("Init check")
     end
+    display(getlengthscales.(model.kernel))
     g_μ, g_Σ = Gradient_ELBO(model)
     k=1
     for k in 1:model.K

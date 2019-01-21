@@ -132,23 +132,22 @@ end
 function computeMatrices!(model::SparseMultiClass{T}) where T
     if model.HyperParametersUpdated
         if model.IndependentGPs
-            # model.Kmm .= broadcast((points,kernel)->Symmetric(KernelModule.kernelmatrix(points,kernel)+jittering*I),model.inducingPoints,model.kernel)
-            model.Kmm .= broadcast((points,kernel,v)->Symmetric(MLKernels.kernelmatrix(kernel,points)+convert(T,Jittering())*I)*v,model.inducingPoints,model.altkernel,model.altvar)
+            model.Kmm .= broadcast((points,kernel)->Symmetric(KernelModule.kernelmatrix(points,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.inducingPoints,model.kernel)
+            # model.Kmm .= broadcast((points,kernel,v)->Symmetric(MLKernels.kernelmatrix(kernel,points)+convert(T,Jittering())*I)*v,model.inducingPoints,model.altkernel,model.altvar)
         else
-            model.Kmm .= [Symmetric(kernelmatrix(model.inducingPoints[1],model.kernel[1])+convert(T,Jittering())*I)*model.altvar[1]]
+            model.Kmm .= [Symmetric(KernelModule.kernelmatrix(model.inducingPoints[1],model.kernel[1])+convert(T,Jittering())*I)*model.altvar[1]]
         end
         model.invKmm .= inv.(model.Kmm)
-        println("Matrices updated")
     end
     #If change of hyperparameters or if stochatic
     if model.HyperParametersUpdated || model.Stochastic
         if model.IndependentGPs
-            # model.Knm .= broadcast((points,kernel)->KernelModule.kernelmatrix(model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices])
-            model.Knm .= broadcast((points,kernel,v)->MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:],points)*v,model.inducingPoints[model.KIndices],model.altkernel[model.KIndices],model.altvar[model.KIndices])
+            model.Knm .= broadcast((points,kernel)->KernelModule.kernelmatrix(model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices])
+            # model.Knm .= broadcast((points,kernel,v)->MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:],points)*v,model.inducingPoints[model.KIndices],model.altkernel[model.KIndices],model.altvar[model.KIndices])
             # broadcast((points,kernel,Knm)->kernelmatrix!(Knm,model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices],model.Knm)
             model.κ .= model.Knm.*model.invKmm[model.KIndices]
-            # model.Ktilde .= broadcast((knm,kappa,kernel)->kerneldiagmatrix(model.X[model.MBIndices,:],kernel).+ jittering - sum(kappa.*knm,dims=2)[:],model.Knm,model.κ,model.kernel[model.KIndices])
-            model.Ktilde .= broadcast((knm,kappa,kernel,v)->(diag(MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:])) - sum(kappa.*knm,dims=2)[:])*v,model.Knm,model.κ,model.altkernel[model.KIndices],model.altvar[model.KIndices])
+            model.Ktilde .= broadcast((knm,kappa,kernel)->kerneldiagmatrix(model.X[model.MBIndices,:],kernel).+ convert(T,Jittering()) - sum(kappa.*knm,dims=2)[:],model.Knm,model.κ,model.kernel[model.KIndices])
+            # model.Ktilde .= broadcast((knm,kappa,kernel,v)->(diag(MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:])) - sum(kappa.*knm,dims=2)[:])*v,model.Knm,model.κ,model.altkernel[model.KIndices],model.altvar[model.KIndices])
         else
             kernelmatrix!(model.Knm[1],model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1])
             model.κ .= [model.Knm[1]/model.Kmm[1]]

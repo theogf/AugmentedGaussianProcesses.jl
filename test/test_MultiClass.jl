@@ -108,13 +108,26 @@ function initial_lengthscale(X)
     D = pairwise(SqEuclidean(),X')
     return median([D[i,j] for i in 2:size(D,1) for j in 1:(i-1)])
 end
+function acc(y_test,y_pred)
+    count(y_test.==y_pred)/length(y_pred)
+end
+function loglike(y_test,y_pred)
+    ll = 0.0
+    for i in 1:length(y_test)
+        ll += log(y_pred[Symbol(y_test[i])][i])
+    end
+    ll /= length(y_test)
+    return ll
+end
  l = sqrt(initial_lengthscale(X))
 
-kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim)
+kernel = AugmentedGaussianProcesses.RBFKernel(l,dim=N_dim)
 # kernel = AugmentedGaussianProcesses.RBFKernel(l)
 AugmentedGaussianProcesses.setvalue!(kernel.fields.variance,1.0)
 # kernel= AugmentedGaussianProcesses.PolynomialKernel([1.0,0.0,1.0])
 metrics = MVHistory()
+params = MVHistory()
+results = MVHistory()
 anim  = Animation()
 function callback(model,iter)
     push!(metrics,:loglike,iter,-AugmentedGaussianProcesses.ExpecLogLikelihood(model))
@@ -123,16 +136,28 @@ function callback(model,iter)
     push!(metrics,:poisson,iter,AugmentedGaussianProcesses.PoissonKL(model))
     push!(metrics,:polyagamma,iter,AugmentedGaussianProcesses.PolyaGammaKL(model))
     push!(metrics,:ELBO,iter,AugmentedGaussianProcesses.ELBO(model))
-    y_fgrid, =  model.predict(X_grid)
-    global py_fgrid = model.predictproba(X_grid)
-    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))...) for i in 1:N_grid*N_grid],N_grid,N_grid)
-    col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
-    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false)
-    p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=[1.5,2.5],t=:contour,colorbar=false)
-    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="")
-    p1=plot!(p1,model.inducingPoints[1][:,1],model.inducingPoints[1][:,2],color=:black,t=:scatter,lab="")
-    frame(anim,p1)
-    display(p1)
+    for i in 1:N_class
+        push!(params,Symbol(:k_l,i),getvariance(model.kernel[i]))
+        push!(params,Symbol(:k_v,i),getlengthscales(model.kernel[i]))
+    end
+    y_pred_test = model.predict(X_test)
+    y_pred_train = model.predict(X)
+    py_pred_test = model.predictproba(X_test)
+    py_pred_train = model.predictproba(X)
+    push!(results,:err_train,1-acc(y,y_pred_train))
+    push!(results,:err_test,1-acc(y_test,y_pred_test))
+    push!(results,:nll_train,-loglike(y,py_pred_train))
+    push!(results,:nll_test,-loglike(y_test,py_pred_test))
+    # y_fgrid =  model.predict(X_grid)
+    # global py_fgrid = model.predictproba(X_grid)
+    # global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))[model.class_mapping]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    # col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
+    # global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false)
+    # p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=[1.5,2.5],t=:contour,colorbar=false)
+    # p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="")
+    # p1=plot!(p1,model.inducingPoints[1][:,1],model.inducingPoints[1][:,2],color=:black,t=:scatter,lab="")
+    # frame(anim,p1)
+    # display(p1)
 end
 if fullm
     global fmodel = AugmentedGaussianProcesses.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=2,IndependentGPs=true)
@@ -176,18 +201,18 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = AugmentedGaussianProcesses.SparseMultiClass(Float64.(X),y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=false,AutotuningFrequency=1,Stochastic=true,batchsize=50,IndependentGPs=true,AdaptiveLearningRate=false,OptimizeIndPoints=!true)
+    global smodel = AugmentedGaussianProcesses.SparseMultiClass(Float64.(X),y,KStochastic=false,verbose=3,kernel=kernel,m=100,Autotuning=true,AutotuningFrequency=1,Stochastic=false,batchsize=50,IndependentGPs=true,AdaptiveLearningRate=false,OptimizeIndPoints=!true)
     # smodel.AutotuningFrequency=5
     # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
-    @time smodel.train(iterations=100)#,callback=callback)
+    @time smodel.train(iterations=100,callback=callback)
     # Profile.clear()
     # @profile smodel.train(iterations=10)
     # @time smodel.train(iterations=10)
     # t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
-    global y_sparse, = smodel.predict(X_test)
-    global y_strain, = smodel.predict(X)
-    global y_sall = AugmentedGaussianProcesses.multiclasspredict(smodel,X_test,true)
+    global y_sparse = smodel.predict(X_test)
+    global y_strain = smodel.predict(X)
+    global y_sall = smodel.predictproba(X_test)
 
     println("Sparse predictions computed")
     sparse_score=0
@@ -200,7 +225,9 @@ if sparsem
 end
 
 
-display(plot(metrics))
+display(plot(metrics,title="ELBO values"))
+display(plot(params,title="kernel parameters"))
+display(plot(results,title="Metrics"))
 1
     # model = smodel;
     # AugmentedGaussianProcesses.computeMatrices!(model)

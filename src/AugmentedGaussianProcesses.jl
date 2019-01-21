@@ -36,7 +36,7 @@ include("functions/GPAnalysisTools.jl")
 include("functions/IO_model.jl")
 #Custom modules
 using .KernelModule
-using MLKernels
+# using MLKernels
 using .KMeansModule
 using .PGSampler
 using .PerturbativeCorrection

@@ -119,7 +119,8 @@ function fstar(model::SparseMultiClass,X_test::AbstractArray;covf::Bool=true)
     if covf && model.DownMatrixForPrediction == 0
         model.DownMatrixForPrediction = broadcast((Σ,invKmm)->invKmm*(I-Σ*invKmm),model.Σ,model.invKmm)
     end
-    k_star = broadcast((points,kernel)->MLKernels.kernelmatrix(kernel,X_test,points),model.inducingPoints,model.altkernel)
+    k_star = broadcast((points,kernel)->KernelModule.kernelmatrix(X_test,points,kernel),model.inducingPoints,model.kernel)
+    # k_star = broadcast((points,kernel)->MLKernels.kernelmatrix(kernel,X_test,points),model.inducingPoints,model.altkernel)
     mean_fstar = k_star.*model.TopMatrixForPrediction
     if !covf
         return mean_fstar
@@ -286,6 +287,7 @@ function multiclasspredict(model::MultiClassGPModel,X_test::AbstractArray{T},lik
 end
 
 function compute_proba(model::Union{MultiClass,SparseMultiClass},m_f::Vector{Vector{T}}) where T
+    n = length(m_f)
     σ = hcat(logit.(m_f)...); σ = [σ[i,:] for i in 1:n]
     normsig = sum.(σ); y = mod_soft_max.(σ,normsig)
     pred = zeros(Int64,n)
@@ -324,7 +326,7 @@ function compute_proba(model::LogisticSoftMaxMultiClass,m_f::Vector{Vector{T}}) 
     return model.class_mapping[pred],value
 end
 
-function multiclasspredictproba(model::Union{MultiClass,SparseMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
+function multiclasspredictlaplace(model::Union{MultiClass,SparseMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
     σ = hcat(logit.(m_f)...)
@@ -335,6 +337,7 @@ function multiclasspredictproba(model::Union{MultiClass,SparseMultiClass},X_test
     h = mod_soft_max.(σ,normsig)
     hess_h = hessian_mod_soft_max.(σ,normsig)
     m_predic = broadcast(m->max.(m,eps(T)),h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f))
+    m_predic ./= sum.(m_predic)
     if !covf
         return DataFrame(hcat(m_predic...)',Symbol.(model.class_mapping))
         # return [m[model.class_mapping] for m in m_predic]
@@ -383,31 +386,21 @@ function multiclasspredictproba(model::LogisticSoftMaxMultiClass,X_test::Array{T
 end
 
 
-function multiclasspredictprobamcmc(model,X_test::AbstractArray{T,N},NSamples=100) where {T,N}
+function multiclasspredictproba(model::Union{MultiClass,SparseMultiClass},X_test::Array{T,N},covf::Bool=false;nSamples::Integer=200) where {T,N}
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
     m_f = hcat(m_f...)
     m_f = [m_f[i,:] for i in 1:n]
     cov_f = hcat(cov_f...)
     cov_f = [cov_f[i,:] for i in 1:n]
-    stack_preds = Vector{Vector{Any}}(n);
-    m_pred_mc = [zeros(model.K) for _ in 1:n]
-    sig_pred_mc = [zeros(model.K) for _ in 1:n]
+    m_predic = zeros(n,model.K)
     for i in 1:n
-        if i%100 == 0
-            println("$i/$n points predicted with sampling ($NSamples samples)")
+        p = MvNormal(m_f[i],sqrt.(max.(eps(T),cov_f[i])))
+        for _ in 1:nSamples
+            m_predic[i,:] += logisticsoftmax(rand(p))/nSamples
         end
-        for j in 1:NSamples
-            samp = logit.(broadcast((m,cov)->rand(Normal(m,cov)),m_f[i],cov_f[i]))
-            norm_sig = sum(samp)
-            v = mod_soft_max(samp,norm_sig)
-            m_pred_mc[i] .+= v
-            sig_pred_mc[i] .+= v.^2
-        end
-        m_pred_mc[i] ./= NSamples
-        sig_pred_mc[i] .= sig_pred_mc[i]./NSamples .- m_pred_mc[i].^2
     end
-    return m_pred_mc,sig_pred_mc
+    return DataFrame(m_predic,Symbol.(model.class_mapping))
 end
 
 "Return the modified softmax likelihood given the latent functions"
