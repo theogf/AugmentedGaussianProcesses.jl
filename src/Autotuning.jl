@@ -68,9 +68,7 @@ function updateHyperParameters!(model::Union{SparseMultiClass,SparseLogisticSoft
         kernelderivativematrix(model.X[model.MBIndices,:],model.inducingPoints[kiter],model.kernel[kiter]),
         kernelderivativediagmatrix(model.X[model.MBIndices,:],model.kernel[kiter])] for kiter in model.KIndices]
         grads_l = map(compute_hyperparameter_gradient,model.kernel[model.KIndices],[f_l for _ in 1:model.nClassesUsed],matrix_derivatives,model.KIndices,1:model.nClassesUsed)
-        # println([getvariance(k) for k in model.kernel])
         grads_v = map(f_v,model.kernel[model.KIndices],model.KIndices,1:model.nClassesUsed)
-        # println("Variances grad :", grads_v)
         apply_gradients_lengthscale!.(model.kernel[model.KIndices],grads_l)
         apply_gradients_variance!.(model.kernel[model.KIndices],grads_v)
     else

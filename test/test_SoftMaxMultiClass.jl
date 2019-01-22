@@ -44,7 +44,7 @@ N_dim=2
 # X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 
 for c in 1:N_class
-    global centers = rand(Uniform(-1,1),N_class,N_dim)*0.7
+    global centers = rand(Uniform(-1,1),N_class,N_dim)
     global variance = 0.7*1/N_class*ones(N_class)#rand(Gamma(1.0,0.5),150)
 end
 
@@ -135,10 +135,9 @@ function callback2(model,iter)
     py_pred = model.predictproba(X_test)
     push!(metrics,:err,1-acc(y_test,y_pred))
     push!(metrics,:ll,-loglike(y_test,py_pred))
-    push!(elbos,:ELBO,ELBO(model))
-    push!(elbos,:GaussianKL,-AugmentedGaussianProcesses.GaussianKL(model))
+    push!(elbos,:ELBO,-ELBO(model))
+    push!(elbos,:NegGaussianKL,-AugmentedGaussianProcesses.GaussianKL(model))
     push!(elbos,:ExpecLogLike,AugmentedGaussianProcesses.ExpecLogLikelihood(model))
-    push!(elbos,:ELBO,ELBO(model))
     for i in 1:model.K
         push!(kerparams,Symbol("l",i),getlengthscales(model.kernel[i]))
         push!(kerparams,Symbol("v",i),getvariance(model.kernel[i]))
@@ -159,30 +158,26 @@ end
  l = sqrt(initial_lengthscale(X))
 
 # kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim,variance=10.0)
-kernel = AugmentedGaussianProcesses.RBFKernel(l)
+kernel = AugmentedGaussianProcesses.RBFKernel(l,variance=10.0)
 
 
 # model = AugmentedGaussianProcesses.SoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=true,AutotuningFrequency=2,IndependentGPs=true)
 # model = AugmentedGaussianProcesses.LogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=false,AutotuningFrequency=2,IndependentGPs=true)
-setfixed!(kernel.fields.lengthscales)
+# setfixed!(kernel.fields.lengthscales)
 # setfixed!(kernel.fields.variance)
 model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
 # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(model,X_test=X_test,y_test=y_test)
 # model.AutotuningFrequency=1
-t_full = @elapsed model.train(iterations=300,callback=callback2)
+t_full = @elapsed model.train(iterations=200,callback=callback2)
 
 global y_full = model.predictproba(X_test)
-global y_fall = AugmentedGaussianProcesses.multiclasspredict(model,X_test,true)
+global y_fall, = AugmentedGaussianProcesses.multiclasspredict(model,X_test,true)
 global y_ftrain = model.predict(X)
 global y_fgrid = model.predict(X_grid)
 println("Full predictions computed")
-full_score = 0
-for (i,pred) in enumerate(y_fall[1])
-    if pred == y_test[i]
-        global full_score += 1
-    end
-end
-println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s for l = $l")
-plot(metrics,title="Metrics")
-plot(elbos,title="ELBO")
-plot(kerparams,title="Kernel parameters")
+println("Full model Accuracy is $(acc(y_test,y_fall)) and loglike : $(loglike(y_test,y_full)) in $t_full s for l = $l")
+display(plot(metrics,title="Metrics"))
+display(plot(elbos,title="ELBO"))
+pker=plot(kerparams,title="Kernel parameters",yaxis=:log)
+display(pker)
+callback(model,2)

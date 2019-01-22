@@ -376,9 +376,13 @@ k = Array(exp(Symmetric(rand(10,10))))
 a = cholesky(Array(exp(Symmetric(rand(10,10))))).L
 isposdef(k)
 # a = rand(10)
+X = rand(10,4)
+Y = rand(20,4)
 function foo(s)
-    a = s[1]*k
-    return sum(sin.(a*a))
+    kernel = RBFKernel(s[1])
+    A = kernelmatrix(X,kernel)+1e-7I
+    B = kernelmatrix(Y,X,kernel)
+    return B*inv(A)
 end
 
 function foo_tilde(sk)
@@ -386,7 +390,7 @@ function foo_tilde(sk)
 end
 a= 3.0
 foo(3.0)
-g = ForwardDiff.gradient(foo,[a])
+g = ForwardDiff.jacobian(foo,[a])
 g̃ = ForwardDiff.gradient(foo_tilde,a*k)
 function grad_foo(a,g̃)
     return tr(g̃'*k)
