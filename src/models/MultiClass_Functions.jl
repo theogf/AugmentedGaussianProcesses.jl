@@ -161,7 +161,7 @@ end
 
 function ExpecLogLikelihood(model::SparseLogisticSoftMaxMultiClass)
     tot = 0.0
-    nSamples = 200
+    nSamples = 1000
     μ = model.κ.*model.μ;
     Σ = broadcast((κ,Σ,Ktilde)->[Ktilde[i] + dot(κ[i,:],Σ*κ[i,:]) for i in 1:model.nSamplesUsed],model.κ,model.Σ,model.Ktilde)
 
@@ -176,7 +176,7 @@ function ExpecLogLikelihood(model::SparseLogisticSoftMaxMultiClass)
 end
 
 "Compute the variational updates for the full GP MultiClass"
-function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxMultiClass{T},SparseLogisticSoftMaxMultiClass{T},SoftMaxMultiClass{T}},iter::Integer) where T
+function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxMultiClass{T},SparseSoftMaxMultiClass{T},SparseLogisticSoftMaxMultiClass{T}},iter::Integer) where T
     if iter == 1
         if typeof(model) <: Union{SparseSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass}
             # model.L = [cholesky(model.Kmm[1]).L for _ in 1:model.K]
@@ -202,7 +202,7 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
                 # model.L[k] = LowerTriangular(model.L[k]+correct_coeff*up)
                 # model.Σ[k] = Symmetric(model.L[k]*model.L[k]')
 
-                @assert det(model.Σ[k]+correct_coeff*up) > 0
+                @assert isposdef(model.Σ[k]+correct_coeff*up)
                 model.Σ[k] = Symmetric(model.Σ[k]+correct_coeff*up)
 
                 model.μ[k] .+= update(model.μ_optimizer[k],g_μ[k])
@@ -214,7 +214,8 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
             end
         end
     end
-    display(det.(model.Σ))
+    # display(det.(model.Σ))
+    # display(isposdef.(model.Σ))
 end
 function compute_gradient_Σ(model::MultiClassGPModel,g_μ,g_Σ)
     grad_μ = [zero(model.μ[1]) for _ in 1:model.K]
@@ -265,7 +266,6 @@ function compute_gradient_η(model,g_μ,g_Σ)
     #TODO
 end
 
-""
 ###
 
 function Gradient_Expec(model::SoftMaxMultiClass)
@@ -319,7 +319,7 @@ function Gradient_Expec(model::LogisticSoftMaxMultiClass)
 end
 
 function Gradient_Expec(model::SparseSoftMaxMultiClass)
-    nSamples = 200
+    nSamples = 100
     μ = model.κ.*model.μ; Σ = broadcast((κ,Σ,Ktilde)->[Ktilde[i] + dot(κ[i,:],Σ*κ[i,:]) for i in 1:model.nSamplesUsed],model.κ,model.Σ,model.Ktilde)
     # display
     for (iter,i) in enumerate(model.MBIndices)
@@ -332,7 +332,7 @@ function Gradient_Expec(model::SparseSoftMaxMultiClass)
             s = samp[class]
             g_μ = grad_softmax(samp,class)
             grad_μ += g_μ./s
-            grad_Σ += diag(hessian_softmax(samp,σ,class))./s.-g_μ.^2 ./s^2
+            grad_Σ += diag(hessian_softmax(samp,class))./s.-g_μ.^2 ./s^2
         end
         for k in 1:model.K
             model.grad_μ[k][iter] = grad_μ[k]/nSamples
@@ -343,28 +343,41 @@ function Gradient_Expec(model::SparseSoftMaxMultiClass)
 end
 
 function Gradient_Expec(model::SparseLogisticSoftMaxMultiClass)
-    nSamples = 200
+    nSamples = 100
     μ = model.κ.*model.μ; Σ = broadcast((κ,Σ,Ktilde)->[Ktilde[i] + dot(κ[i,:],Σ*κ[i,:]) for i in 1:model.nSamplesUsed],model.κ,model.Σ,model.Ktilde)
     # display
+    # vars = zeros(nSamples,model.nSamples*2)
+    # av= (0.0,0.0);
     for (iter,i) in enumerate(model.MBIndices)
         p = MvNormal([μ[k][iter] for k in 1:model.K],[sqrt(Σ[k][iter]) for k in 1:model.K])
         grad_μ = zeros(model.K)
         grad_Σ = zeros(model.K)
+        # M2 = zeros(2)
         class = model.ind_mapping[model.y[i]]
-        for _ in 1:nSamples
+        for n in 1:nSamples
             x = rand(p)
             samp = logisticsoftmax(x)
             σ = logit(x)
             s = samp[class]
             g_μ = grad_logisticsoftmax(samp,σ,class)
             grad_μ += g_μ./s
-            grad_Σ += diag(hessian_logisticsoftmax(samp,σ,class))./s.-g_μ.^2 ./s^2
+            g_Σ = diag(hessian_logisticsoftmax(samp,σ,class))./s.-g_μ.^2 ./s^2
+            grad_Σ += g_Σ
+            # new_av = (grad_μ[1]/n,grad_Σ[1]/n)
+            # if n==1
+                # av = (grad_μ[1],grad_Σ[1])
+            # end
+            # M2 .+= [(g_μ[1]-av[1])*(g_μ[1]-new_av[1]),(g_Σ[1]-av[2])*(g_Σ[1]-new_av[2])]
+            # vars[n,i] = M2[1]/(n)
+            # vars[n,model.nSamples+i] = M2[2]/(n)
+            # av = new_av
         end
         for k in 1:model.K
             model.grad_μ[k][iter] = grad_μ[k]/nSamples
             model.grad_Σ[k][iter] = 0.5*grad_Σ[k]/nSamples
         end
     end
+    # push!(model.varMCMC,vars)
     return model.grad_μ,model.grad_Σ
 end
 

@@ -112,7 +112,7 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for multiclass sparse GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::Union{SparseMultiClass,SparseLogisticSoftMaxMultiClass},X_test::AbstractArray;covf::Bool=true)
+function fstar(model::Union{SparseMultiClass,SparseSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass},X_test::AbstractArray;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invKmm.*model.μ
     end
@@ -300,7 +300,7 @@ function compute_proba(model::Union{MultiClass,SparseMultiClass},m_f::Vector{Vec
     return model.class_mapping[pred],value
 end
 
-function compute_proba(model::Union{SoftMaxMultiClass,SparseLogisticSoftMaxMultiClass},m_f::Vector{Vector{T}}) where T
+function compute_proba(model::Union{SoftMaxMultiClass,SparseSoftMaxMultiClass},m_f::Vector{Vector{T}}) where T
     n = length(m_f[1])
     m_f = hcat(m_f...); y = [softmax(m_f[i,:]) for i in 1:n]
     pred = zeros(Int64,n)
@@ -313,7 +313,7 @@ function compute_proba(model::Union{SoftMaxMultiClass,SparseLogisticSoftMaxMulti
     return model.class_mapping[pred],value
 end
 
-function compute_proba(model::LogisticSoftMaxMultiClass,m_f::Vector{Vector{T}}) where T
+function compute_proba(model::Union{SparseLogisticSoftMaxMultiClass,LogisticSoftMaxMultiClass},m_f::Vector{Vector{T}}) where T
     n = length(m_f[1])
     m_f = hcat(m_f...); y = [logisticsoftmax(m_f[i,:]) for i in 1:n]
     pred = zeros(Int64,n)
@@ -348,7 +348,7 @@ function multiclasspredictlaplace(model::Union{MultiClass,SparseMultiClass},X_te
     # return [m[model.class_mapping] for m in m_predic] ,[cov[model.class_mapping] for cov in cov_predic]
 end
 
-function multiclasspredictproba(model::SoftMaxMultiClass,X_test::Array{T,N},covf::Bool=false) where {T,N}
+function multiclasspredictproba(model::Union{SoftMaxMultiClass,SparseSoftMaxMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
     m_f,cov_f = fstar(model,X_test)
     m_f = hcat(m_f...)
