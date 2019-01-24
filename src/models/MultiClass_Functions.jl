@@ -190,20 +190,25 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
     Gradient_Expec(model)
 
     # g_μ,g_L = compute_gradient_L(model,g_μ,g_Σ)
-    g_μ,g_Σ = compute_gradient_Σ(model,model.grad_μ,model.grad_Σ)
-    # compute_gradient_η(model,g_μ,g_Σ)
+    # g_μ,g_Σ = compute_gradient_Σ(model,model.grad_μ,model.grad_Σ)
+    g_μ,g_Λ = compute_gradient_Λ(model,model.grad_μ,model.grad_Σ)
     for k in 1:model.K
         updated = false; correct_coeff=1.0
         # up = update(model.Σ_optimizer[k],g_L)
-        up = update(model.Σ_optimizer[k],g_Σ[k])
+        # up = update(model.Σ_optimizer[k],g_Σ[k])
+        up = update(model.Σ_optimizer[k],g_η[k])
         while !updated
             try
                 # @assert det(model.L[k]+correct_coeff*up) > 0
                 # model.L[k] = LowerTriangular(model.L[k]+correct_coeff*up)
                 # model.Σ[k] = Symmetric(model.L[k]*model.L[k]')
 
-                @assert isposdef(model.Σ[k]+correct_coeff*up)
-                model.Σ[k] = Symmetric(model.Σ[k]+correct_coeff*up)
+                # @assert isposdef(model.Σ[k]+correct_coeff*up)
+                # model.Σ[k] = Symmetric(model.Σ[k]+correct_coeff*up)
+
+                @assert isposdef(-(model.Λ[k] + correct_coeff*up))
+                model.Λ[k] = model.Σ[k] +  correct_coeff*up
+                model.Σ[k] = Symmetric(inv(model.Σ[k]))
 
                 model.μ[k] .+= update(model.μ_optimizer[k],g_μ[k])
                 updated = true
@@ -262,8 +267,14 @@ function compute_gradient_L(model::MultiClassGPModel,g_μ,g_Σ)
     return grad_μ,grad_L
 end
 
-function compute_gradient_η(model,g_μ,g_Σ)
-    #TODO
+function compute_gradient_Λ(model::Union{SparseSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass},g_μ,g_Σ)
+    grad_μ = [zero(model.μ[1]) for _ in 1:model.K]
+    grad_Σ = [zero(model.Σ[1]) for _ in 1:model.K]
+    for k in 1:model.K
+        grad_μ[k] .= model.Σ[k]*(model.κ[k]'*g_μ[k] - model.invKmm[k]*model.μ[k])
+        grad_Σ[k] .= -2*Symmetric(model.κ[k]'*Diagonal(g_Σ[k])*model.κ[k] + 0.5*(model.Λ[k]-model.invKmm[k]))
+    end
+    return grad_μ,grad_Σ
 end
 
 ###

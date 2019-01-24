@@ -169,7 +169,7 @@ model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3
 # model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
 # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(model,X_test=X_test,y_test=y_test)
 # model.AutotuningFrequency=1
-t_full = @elapsed model.train(iterations=1000,callback=callback2)
+t_full = @elapsed model.train(iterations=10,callback=callback2)
 
 global y_full = model.predictproba(X_test)
 global y_fall, = AugmentedGaussianProcesses.multiclasspredict(model,X_test,true)
