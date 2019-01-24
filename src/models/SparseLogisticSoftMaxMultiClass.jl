@@ -47,7 +47,7 @@ mutable struct SparseLogisticSoftMaxMultiClass{T<:Real} <: MultiClassGPModel{T}
             this.Σ_optimizer = [Adam(α=optimizer) for _ in 1:this.K]
             this.grad_μ = [zeros(T,this.nSamplesUsed) for _ in 1:this.K]
             this.grad_Σ = [zeros(T,this.nSamplesUsed) for _ in 1:this.K]
-            this.Λ = [Diagonal(I,this.nFeatures) for _ in 1:this.K]
+            this.Λ = [Matrix(Diagonal(one(T)*I,this.nFeatures)) for _ in 1:this.K]
             this.varMCMC = Vector{AbstractMatrix}()
             return this;
     end

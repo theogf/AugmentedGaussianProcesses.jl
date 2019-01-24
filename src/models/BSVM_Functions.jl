@@ -2,16 +2,16 @@
 
 """Update the local variational parameters of the linear BSVM"""
 function local_update!(model::LinearBSVM{T},Z::Matrix{T}) where T
-    model.α = (1.0 .- Z*model.μ).^2 +  dropdims(sum((-0.5*Z/model.η_2).*Z,dims=2),dims=2);
+    model.α = (1.0 .- Z*model.μ).^2 +  dropdims(sum((-0.5*Z/model.η₂).*Z,dims=2),dims=2);
 end
 
 """Compute the variational updates for the linear BSVM"""
 function variational_updates!(model::LinearBSVM{T},iter::Integer) where T
     Z = Diagonal{Float64}(model.y[model.MBIndices])*model.X[model.MBIndices,:];
     local_update!(model,Z)
-    (grad_η_1,grad_η_2) = natural_gradient_BSVM(model.α,Z, model.invΣ, model.Stochastic ? model.StochCoeff : 1.0)
-    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
-    global_update!(model,grad_η_1,grad_η_2)
+    (grad_η₁,grad_η₂) = natural_gradient_BSVM(model.α,Z, model.invΣ, model.Stochastic ? model.StochCoeff : 1.0)
+    computeLearningRate_Stochastic!(model,iter,grad_η₁,grad_η₂);
+    global_update!(model,grad_η₁,grad_η₂)
 end
 
 """Update the local variational parameters of full batch GP BSVM"""
@@ -26,8 +26,8 @@ end
 
 """Return the natural gradients of the ELBO given the natural parameters"""
 function natural_gradient(model::BatchBSVM{T}) where T
-  model.η_1 =  model.y.*(1.0./sqrt.(model.α).+1.0)
-  model.η_2 = Symmetric(-0.5*(Diagonal(1.0./sqrt.(model.α)) + model.invK))
+  model.η₁ =  model.y.*(1.0./sqrt.(model.α).+1.0)
+  model.η₂ = Symmetric(-0.5*(Diagonal(1.0./sqrt.(model.α)) + model.invK))
 end
 
 """Return the natural gradients of the ELBO given the natural parameters"""

@@ -192,9 +192,9 @@ function MCInit!(model::GPModel)
             model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
             model.KIndices = collect(1:model.K)
             computeMatrices!(model);local_update!(model);
-            (grad_η_1, grad_η_2) = natural_gradient(model)
-            model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_η_1,model.η_1,grad_η_2,model.η_2)
-            model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η_1,model.η_1,grad_η_2,model.η_2)
+            (grad_η₁, grad_η₂) = natural_gradient(model)
+            model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_η₁,model.η₁,grad_η₂,model.η₂)
+            model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η₁,model.η₁,grad_η₂,model.η₂)
         end
         model.τ .*= model.nSamplesUsed
         model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
@@ -212,8 +212,8 @@ function MCInit!(model::GPModel)
             model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
             computeMatrices!(model)
             local_update!(model)
-            (grad_η_1,grad_η_2) =     natural_gradient(model)
-            grads = vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
+            (grad_η₁,grad_η₂) =     natural_gradient(model)
+            grads = vcat(grad_η₁,reshape(grad_η₂,size(grad_η₂,1)^2))
             model.g = model.g + grads/model.τ
             model.h = model.h + norm(grads)^2/model.τ
         end
@@ -228,8 +228,8 @@ function computeLearningRate_Stochastic!(model::GPModel,iter::Integer,grad_1,gra
     if model.Stochastic
         if model.AdaptiveLearningRate
             #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)
-            model.g = (1-1/model.τ)*model.g + vcat(grad_1-model.η_1,reshape(grad_2-model.η_2,size(grad_2,1)^2))./model.τ
-            model.h = (1-1/model.τ)*model.h + norm(vcat(grad_1-model.η_1,reshape(grad_2-model.η_2,size(grad_2,1)^2)))^2/model.τ
+            model.g = (1-1/model.τ)*model.g + vcat(grad_1-model.η₁,reshape(grad_2-model.η₂,size(grad_2,1)^2))./model.τ
+            model.h = (1-1/model.τ)*model.h + norm(vcat(grad_1-model.η₁,reshape(grad_2-model.η₂,size(grad_2,1)^2)))^2/model.τ
             model.ρ_s = norm(model.g)^2/model.h
             model.τ = (1.0 - model.ρ_s)*model.τ + 1.0
         else
@@ -246,9 +246,9 @@ function computeLearningRate_Stochastic!(model::MultiClassGPModel,iter::Integer,
     if model.Stochastic
         if model.AdaptiveLearningRate
             #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)
-            model.g[model.KIndices] .= broadcast((tau,g,grad1,eta_1,grad2,eta_2)->(1-1/tau)*g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ[model.KIndices],model.g[model.KIndices],grad_1,model.η_1[model.KIndices],grad_2,model.η_2[model.KIndices])
+            model.g[model.KIndices] .= broadcast((tau,g,grad1,eta_1,grad2,eta_2)->(1-1/tau)*g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ[model.KIndices],model.g[model.KIndices],grad_1,model.η₁[model.KIndices],grad_2,model.η₂[model.KIndices])
 
-            model.h[model.KIndices] .= broadcast((tau,h,grad1,eta_1,grad2,eta_2)->(1-1/tau)*h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ[model.KIndices],model.h[model.KIndices],grad_1,model.η_1[model.KIndices],grad_2,model.η_2[model.KIndices])
+            model.h[model.KIndices] .= broadcast((tau,h,grad1,eta_1,grad2,eta_2)->(1-1/tau)*h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ[model.KIndices],model.h[model.KIndices],grad_1,model.η₁[model.KIndices],grad_2,model.η₂[model.KIndices])
             # println("G : $(norm(model.g[1])), H : $(model.h[1])")
             model.ρ_s[model.KIndices] .= broadcast((g,h)->norm(g)^2/h,model.g[model.KIndices],model.h[model.KIndices])
             model.τ[model.KIndices] .= broadcast((rho,tau)->(1.0 - rho)*tau + 1.0,model.ρ_s[model.KIndices],model.τ[model.KIndices])

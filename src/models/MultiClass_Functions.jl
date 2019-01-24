@@ -20,8 +20,8 @@ end
 
 "Update of the global variational parameter for full batch case"
 function global_update!(model::MultiClass)
-    model.Σ[model.KIndices] .= -inv.(model.η_2[model.KIndices]).*0.5;
-    model.μ[model.KIndices] .= model.Σ[model.KIndices].*model.η_1[model.KIndices] #Back to the distribution parameters (needed for α updates)
+    model.Σ[model.KIndices] .= -inv.(model.η₂[model.KIndices]).*0.5;
+    model.μ[model.KIndices] .= model.Σ[model.KIndices].*model.η₁[model.KIndices] #Back to the distribution parameters (needed for α updates)
 end
 
 "Compute the variational updates for the sparse GP XGPC"
@@ -37,29 +37,29 @@ end
 "Compute the variational updates for the sparse GP MultiClass"
 function variational_updates!(model::SparseMultiClass,iter::Integer)
     local_update!(model)
-    (grad_η_1, grad_η_2) = natural_gradient(model)
-    # println("grad 1", [ mean(g) for g in grad_η_1])
-    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
+    (grad_η₁, grad_η₂) = natural_gradient(model)
+    # println("grad 1", [ mean(g) for g in grad_η₁])
+    computeLearningRate_Stochastic!(model,iter,grad_η₁,grad_η₂);
     # println("stochastic update", model.ρ_s)
-    global_update!(model,grad_η_1,grad_η_2)
+    global_update!(model,grad_η₁,grad_η₂)
 end
 
 
 """Update the global variational parameters for the sparse multiclass model"""
 function global_update!(model::SparseMultiClass,grad_1::Vector{Vector{T}},grad_2::Vector{Matrix{T}}) where T
-    model.η_1[model.KIndices] .= (1.0.-model.ρ_s[model.KIndices]).*model.η_1[model.KIndices] + model.ρ_s[model.KIndices].*grad_1;
-    model.η_2[model.KIndices] .= Symmetric.(model.η_2[model.KIndices].*(1.0.-model.ρ_s[model.KIndices]) + model.ρ_s[model.KIndices].*grad_2) #Update of the natural parameters with noisy/full natural gradient
+    model.η₁[model.KIndices] .= (1.0.-model.ρ_s[model.KIndices]).*model.η₁[model.KIndices] + model.ρ_s[model.KIndices].*grad_1;
+    model.η₂[model.KIndices] .= Symmetric.(model.η₂[model.KIndices].*(1.0.-model.ρ_s[model.KIndices]) + model.ρ_s[model.KIndices].*grad_2) #Update of the natural parameters with noisy/full natural gradient
     #TODO Temporary fix until LinearAlgebra has corrected it
-    model.Σ[model.KIndices] .= -inv.(model.η_2[model.KIndices]).*0.5; model.μ[model.KIndices] .= model.Σ[model.KIndices].*model.η_1[model.KIndices] #Back to the distribution parameters (needed for α updates)
+    model.Σ[model.KIndices] .= -inv.(model.η₂[model.KIndices]).*0.5; model.μ[model.KIndices] .= model.Σ[model.KIndices].*model.η₁[model.KIndices] #Back to the distribution parameters (needed for α updates)
 end
 
 """Compute the natural gradient of the ELBO given the natural parameters"""
 function natural_gradient!(model::MultiClass{T}) where T
-        model.η_1[model.KIndices] .= broadcast((y,γ)->0.5*Array(y-γ),model.Y[model.KIndices],model.γ)
+        model.η₁[model.KIndices] .= broadcast((y,γ)->0.5*Array(y-γ),model.Y[model.KIndices],model.γ)
         if model.IndependentGPs
-            model.η_2[model.KIndices] .= broadcast((y,θ,invK)->Symmetric(-0.5*(Diagonal(θ)+invK)),model.Y[model.KIndices],model.θ,model.invK[model.KIndices])
+            model.η₂[model.KIndices] .= broadcast((y,θ,invK)->Symmetric(-0.5*(Diagonal(θ)+invK)),model.Y[model.KIndices],model.θ,model.invK[model.KIndices])
         else
-            model.η_2[model.KIndices] .= broadcast((y,θ)->Symmetric(-0.5*(Diagonal(θ)+model.invK[1])),model.Y[model.KIndices],model.θ)
+            model.η₂[model.KIndices] .= broadcast((y,θ)->Symmetric(-0.5*(Diagonal(θ)+model.invK[1])),model.Y[model.KIndices],model.θ)
         end
 end
 
@@ -192,11 +192,13 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
     # g_μ,g_L = compute_gradient_L(model,g_μ,g_Σ)
     # g_μ,g_Σ = compute_gradient_Σ(model,model.grad_μ,model.grad_Σ)
     g_μ,g_Λ = compute_gradient_Λ(model,model.grad_μ,model.grad_Σ)
+    # g_μ,g_η₂ = compute_gradient_η(model,model.grad_μ,model.grad_Σ)
     for k in 1:model.K
         updated = false; correct_coeff=1.0
         # up = update(model.Σ_optimizer[k],g_L)
         # up = update(model.Σ_optimizer[k],g_Σ[k])
-        up = update(model.Σ_optimizer[k],g_η[k])
+        up = update(model.Σ_optimizer[k],g_Λ[k])
+        # up = update(model.Σ_optimizer[k],g_η₂[k])
         while !updated
             try
                 # @assert det(model.L[k]+correct_coeff*up) > 0
@@ -206,17 +208,24 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
                 # @assert isposdef(model.Σ[k]+correct_coeff*up)
                 # model.Σ[k] = Symmetric(model.Σ[k]+correct_coeff*up)
 
-                @assert isposdef(-(model.Λ[k] + correct_coeff*up))
-                model.Λ[k] = model.Σ[k] +  correct_coeff*up
-                model.Σ[k] = Symmetric(inv(model.Σ[k]))
+                @assert isposdef(Symmetric(model.Λ[k] + correct_coeff*up))
+                model.Λ[k] = Symmetric(model.Λ[k] +  correct_coeff*up)
+                model.Σ[k] = Symmetric(inv(model.Λ[k]))
+
+                # @assert isposdef(-Symmetric(model.η₂[k] + correct_coeff*up))
+                # model.η₂[k] = Symmetric(model.η₂[k] +  correct_coeff*up)
+                # model.Σ[k] = Symmetric(inv(model.Σ[k]))
 
                 model.μ[k] .+= update(model.μ_optimizer[k],g_μ[k])
                 updated = true
             catch
-                model.Σ_optimizer[k].α *= 0.1
-                correct_coeff *= 0.1
+                model.Σ_optimizer[k].α *= 0.5
+                correct_coeff *= 0.5
                 println("Reducing value of α[$k], new value : $(model.Σ_optimizer[k].α)")
             end
+        end
+        if model.Σ_optimizer[k].α < 1.0
+            model.Σ_optimizer[k].α *= 2.0
         end
     end
     # display(det.(model.Σ))
@@ -271,8 +280,9 @@ function compute_gradient_Λ(model::Union{SparseSoftMaxMultiClass,SparseLogistic
     grad_μ = [zero(model.μ[1]) for _ in 1:model.K]
     grad_Σ = [zero(model.Σ[1]) for _ in 1:model.K]
     for k in 1:model.K
-        grad_μ[k] .= model.Σ[k]*(model.κ[k]'*g_μ[k] - model.invKmm[k]*model.μ[k])
-        grad_Σ[k] .= -2*Symmetric(model.κ[k]'*Diagonal(g_Σ[k])*model.κ[k] + 0.5*(model.Λ[k]-model.invKmm[k]))
+        grad_μ[k] .= (model.κ[k]'*g_μ[k] - model.invKmm[k]*model.μ[k])
+        # grad_μ[k] .= model.Σ[k]*(model.κ[k]'*g_μ[k] - model.invKmm[k]*model.μ[k])
+        grad_Σ[k] .= Symmetric(model.κ[k]'*Diagonal(g_Σ[k])*model.κ[k] + 0.5*(model.Λ[k]-model.invKmm[k]))*(-2)
     end
     return grad_μ,grad_Σ
 end

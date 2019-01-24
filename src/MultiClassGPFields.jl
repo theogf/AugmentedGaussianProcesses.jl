@@ -50,9 +50,9 @@ Parameters for the multiclass version of the classifier based of softmax
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     μ::Vector{Vector{T}} #Mean for each class
-    η_1::Vector{Vector{T}} #Natural parameter #1 for each class
+    η₁::Vector{Vector{T}} #Natural parameter #1 for each class
     Σ::Vector{Symmetric{T,Matrix{T}}} #Covariance matrix for each class
-    η_2::Vector{Symmetric{T,Matrix{T}}} #Natural parameter #2 for each class
+    η₂::Vector{Symmetric{T,Matrix{T}}} #Natural parameter #2 for each class
     c::Vector{Vector{T}} #Sqrt of the expectation of f^2
     α::Vector{T} #Gamma shape parameters
     β::Vector{T} #Gamma rate parameters
@@ -113,8 +113,8 @@ function initMultiClassVariables!(model::MultiClassGPModel{T},μ_init) where T
       model.μ = [μ_init for _ in 1:model.K]
     end
     model.Σ = [Symmetric(Matrix{T}(I,model.nFeatures,model.nFeatures)) for _ in 1:model.K]
-    model.η_2 = -inv.(model.Σ)*0.5
-    model.η_1 = -2.0*model.η_2.*model.μ
+    model.η₂ = -inv.(model.Σ)*0.5
+    model.η₁ = -2.0*model.η₂.*model.μ
     if model.Stochastic
         model.α = model.K*ones(T,model.nSamples)
         model.β = model.K*ones(T,model.nSamplesUsed)

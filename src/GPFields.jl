@@ -162,9 +162,9 @@ Parameters for the variational multivariate gaussian distribution
 """
 @def gaussianparametersfields begin
     μ::Vector{T} # Mean for variational distribution
-    η_1::Vector{T}#Natural Parameter #1
+    η₁::Vector{T}#Natural Parameter #1
     Σ::Symmetric{T,Matrix{T}} # Covariance matrix of variational distribution
-    η_2::Symmetric{T,Matrix{T}} #Natural Parameter #2
+    η₂::Symmetric{T,Matrix{T}} #Natural Parameter #2
 end
 """
 Function for initialisation of the variational multivariate parameters
@@ -180,8 +180,8 @@ function initGaussian!(model::GPModel{T},μ_init::Vector{T}) where {T<:Real}
       model.μ = μ_init
     end
     model.Σ = Symmetric(Matrix{T}(I,model.nFeatures,model.nFeatures))
-    model.η_2 = -inv(model.Σ)*0.5
-    model.η_1 = -2.0*model.η_2*model.μ
+    model.η₂ = -inv(model.Σ)*0.5
+    model.η₁ = -2.0*model.η₂*model.μ
 end
 """
     Parameters defining the available functions of the model

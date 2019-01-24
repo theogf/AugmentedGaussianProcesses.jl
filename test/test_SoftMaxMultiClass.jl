@@ -100,6 +100,7 @@ X_grid = hcat([j for i in x_grid, j in x_grid][:],[i for i in x_grid, j in x_gri
 metrics = MVHistory()
 kerparams = MVHistory()
 elbos = MVHistory()
+learningrate = MVHistory()
 anim  = Animation()
 function callback(model,iter)
     if iter%2 !=0
@@ -141,6 +142,7 @@ function callback2(model,iter)
     for i in 1:model.K
         push!(kerparams,Symbol("l",i),getlengthscales(model.kernel[i]))
         push!(kerparams,Symbol("v",i),getvariance(model.kernel[i]))
+        push!(learningrate,Symbol("α",i),model.Σ_optimizer[i].α)
     end
 end
 
@@ -165,11 +167,11 @@ kernel = AugmentedGaussianProcesses.RBFKernel(l,variance=10.0)
 # model = AugmentedGaussianProcesses.LogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=false,AutotuningFrequency=2,IndependentGPs=true)
 # setfixed!(kernel.fields.lengthscales)
 # setfixed!(kernel.fields.variance)
-model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.01,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
+model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=1.0,Autotuning=!true,AutotuningFrequency=1,IndependentGPs=true,m=50)
 # model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
 # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(model,X_test=X_test,y_test=y_test)
 # model.AutotuningFrequency=1
-t_full = @elapsed model.train(iterations=10,callback=callback2)
+t_full = @elapsed model.train(iterations=100,callback=callback2)
 
 global y_full = model.predictproba(X_test)
 global y_fall, = AugmentedGaussianProcesses.multiclasspredict(model,X_test,true)
@@ -181,4 +183,5 @@ display(plot(metrics,title="Metrics"))
 display(plot(elbos,title="ELBO"))
 pker=plot(kerparams,title="Kernel parameters",yaxis=:log)
 display(pker)
+display(plot(learningrate,title="Learning rates",yaxis=:log))
 callback(model,2)

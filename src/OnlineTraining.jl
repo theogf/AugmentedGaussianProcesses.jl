@@ -50,9 +50,9 @@ function train!(model::OnlineGPModel;iterations::Integer=0,callback=0,convergenc
         model.μ = squeeze(mean(hcat(model.estimate...),2),2)
         model.Σ = cov(hcat(model.estimate...),2)
     elseif isa(model,MultiClass) || isa(model,SparseMultiClass)
-        model.Σ = broadcast(x->(-0.5*inv(x)),model.η_2)
+        model.Σ = broadcast(x->(-0.5*inv(x)),model.η₂)
     elseif !isa(model,BatchGPRegression)
-        model.Σ = -0.5*inv(model.η_2);
+        model.Σ = -0.5*inv(model.η₂);
     end
     computeMatrices!(model)
     model.Trained = true
@@ -97,13 +97,13 @@ function update_points!(model::OnlineGPModel)
     #Make the latent variables larger #TODO Preallocating them might be a better option
     if Nnewpoints!=0
         model.μ = vcat(model.μ, zeros(Nnewpoints))
-        model.η_1 = vcat(model.η_1, zeros(Nnewpoints))
+        model.η₁ = vcat(model.η₁, zeros(Nnewpoints))
         Σ_temp = Matrix{Float64}(I,NCenters,NCenters)
         Σ_temp[1:model.m,1:model.m] = model.Σ
         model.Σ = Σ_temp
-        η_2temp = Matrix{Float64}(-0.5*I,NCenters,NCenters)
-        η_2temp[1:model.m,1:model.m] = model.η_2
-        model.η_2 = η_2temp
+        η₂temp = Matrix{Float64}(-0.5*I,NCenters,NCenters)
+        η₂temp[1:model.m,1:model.m] = model.η₂
+        model.η₂ = η₂temp
         model.m = NCenters
         model.nFeatures = model.m
     end
@@ -147,9 +147,9 @@ function MCInit!(model::OnlineGPModel)
             model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
             computeMatrices!(model)
             local_updates!(model)
-            (grad_η_1, grad_η_2) = naturalGradientELBO_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invKmm,model.γ,stoch_coeff=model.StochCoeff,MBIndices=model.MBIndices,κ=model.κ)
-            model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_η_1,model.η_1,grad_η_2,model.η_2)
-            model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η_1,model.η_1,grad_η_2,model.η_2)
+            (grad_η₁, grad_η₂) = naturalGradientELBO_MultiClass(model.Y,model.θ[1],model.θ[2:end],model.invKmm,model.γ,stoch_coeff=model.StochCoeff,MBIndices=model.MBIndices,κ=model.κ)
+            model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_η₁,model.η₁,grad_η₂,model.η₂)
+            model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η₁,model.η₁,grad_η₂,model.η₂)
         end
         model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
         if model.verbose > 2
@@ -166,16 +166,16 @@ function MCInit!(model::OnlineGPModel)
             if model.ModelType==BSVM
                 Z = Diagonal(model.y[model.MBIndices])*model.κ;
                 model.α[model.MBIndices] = (1 - Z*model.μ).^2 +  squeeze(sum((Z*model.Σ).*Z,dims=2),2)+model.Ktilde;
-                (grad_η_1,grad_η_2) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invKmm, model.StochCoeff)
+                (grad_η₁,grad_η₂) = naturalGradientELBO_BSVM(model.α[model.MBIndices],Z, model.invKmm, model.StochCoeff)
             elseif model.ModelType==XGPC
                 model.α[model.MBIndices] = sqrt.(model.Ktilde+diag(model.κ*model.Σ*model.κ')+(model.κ*model.μ).^2)
                 θs = (1.0./(2.0*model.α[model.MBIndices])).*tanh.(model.α[model.MBIndices]./2.0)
-                (grad_η_1,grad_η_2) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
+                (grad_η₁,grad_η₂) = naturalGradientELBO_XGPC(θs,model.y[model.MBIndices],model.invKmm; κ=model.κ,stoch_coef=model.StochCoeff)
             elseif model.ModelType==Regression
-                (grad_η_1,grad_η_2) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.StochCoeff)
+                (grad_η₁,grad_η₂) = naturalGradientELBO_Regression(model.y[model.MBIndices],model.κ,model.noise,stoch_coeff=model.StochCoeff)
             end
-            model.g = model.g + 1/model.τ*vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2))
-            model.h = model.h + 1/model.τ*norm(vcat(grad_η_1,reshape(grad_η_2,size(grad_η_2,1)^2)))^2
+            model.g = model.g + 1/model.τ*vcat(grad_η₁,reshape(grad_η₂,size(grad_η₂,1)^2))
+            model.h = model.h + 1/model.τ*norm(vcat(grad_η₁,reshape(grad_η₂,size(grad_η₂,1)^2)))^2
         end
         model.ρ_s = norm(model.g)^2/model.h
         if model.verbose > 2

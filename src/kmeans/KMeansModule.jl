@@ -66,14 +66,14 @@ end
 function update_model!(model,new_centers,new_vals)
     if size(new_centers,1) > 0
         model.μ = vcat(model.μ, new_vals)
-        model.η_1 = vcat(model.η_1, -0.5*new_vals)
+        model.η₁ = vcat(model.η₁, -0.5*new_vals)
         m_Σ = mean(diag(model.Σ))
         Σ_temp = 1.0*Matrix{Float64}(I,model.m+size(new_centers,1),model.m+size(new_centers,1))
         Σ_temp[1:model.m,1:model.m] = model.Σ
         model.Σ = Σ_temp
-        η_2temp = -0.5/m_Σ*Matrix{Float64}(I,model.m+size(new_centers,1),model.m+size(new_centers,1))
-        η_2temp[1:model.m,1:model.m] = model.η_2
-        model.η_2 = η_2temp
+        η₂temp = -0.5/m_Σ*Matrix{Float64}(I,model.m+size(new_centers,1),model.m+size(new_centers,1))
+        η₂temp[1:model.m,1:model.m] = model.η₂
+        model.η₂ = η₂temp
         model.m = length(model.μ)
         model.nFeatures = model.m
         update_matrices!(model,new_centers)

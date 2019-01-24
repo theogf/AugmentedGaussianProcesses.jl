@@ -14,8 +14,8 @@ end
 
 """Return the natural gradients of the ELBO given the natural parameters"""
 function natural_gradient(model::BatchStudentT)
-    model.η_1 =  model.θ.*model.y
-    model.η_2 = Symmetric(-0.5*(Diagonal(model.θ) + model.invK))
+    model.η₁ =  model.θ.*model.y
+    model.η₂ = Symmetric(-0.5*(Diagonal(model.θ) + model.invK))
 end
 
 """Return the natural gradients of the ELBO given the natural parameters"""

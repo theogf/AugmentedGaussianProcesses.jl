@@ -20,15 +20,15 @@ end
 "Compute the variational updates for the online GP XGPC"
 function variational_updates!(model::OnlineXGPC,iter::Integer)
     local_update!(model)
-    (grad_η_1,grad_η_2) = natural_gradient_XGPC(model)
-    computeLearningRate_Stochastic!(model,iter,grad_η_1,grad_η_2);
-    global_update!(model,grad_η_1,grad_η_2)
+    (grad_η₁,grad_η₂) = natural_gradient_XGPC(model)
+    computeLearningRate_Stochastic!(model,iter,grad_η₁,grad_η₂);
+    global_update!(model,grad_η₁,grad_η₂)
 end
 
 """Return the natural gradients of the ELBO given the natural parameters"""
 function natural_gradient(model::BatchXGPC)
-    model.η_1 =  0.5*model.y
-    model.η_2 = Symmetric(-0.5*(Diagonal(model.θ) + model.invK))
+    model.η₁ =  0.5*model.y
+    model.η₂ = Symmetric(-0.5*(Diagonal(model.θ) + model.invK))
 end
 
 """Return the natural gradients of the ELBO given the natural parameters"""
