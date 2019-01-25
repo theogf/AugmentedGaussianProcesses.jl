@@ -14,7 +14,7 @@ pyplot()
 seed!(42)
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
-N_data = 300
+N_data = 1000
 N_class = 3
 N_test = 50
 N_grid = 50
@@ -43,16 +43,30 @@ N_dim=2
 # y.+=1
 # X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 
-for c in 1:N_class
-    global centers = rand(Uniform(-1,1),N_class,N_dim)
-    global variance = 0.7*1/N_class*ones(N_class)#rand(Gamma(1.0,0.5),150)
-end
-
-X = zeros(N_data,N_dim)
-y = sample(1:N_class,N_data)
+# for c in 1:N_class
+#     global centers = rand(Uniform(-1,1),N_class,N_dim)
+#     global variance = 0.7*1/N_class*ones(N_class)#rand(Gamma(1.0,0.5),150)
+# end
+#
+# X = zeros(N_data,N_dim)
+# y = sample(1:N_class,N_data)
+# for i in 1:N_data
+#     X[i,:] = rand(MvNormal(centers[y[i],:],variance[y[i]]))
+# end
+X_clean = (rand(N_data,N_dim)*2.0).-1.0
+y = zeros(Int64,N_data)
 for i in 1:N_data
-    X[i,:] = rand(MvNormal(centers[y[i],:],variance[y[i]]))
+    if X_clean[i,2] < min(0,-X_clean[i,1])
+        y[i] = 1
+    elseif X_clean[i,2] > max(0,X_clean[i,1])
+        y[i] = 2
+    else
+        y[i] = 3
+    end
 end
+X= X_clean+rand(Normal(0,0.2),N_data,N_dim)
+plot(X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="")
+
 xmin = minimum(X); xmax = maximum(X)
 X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 x_grid = range(xmin,length=N_grid,stop=xmax)
@@ -108,7 +122,7 @@ function callback(model,iter)
     end
     y_fgrid =  model.predict(X_grid)
     global py_fgrid = model.predictproba(X_grid)
-    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))[model.class_mapping]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))[collect(values(sort(model.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
     global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false)
     p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=[1.5,2.5],t=:contour,colorbar=false)
@@ -167,11 +181,11 @@ kernel = AugmentedGaussianProcesses.RBFKernel(l,variance=10.0)
 # model = AugmentedGaussianProcesses.LogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=false,AutotuningFrequency=2,IndependentGPs=true)
 # setfixed!(kernel.fields.lengthscales)
 # setfixed!(kernel.fields.variance)
-model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=1.0,Autotuning=!true,AutotuningFrequency=1,IndependentGPs=true,m=50)
+model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=1.0,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
 # model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
 # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(model,X_test=X_test,y_test=y_test)
 # model.AutotuningFrequency=1
-t_full = @elapsed model.train(iterations=100,callback=callback2)
+t_full = @elapsed model.train(iterations=200,callback=callback2)
 
 global y_full = model.predictproba(X_test)
 global y_fall, = AugmentedGaussianProcesses.multiclasspredict(model,X_test,true)

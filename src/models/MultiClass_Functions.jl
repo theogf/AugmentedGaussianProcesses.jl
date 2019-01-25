@@ -188,33 +188,25 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
         # println("Init check")
     end
     Gradient_Expec(model)
+    # update_η(model)
+    update_Σ(model)
+    # update_Λ(model)
+    # update_L(model)
+end
 
-    # g_μ,g_L = compute_gradient_L(model,g_μ,g_Σ)
-    # g_μ,g_Σ = compute_gradient_Σ(model,model.grad_μ,model.grad_Σ)
-    g_μ,g_Λ = compute_gradient_Λ(model,model.grad_μ,model.grad_Σ)
-    # g_μ,g_η₂ = compute_gradient_η(model,model.grad_μ,model.grad_Σ)
+function update_η(model)
+    # g_η₁,g_η₂ = compute_gradient_η(model,model.grad_μ,model.grad_Σ)
+    g_μ,g_η₂ = compute_gradient_η(model,model.grad_μ,model.grad_Σ)
     for k in 1:model.K
         updated = false; correct_coeff=1.0
-        # up = update(model.Σ_optimizer[k],g_L)
-        # up = update(model.Σ_optimizer[k],g_Σ[k])
-        up = update(model.Σ_optimizer[k],g_Λ[k])
-        # up = update(model.Σ_optimizer[k],g_η₂[k])
+        up = update(model.Σ_optimizer[k],g_η₂[k])
         while !updated
             try
-                # @assert det(model.L[k]+correct_coeff*up) > 0
-                # model.L[k] = LowerTriangular(model.L[k]+correct_coeff*up)
-                # model.Σ[k] = Symmetric(model.L[k]*model.L[k]')
-
-                # @assert isposdef(model.Σ[k]+correct_coeff*up)
-                # model.Σ[k] = Symmetric(model.Σ[k]+correct_coeff*up)
-
-                @assert isposdef(Symmetric(model.Λ[k] + correct_coeff*up))
-                model.Λ[k] = Symmetric(model.Λ[k] +  correct_coeff*up)
-                model.Σ[k] = Symmetric(inv(model.Λ[k]))
-
-                # @assert isposdef(-Symmetric(model.η₂[k] + correct_coeff*up))
-                # model.η₂[k] = Symmetric(model.η₂[k] +  correct_coeff*up)
-                # model.Σ[k] = Symmetric(inv(model.Σ[k]))
+                @assert isposdef(-Symmetric(model.η₂[k] + correct_coeff*up))
+                model.η₂[k] = Symmetric(model.η₂[k] +  correct_coeff*up)
+                model.Σ[k] = -inv(model.η₂[k])*0.5
+                # model.η₁[k] .+= update(model.μ_optimizer[k],g_η₁[k])
+                # model.μ[k] = model.Σ[k]*model.η₁[k]
 
                 model.μ[k] .+= update(model.μ_optimizer[k],g_μ[k])
                 updated = true
@@ -228,9 +220,81 @@ function variational_updates!(model::Union{LogisticSoftMaxMultiClass{T},SoftMaxM
             model.Σ_optimizer[k].α *= 2.0
         end
     end
-    # display(det.(model.Σ))
-    # display(isposdef.(model.Σ))
 end
+
+function update_Λ(model)
+    g_μ,g_Λ = compute_gradient_Λ(model,model.grad_μ,model.grad_Σ)
+    for k in 1:model.K
+        updated = false; correct_coeff=1.0
+        up = update(model.Σ_optimizer[k],g_Λ[k])
+        while !updated
+            try
+                @assert isposdef(Symmetric(model.Λ[k] + correct_coeff*up))
+                model.Λ[k] = Symmetric(model.Λ[k] +  correct_coeff*up)
+                model.Σ[k] = Symmetric(inv(model.Λ[k]))
+                model.μ[k] .+= update(model.μ_optimizer[k],g_μ[k])
+                updated = true
+            catch
+                model.Σ_optimizer[k].α *= 0.5
+                correct_coeff *= 0.5
+                println("Reducing value of α[$k], new value : $(model.Σ_optimizer[k].α)")
+            end
+        end
+        if model.Σ_optimizer[k].α < 1.0
+            model.Σ_optimizer[k].α *= 2.0
+        end
+    end
+end
+
+function update_Σ(model)
+    g_μ,g_Σ = compute_gradient_Σ(model,model.grad_μ,model.grad_Σ)
+    for k in 1:model.K
+        updated = false; correct_coeff=1.0
+        up = update(model.Σ_optimizer[k],g_Σ[k])
+        while !updated
+            try
+                @assert isposdef(model.Σ[k]+correct_coeff*up)
+                model.Σ[k] = Symmetric(model.Σ[k]+correct_coeff*up)
+                model.μ[k] .+= update(model.μ_optimizer[k],g_μ[k])
+                updated = true
+            catch
+                model.Σ_optimizer[k].α *= 0.5
+                correct_coeff *= 0.5
+                println("Reducing value of α[$k], new value : $(model.Σ_optimizer[k].α)")
+            end
+        end
+        if model.Σ_optimizer[k].α < 1.0
+            model.Σ_optimizer[k].α *= 2.0
+        end
+    end
+end
+
+
+function update_L(model)
+    g_μ,g_L = compute_gradient_L(model,g_μ,g_Σ)
+    for k in 1:model.K
+        updated = false; correct_coeff=1.0
+        up = update(model.Σ_optimizer[k],g_L)
+        while !updated
+            try
+                @assert det(model.L[k]+correct_coeff*up) > 0
+                model.L[k] = LowerTriangular(model.L[k]+correct_coeff*up)
+                model.Σ[k] = Symmetric(model.L[k]*model.L[k]')
+                model.μ[k] .+= update(model.μ_optimizer[k],g_μ[k])
+                updated = true
+            catch
+                model.Σ_optimizer[k].α *= 0.5
+                correct_coeff *= 0.5
+                println("Reducing value of α[$k], new value : $(model.Σ_optimizer[k].α)")
+            end
+        end
+        if model.Σ_optimizer[k].α < 1.0
+            model.Σ_optimizer[k].α *= 2.0
+        end
+    end
+end
+
+
 function compute_gradient_Σ(model::MultiClassGPModel,g_μ,g_Σ)
     grad_μ = [zero(model.μ[1]) for _ in 1:model.K]
     grad_Σ = [zero(model.Σ[1]) for _ in 1:model.K]
@@ -278,13 +342,26 @@ end
 
 function compute_gradient_Λ(model::Union{SparseSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass},g_μ,g_Σ)
     grad_μ = [zero(model.μ[1]) for _ in 1:model.K]
-    grad_Σ = [zero(model.Σ[1]) for _ in 1:model.K]
+    grad_Λ = [zero(model.Λ[1]) for _ in 1:model.K]
     for k in 1:model.K
-        grad_μ[k] .= (model.κ[k]'*g_μ[k] - model.invKmm[k]*model.μ[k])
-        # grad_μ[k] .= model.Σ[k]*(model.κ[k]'*g_μ[k] - model.invKmm[k]*model.μ[k])
-        grad_Σ[k] .= Symmetric(model.κ[k]'*Diagonal(g_Σ[k])*model.κ[k] + 0.5*(model.Λ[k]-model.invKmm[k]))*(-2)
+        # grad_μ[k] .= (model.κ[k]'*g_μ[k] - model.invKmm[k]*model.μ[k])
+        grad_μ[k] .= model.Σ[k]*(model.κ[k]'*g_μ[k] - model.invKmm[k]*model.μ[k])
+        grad_Λ[k] .= Symmetric(model.κ[k]'*Diagonal(g_Σ[k])*model.κ[k] + 0.5*(model.Λ[k]-model.invKmm[k]))*(-2.0)
     end
-    return grad_μ,grad_Σ
+    return grad_μ,grad_Λ
+end
+
+function compute_gradient_η(model::Union{SparseSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass},g_μ,g_Σ)
+    # grad_η₁ = [zero(model.μ[1]) for _ in 1:model.K]
+    grad_μ = [zero(model.μ[1]) for _ in 1:model.K]
+    grad_η₂ = [zero(model.Σ[1]) for _ in 1:model.K]
+    for k in 1:model.K
+        grad_μ[k] .= model.Σ[k]*(model.κ[k]'*g_μ[k] - model.invKmm[k]*model.μ[k])
+        grad_η₂[k] .= Symmetric(0.0*model.κ[k]'*Diagonal(g_Σ[k])*model.κ[k] - 0.5*model.invKmm[k] - model.η₂[k])
+        # grad_η₁[k] .= (model.κ[k]'*g_μ[k] - model.invKmm[k]*model.μ[k]) - 2*grad_η₂[k]*model.μ[k]
+    end
+    # return grad_η₁,grad_η₂
+    return grad_μ,grad_η₂
 end
 
 ###
@@ -342,7 +419,6 @@ end
 function Gradient_Expec(model::SparseSoftMaxMultiClass)
     nSamples = 100
     μ = model.κ.*model.μ; Σ = broadcast((κ,Σ,Ktilde)->[Ktilde[i] + dot(κ[i,:],Σ*κ[i,:]) for i in 1:model.nSamplesUsed],model.κ,model.Σ,model.Ktilde)
-    # display
     for (iter,i) in enumerate(model.MBIndices)
         p = MvNormal([μ[k][iter] for k in 1:model.K],[sqrt(Σ[k][iter]) for k in 1:model.K])
         grad_μ = zeros(model.K)
@@ -364,9 +440,8 @@ function Gradient_Expec(model::SparseSoftMaxMultiClass)
 end
 
 function Gradient_Expec(model::SparseLogisticSoftMaxMultiClass)
-    nSamples = 100
+    nSamples = 200
     μ = model.κ.*model.μ; Σ = broadcast((κ,Σ,Ktilde)->[Ktilde[i] + dot(κ[i,:],Σ*κ[i,:]) for i in 1:model.nSamplesUsed],model.κ,model.Σ,model.Ktilde)
-    # display
     # vars = zeros(nSamples,model.nSamples*2)
     # av= (0.0,0.0);
     for (iter,i) in enumerate(model.MBIndices)
