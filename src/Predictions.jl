@@ -236,7 +236,7 @@ end
 """Return the mean and variance of the predictive distribution of f"""
 function regpredictproba(model::GPModel,X_test::AbstractArray)
     m_f,cov_f =  fstar(model,X_test,covf=true)
-    cov_f .+= getvalue(model.gnoise)
+    cov_f .+= model.gnoise
     return m_f,cov_f
 end
 
