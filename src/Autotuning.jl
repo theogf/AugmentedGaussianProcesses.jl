@@ -8,86 +8,80 @@ function updateHyperParameters!(model::LinearModel,iter::Integer)
 end
 
 "Update all hyperparameters for the full batch GP models"
-function  updateHyperParameters!(model::FullBatchModel)
-    Jnn = kernelderivativematrix(model.X,model.kernel) #Compute all the derivatives of the matrix Knn given the kernel parameters
-    f_l,f_v,f_n = hyperparameter_gradient_function(model)
-    grads_l = compute_hyperparameter_gradient(model.kernel,f_l,Jnn)
-    grads_v = f_v(model.kernel)
-    grads_n = f_n()
+function  updateHyperParameters!(model::VGP)
+    Jnn = broadcast(kernelderivativematrix([model.X],model.kernel)
+    f_l,f_v = hyperparameter_gradient_function(model)
+    grads_l = map(compute_hyperparameter_gradient,model.kernel,f_l,Jnn,1:model.nPrior)
+    grads_v = map(f_v,model.kernel)
     apply_gradients_lengthscale!(model.kernel,grads_l) #Send the derivative of the matrix to the specific gradient of the model
     apply_gradients_variance!(model.kernel,grads_v) #Send the derivative of the matrix to the specific gradient of the model
-    apply_gradients_noise!(model,grads_n)
-
     model.HyperParametersUpdated = true
 end
 
 "Update all hyperparameters for the full batch GP models"
-function updateHyperParameters!(model::SparseModel)
-    Jmm = kernelderivativematrix(model.inducingPoints,model.kernel) #Compute all the derivatives of the matrix Kmm given the kernel
-    Jnm = kernelderivativematrix(model.X[model.MBIndices,:],model.inducingPoints,model.kernel) #Compute all the derivative of the matrix Knm given the kernel
-    Jnn = kernelderivativediagmatrix(model.X[model.MBIndices,:],model.kernel) #Compute all the derivatives of the diagonal matrix Knn given the kernel
-    f_l,f_v,f_n = hyperparameter_gradient_function(model)
-    grads_l = compute_hyperparameter_gradient(model.kernel,f_l,[Jmm,Jnm,Jnn])
-    grads_v = f_v(model.kernel)
-    grads_n = f_n()
+function updateHyperParameters!(model::SVGP)
+    matrix_derivatives =broadcast((kernel,Z)->
+                    [kernelderivativematrix(Z,kernel), #Jmm
+                     kernelderivativematrix(model.X[model.MBIndices,:],Z,kernel), #Jnm
+                     kernelderivativediagmatrix(model.X[model.MBIndices,:],kernel)],#Jnn
+                     model.kernel,model.Z)
+    f_l,f_v = hyperparameter_gradient_function(model)
+    grads_l = map(compute_hyperparameter_gradient,model.kernel,f_l,matrix_derivatives)
+    grads_v = map(f_v,model.kernel)
     if model.OptimizeInducingPoints
-        inducingpoints_gradients = inducingpoints_gradient(model) #Compute the gradient given the inducing points location
-        model.inducingPoints += GradDescent.update(model.optimizer,inducingpoints_gradients) #Apply the gradients on the location
+        Z_gradients = inducingpoints_gradient(model) #Compute the gradient given the inducing points location
+        model.Z += GradDescent.update(model.optimizer,Z_gradients) #Apply the gradients on the location
     end
     apply_gradients_lengthscale!(model.kernel,grads_l)
     apply_gradients_variance!(model.kernel,grads_v)
-    apply_gradients_noise!(model,grads_n)
     model.HyperParametersUpdated = true
 end
 
 
-"Update all hyperparameters for the multiclass GP models"
-function updateHyperParameters!(model::MultiClassGPModel)
-    f_l,f_v = hyperparameter_gradient_function(model)
-    if model.IndependentGPs
-        Jnn = [kernelderivativematrix(model.X,model.kernel[i]) for i in model.KIndices]
-        grads_l = map(compute_hyperparameter_gradient,model.kernel[model.KIndices],[f_l for _ in 1:model.nClassesUsed],Jnn,model.KIndices,1:model.nClassesUsed)
-        grads_v = map(f_v,model.kernel[model.KIndices],model.KIndices,1:model.nClassesUsed)
-        apply_gradients_lengthscale!.(model.kernel[model.KIndices],grads_l)
-        apply_gradients_variance!.(model.kernel[model.KIndices],grads_v)
+
+"""Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
+function hyperparameter_gradient_function(model::VGP) where {T<:Real}
+    A = (model.invKnn.*(model.Σ.+model.µ.*transpose.(model.μ)).-I).*model.invKnn
+    if model.IndependentPriors
+        return (function(Jnn,index)
+                    return 0.5*sum(J.*transpose(A[index]))
+                end,
+                function(kernel,Kindex,index)
+                    return 0.5/getvariance(kernel)*sum(model.Knn[index].*A[index]')
+                end)
     else
-        Jnn = kernelderivativematrix(model.X,model.kernel[1])
-        grads_l = compute_hyperparameter_gradient(model.kernel[1],f_l,Jnn,1,1)
-        grads_v = f_v(model.kernel[1])
-        apply_gradients_lengthscale!(model.kernel[1],grads_l)
-        apply_gradients_variance!(model.kernel[1],grads_v)
+        return (function(J,index)
+            return 0.5*sum(sum(J.*transpose(A[i])) for i in 1:model.nLatent)
+                end,
+                function(kernel)
+                    return 0.5/getvariance(kernel)*sum(sum(model.Knn[1].*transpose(A[i])) for i in 1:model.nLatent)
+                end)
     end
-    model.HyperParametersUpdated = true
 end
 
+# function hyerparameter_KL_gradient(A::AbstractMatrix,J::AbstractMatrix)
+#
+# end
 
-function updateHyperParameters!(model::Union{SparseMultiClass,SparseSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass})
-    f_l,f_v = hyperparameter_gradient_function(model)
-    if model.IndependentGPs
-        matrix_derivatives =[[kernelderivativematrix(model.inducingPoints[kiter],model.kernel[kiter]),
-        kernelderivativematrix(model.X[model.MBIndices,:],model.inducingPoints[kiter],model.kernel[kiter]),
-        kernelderivativediagmatrix(model.X[model.MBIndices,:],model.kernel[kiter])] for kiter in model.KIndices]
-        grads_l = map(compute_hyperparameter_gradient,model.kernel[model.KIndices],[f_l for _ in 1:model.nClassesUsed],matrix_derivatives,model.KIndices,1:model.nClassesUsed)
-        grads_v = map(f_v,model.kernel[model.KIndices],model.KIndices,1:model.nClassesUsed)
-        apply_gradients_lengthscale!.(model.kernel[model.KIndices],grads_l)
-        apply_gradients_variance!.(model.kernel[model.KIndices],grads_v)
+
+"""Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
+function hyperparameter_gradient_function(model::SVGP) where {T<:Real}
+    A = (model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ)).-I).*model.invKmm
+    if model.IndependentPriors
+        return (function(Jmm,Jnm,Jnn,index)
+                    grad_KL =  0.5*sum(Jmm.*transpose(A[index]))
+                    grad_Expec = hyerparameter_expec_gradient(model)
+                    return grad_KL + grad_Expec #TODO soething like this
+                end,
+                function(kernel,Kindex,index)
+                    return 0.5/getvariance(kernel)*sum(model.Knn[index].*A[index]')
+                end)
     else
-        matrix_derivatives = [kernelderivativematrix(model.inducingPoints[1],model.kernel[1]),
-                            kernelderivativematrix(model.X[model.MBIndices,:],model.inducingPoints[1],model.kernel[1]),
-                            kernelderivativediagmatrix(model.X[model.MBIndices,:],model.kernel[1])]
-        grads_l = compute_hyperparameter_gradient(model.kernel[1],f_l,matrix_derivatives,1,1)
-        grad_v = f_v(model.kernel[1])
-        apply_gradients_lengthscale!(model.kernel[1],grads_l)
-        apply_gradients_variance!(model.kernel[1],grad_v)
+        return (function(J,index)
+            return 0.5*sum(sum(J.*transpose(A[i])) for i in 1:model.nLatent)
+                end,
+                function(kernel)
+                    return 0.5/getvariance(kernel)*sum(sum(model.Knn[1].*transpose(A[i])) for i in 1:model.nLatent)
+                end)
     end
-    if model.OptimizeInducingPoints
-        inducingpoints_gradients = inducingpoints_gradient(model)
-        model.inducingPoints += GradDescent.update(model.optimizer,inducingpoints_gradients)
-    end
-    model.HyperParametersUpdated = true
-end
-
-
-function apply_gradients_noise!(model::GPModel,grads_n)
-    KernelModule.update!(model.noise,grads_n)
 end

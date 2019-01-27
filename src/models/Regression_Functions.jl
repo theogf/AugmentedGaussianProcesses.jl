@@ -68,9 +68,6 @@ function hyperparameter_gradient_function(model::BatchGPRegression{T}) where {T<
             end,
             function(kernel)
                 return 0.5/getvariance(kernel)*tr(A)
-            end,
-            function()
-                return 0.5*sum(model.invK.*transpose(A))
             end)
 end
 

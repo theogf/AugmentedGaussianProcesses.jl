@@ -11,7 +11,13 @@ mutable struct VGP{L<:Likelihood,I<:Inference,T<:Real,A<:AbstractArray} <: GP{L,
     Σ::AbstractVector{AbstractMatrix}
     Knn::AbstractVector{AbstractMatrix}
     invKnn::AbstractVector{AbstractMatrix}
+    kernel::AbstractVector{Kernel}
     likelihood::Likelihood
     inference::Inference
     verbose::Int64 #Level of printing information
+    function VGP()
+
+    end
 end
+
+function VGP(X::AbtractArray)
