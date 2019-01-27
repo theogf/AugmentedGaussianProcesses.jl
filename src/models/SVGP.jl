@@ -12,6 +12,8 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,A<:AbstractArray} <: GP{L
     Z::AbstractVector{AbstractMatrix} #Inducing points locations
     μ::AbstractVector{AbstractVector}
     Σ::AbstractVector{AbstractMatrix}
+    η₁::AbstractVector{AbstractVector}
+    η₂::AbstractVector{AbstractMatrix}
     Kmm::AbstractVector{AbstractMatrix}
     invKmm::AbstractVector{AbstractMatrix}
     Knm::AbstractVector{AbstractMatrix}
