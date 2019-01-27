@@ -4,7 +4,7 @@ Function to train the given GP model, there are options to change the number of 
 give a callback function that will take the model and the actual step as arguments
 and give a convergence method to stop the algorithm given specific criteria
 """
-function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
+function train!(model::GP;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
     if model.verbose > 0
       println("Starting training of data of $(model.nSamples) samples with $(size(model.X,2)) features $(typeof(model)<:MultiClassGPModel ? "and $(model.K) classes" : ""), using the "*model.Name*" model")
     end
@@ -13,11 +13,11 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
         model.nEpochs = iterations
     end
     model.evol_conv = [] #Array to check on the evolution of convergence
-    iter::Int64 = 1; conv = Inf;
+    local_iter::Int64 = 1; conv = Inf;
 
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
-            updateParameters!(model,iter) #Update all the variational parameters
+            updateParameters!(model) #Update all the variational parameters
             model.Trained=true
             # println(mean(model.μ[1]))
             if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
@@ -36,15 +36,15 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
             #     conv = Inf
             # end
             ### Print out informations about the convergence
-            if model.verbose > 2 || (model.verbose > 1  && iter%10==0)
-                print("Iteration : $iter ")
+            if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
+                print("Iteration : $local_iter ")
             #     print("Iteration : $iter, convergence = $conv \n")
-                 print("Neg. ELBO is : $(ELBO(model))")
+                 print("ELBO is : $(ELBO(model))")
                  print("\n")
              end
             (iter < model.nEpochs) || break; #Verify if the number of maximum iterations has been reached
             # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
-            iter += 1;
+            local_iter += 1; model.inference.nIter += 1
         catch e
             if isa(e,InterruptException)
                 println("Training interrupted by user");
@@ -55,9 +55,10 @@ function train!(model::OfflineGPModel;iterations::Integer=0,callback=0,Convergen
         end
     end
     if model.verbose > 0
-      println("Training ended after $iter iterations")
+      println("Training ended after $local_iter iterations")
     end
     computeMatrices!(model) #Compute final version of the matrices for prediction
+    post_process!(model)
     if isa(model,GibbsSamplerGPC) #Compute the mean and covariance of the samples
         model.μ = squeeze(mean(hcat(model.estimate...),2),2)
         model.Σ = cov(hcat(model.estimate...),2)

@@ -6,6 +6,8 @@ struct AnalyticInference <: Inference
     λ::LearningRate #Learning rate for stochastic updates
     ∇η₁::AbstractVector{AbstractVector}
     ∇η₂::AbstractVector{AbstractArray}
+    ρ::Real #Stochastic Coefficient
+    HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
 end
 
 function variational_updates!(model::VGP{L,AnalyticInference}) where {L<:Likelihood}
@@ -15,7 +17,7 @@ end
 
 function variational_updates(model::SVGP{L,AnalyticInference}) where {L<:Likelihood}
     local_updates!(model)
-    model.∇η₁,model.∇η₂ = natural_gradient(model)
+    natural_gradient!(model)
     computeLearningRate(model)
     global_update!(model)
 end

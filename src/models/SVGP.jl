@@ -7,6 +7,9 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,A<:AbstractArray} <: GP{L
     nDim::Int64 # Number of covariates per data point
     nFeature::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
+    IndependentPriors::Bool # Use of separate priors for each latent GP
+    nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
+    Z::AbstractVector{AbstractMatrix} #Inducing points locations
     μ::AbstractVector{AbstractVector}
     Σ::AbstractVector{AbstractMatrix}
     Kmm::AbstractVector{AbstractMatrix}
