@@ -1,10 +1,3 @@
-"""
-Gaussian likelihood : $$ p(y|f) = \mathcal{N}(y|f,ϵ) $$
-"""
-struct GaussianLikelihood <: Likelihood
-    ϵ::Float64
-end
-
 function checklabels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:Union{GaussianLikelihood}}
     @assert T<:Real "For regression target(s) should be real valued"
 end

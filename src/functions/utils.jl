@@ -1,9 +1,24 @@
 """File containing different utility functions"""
 
+struct Jittering
+function Jittering()
+    new()
+end
+end;
+
+Base.convert(::Type{Float64},::Jittering) = Float64(1e-3)
+Base.convert(::Type{Float32},::Jittering) = Float32(1e-2)
+Base.convert(::Type{Float16},::Jittering) = Float16(1e-1)
 
 function δ(i::Integer,j::Integer)
     i == j ? 1.0 : 0.0
 end
+
+"""Hadamard product between two arrays of same size"""
+function hadamard(A::AbstractArray{<:Real},B::AbstractArray{<:Real})
+    A.*B
+end
+
 
 function logisticsoftmax(f::AbstractVector{<:Real})
     s = logit.(f)
@@ -35,7 +50,7 @@ function hessian_logisticsoftmax(s::AbstractVector{<:Real},σ::AbstractVector{<:
 end
 
 
-function add_transpose!(A::AbstractMatrix{T}) where {T}
+function add_transpose!(A::AbstractMatrix{<:Real})
     A .+= A'
 end
 

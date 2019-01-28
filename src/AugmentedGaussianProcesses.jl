@@ -5,45 +5,28 @@ General Framework for the data augmented Gaussian Processes
 """
 module AugmentedGaussianProcesses
 
-@enum GPModelType Undefined=0 BSVM=1 XGPC=2 Regression=3 StudentT=4 MultiClassGP=5
+export GP, VGP, SVGP
+export Likelihood, GaussianLikelihood
+export Inference, AnalyticInference, GibbsSampling
 
-#Class arborescence
 
-abstract type GPModel{T<:Real} end
 
-abstract type OnlineGPModel{T<:Real} <: GPModel{T} end
-
-abstract type OfflineGPModel{T<:Real} <: GPModel{T} end
-
-abstract type LinearModel{T<:Real} <: OfflineGPModel{T} end
-
-abstract type NonLinearModel{T<:Real} <: OfflineGPModel{T} end
-
-abstract type MultiClassGPModel{T<:Real} <: OfflineGPModel{T} end
-
-abstract type SparseModel{T<:Real} <: NonLinearModel{T} end
-
-abstract type FullBatchModel{T<:Real} <: NonLinearModel{T} end
-
-export GPModel, OnlineGPModel, OfflineGPModel, SparseModel, NonLinearModel, LinearModel, FullBatchModel, GPMOdelType
-
-# include("graddescent/GradDescent.jl")
+#Useful functions and module
 include("kernels/KernelModule.jl")
 include("kmeans/KMeansModule.jl")
 include("functions/PGSampler.jl")
 include("functions/PerturbativeCorrection.jl")
 include("functions/GPAnalysisTools.jl")
-include("functions/IO_model.jl")
-include("functions/utils.jl")
+# include("functions/IO_model.jl")
 #Custom modules
 using .KernelModule
-# using MLKernels
 using .KMeansModule
 using .PGSampler
 using .PerturbativeCorrection
 using .GPAnalysisTools
 # using .IO_model
 #General modules
+# using MLKernels
 using GradDescent
 using DataFrames
 using Distributions
@@ -56,64 +39,33 @@ using SparseArrays
 import Base: convert, show
 #Exported models
 export KMeansModule
-export LinearBSVM, BatchBSVM, SparseBSVM
-export BatchXGPC, SparseXGPC, OnlineXGPC, GibbsSamplerGPC
-export BatchGPRegression, SparseGPRegression, OnlineGPRegression
-export BatchStudentT, SparseStudentT
-export MultiClass, SparseMultiClass
-#General class definitions
 #Useful functions
 export getLog, getMultiClassLog
-export Kernel, kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
-export Matern3_2Kernel, Matern5_2Kernel
+export Kernel,  Matern3_2Kernel, Matern5_2Kernel, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
+export kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 export setvalue!,getvalue,setfixed!,setfree!,getvariance,getlengthscales
 export KMeansInducingPoints
-# export save_trained_model,save_model,load_trained_model,load_model
 
-struct Jittering
-function Jittering()
-    new()
-end
-end;
+# Likelihoods
+include("likelihood/likelihood.jl")
 
-Base.convert(::Type{Float64},::Jittering) = Float64(1e-3)
-Base.convert(::Type{Float32},::Jittering) = Float32(1e-2)
-Base.convert(::Type{Float16},::Jittering) = Float16(1e-1)
+# Inferences
+include("inference/inference.jl")
 
-#using Plots
+# Main classes
+include("models/GP.jl")
+include("models/VGP.jl")
+include("models/SVGP.jl")
 
-include("GPFields.jl")
-include("MultiClassGPFields.jl")
-#Models
-include("models/LinearBSVM.jl")
-include("models/BatchBSVM.jl")
-include("models/SparseBSVM.jl")
-include("models/BatchXGPC.jl")
-include("models/SparseXGPC.jl")
-include("models/OnlineXGPC.jl")
-include("models/GibbsSamplerGPC.jl")
-include("models/BatchGPRegression.jl")
-include("models/SparseGPRegression.jl")
-include("models/OnlineRegression.jl")
-include("models/BatchStudentT.jl")
-include("models/SparseStudentT.jl")
-include("models/MultiClass.jl")
-include("models/SparseMultiClass.jl")
-include("models/SoftMaxMultiClass.jl")
-include("models/LogisticSoftMaxMultiClass.jl")
-include("models/SparseSoftMaxMultiClass.jl")
-include("models/SparseLogisticSoftMaxMultiClass.jl")
-#Functions
-include("OnlineTraining.jl")
-include("OfflineTraining.jl")
-include("Autotuning.jl")
-include("Predictions.jl")
+include("likelihood/gaussian.jl")
+
+include("functions/utils.jl")
+include("functions/init.jl")
+#Training Functions
+include("training.jl")
+include("autotuning.jl")
+include("predictions.jl")
 include("models/General_Functions.jl")
-include("models/BSVM_Functions.jl")
-include("models/XGPC_Functions.jl")
-include("models/Regression_Functions.jl")
-include("models/StudentT_Functions.jl")
-include("models/MultiClass_Functions.jl")
 
 end #End Module

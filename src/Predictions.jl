@@ -4,64 +4,50 @@
 Compute the mean of the predicted latent distribution of f on X_test for full GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::FullBatchModel,X_test::AbstractArray;covf::Bool=true) where T
-    if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = model.invK*model.μ
-    end
-    k_star = kernelmatrix(X_test,model.X,model.kernel)
-    mean_fstar = k_star*model.TopMatrixForPrediction
+function predict_f(model::VGP,X_test::AbstractArray{T};covf::Bool=true) where T
+    model.TopMatrixForPrediction = model.invKnn.*model.μ
+    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
+    μ_f = k_star.*model.TopMatrixForPrediction
     if !covf
-        return mean_fstar
+        return μ_f
     end
-    model.DownMatrixForPrediction = (model.invK*(I-model.Σ*model.invK))
-    cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
-    return mean_fstar,cov_fstar
+    model.DownMatrixForPrediction = model.invKnn.*(I.-model.Σ.*model.invKnn)
+    k_starstar = [kerneldiagmatrix(X_test,model.kernel[i]) for i in 1:model.K]
+    Σ_f = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,model.DownMatrixForPrediction)
+    return μ_,Σ_f
 end
 
 """
 Compute the mean of the predicted latent distribution of f on X_test for sparse GP models
 Return also the variance if `covf=true`
 """
-function fstar(model::SparseModel,X_test::AbstractArray;covf::Bool=true)
-    model.TopMatrixForPrediction = model.invKmm*model.μ
-    if covf
-        model.DownMatrixForPrediction = model.invKmm*(I-model.Σ*model.invKmm)
-    end
-    k_star = kernelmatrix(X_test,model.inducingPoints,model.kernel)
-    mean_fstar = k_star*model.TopMatrixForPrediction
+function predict_f(model::SVGP,X_test::AbstractArray{T};covf::Bool=true) where T
+    model.TopMatrixForPrediction = model.invKmm.*model.μ
+    k_star = kernelmatrix.([X_test],model.Z,model.kernel)
+    μ_f = k_star*model.TopMatrixForPrediction
     if !covf
-        return mean_fstar
+        return μ_f
     end
-    cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
-    return mean_fstar,cov_fstar
+    model.DownMatrixForPrediction = model.invKmm.*(I.-model.Σ.*model.invKmm)
+    k_starstar = [kerneldiagmatrix(X_test,model.kernel[i]) for i in 1:model.K]
+    Σ_f = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,model.DownMatrixForPrediction)
+    return μ_f,Σ_f
 end
 
-"""
-Compute the mean of the predicted latent distribution of f on X_test for online GP models
-Return also the variance if `covf=true`
-"""
-function fstar(model::OnlineGPModel,X_test::AbstractArray;covf::Bool=true)
-    if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = model.invKmm*model.μ
-    end
-    if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = (model.invKmm*(I-model.Σ*model.invKmm))
-    end
-    k_star = kernelmatrix(X_test,model.kmeansalg.centers,model.kernel)
-    mean_fstar = k_star*model.TopMatrixForPrediction
-    if !covf
-        return mean_fstar
+
+function predict_y(model::GP,X_test::AbstractArray{T},confidence::Bool=false) where T
+    if confidence
+        μ_f,Σ_f = predict_f(model,X_test,true)
+
     else
-        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
-        return mean_fstar,cov_fstar
+        μ_f = predict_f(model,X_test,false)
     end
 end
-
 """
 Compute the mean of the predicted latent distribution of f on X_test for GP regression
 Return also the variance if `covf=true`
 """
-function fstar(model::BatchGPRegression,X_test::AbstractArray;covf::Bool=true)
+function predict_f(model::BatchGPRegression,X_test::AbstractArray;covf::Bool=true)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.y
     end
@@ -69,67 +55,15 @@ function fstar(model::BatchGPRegression,X_test::AbstractArray;covf::Bool=true)
       model.DownMatrixForPrediction = model.invK
     end
     k_star = kernelmatrix(X_test,model.X,model.kernel)
-    mean_fstar = k_star*model.TopMatrixForPrediction
+    mean_predict_f = k_star*model.TopMatrixForPrediction
     if !covf
-        return mean_fstar
+        return mean_predict_f
     else
-        cov_fstar = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
-        return mean_fstar,cov_fstar
+        cov_predict_f = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
+        return mean_predict_f,cov_predict_f
     end
 end
 
-"""
-Compute the mean of the predicted latent distribution of f on X_test for Multiclass GP models
-Return also the variance if `covf=true`
-"""
-function fstar(model::MultiClassGPModel,X_test::AbstractArray;covf::Bool=true)
-    if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = broadcast((mu,invK)->invK*mu,model.μ,model.invK)
-    end
-    if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = broadcast((Σ,invK)->invK*(I-Σ*invK),model.Σ,model.invK)
-    end
-    if model.IndependentGPs
-        k_star = [KernelModule.kernelmatrix(X_test,model.X,model.kernel[i]) for i in 1:model.K]
-    else
-        k_star = [KernelModule.kernelmatrix(X_test,model.X,model.kernel[1])]
-    end
-    mean_fstar = broadcast((k_s,m)->k_s*m,k_star,model.TopMatrixForPrediction)
-    if !covf
-        return mean_fstar
-    else
-        if model.IndependentGPs
-            k_starstar = [kerneldiagmatrix(X_test,model.kernel[i]) for i in 1:model.K]
-        else
-            k_starstar = [kerneldiagmatrix(X_test,model.kernel[1])]
-        end
-        cov_fstar = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,model.DownMatrixForPrediction)
-        return mean_fstar,cov_fstar
-    end
-end
-
-"""
-Compute the mean of the predicted latent distribution of f on X_test for multiclass sparse GP models
-Return also the variance if `covf=true`
-"""
-function fstar(model::Union{SparseMultiClass,SparseSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass},X_test::AbstractArray;covf::Bool=true)
-    if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = model.invKmm.*model.μ
-    end
-    if covf && model.DownMatrixForPrediction == 0
-        model.DownMatrixForPrediction = broadcast((Σ,invKmm)->invKmm*(I-Σ*invKmm),model.Σ,model.invKmm)
-    end
-    k_star = broadcast((points,kernel)->KernelModule.kernelmatrix(X_test,points,kernel),model.inducingPoints,model.kernel)
-    # k_star = broadcast((points,kernel)->MLKernels.kernelmatrix(kernel,X_test,points),model.inducingPoints,model.altkernel)
-    mean_fstar = k_star.*model.TopMatrixForPrediction
-    if !covf
-        return mean_fstar
-    end
-    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
-    # cov_fstar = [zeros(T,size(X_test,1)) for _ in 1:model.K]
-    cov_fstar = broadcast((x,ks,kss)->(kss .- sum((ks*x).*ks,dims=2)[:]),model.DownMatrixForPrediction,k_star,k_starstar)
-    return mean_fstar,cov_fstar
-end
 
 "Return the predicted class {-1,1} with a linear model via the probit link"
 function probitpredict(model::LinearModel,X_test::AbstractArray{T}) where {T<:Real}
@@ -138,7 +72,7 @@ end
 
 "Return the predicted class {-1,1} with a GP model via the probit link"
 function probitpredict(model::GPModel,X_test::AbstractArray)
-    return sign.(fstar(model,X_test,covf=false).-0.5)
+    return sign.(predict_f(model,X_test,covf=false).-0.5)
 end
 
 "Return the mean of likelihood p(y*=1|X,x*) via the probit link with a linear model"
@@ -156,7 +90,7 @@ end
 
 """Return the mean of likelihood p(y*=1|X,x*) via the probit link with a GP model"""
 function probitpredictproba(model::GPModel,X_test::AbstractArray)
-    m_f,cov_f = fstar(model,X_test,covf=true)
+    m_f,cov_f = predict_f(model,X_test,covf=true)
     return broadcast((m,c)->cdf(Normal(),m/(c+1)),m_f,cov_f)
 end
 
@@ -174,12 +108,12 @@ end
 
 """Return the point estimate of the likelihood of class y=1 via the SVM likelihood"""
 function svmpredict(model::GPModel,X_test::AbstractArray)
-    return sign.(fstar(model,X_test,covf=false))
+    return sign.(predict_f(model,X_test,covf=false))
 end
 
 """Return the likelihood of class y=1 via the SVM likelihood"""
 function svmpredictproba(model::GPModel,X_test::AbstractArray)
-    m_f,cov_f = fstar(model,X_test,covf=true)
+    m_f,cov_f = predict_f(model,X_test,covf=true)
     nTest = length(m_f)
     pred = zero(m_f)
     for i in 1:nTest
@@ -201,12 +135,12 @@ end
 
 """Return the predicted class {-1,1} with a GP model via the logit link"""
 function logitpredict(model::GPModel,X_test::AbstractArray)
-    return sign.(fstar(model,X_test,covf=false))
+    return sign.(predict_f(model,X_test,covf=false))
 end
 
 """Return the mean of likelihood p(y*=1|X,x*) via the logit link with a GP model"""
 function logitpredictproba(model::GPModel,X_test::AbstractArray)
-    m_f,cov_f = fstar(model,X_test,covf=true)
+    m_f,cov_f = predict_f(model,X_test,covf=true)
     nTest = length(m_f)
     pred = zero(m_f)
     for i in 1:nTest
@@ -231,30 +165,30 @@ end
 
 """Return the mean of the predictive distribution of f"""
 function regpredict(model::GPModel,X_test::AbstractArray)
-    return fstar(model,X_test,covf=false)
+    return predict_f(model,X_test,covf=false)
 end
 
 """Return the mean and variance of the predictive distribution of f"""
 function regpredictproba(model::GPModel,X_test::AbstractArray)
-    m_f,cov_f =  fstar(model,X_test,covf=true)
+    m_f,cov_f =  predict_f(model,X_test,covf=true)
     cov_f .+= model.gnoise
     return m_f,cov_f
 end
 
 """Return the mean of the predictive distribution of f"""
 function studenttpredict(model::GPModel,X_test::AbstractArray)
-    return fstar(model,X_test,covf=false)
+    return predict_f(model,X_test,covf=false)
 end
 
 
 """Return the mean and variance of the predictive distribution of f"""
 function studenttpredictproba(model::GPModel,X_test::AbstractArray)
-    return fstar(model,X_test,covf=true)
+    return predict_f(model,X_test,covf=true)
 end
 
 "Compute the mean and variance using MC integration"
 function studentpredictprobamc(model::GPModel,X_test::AbstractArray{T};nSamples=100) where {T<:Real}
-    m_f,cov_f = fstar(model,X_test,covf=true)
+    m_f,cov_f = predict_f(model,X_test,covf=true)
     nTest = length(m_f)
     mean_pred = zero(m_f)
     var_pred = zero(m_f)
@@ -279,7 +213,7 @@ end
 
 function multiclasspredict(model::MultiClassGPModel,X_test::AbstractArray{T},likelihood::Bool=false) where {T<:Real}
     n=size(X_test,1);
-    m_f = fstar(model,X_test,covf=false)
+    m_f = predict_f(model,X_test,covf=false)
     if !likelihood
         return [model.class_mapping[argmax([mu[i] for mu in m_f])] for i in 1:n]
     end
@@ -328,7 +262,7 @@ end
 
 function multiclasspredictlaplace(model::Union{MultiClass,SparseMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
-    m_f,cov_f = fstar(model,X_test)
+    m_f,cov_f = predict_f(model,X_test)
     σ = hcat(logit.(m_f)...)
     σ = [σ[i,:] for i in 1:n]
     cov_f = hcat(cov_f...)
@@ -350,7 +284,7 @@ end
 
 function multiclasspredictproba(model::Union{SoftMaxMultiClass,SparseSoftMaxMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
-    m_f,cov_f = fstar(model,X_test)
+    m_f,cov_f = predict_f(model,X_test)
     m_f = hcat(m_f...)
     m_f = [m_f[i,:] for i in 1:n]
     cov_f = hcat(cov_f...)
@@ -369,7 +303,7 @@ end
 
 function multiclasspredictproba(model::Union{LogisticSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
     n = size(X_test,1)
-    m_f,cov_f = fstar(model,X_test)
+    m_f,cov_f = predict_f(model,X_test)
     m_f = hcat(m_f...)
     m_f = [m_f[i,:] for i in 1:n]
     cov_f = hcat(cov_f...)
@@ -388,7 +322,7 @@ end
 
 function multiclasspredictproba(model::Union{MultiClass,SparseMultiClass},X_test::Array{T,N},covf::Bool=false;nSamples::Integer=200) where {T,N}
     n = size(X_test,1)
-    m_f,cov_f = fstar(model,X_test)
+    m_f,cov_f = predict_f(model,X_test)
     m_f = hcat(m_f...)
     m_f = [m_f[i,:] for i in 1:n]
     cov_f = hcat(cov_f...)

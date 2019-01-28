@@ -23,7 +23,7 @@ end
 
 function VGP(X::AbtractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
             likelihood::L,inference::I;
-            verbose::Integer=0,noise::Real=1e-3,Autotuning::Bool=true,
+            verbose::Integer=0,Autotuning::Bool=true,
             IndependentPriors::Bool=true) where {T1<:Real,T2,N1,N2,L<:Likelihood,I<:Inference}
             checkdata!(X,y,likelihood)
             checkimplementation(likelihood,inference)

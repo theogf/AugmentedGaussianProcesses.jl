@@ -4,22 +4,19 @@ Function to train the given GP model, there are options to change the number of 
 give a callback function that will take the model and the actual step as arguments
 and give a convergence method to stop the algorithm given specific criteria
 """
-function train!(model::GP;iterations::Integer=0,callback=0,Convergence=DefaultConvergence)
+function train!(model::GP;iterations::Integer=100,callback=0,Convergence=DefaultConvergence)
     if model.verbose > 0
       println("Starting training of data of $(model.nSamples) samples with $(size(model.X,2)) features $(typeof(model)<:MultiClassGPModel ? "and $(model.K) classes" : ""), using the "*model.Name*" model")
     end
 
-    if iterations > 0 #Reset the number of iterations to a new one
-        model.nEpochs = iterations
-    end
+    @assert iterations > 0  "Number of iterations should be positive"
     model.evol_conv = [] #Array to check on the evolution of convergence
     local_iter::Int64 = 1; conv = Inf;
 
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             update_parameters!(model) #Update all the variational parameters
-            model.Trained=true
-            # println(mean(model.μ[1]))
+            model.Trained || model.Trained = true
             if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
@@ -97,7 +94,7 @@ function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Rea
             # broadcast((points,kernel,Knm)->kernelmatrix!(Knm,model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices],model.Knm)
         model.κ .= model.Knm.*model.invKmm[model.KIndices]
         model.K̃ .= broadcast((knm,kappa,kernel)->kerneldiagmatrix(model.X[model.MBIndices,:],kernel).+ convert(T,Jittering()) - sum(kappa.*knm,dims=2)[:],model.Knm,model.κ,model.kernel)
-        # model.Ktilde .= broadcast((knm,kappa,kernel,v)->(diag(MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:])) - sum(kappa.*knm,dims=2)[:])*v,model.Knm,model.κ,model.altkernel[model.KIndices],model.altvar[model.KIndices])
+        # model.K̃ .= broadcast((knm,kappa,kernel,v)->(diag(MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:])) - sum(kappa.*knm,dims=2)[:])*v,model.Knm,model.κ,model.altkernel[model.KIndices],model.altvar[model.KIndices])
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     end
     model.HyperParametersUpdated=false
