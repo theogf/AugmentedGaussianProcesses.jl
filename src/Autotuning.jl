@@ -1,25 +1,16 @@
-
-
-"Update all hyperparameters for the linear models"
-function updateHyperParameters!(model::LinearModel,iter::Integer)
-    grad_noise = 0.5*((tr(model.Σ)+norm(model.μ))/(model.noise^2.0)-model.nFeatures/model.noise);
-    model.noise += GradDescent.update(model.optimizers[1],grad_noise)
-    model.HyperParametersUpdated = true
-end
-
 "Update all hyperparameters for the full batch GP models"
-function  updateHyperParameters!(model::VGP)
-    Jnn = broadcast(kernelderivativematrix([model.X],model.kernel)
+function  update_hyperparameters!(model::VGP)
+    Jnn = kernelderivativematrix.([model.X],model.kernel)
     f_l,f_v = hyperparameter_gradient_function(model)
-    grads_l = map(compute_hyperparameter_gradient,model.kernel,f_l,Jnn,1:model.nPrior)
-    grads_v = map(f_v,model.kernel)
-    apply_gradients_lengthscale!(model.kernel,grads_l) #Send the derivative of the matrix to the specific gradient of the model
-    apply_gradients_variance!(model.kernel,grads_v) #Send the derivative of the matrix to the specific gradient of the model
-    model.HyperParametersUpdated = true
+    grads_l = map(compute_hyperparameter_gradient,model.kernel,[f_l],Jnn,1:model.nPrior)
+    grads_v = map(f_v,model.kernel,1:model.nPrior)
+    apply_gradients_lengthscale!.(model.kernel,grads_l) #Send the derivative of the matrix to the specific gradient of the model
+    apply_gradients_variance!.(model.kernel,grads_v) #Send the derivative of the matrix to the specific gradient of the model
+    model.inference.HyperParametersUpdated = true
 end
 
 "Update all hyperparameters for the full batch GP models"
-function updateHyperParameters!(model::SVGP)
+function update_hyperparameters!(model::SVGP)
     matrix_derivatives =broadcast((kernel,Z)->
                     [kernelderivativematrix(Z,kernel), #Jmm
                      kernelderivativematrix(model.X[model.MBIndices,:],Z,kernel), #Jnm
@@ -46,14 +37,14 @@ function hyperparameter_gradient_function(model::VGP) where {T<:Real}
         return (function(Jnn,index)
                     return 0.5*sum(J.*transpose(A[index]))
                 end,
-                function(kernel,Kindex,index)
+                function(kernel,index)
                     return 0.5/getvariance(kernel)*sum(model.Knn[index].*A[index]')
                 end)
     else
         return (function(J,index)
             return 0.5*sum(sum(J.*transpose(A[i])) for i in 1:model.nLatent)
                 end,
-                function(kernel)
+                function(kernel,index)
                     return 0.5/getvariance(kernel)*sum(sum(model.Knn[1].*transpose(A[i])) for i in 1:model.nLatent)
                 end)
     end
@@ -73,7 +64,7 @@ function hyperparameter_gradient_function(model::SVGP) where {T<:Real}
                     grad_Expec = hyerparameter_expec_gradient(model)
                     return grad_KL + grad_Expec #TODO soething like this
                 end,
-                function(kernel,Kindex,index)
+                function(kernel,index)
                     return 0.5/getvariance(kernel)*sum(model.Knn[index].*A[index]')
                 end)
     else

@@ -1,25 +1,8 @@
-"""Basic displaying function"""
-function Base.show(io::IO,model::GPModel{T}) where T
-    print(io,"$(model.Name){$T} model")
-end
+
 
 def_atfrequency = 2
 def_smoothwindow = 5
 
-"""Compute the variational updates for the full batch models"""
-function variational_updates!(model::FullBatchModel{T},iter::Integer) where T
-    local_update!(model)
-    natural_gradient(model)
-    global_update!(model)
-end
-
-"""Compute the variational updates and the new learning rate for the sparse models"""
-function variational_updates!(model::SparseModel{T},iter::Integer) where T
-    local_update!(model)
-    (grad_η₁,grad_η₂) = natural_gradient(model)
-    computeLearningRate_Stochastic!(model,iter,grad_η₁,grad_η₂);
-    global_update!(model,grad_η₁,grad_η₂)
-end
 
 """Update the global variational parameters of the linear models"""
 function global_update!(model::LinearModel{T},grad_1::AbstractVector{T},grad_2::AbstractMatrix{T}) where T

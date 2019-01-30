@@ -79,3 +79,11 @@ function hessian_softmax(s::AbstractVector{<:Real},i::Integer)
     end
     return hessian
 end
+
+function opt_trace(A::AbstractMatrix{<:Real},B::AbstractMatrix{<:Real})
+    dot(A,B)
+end
+
+function opt_diag(A::AbstractMatrix{<:Real},B::AbstractMatrix{<:Real})
+    vec(sum(A.*B,dims=2))
+end

@@ -35,10 +35,9 @@ function predict_f(model::SVGP,X_test::AbstractArray{T};covf::Bool=true) where T
 end
 
 
-function predict_y(model::GP,X_test::AbstractArray{T},confidence::Bool=false) where T
+function predict_y(model::GP,X_test::AbstractArray{T};confidence::Bool=false) where T
     if confidence
         μ_f,Σ_f = predict_f(model,X_test,true)
-
     else
         μ_f = predict_f(model,X_test,false)
     end
@@ -47,49 +46,42 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for GP regression
 Return also the variance if `covf=true`
 """
-function predict_f(model::BatchGPRegression,X_test::AbstractArray;covf::Bool=true)
-    if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = model.invK*model.y
-    end
-    if covf && model.DownMatrixForPrediction == 0
-      model.DownMatrixForPrediction = model.invK
-    end
-    k_star = kernelmatrix(X_test,model.X,model.kernel)
-    mean_predict_f = k_star*model.TopMatrixForPrediction
+function predict_y(model::VGP{<:GaussianLikelihood},X_test::AbstractArray;covf::Bool=true)
+    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
+    μ_f = k_star.*model.invKnn.*model.μ
     if !covf
-        return mean_predict_f
-    else
-        cov_predict_f = kerneldiagmatrix(X_test,model.kernel) .- sum((k_star*model.DownMatrixForPrediction).*k_star,dims=2)[:]
-        return mean_predict_f,cov_predict_f
+        return μ_f
     end
+    Σ_f = kerneldiagmatrix.([X_test],model.kernel) .- opt_diag.(k_star.*model.invKnn,k_star)
+    return μ_f,Σ_f
 end
 
 
-"Return the predicted class {-1,1} with a linear model via the probit link"
-function probitpredict(model::LinearModel,X_test::AbstractArray{T}) where {T<:Real}
-    return sign.((model.Intercept ? [ones(T,size(X_test,1)) X_test]*model.μ : X_test*model.μ).-0.5)
-end
+# "Return the predicted class {-1,1} with a linear model via the probit link"
+# function probitpredict(model::LinearModel,X_test::AbstractArray{T}) where {T<:Real}
+#     return sign.((model.Intercept ? [ones(T,size(X_test,1)) X_test]*model.μ : X_test*model.μ).-0.5)
+# end
 
 "Return the predicted class {-1,1} with a GP model via the probit link"
-function probitpredict(model::GPModel,X_test::AbstractArray)
+function probitpredict(model::GP,X_test::AbstractArray)
     return sign.(predict_f(model,X_test,covf=false).-0.5)
 end
 
-"Return the mean of likelihood p(y*=1|X,x*) via the probit link with a linear model"
-function probitpredictproba(model::LinearModel,X_test::AbstractArray{T}) where {T<:Real}
-    if model.Intercept
-      X_test = [ones(T,size(X_test,1)) X_test]
-    end
-    n = size(X_test,1)
-    pred = zeros(n)
-    for i in 1:nTest
-      pred[i] = cdf(Normal(),(dot(X_test[i,:],model.μ))/(dot(X_test[i,:],model.Σ*X_test[i,:])+1))
-    end
-    return pred
-end
+# "Return the mean of likelihood p(y*=1|X,x*) via the probit link with a linear model"
+# function probitpredictproba(model::LinearModel,X_test::AbstractArray{T}) where {T<:Real}
+#     if model.Intercept
+#       X_test = [ones(T,size(X_test,1)) X_test]
+#     end
+#     n = size(X_test,1)
+#     pred = zeros(n)
+#     for i in 1:nTest
+#       pred[i] = cdf(Normal(),(dot(X_test[i,:],model.μ))/(dot(X_test[i,:],model.Σ*X_test[i,:])+1))
+#     end
+#     return pred
+# end
 
 """Return the mean of likelihood p(y*=1|X,x*) via the probit link with a GP model"""
-function probitpredictproba(model::GPModel,X_test::AbstractArray)
+function probitpredictproba(model::GP,X_test::AbstractArray{<:Real})
     m_f,cov_f = predict_f(model,X_test,covf=true)
     return broadcast((m,c)->cdf(Normal(),m/(c+1)),m_f,cov_f)
 end
@@ -107,12 +99,12 @@ end
 
 
 """Return the point estimate of the likelihood of class y=1 via the SVM likelihood"""
-function svmpredict(model::GPModel,X_test::AbstractArray)
+function svmpredict(model::GP,X_test::AbstractArray)
     return sign.(predict_f(model,X_test,covf=false))
 end
 
 """Return the likelihood of class y=1 via the SVM likelihood"""
-function svmpredictproba(model::GPModel,X_test::AbstractArray)
+function svmpredictproba(model::GP,X_test::AbstractArray)
     m_f,cov_f = predict_f(model,X_test,covf=true)
     nTest = length(m_f)
     pred = zero(m_f)
@@ -134,12 +126,12 @@ end
 
 
 """Return the predicted class {-1,1} with a GP model via the logit link"""
-function logitpredict(model::GPModel,X_test::AbstractArray)
+function logitpredict(model::GP,X_test::AbstractArray)
     return sign.(predict_f(model,X_test,covf=false))
 end
 
 """Return the mean of likelihood p(y*=1|X,x*) via the logit link with a GP model"""
-function logitpredictproba(model::GPModel,X_test::AbstractArray)
+function logitpredictproba(model::GP,X_test::AbstractArray)
     m_f,cov_f = predict_f(model,X_test,covf=true)
     nTest = length(m_f)
     pred = zero(m_f)
@@ -155,7 +147,7 @@ function logitpredictproba(model::GPModel,X_test::AbstractArray)
 end
 
 """Return the mean of the predictive distribution of f"""
-function regpredict(model::BatchGPRegression,X_test::AbstractArray)
+function regpredict(model::VGP{GaussianLikelihood},X_test::AbstractArray)
     if model.TopMatrixForPrediction == 0
         model.TopMatrixForPrediction = model.invK*model.y
     end
@@ -164,30 +156,30 @@ function regpredict(model::BatchGPRegression,X_test::AbstractArray)
 end
 
 """Return the mean of the predictive distribution of f"""
-function regpredict(model::GPModel,X_test::AbstractArray)
+function regpredict(model::GP,X_test::AbstractArray)
     return predict_f(model,X_test,covf=false)
 end
 
 """Return the mean and variance of the predictive distribution of f"""
-function regpredictproba(model::GPModel,X_test::AbstractArray)
+function regpredictproba(model::GP,X_test::AbstractArray)
     m_f,cov_f =  predict_f(model,X_test,covf=true)
     cov_f .+= model.gnoise
     return m_f,cov_f
 end
 
 """Return the mean of the predictive distribution of f"""
-function studenttpredict(model::GPModel,X_test::AbstractArray)
+function studenttpredict(model::GP,X_test::AbstractArray)
     return predict_f(model,X_test,covf=false)
 end
 
 
 """Return the mean and variance of the predictive distribution of f"""
-function studenttpredictproba(model::GPModel,X_test::AbstractArray)
+function studenttpredictproba(model::GP,X_test::AbstractArray)
     return predict_f(model,X_test,covf=true)
 end
 
 "Compute the mean and variance using MC integration"
-function studentpredictprobamc(model::GPModel,X_test::AbstractArray{T};nSamples=100) where {T<:Real}
+function studentpredictprobamc(model::GP,X_test::AbstractArray{T};nSamples=100) where {T<:Real}
     m_f,cov_f = predict_f(model,X_test,covf=true)
     nTest = length(m_f)
     mean_pred = zero(m_f)
@@ -211,7 +203,7 @@ function studentpredictprobamc(model::GPModel,X_test::AbstractArray{T};nSamples=
     return mean_pred,var_pred
 end
 
-function multiclasspredict(model::MultiClassGPModel,X_test::AbstractArray{T},likelihood::Bool=false) where {T<:Real}
+function multiclasspredict(model::GP,X_test::AbstractArray{T},likelihood::Bool=false) where {T<:Real}
     n=size(X_test,1);
     m_f = predict_f(model,X_test,covf=false)
     if !likelihood
@@ -219,126 +211,126 @@ function multiclasspredict(model::MultiClassGPModel,X_test::AbstractArray{T},lik
     end
     return compute_proba(model,m_f)
 end
-
-function compute_proba(model::Union{MultiClass,SparseMultiClass},m_f::Vector{Vector{T}}) where T
-    n = length(m_f)
-    σ = hcat(logit.(m_f)...); σ = [σ[i,:] for i in 1:n]
-    normsig = sum.(σ); y = mod_soft_max.(σ,normsig)
-    pred = zeros(Int64,n)
-    value = zeros(T,n)
-    for i in 1:n
-        res = findmax(y[i]);
-        pred[i]=res[2];
-        value[i]=res[1]
-    end
-    return model.class_mapping[pred],value
-end
-
-function compute_proba(model::Union{SoftMaxMultiClass,SparseSoftMaxMultiClass},m_f::Vector{Vector{T}}) where T
-    n = length(m_f[1])
-    m_f = hcat(m_f...); y = [softmax(m_f[i,:]) for i in 1:n]
-    pred = zeros(Int64,n)
-    value = zeros(T,n)
-    for i in 1:n
-        res = findmax(y[i]);
-        pred[i]=res[2];
-        value[i]=res[1]
-    end
-    return model.class_mapping[pred],value
-end
-
-function compute_proba(model::Union{SparseLogisticSoftMaxMultiClass,LogisticSoftMaxMultiClass},m_f::Vector{Vector{T}}) where T
-    n = length(m_f[1])
-    m_f = hcat(m_f...); y = [logisticsoftmax(m_f[i,:]) for i in 1:n]
-    pred = zeros(Int64,n)
-    value = zeros(T,n)
-    for i in 1:n
-        res = findmax(y[i]);
-        pred[i]=res[2];
-        value[i]=res[1]
-    end
-    return model.class_mapping[pred],value
-end
-
-function multiclasspredictlaplace(model::Union{MultiClass,SparseMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
-    n = size(X_test,1)
-    m_f,cov_f = predict_f(model,X_test)
-    σ = hcat(logit.(m_f)...)
-    σ = [σ[i,:] for i in 1:n]
-    cov_f = hcat(cov_f...)
-    cov_f = [cov_f[i,:] for i in 1:n]
-    normsig = sum.(σ)
-    h = mod_soft_max.(σ,normsig)
-    hess_h = hessian_mod_soft_max.(σ,normsig)
-    m_predic = broadcast(m->max.(m,eps(T)),h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f))
-    m_predic ./= sum.(m_predic)
-    if !covf
-        return DataFrame(hcat(m_predic...)',Symbol.(model.class_mapping))
-        # return [m[model.class_mapping] for m in m_predic]
-    end
-    grad_h = grad_mod_soft_max.(σ,normsig)
-    cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov-0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
-    return DataFrame(hcat(hcat(m_predic...)',hcat(cov_predic...)'),[Symbol.(string.(model.class_mapping).+"_μ"),Symbol.(string.(model.class_mapping).+"_σ")])
-    # return [m[model.class_mapping] for m in m_predic] ,[cov[model.class_mapping] for cov in cov_predic]
-end
-
-function multiclasspredictproba(model::Union{SoftMaxMultiClass,SparseSoftMaxMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
-    n = size(X_test,1)
-    m_f,cov_f = predict_f(model,X_test)
-    m_f = hcat(m_f...)
-    m_f = [m_f[i,:] for i in 1:n]
-    cov_f = hcat(cov_f...)
-    cov_f = [cov_f[i,:] for i in 1:n]
-    m_predic = zeros(n,model.K)
-    nSamples = 200
-    for i in 1:n
-        p = MvNormal(m_f[i],sqrt.(max.(eps(T),cov_f[i])))
-        for _ in 1:nSamples
-            m_predic[i,:] += softmax(rand(p))/nSamples
-        end
-    end
-    return DataFrame(m_predic,Symbol.(model.class_mapping))
-end
-
-
-function multiclasspredictproba(model::Union{LogisticSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
-    n = size(X_test,1)
-    m_f,cov_f = predict_f(model,X_test)
-    m_f = hcat(m_f...)
-    m_f = [m_f[i,:] for i in 1:n]
-    cov_f = hcat(cov_f...)
-    cov_f = [cov_f[i,:] for i in 1:n]
-    m_predic = zeros(n,model.K)
-    nSamples = 200
-    for i in 1:n
-        p = MvNormal(m_f[i],sqrt.(max.(eps(T),cov_f[i])))
-        for _ in 1:nSamples
-            m_predic[i,:] += logisticsoftmax(rand(p))/nSamples
-        end
-    end
-    return DataFrame(m_predic,Symbol.(model.class_mapping))
-end
-
-
-function multiclasspredictproba(model::Union{MultiClass,SparseMultiClass},X_test::Array{T,N},covf::Bool=false;nSamples::Integer=200) where {T,N}
-    n = size(X_test,1)
-    m_f,cov_f = predict_f(model,X_test)
-    m_f = hcat(m_f...)
-    m_f = [m_f[i,:] for i in 1:n]
-    cov_f = hcat(cov_f...)
-    cov_f = [cov_f[i,:] for i in 1:n]
-    m_predic = zeros(n,model.K)
-    for i in 1:n
-        p = MvNormal(m_f[i],sqrt.(max.(eps(T),cov_f[i])))
-        for _ in 1:nSamples
-            m_predic[i,:] += logisticsoftmax(rand(p))/nSamples
-        end
-    end
-    return DataFrame(m_predic,Symbol.(model.class_mapping))
-end
+#
+# function compute_proba(model::Union{MultiClass,SparseMultiClass},m_f::Vector{Vector{T}}) where T
+#     n = length(m_f)
+#     σ = hcat(logit.(m_f)...); σ = [σ[i,:] for i in 1:n]
+#     normsig = sum.(σ); y = mod_soft_max.(σ,normsig)
+#     pred = zeros(Int64,n)
+#     value = zeros(T,n)
+#     for i in 1:n
+#         res = findmax(y[i]);
+#         pred[i]=res[2];
+#         value[i]=res[1]
+#     end
+#     return model.class_mapping[pred],value
+# end
+#
+# function compute_proba(model::Union{SoftMaxMultiClass,SparseSoftMaxMultiClass},m_f::Vector{Vector{T}}) where T
+#     n = length(m_f[1])
+#     m_f = hcat(m_f...); y = [softmax(m_f[i,:]) for i in 1:n]
+#     pred = zeros(Int64,n)
+#     value = zeros(T,n)
+#     for i in 1:n
+#         res = findmax(y[i]);
+#         pred[i]=res[2];
+#         value[i]=res[1]
+#     end
+#     return model.class_mapping[pred],value
+# end
+#
+# function compute_proba(model::Union{SparseLogisticSoftMaxMultiClass,LogisticSoftMaxMultiClass},m_f::Vector{Vector{T}}) where T
+#     n = length(m_f[1])
+#     m_f = hcat(m_f...); y = [logisticsoftmax(m_f[i,:]) for i in 1:n]
+#     pred = zeros(Int64,n)
+#     value = zeros(T,n)
+#     for i in 1:n
+#         res = findmax(y[i]);
+#         pred[i]=res[2];
+#         value[i]=res[1]
+#     end
+#     return model.class_mapping[pred],value
+# end
+#
+# function multiclasspredictlaplace(model::Union{MultiClass,SparseMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
+#     n = size(X_test,1)
+#     m_f,cov_f = predict_f(model,X_test)
+#     σ = hcat(logit.(m_f)...)
+#     σ = [σ[i,:] for i in 1:n]
+#     cov_f = hcat(cov_f...)
+#     cov_f = [cov_f[i,:] for i in 1:n]
+#     normsig = sum.(σ)
+#     h = mod_soft_max.(σ,normsig)
+#     hess_h = hessian_mod_soft_max.(σ,normsig)
+#     m_predic = broadcast(m->max.(m,eps(T)),h.+0.5*broadcast((hess,cov)->(hess*cov),hess_h,cov_f))
+#     m_predic ./= sum.(m_predic)
+#     if !covf
+#         return DataFrame(hcat(m_predic...)',Symbol.(model.class_mapping))
+#         # return [m[model.class_mapping] for m in m_predic]
+#     end
+#     grad_h = grad_mod_soft_max.(σ,normsig)
+#     cov_predic = broadcast((grad,hess,cov)->(grad.^2*cov-0.25*hess.^2*(cov.^2)),grad_h,hess_h,cov_f)
+#     return DataFrame(hcat(hcat(m_predic...)',hcat(cov_predic...)'),[Symbol.(string.(model.class_mapping).+"_μ"),Symbol.(string.(model.class_mapping).+"_σ")])
+#     # return [m[model.class_mapping] for m in m_predic] ,[cov[model.class_mapping] for cov in cov_predic]
+# end
+#
+# function multiclasspredictproba(model::Union{SoftMaxMultiClass,SparseSoftMaxMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
+#     n = size(X_test,1)
+#     m_f,cov_f = predict_f(model,X_test)
+#     m_f = hcat(m_f...)
+#     m_f = [m_f[i,:] for i in 1:n]
+#     cov_f = hcat(cov_f...)
+#     cov_f = [cov_f[i,:] for i in 1:n]
+#     m_predic = zeros(n,model.K)
+#     nSamples = 200
+#     for i in 1:n
+#         p = MvNormal(m_f[i],sqrt.(max.(eps(T),cov_f[i])))
+#         for _ in 1:nSamples
+#             m_predic[i,:] += softmax(rand(p))/nSamples
+#         end
+#     end
+#     return DataFrame(m_predic,Symbol.(model.class_mapping))
+# end
+#
+#
+# function multiclasspredictproba(model::Union{LogisticSoftMaxMultiClass,SparseLogisticSoftMaxMultiClass},X_test::Array{T,N},covf::Bool=false) where {T,N}
+#     n = size(X_test,1)
+#     m_f,cov_f = predict_f(model,X_test)
+#     m_f = hcat(m_f...)
+#     m_f = [m_f[i,:] for i in 1:n]
+#     cov_f = hcat(cov_f...)
+#     cov_f = [cov_f[i,:] for i in 1:n]
+#     m_predic = zeros(n,model.K)
+#     nSamples = 200
+#     for i in 1:n
+#         p = MvNormal(m_f[i],sqrt.(max.(eps(T),cov_f[i])))
+#         for _ in 1:nSamples
+#             m_predic[i,:] += logisticsoftmax(rand(p))/nSamples
+#         end
+#     end
+#     return DataFrame(m_predic,Symbol.(model.class_mapping))
+# end
+#
+#
+# function multiclasspredictproba(model::Union{MultiClass,SparseMultiClass},X_test::Array{T,N},covf::Bool=false;nSamples::Integer=200) where {T,N}
+#     n = size(X_test,1)
+#     m_f,cov_f = predict_f(model,X_test)
+#     m_f = hcat(m_f...)
+#     m_f = [m_f[i,:] for i in 1:n]
+#     cov_f = hcat(cov_f...)
+#     cov_f = [cov_f[i,:] for i in 1:n]
+#     m_predic = zeros(n,model.K)
+#     for i in 1:n
+#         p = MvNormal(m_f[i],sqrt.(max.(eps(T),cov_f[i])))
+#         for _ in 1:nSamples
+#             m_predic[i,:] += logisticsoftmax(rand(p))/nSamples
+#         end
+#     end
+#     return DataFrame(m_predic,Symbol.(model.class_mapping))
+# end
 
 "Return the modified softmax likelihood given the latent functions"
-function sigma_max(f::Vector{T},index::Integer) where {T}
+function sigma_max(f::Vector{T},index::Integer) where {T<:Real}
     return logit(f[index])/sum(logit.(f))
 end
 

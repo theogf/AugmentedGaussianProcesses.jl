@@ -40,6 +40,8 @@ import Base: convert, show
 #Exported models
 export KMeansModule
 #Useful functions
+export train!
+export predit_f, predict_y
 export getLog, getMultiClassLog
 export Kernel,  Matern3_2Kernel, Matern5_2Kernel, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 export kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!
@@ -47,18 +49,18 @@ export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspred
 export setvalue!,getvalue,setfixed!,setfree!,getvariance,getlengthscales
 export KMeansInducingPoints
 
-# Likelihoods
-include("likelihood/likelihood.jl")
-
-# Inferences
-include("inference/inference.jl")
-
 # Main classes
+abstract type Inference{T<:Real} end
+
+abstract type Likelihood{T<:Real}  end
+
 include("models/GP.jl")
 include("models/VGP.jl")
 include("models/SVGP.jl")
 
-include("likelihood/gaussian.jl")
+include("inference/inference.jl")
+include("likelihood/likelihood.jl")
+
 
 include("functions/utils.jl")
 include("functions/init.jl")
@@ -66,6 +68,6 @@ include("functions/init.jl")
 include("training.jl")
 include("autotuning.jl")
 include("predictions.jl")
-include("models/General_Functions.jl")
+# include("models/General_Functions.jl")
 
 end #End Module

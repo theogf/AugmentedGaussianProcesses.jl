@@ -4,25 +4,25 @@ Function to train the given GP model, there are options to change the number of 
 give a callback function that will take the model and the actual step as arguments
 and give a convergence method to stop the algorithm given specific criteria
 """
-function train!(model::GP;iterations::Integer=100,callback=0,Convergence=DefaultConvergence)
+function train!(model::GP;iterations::Integer=100,callback=0,Convergence=0)
     if model.verbose > 0
-      println("Starting training of data of $(model.nSamples) samples with $(size(model.X,2)) features $(typeof(model)<:MultiClassGPModel ? "and $(model.K) classes" : ""), using the "*model.Name*" model")
+      println("Starting training of data of $(model.nSample) samples with $(size(model.X,2)) features and $(model.nLatent) latent GPs")# using the "*model.Name*" model")
     end
 
     @assert iterations > 0  "Number of iterations should be positive"
-    model.evol_conv = [] #Array to check on the evolution of convergence
+    # model.evol_conv = [] #Array to check on the evolution of convergence
     local_iter::Int64 = 1; conv = Inf;
 
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             update_parameters!(model) #Update all the variational parameters
-            model.Trained || model.Trained = true
-            if model.Autotuning && (iter%model.AutotuningFrequency == 0) && iter >= 3
+            model.Trained = true
+            if model.Autotuning && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
-            reset_prediction_matrices!(model) #Reset predicton matrices
+            # reset_prediction_matrices!(model) #Reset predicton matrices
             if callback != 0
-                callback(model,iter) #Use a callback method if put by user
+                callback(model,model.inference.nIter) #Use a callback method if put by user
             end
             # if !isa(model,BatchGPRegression)
             #     conv = Convergence(model,iter) #Check for convergence
@@ -39,7 +39,7 @@ function train!(model::GP;iterations::Integer=100,callback=0,Convergence=Default
                  print("ELBO is : $(ELBO(model))")
                  print("\n")
              end
-            (iter < model.nEpochs) || break; #Verify if the number of maximum iterations has been reached
+            (local_iter < iterations) || break; #Verify if the number of maximum iterations has been reached
             # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
             local_iter += 1; model.inference.nIter += 1
         catch e
@@ -62,7 +62,7 @@ end
 "Update all variational parameters of the GP Model"
 function update_parameters!(model::VGP)
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    variational_updates!(model,iter);
+    variational_updates!(model);
 end
 
 function update_parameters!(model::SVGP)
@@ -70,25 +70,25 @@ function update_parameters!(model::SVGP)
         model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    variational_updates!(model,iter);
+    variational_updates!(model);
 end
 
 "Compute of kernel matrices for variational GPs"
 function computeMatrices!(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    if model.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ convert(T,Jittering())*I)
+    if model.inference.HyperParametersUpdated
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ [Diagonal(convert(T,Jittering())*I,model.nFeature)])
         model.invKnn .= inv.(model.Knn)
     end
 end
 
 "Computate of kernel matrices sparse variational GPs"
 function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    if model.HyperParametersUpdated
+    if model.inference.HyperParametersUpdated
         model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
         model.invKmm .= inv.(model.Kmm)
     end
     #If change of hyperparameters or if stochatic
-    if model.HyperParametersUpdated || model.Stochastic
+    if model.inference.HyperParametersUpdated || model.Stochastic
         model.Knm .= broadcast((Z,kernel)->KernelModule.kernelmatrix(model.X[model.MBIndices,:],Z,kernel),model.Z,model.kernel)
         # model.Knm .= broadcast((points,kernel,v)->MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:],points)*v,model.inducingPoints[model.KIndices],model.altkernel[model.KIndices],model.altvar[model.KIndices])
             # broadcast((points,kernel,Knm)->kernelmatrix!(Knm,model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices],model.Knm)
@@ -101,7 +101,7 @@ function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Rea
 end
 #### Computations of the learning rates ###
 
-function MCInit!(model::GPModel)
+function MCInit!(model::GP)
     if typeof(model) <: MultiClassGPModel
         model.g = [zeros(model.m*(model.m+1)) for i in 1:model.K]
         model.h = zeros(model.K)
@@ -146,7 +146,7 @@ function MCInit!(model::GPModel)
     end
 end
 
-function computeLearningRate_Stochastic!(model::GPModel,iter::Integer,grad_1,grad_2)
+function computeLearningRate_Stochastic!(model::GP,iter::Integer,grad_1,grad_2)
     if model.Stochastic
         if model.AdaptiveLearningRate
             #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)
@@ -163,24 +163,24 @@ function computeLearningRate_Stochastic!(model::GPModel,iter::Integer,grad_1,gra
       model.ρ_s = 1.0
     end
 end
-
-function computeLearningRate_Stochastic!(model::MultiClassGPModel,iter::Integer,grad_1,grad_2)
-    if model.Stochastic
-        if model.AdaptiveLearningRate
-            #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)
-            model.g[model.KIndices] .= broadcast((tau,g,grad1,eta_1,grad2,eta_2)->(1-1/tau)*g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ[model.KIndices],model.g[model.KIndices],grad_1,model.η₁[model.KIndices],grad_2,model.η₂[model.KIndices])
-
-            model.h[model.KIndices] .= broadcast((tau,h,grad1,eta_1,grad2,eta_2)->(1-1/tau)*h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ[model.KIndices],model.h[model.KIndices],grad_1,model.η₁[model.KIndices],grad_2,model.η₂[model.KIndices])
-            # println("G : $(norm(model.g[1])), H : $(model.h[1])")
-            model.ρ_s[model.KIndices] .= broadcast((g,h)->norm(g)^2/h,model.g[model.KIndices],model.h[model.KIndices])
-            model.τ[model.KIndices] .= broadcast((rho,tau)->(1.0 - rho)*tau + 1.0,model.ρ_s[model.KIndices],model.τ[model.KIndices])
-        else
-            #Simple model of time decreasing learning rate
-            model.ρ_s[model.KIndices] = [(iter+model.τ_s)^(-model.κ_s) for i in model.KIndices]
-        end
-    else
-      #Non-Stochastic case
-      model.ρ_s[model.KIndices] .= [1.0 for i in 1:model.K]
-    end
-    # println("rho : $(model.ρ_s[1])")
-end
+#
+# function computeLearningRate_Stochastic!(model::MultiClassGPModel,iter::Integer,grad_1,grad_2)
+#     if model.Stochastic
+#         if model.AdaptiveLearningRate
+#             #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)
+#             model.g[model.KIndices] .= broadcast((tau,g,grad1,eta_1,grad2,eta_2)->(1-1/tau)*g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ[model.KIndices],model.g[model.KIndices],grad_1,model.η₁[model.KIndices],grad_2,model.η₂[model.KIndices])
+#
+#             model.h[model.KIndices] .= broadcast((tau,h,grad1,eta_1,grad2,eta_2)->(1-1/tau)*h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ[model.KIndices],model.h[model.KIndices],grad_1,model.η₁[model.KIndices],grad_2,model.η₂[model.KIndices])
+#             # println("G : $(norm(model.g[1])), H : $(model.h[1])")
+#             model.ρ_s[model.KIndices] .= broadcast((g,h)->norm(g)^2/h,model.g[model.KIndices],model.h[model.KIndices])
+#             model.τ[model.KIndices] .= broadcast((rho,tau)->(1.0 - rho)*tau + 1.0,model.ρ_s[model.KIndices],model.τ[model.KIndices])
+#         else
+#             #Simple model of time decreasing learning rate
+#             model.ρ_s[model.KIndices] = [(iter+model.τ_s)^(-model.κ_s) for i in model.KIndices]
+#         end
+#     else
+#       #Non-Stochastic case
+#       model.ρ_s[model.KIndices] .= [1.0 for i in 1:model.K]
+#     end
+#     # println("rho : $(model.ρ_s[1])")
+# end
