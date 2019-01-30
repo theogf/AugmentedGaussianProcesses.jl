@@ -66,7 +66,7 @@ function update_parameters!(model::VGP)
 end
 
 function update_parameters!(model::SVGP)
-    if model.Stochastic
+    if model.inference.Stochastic
         model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
@@ -88,12 +88,12 @@ function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Rea
         model.invKmm .= inv.(model.Kmm)
     end
     #If change of hyperparameters or if stochatic
-    if model.inference.HyperParametersUpdated || model.Stochastic
+    if model.inference.HyperParametersUpdated || model.inference.Stochastic
         model.Knm .= broadcast((Z,kernel)->KernelModule.kernelmatrix(model.X[model.MBIndices,:],Z,kernel),model.Z,model.kernel)
         # model.Knm .= broadcast((points,kernel,v)->MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:],points)*v,model.inducingPoints[model.KIndices],model.altkernel[model.KIndices],model.altvar[model.KIndices])
             # broadcast((points,kernel,Knm)->kernelmatrix!(Knm,model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices],model.Knm)
         model.κ .= model.Knm.*model.invKmm[model.KIndices]
-        model.K̃ .= broadcast((knm,kappa,kernel)->kerneldiagmatrix(model.X[model.MBIndices,:],kernel).+ convert(T,Jittering()) - sum(kappa.*knm,dims=2)[:],model.Knm,model.κ,model.kernel)
+        model.K̃ .= kerneldiagmatrix.([model.X[model.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())] - opt_diag.(model.κ,model.Knm)
         # model.K̃ .= broadcast((knm,kappa,kernel,v)->(diag(MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:])) - sum(kappa.*knm,dims=2)[:])*v,model.Knm,model.κ,model.altkernel[model.KIndices],model.altvar[model.KIndices])
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     end

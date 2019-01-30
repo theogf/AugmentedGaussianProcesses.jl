@@ -4,7 +4,9 @@ mutable struct AnalyticInference{T<:Real} <: Inference{T}
     nIter::Integer #Number of steps performed
     optimizer::Optimizer #Learning rate for stochastic updates
     Stochastic::Bool #Use of mini-batches
-    nSamples::Int64 #Size of mini-batches
+    nSamples::Int64
+    nSamplesUsed::Int64 #Size of mini-batches
+    MBIndices::AbstractVector #Indices of the minibatch
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     ∇η₁::AbstractVector{AbstractVector}
@@ -18,12 +20,16 @@ mutable struct AnalyticInference{T<:Real} <: Inference{T}
     end
 end
 
-function AnalyticInference(ρ::Real,nSamples::Integer,η₁::AbstractVector{AbstractVector},η₂::AbstractVector{AbstractArray};ϵ::T=1e-5,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
-    AnalyticInference{T}(ϵ,0,optimizer,true,nSamples,ρ,true,similar(η₁),similar(η₂))
+function AnalyticInference(nSamples::Integer;ϵ::T=1e-5,optimizer::Optimizer=VanillaGradDescent(η=1.0)) where {T<:Real}
+    AnalyticInference{T}(ϵ,0,optimizer,false,nSamples,nSamples,1:nSamples,nSamples/nSamplesUsed,true)
+end
+
+function AnalyticInference(nSamples::Integer,nSamplesUsed::Integer,η₁::AbstractVector{AbstractVector},η₂::AbstractVector{AbstractArray};ϵ::T=1e-5,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
+    AnalyticInference{T}(ϵ,0,optimizer,true,nSamples,nSamplesUsed,1:nSamplesUsed,nSamples/nSamplesUsed,true,similar(η₁),similar(η₂))
 end
 
 function AnalyticInference(;ϵ::T=1e-5,optimizer::Optimizer=VanillaGradDescent(η=1.0)) where {T<:Real}
-    AnalyticInference{Float64}(ϵ,0,optimizer,false,1,1.0,true)
+    AnalyticInference{Float64}(ϵ,0,optimizer,false,1,1,1.0,true)
 end
 
 function variational_updates!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}

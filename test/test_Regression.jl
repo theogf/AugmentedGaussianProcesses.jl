@@ -3,7 +3,7 @@ using AugmentedGaussianProcesses
 using LinearAlgebra
 using Random: seed!
 seed!(42)
-doPlot=true
+doPlot=false
 if !@isdefined doPlots
     doPlots = true
 end
@@ -35,7 +35,7 @@ ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
 kernel = RBFKernel(1.5)
 autotuning=true
 optindpoints=true
-fullm=true
+fullm=!true
 sparsem=true
 stochm=!true
 println("Testing the regression model")
@@ -53,11 +53,11 @@ end
 
 if sparsem
     println("Testing the sparse model")
-    t_sparse = @elapsed sparsemodel = SVGP(X,y,kernel,GaussianLikelihood(noise),AnalyticInference(),m=20,Stochastic=false,Autotuning=autotuning,verbose=verbose)
-    t_sparse += @elapsed sparsemodel.train(iterations=1000)
-    y_sparse = predict_y(sparsemodel,X_test); rmse_sparse = norm(y_sparse-y_test,2)/sqrt(length(y_test))
+    t_sparse = @elapsed sparsemodel = SVGP(X,y,kernel,GaussianLikelihood(noise),AnalyticInference(),20,Stochastic=false,Autotuning=autotuning,verbose=verbose)
+    t_sparse += @elapsed train!(sparsemodel,iterations=100)
+    y_sparse = predict_y(sparsemodel,X_test,covf=false); rmse_sparse = norm(y_sparse[1]-y_test,2)/sqrt(length(y_test))
     if doPlots
-        p2=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="Sparse Regression")
+        p2=plot(x_test,x_test,reshape(y_sparse[1],N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="Sparse Regression")
         plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
         push!(ps,p2)
     end

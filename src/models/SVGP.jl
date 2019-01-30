@@ -1,8 +1,8 @@
 """ Class for sparse variational Gaussian Processes """
 
 mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,A<:AbstractArray} <: GP{L,I,T,A}
-    X::AbstractMatrix{T} #Feature vectors
-    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
+    X::AbstractMatrix #Feature vectors
+    y::AbstractVector{AbstractVector} #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
     nFeature::Int64 # Number of features of the GP (equal to number of points)
@@ -19,6 +19,7 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,A<:AbstractArray} <: GP{L
     Knm::AbstractVector{AbstractMatrix}
     κ::AbstractVector{AbstractMatrix}
     K̃::AbstractVector{AbstractVector}
+    kernel::AbstractVector{Kernel}
     likelihood::Likelihood
     inference::Inference
     verbose::Int64
@@ -50,16 +51,20 @@ function SVGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
             Σ = [Symmetric(Array(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent];
             η₂ = inv.(Σ)*(-0.5);
             κ = [zeros(T1,Stochastic ? nMinibatch : nSample, nFeature) for _ in 1:nPrior]
+            Knm = copy(κ)
             K̃ = [zeros(T1,Stochastic ? nMinibatch : nSample) for _ in 1:nPrior]
             Kmm = [copy(Σ[1]) for _ in 1:nPrior]; invKmm = copy(Kmm)
             #TODO This should be done externally in the initialization of the inference struct
             if Stochastic
                 @assert nMinibatch > 0 && nMinibatch < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch"
-                inference = typeof(inference)(nSample/nMinibatch,nMinibatch,η₁,η₂)
+                inference = typeof(inference)(nSample,nMinibatch,η₁,η₂)
+            else
+                inference = typeof(inference)(nSample)
             end
             SVGP{LType,IType,T1,AbstractArray{T1,N1}}(X,y,
-                    nFeature, nDim, nFeature, nLatent,
-                    IndependentPriors,nPrior,μ,Σ,η₁,η₂,
+                    nSample, nDim, nFeature, nLatent,
+                    IndependentPriors,nPrior,
+                    Z,μ,Σ,η₁,η₂,
                     Kmm,invKmm,Knm,κ,K̃,
                     kernel,likelihood,inference,
                     verbose,Autotuning,atfrequency,false)
