@@ -6,7 +6,8 @@ General Framework for the data augmented Gaussian Processes
 module AugmentedGaussianProcesses
 
 export GP, VGP, SVGP
-export Likelihood, GaussianLikelihood
+export Likelihood, GaussianLikelihood, LogisticLikelihood
+export MultiClassLikelihood, SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export Inference, AnalyticInference, GibbsSampling
 
 
@@ -51,7 +52,6 @@ export KMeansInducingPoints
 
 # Main classes
 abstract type Inference{T<:Real} end
-
 abstract type Likelihood{T<:Real}  end
 
 include("models/GP.jl")
@@ -60,7 +60,6 @@ include("models/SVGP.jl")
 
 include("inference/inference.jl")
 include("likelihood/likelihood.jl")
-
 
 include("functions/utils.jl")
 include("functions/init.jl")

@@ -3,7 +3,7 @@ using AugmentedGaussianProcesses
 using LinearAlgebra
 using Random: seed!
 seed!(42)
-doPlot=false
+doPlot=!false
 if !@isdefined doPlots
     doPlots = true
 end
@@ -33,13 +33,12 @@ y_test = latent(X_test)
 ps = []; t_full = 0; t_sparse = 0; t_stoch = 0;
 
 kernel = RBFKernel(1.5)
-autotuning=true
+autotuning=!false
 optindpoints=true
 fullm=!true
 sparsem=true
 stochm=!true
 println("Testing the regression model")
-
 if fullm
     println("Testing the full model")
     t_full = @elapsed fullmodel = VGP(X,y,kernel,GaussianLikelihood(noise),AnalyticInference(),Autotuning=autotuning,verbose=verbose)
@@ -58,7 +57,7 @@ if sparsem
     y_sparse = predict_y(sparsemodel,X_test,covf=false); rmse_sparse = norm(y_sparse[1]-y_test,2)/sqrt(length(y_test))
     if doPlots
         p2=plot(x_test,x_test,reshape(y_sparse[1],N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="Sparse Regression")
-        plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
+        plot!(sparsemodel.Z[1][:,1],sparsemodel.Z[1][:,2],t=:scatter,lab="inducing points")
         push!(ps,p2)
     end
 end

@@ -67,7 +67,7 @@ end
 
 function update_parameters!(model::SVGP)
     if model.inference.Stochastic
-        model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
+        model.inference.MBIndices = StatsBase.sample(1:model.inference.nSamples,model.inference.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
@@ -89,15 +89,15 @@ function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Rea
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
-        model.Knm .= broadcast((Z,kernel)->KernelModule.kernelmatrix(model.X[model.MBIndices,:],Z,kernel),model.Z,model.kernel)
+        model.Knm .= broadcast((Z,kernel)->KernelModule.kernelmatrix(model.X[model.inference.MBIndices,:],Z,kernel),model.Z,model.kernel)
         # model.Knm .= broadcast((points,kernel,v)->MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:],points)*v,model.inducingPoints[model.KIndices],model.altkernel[model.KIndices],model.altvar[model.KIndices])
             # broadcast((points,kernel,Knm)->kernelmatrix!(Knm,model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices],model.Knm)
-        model.κ .= model.Knm.*model.invKmm[model.KIndices]
-        model.K̃ .= kerneldiagmatrix.([model.X[model.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())] - opt_diag.(model.κ,model.Knm)
+        model.κ .= model.Knm.*model.invKmm
+        model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
         # model.K̃ .= broadcast((knm,kappa,kernel,v)->(diag(MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:])) - sum(kappa.*knm,dims=2)[:])*v,model.Knm,model.κ,model.altkernel[model.KIndices],model.altvar[model.KIndices])
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     end
-    model.HyperParametersUpdated=false
+    model.inference.HyperParametersUpdated=false
 end
 #### Computations of the learning rates ###
 
@@ -111,8 +111,7 @@ function MCInit!(model::GP)
             if model.verbose > 2
                 println("MC sampling $i/$(model.τ[1])")
             end
-            model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
-            model.KIndices = collect(1:model.K)
+            model.inference.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
             computeMatrices!(model);local_update!(model);
             (grad_η₁, grad_η₂) = natural_gradient(model)
             model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_η₁,model.η₁,grad_η₂,model.η₂)

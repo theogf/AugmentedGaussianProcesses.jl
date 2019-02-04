@@ -55,5 +55,5 @@ end
 
 """Compute the KL Divergence between the GP Prior and the variational distribution for the full batch model"""
 function GaussianKL(model::VGP)
-    return 0.5*(sum(model.invK.*(model.Σ+model.μ*transpose(model.μ)))-model.nSamples-logdet(model.Σ)-logdet(model.invK))
+    return 0.5*sum(opt_trace.(model.invKnn,model.Σ+model.μ.*transpose.(model.μ)).-model.nSamples.-logdet.(model.Σ).-logdet.(model.invKnn))
 end

@@ -22,15 +22,14 @@ Compute the mean of the predicted latent distribution of f on X_test for sparse 
 Return also the variance if `covf=true`
 """
 function predict_f(model::SVGP,X_test::AbstractArray{T};covf::Bool=true) where T
-    model.TopMatrixForPrediction = model.invKmm.*model.μ
     k_star = kernelmatrix.([X_test],model.Z,model.kernel)
-    μ_f = k_star*model.TopMatrixForPrediction
+    μ_f = k_star.*model.invKmm.*model.μ
     if !covf
         return μ_f
     end
-    model.DownMatrixForPrediction = model.invKmm.*(I.-model.Σ.*model.invKmm)
-    k_starstar = [kerneldiagmatrix(X_test,model.kernel[i]) for i in 1:model.K]
-    Σ_f = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,model.DownMatrixForPrediction)
+    A = model.invKmm.*([I].-model.Σ.*model.invKmm)
+    k_starstar = [kerneldiagmatrix(X_test,model.kernel[i]) for i in 1:model.nLatent]
+    Σ_f = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,A)
     return μ_f,Σ_f
 end
 
@@ -56,6 +55,15 @@ function predict_y(model::VGP{<:GaussianLikelihood},X_test::AbstractArray;covf::
     return μ_f,Σ_f
 end
 
+
+function predict_y(model::SVGP{<:GaussianLikelihood},X_test::AbstractArray;covf::Bool=true)
+    μ_f,Σ_f = predict_f(model,X_test,covf=true)
+    if !covf
+        return μ_f
+    end
+    Σ_f .+= ones(size(X_test,1))*model.likelihood.ϵ
+    return μ_f,Σ_f
+end
 
 # "Return the predicted class {-1,1} with a linear model via the probit link"
 # function probitpredict(model::LinearModel,X_test::AbstractArray{T}) where {T<:Real}
