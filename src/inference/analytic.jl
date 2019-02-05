@@ -32,8 +32,8 @@ function AnalyticInference(;ϵ::T=1e-5,optimizer::Optimizer=VanillaGradDescent(�
     AnalyticInference{Float64}(ϵ,0,optimizer,false,1,1,[1],1.0,true)
 end
 
-function init_inference(inference::Inference,nLatent::Integer,nFeatures::Integer,nSamplesUsed::Integer)
-    
+function init_inference(inference::AnalyticInference{T},nLatent::Integer,nFeatures::Integer,nSamplesUsed::Integer) where {T<:Real}
+    return inference
 end
 
 function variational_updates!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
@@ -49,17 +49,17 @@ function variational_updates!(model::SVGP{L,AnalyticInference{T}}) where {L<:Lik
     global_update!(model)
 end
 
-function natural_gradient!(model::VGP) where T
+function natural_gradient!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
     model.inference.∇η₁ .= expec_μ(model) .- model.η₁
     model.inference.∇η₂ .= Symmetric.(-Diagonal.(expec_Σ(model))+0.5.*model.invKmm .- model.η₂)
 end
 
-function natural_gradient!(model::SVGP) where T
+function natural_gradient!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
     model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*expec_μ(model) .- model.η₁
     model.inference.∇η₂ .= Symmetric.(-model.inference.ρ.*transpose.(model.κ).*Diagonal.(expec_Σ(model)).*model.κ.+0.5.*model.invKmm .- model.η₂)
 end
 
-function global_update!(model::VGP)
+function global_update!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
     model.Σ .= inv.(model.η₂)*(-0.5)
     model.μ .= model.Σ.*model.η₁
 end
