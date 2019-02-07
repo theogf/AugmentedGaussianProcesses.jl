@@ -1,7 +1,7 @@
 """
 Softmax likelihood : ``p(y=i|{fₖ}) = exp(fᵢ)/ ∑ exp(fₖ) ``
 """
-struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
+struct AugmentedLogisticSoftMaxLikelihood{T<:Real} <: AbstractLogisticSoftMaxLikelihood{T}
     Y::Abstract{Vector{SparseVector{Int64}}} #Mapping from instances to classes
     class_mapping::AbstractVector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
@@ -10,14 +10,14 @@ struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
     β::AbstractVector{T} # Variational parameter of Gamma distribution
     θ::AbstractVector{AbstractVector{T}} # Variational parameter of Polya-Gamma distribution
     γ::AbstractVector{AbstractVector{T}} # Variational parameter of Poisson distribution
-    function SoftMaxLikelihood{T}() where {T<:Real}
+    function AugmentedLogisticSoftMaxLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function SoftMaxLikelihood{T}(Y::Abstract{Vector{SparseVector{<:Integer}}},
+    function AugmentedLogisticSoftMaxLikelihood{T}(Y::Abstract{Vector{SparseVector{<:Integer}}},
     class_mapping::AbstractVector{Any}, ind_mapping::Dict{Any,Int})
         new{T}(Y,class_mapping,ind_mapping)
     end
-    function SoftMaxLikelihood{T}(Y::Abstract{Vector{SparseVector{<:Integer}}},
+    function AugmentedLogisticSoftMaxLikelihood{T}(Y::Abstract{Vector{SparseVector{<:Integer}}},
     class_mapping::AbstractVector{Any}, ind_mapping::Dict{Any,Int},
     c::AbstractVector{AbstractVector{T}}, α::AbstractVector{T},
     β::AbstractVector{T}, θ::AbstractVector{AbstractVector{T}},γ::AbstractVector{AbstractVector{T}})
@@ -25,11 +25,11 @@ struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
     end
 end
 
-function SoftMaxLikelihood()
+function AugmentedLogisticSoftMaxLikelihood()
     SoftMaxLikelihood{Float64}()
 end
 
-function init_likelihood(likelihood::SoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T
+function init_likelihood(likelihood::AugmentedLogisticSoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T
     c = [ones(T,nSamplesUsed) for i in 1:nLatent]
     α = nLatent*ones(T,nSamplesUsed)
     β = nLatent*ones(T,nSamplesUsed)
@@ -46,39 +46,57 @@ function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:SoftMa
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::VGP{<:SoftMaxLikelihood},index::Integer)
+function expec_μ(model::VGP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
 end
 
-function expec_μ(model::VGP{<:SoftMaxLikelihood})
+function expec_μ(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::SVGP{<:SoftMaxLikelihood},index::Integer)
+function expec_μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
 end
 
-function expec_μ(model::SVGP{<:SoftMaxLikelihood})
+function expec_μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
 end
 
-function expec_Σ(model::GP{<:SoftMaxLikelihood},index::Integer)
+function expec_Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
 end
 
-function expec_Σ(model::GP{<:SoftMaxLikelihood})
+function expec_Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
 end
 
-function ELBO(model::GP{<:SoftMaxLikelihood})
+function ELBO(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
     return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
 end
 
-function expecLogLikelihood(model::VGP{SoftMaxLikelihood{T}}) where T
+function expecLogLikelihood(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
     tot = -model.nLatent*(0.5*model.nSamples*log(2))
     tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-opt_trace(θ,(diag(Σ)+μ.^2))),
                         model.μ,model.y,model.θ,model.Σ))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{SoftMaxLikelihood{T}}) where T
+function expecLogLikelihood(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
     tot = -model.nLatent*(0.5*model.nSamples*log(2))
     tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y)-opt_trace(θ,K̃+κΣκ+κμ.^2))),
                         model.κ.*model.μ,model.y,model.θ,opt_diag(model.κ*model.Σ,model.κ'),model.K̃)
     return model.inference.ρ*tot
+end
+
+function treat_samples(model::GP{<:LogisticSoftMaxMultiClassLikelihood},samples::AbstractMatrix,index::Integer)
+    class = model.likelihood.ind_mapping[model.y[index]]
+    grad_μ = zeros(model.nLatent)
+    grad_Σ = zeros(model.nLatent)
+    for i in 1:size(samples,1)
+        σ = logistic(samples[i,:])
+        samples[i,:]  .= logisticsoftmax(samples[i,:])
+        s = samples[i,class]
+        g_μ = grad_logisticsoftmax(samples[i,:],σ,class)
+        grad_μ .+= g_μ./s
+        grad_Σ .+= hessian_logisticsoftmax(samples[i,:],σ,class)./s .- g_μ.^2 ./s^2
+    end
+    for k in 1:model.nLatent
+        model.∇μE[k][index] = grad_μ[k]/nSamples
+        model.∇ΣE[k][index] = 0.5.*grad_Σ[k]/nSamples
+    end
 end

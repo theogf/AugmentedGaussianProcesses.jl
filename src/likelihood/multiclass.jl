@@ -4,6 +4,8 @@ function init_multiclass_likelihood(likelihood::L,y::AbstractVector) where {L<:M
     L(one_of_K_mapping(y))
 end
 
+abstract type AbstractLogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T} end
+
 
 include("softmax.jl")
 include("logisticsoftmax.jl")
