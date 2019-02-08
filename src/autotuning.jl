@@ -2,7 +2,7 @@
 function  update_hyperparameters!(model::VGP)
     Jnn = kernelderivativematrix.([model.X],model.kernel)
     f_l,f_v = hyperparameter_gradient_function(model)
-    grads_l = map(compute_hyperparameter_gradient,model.kernel,[f_l],Jnn,1:model.nPrior)
+    grads_l = map(compute_hyperparameter_gradient,model.kernel,fill(f_l,model.nPrior),Jnn,1:model.nPrior)
     grads_v = map(f_v,model.kernel,1:model.nPrior)
     apply_gradients_lengthscale!.(model.kernel,grads_l) #Send the derivative of the matrix to the specific gradient of the model
     apply_gradients_variance!.(model.kernel,grads_v) #Send the derivative of the matrix to the specific gradient of the model
@@ -17,7 +17,7 @@ function update_hyperparameters!(model::SVGP)
                      kernelderivativediagmatrix(model.X[model.inference.MBIndices,:],kernel)],#Jnn
                      model.kernel,model.Z)
     f_l,f_v = hyperparameter_gradient_function(model)
-    grads_l = map(compute_hyperparameter_gradient,model.kernel,[f_l],matrix_derivatives,1:model.nPrior)
+    grads_l = map(compute_hyperparameter_gradient,model.kernel,fill(f_l,model.nPrior),matrix_derivatives,1:model.nPrior)
     grads_v = map(f_v,model.kernel,1:model.nPrior)
     if model.OptimizeInducingPoints
         Z_gradients = inducingpoints_gradient(model) #Compute the gradient given the inducing points location
@@ -32,17 +32,17 @@ end
 
 """Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
 function hyperparameter_gradient_function(model::VGP) where {T<:Real}
-    A = (model.invKnn.*(model.Σ.+model.µ.*transpose.(model.μ)).-I).*model.invKnn
+    A = (model.invKnn.*(model.Σ.+model.µ.*transpose.(model.μ)).-[I]).*model.invKnn
     if model.IndependentPriors
         return (function(Jnn,index)
-                    return 0.5*sum(J.*transpose(A[index]))
+                    return 0.5*sum(Jnn.*transpose(A[index]))
                 end,
                 function(kernel,index)
-                    return 0.5/getvariance(kernel[index])*sum(model.Knn[index].*A[index]')
+                    return 0.5/getvariance(kernel)*sum(model.Knn[index].*A[index]')
                 end)
     else
-        return (function(J,index)
-            return 0.5*sum(sum(J.*transpose(A[i])) for i in 1:model.nLatent)
+        return (function(Jnn,index)
+            return 0.5*sum(sum(Jnn.*transpose(A[i])) for i in 1:model.nLatent)
                 end,
                 function(kernel,index)
                     return 0.5/getvariance(kernel[1])*sum(sum(model.Knn[1].*transpose(A[i])) for i in 1:model.nLatent)
