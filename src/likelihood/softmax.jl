@@ -2,20 +2,25 @@
 Softmax likelihood : ``p(y=i|{fₖ}) = exp(fᵢ)/ ∑ exp(fₖ) ``
 """
 struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
-    Y::Abstract{Vector{SparseVector{Int64}}} #Mapping from instances to classes
+    Y::AbstractVector{SparseVector{Int64}} #Mapping from instances to classes
     class_mapping::AbstractVector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
+    y_class::AbstractVector{Int64} #GP Index for each sample
     function SoftMaxLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function SoftMaxLikelihood{T}(Y::Abstract{Vector{SparseVector{<:Integer}}},
-    class_mapping::AbstractVector{Any}, ind_mapping::Dict{Any,Int})
-        new{T}(Y,class_mapping,ind_mapping)
+    function SoftMaxLikelihood{T}(Y::AbstractVector{SparseVector{<:Integer}},
+    class_mapping::AbstractVector{Any}, ind_mapping::Dict{Any,Int},y_class::AbstractVector{Int}) where {T<:Real}
+        new{T}(Y,class_mapping,ind_mapping,y_class)
     end
 end
 
 function SoftMaxLikelihood()
     SoftMaxLikelihood{Float64}()
+end
+
+function pdf(l::SoftMaxLikelihood,f::AbstractVector)
+    softmax(f)
 end
 
 function init_likelihood(likelihood::SoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T
@@ -61,7 +66,7 @@ function expecLogLikelihood(model::SVGP{SoftMaxLikelihood{T}}) where T
     return model.inference.ρ*tot
 end
 
-function treat_samples(model::GP{<:SoftMaxMultiClassLikelihood},samples::AbstractMatrix,index::Integer)
+function treat_samples(model::GP{<:SoftMaxLikelihood},samples::AbstractMatrix,index::Integer)
     class = model.likelihood.ind_mapping[model.y[model.inference.MBIndices[index]]]
     grad_μ = zeros(model.nLatent)
     grad_Σ = zeros(model.nLatent)

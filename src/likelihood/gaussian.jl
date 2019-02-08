@@ -1,7 +1,7 @@
 """
 Gaussian likelihood : ``p(y|f) = 𝓝(y|f,ϵ) ``
 """
-struct GaussianLikelihood{T<:Real} <: Likelihood{T}
+struct GaussianLikelihood{T<:Real} <: RegressionLikelihood{T}
     ϵ::AbstractVector{T}
     function GaussianLikelihood{T}(ϵ::Real) where {T<:Real}
         new{T}([ϵ])
@@ -64,7 +64,7 @@ function expec_μ(model::SVGP{<:GaussianLikelihood},index::Integer)
 end
 
 function expec_μ(model::SVGP{<:GaussianLikelihood})
-    return getindex.(model.y,[model.inference.MBIndices]))./model.likelihood.ϵ[index]
+    return getindex.(model.y,[model.inference.MBIndices])./model.likelihood.ϵ[index]
 end
 
 function expec_Σ(model::SVGP{<:GaussianLikelihood},index::Integer)
@@ -82,6 +82,12 @@ function global_update!(model::VGP{GaussianLikelihood{T}}) where T
     if model.inference.nIter == 0
         model.μ .= model.y
     end
+end
+
+function proba_y(model::GP{<:GaussianLikelihood},X_test::AbstractMatrix)
+    μ_f,Σ_f = predict_f(model,X_test,covf=true)
+    Σ_f .+= [ones(size(X_test,1))].*model.likelihood.ϵ
+    return μ_f,Σ_f
 end
 
 ### Special case where the ELBO is equal to the marginal likelihood

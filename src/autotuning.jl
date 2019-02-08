@@ -87,8 +87,8 @@ end
 function hyperparameter_expec_gradient(model::SVGP,ι::AbstractArray,Jmm::AbstractMatrix,Jnm::AbstractMatrix,Jnn::AbstractVector,index::Integer)
     mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[index])
     Jnn .+= - opt_diag(ι,model.Knm[index]) - opt_diag(model.κ[index],Jnm)
-    dμ = dot(expec_μ(model,index),ι*model.μ[index])
-    dΣ = dot(expec_Σ(model,index),Jnn+2.0*opt_diag((ι*model.Σ[index]),model.κ[index]))
+    dμ = dot(model.inference.∇μE,ι*model.μ[index])
+    dΣ = dot(model.inference.∇ΣE,Jnn+2.0*opt_diag((ι*model.Σ[index]),model.κ[index]))
     return model.inference.ρ*(dμ+dΣ)
 end
 

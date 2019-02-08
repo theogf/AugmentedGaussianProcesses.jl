@@ -5,16 +5,15 @@ Compute the mean of the predicted latent distribution of f on X_test for full GP
 Return also the variance if `covf=true`
 """
 function predict_f(model::VGP,X_test::AbstractArray{T};covf::Bool=true) where T
-    model.TopMatrixForPrediction = model.invKnn.*model.μ
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
-    μ_f = k_star.*model.TopMatrixForPrediction
+    μ_f = k_star.*model.invKnn.*model.μ
     if !covf
         return μ_f
     end
-    model.DownMatrixForPrediction = model.invKnn.*(I.-model.Σ.*model.invKnn)
+    A = model.invKnn.*(I.-model.Σ.*model.invKnn)
     k_starstar = [kerneldiagmatrix(X_test,model.kernel[i]) for i in 1:model.K]
-    Σ_f = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,model.DownMatrixForPrediction)
-    return μ_,Σ_f
+    Σ_f = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,A)
+    return μ_f,Σ_f
 end
 
 """
@@ -33,46 +32,55 @@ function predict_f(model::SVGP,X_test::AbstractArray{T};covf::Bool=true) where T
     return μ_f,Σ_f
 end
 
+function predict_f(model::GP,X_test::AbstractVector{T};confidence::Bool=false) where T
+    predict_f(model,reshape(X_test,length(X_test),1),confidence=confidence)
+end
 
-function predict_y(model::GP,X_test::AbstractArray{T};confidence::Bool=false) where T
+function predict_f(model::GP,X_test::AbstractMatrix{T};confidence::Bool=false) where T
     if confidence
         μ_f,Σ_f = predict_f(model,X_test,true)
     else
         μ_f = predict_f(model,X_test,false)
     end
 end
-"""
-Compute the mean of the predicted latent distribution of f on X_test for GP regression
-Return also the variance if `covf=true`
-"""
-function predict_y(model::VGP{<:GaussianLikelihood},X_test::AbstractArray;covf::Bool=true)
-    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
-    μ_f = k_star.*model.invKnn.*model.μ
-    if !covf
-        return μ_f
-    end
-    Σ_f = kerneldiagmatrix.([X_test],model.kernel) .- opt_diag.(k_star.*model.invKnn,k_star)
-    return μ_f,Σ_f
-end
 
-
-function predict_y(model::SVGP{<:GaussianLikelihood},X_test::AbstractArray;covf::Bool=true)
-    μ_f,Σ_f = predict_f(model,X_test,covf=true)
-    if !covf
-        return μ_f
-    end
-    Σ_f .+= ones(size(X_test,1))*model.likelihood.ϵ
-    return μ_f,Σ_f
-end
 
 # "Return the predicted class {-1,1} with a linear model via the probit link"
 # function probitpredict(model::LinearModel,X_test::AbstractArray{T}) where {T<:Real}
 #     return sign.((model.Intercept ? [ones(T,size(X_test,1)) X_test]*model.μ : X_test*model.μ).-0.5)
 # end
+function predict_y(model::GP,X_test::AbstractVector)
+    return predict_y(model,reshape(X_test,length(X_test),1))
+end
 
-"Return the predicted class {-1,1} with a GP model via the probit link"
-function probitpredict(model::GP,X_test::AbstractArray)
+function predict_y(model::GP{<:RegressionLikelihood},X_test::AbstractMatrix)
+    return predict_f(model,X_test,covf=false)
+end
+
+function predict_y(model::GP{<:ClassificationLikelihood},X_test::AbstractMatrix)
+    return [sign.(f) for f in predict_f(model,X_test,covf=false)]
+end
+
+function predict_y(model::GP{<:MultiClassLikelihood},X_test::AbstractMatrix)
+    μ_f = predict_f(model,X_test,covf=false)
+    return [model.class_mapping[argmax([μ[i] for μ in μ_f])] for i in 1:n]
+end
+
+function predict_y(model::GP{<:LogisticLikelihood},X_test::AbstractMatrix)
     return sign.(predict_f(model,X_test,covf=false).-0.5)
+end
+
+function proba_y(model::GP,X_test::AbstractVector)
+    return proba_y(model,rehsape(X_test,length(X_test),1))
+end
+
+function proba_y(model::GP,X_test::AbstractMatrix)
+    μ_f,Σ_f = predict_f(model,X_test,covf=true)
+    compute_proba(model.likelihood,μ_f,Σ_f)
+end
+
+function compute_proba(l::Likelihood,μ::AbstractVector{AbstractVector},σ²::AbstractVector{AbstractVector})
+    @error "Non implemented for the likelihood $l"
 end
 
 # "Return the mean of likelihood p(y*=1|X,x*) via the probit link with a linear model"

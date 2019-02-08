@@ -29,7 +29,7 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
             verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
             IndependentPriors::Bool=true) where {T1<:Real,T2,N1,N2,LType<:Likelihood,IType<:Inference}
 
-            X,y = check_data!(X,y,likelihood)
+            X,y,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
 
             nLatent = length(y);
@@ -42,8 +42,7 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
             η₂ = inv.(Σ)*(-0.5);
             Knn = [copy(Σ[1]) for _ in 1:nPrior]; invKnn = copy(Knn)
 
-            # inference.∇η₁ = copy(η₁);
-            # inference.∇η₂ = copy(η₂)
+
 
             VGP{LType,IType,T1,AbstractArray{T1,N1}}(X,y,
                     nFeature, nDim, nFeature, nLatent,

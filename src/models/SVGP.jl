@@ -64,7 +64,7 @@ function SVGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
                 nSamplesUsed = nSample
             end
 
-            inference = init_inference(inference,nLatent,nFeature)
+            inference = init_inference(inference,nLatent,nFeature,nSamplesUsed)
             likelihood = init_likelihood(likelihood,nLatent,nSamplesUsed)
 
             SVGP{LType,IType,T1,AbstractArray{T1,N1}}(X,y,

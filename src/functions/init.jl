@@ -23,29 +23,11 @@ function check_implementation(likelihood::L,inference::I) where {I<:Inference,L<
         else
             return false
         end
-    if isa(likelihood,SoftMaxLikelihood)
+    elseif isa(likelihood,SoftMaxLikelihood)
         if isa(inference,AnalyticInference)
+            return false
+        elseif isa(inference,NumericalInference)
             return true
-        # elseif isa(inference,)
-            # return false
         end
     end
-end
-
-""" Given the labels, return one hot encoding, and the mapping of each class """
-function one_of_K_mapping(y)
-    y_values = unique(y)
-    Y = [spzeros(length(y)) for i in 1:length(y_values)]
-    y_class = zeros(Int64,length(y))
-    for i in 1:length(y)
-        for j in 1:length(y_values)
-            if y[i]==y_values[j]
-                Y[j][i] = 1;
-                y_class[i] = j;
-                break;
-            end
-        end
-    end
-    ind_values = Dict(value => key for (key,value) in enumerate(y_values))
-    return Y,y_values,ind_values,y_class
 end

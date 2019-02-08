@@ -9,8 +9,6 @@ mutable struct AnalyticInference{T<:Real} <: Inference{T}
     MBIndices::AbstractVector #Indices of the minibatch
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
-    ∇μE::AbstractVector{AbstractVector}
-    ∇μΣ::AbstractVector{AbstractVector}
     ∇η₁::AbstractVector{AbstractVector}
     ∇η₂::AbstractVector{AbstractArray}
     function AnalyticInference{T}(ϵ::T,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
@@ -18,7 +16,7 @@ mutable struct AnalyticInference{T<:Real} <: Inference{T}
     end
     function AnalyticInference{T}(ϵ::T,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool,∇η₁::AbstractVector{<:AbstractVector},
     ∇η₂::AbstractVector{<:AbstractMatrix}) where T
-        return new{T}(ϵ,nIter,optimizer,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag,∇μE,∇ΣE,∇η₁,∇η₂)
+        return new{T}(ϵ,nIter,optimizer,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag,∇η₁,∇η₂)
     end
 end
 

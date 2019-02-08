@@ -54,11 +54,28 @@ function natural_gradient!(model::SVGP{<:Likelihood,<:NumericalInference})
 end
 
 function global_update!(model::VGP)
-    model.Σ .= inv.(model.η₂)*(-0.5)
+    model.η₁ .+= model.inference.∇η₁
+    model.η₂ .+= model.inference.∇η₂
+    model.Σ .= inv.(model.∇η₂)*(-0.5)
     model.μ .= model.Σ.*model.η₁
 end
 
-function
+function expec_μ(model::GP{<:Likelihood,<:NumericalInference},index::Integer)
+    return model.inference.∇μE[index]
+end
+
+function expec_μ(model::GP{<:Likelihood,<:NumericalInference})
+    return model.inference.∇μE
+end
+
+
+function expec_Σ(model::GP{<:Likelihood,<:NumericalInference},index::Integer)
+    return model.inference.∇ΣE[index]
+end
+
+function expec_Σ(model::GP{<:Likelihood,<:NumericalInference})
+    return model.inference.∇ΣE
+end
 
 function compute_learningrate!(model::SVGP{L,NumericalInference{T}}) where {L<:Likelihood,T}
  #TODO learningrate_optimizer
@@ -72,4 +89,11 @@ function global_update!(model::SVGP{L,NumericalInference{T}}) where {L<:Likeliho
     end
     model.Σ .= inv.(model.η₂)*(-0.5)
     model.μ .= model.Σ.*model.η₁
+end
+
+function convert(::Type{T1},x::T2) where {T1<:VGP{<:Likelihood,T3} where {T3<:NumericalInference},T2<:VGP{<:Likelihood,<:AnalyticInference}}
+    #TODO Check likelihood is compatibl
+    inference = T3(x.inference.ϵ,x.inference.nIter,x.inference.optimizer,defaultn(T3),x.inference.Stochastic,x.inference.nSamples,x.inference.nSamplesUsed,x.inference.MBIndices,x.inference.ρ,x.inference.HyperParametersUpdated,x.inference.∇η₁,x.inference.∇η₂,copy(expec_μ(x)),copy(expec_Σ(x)))
+    likelihood =isaugmented(x.likelihood) ? remove_augmentation(x.likelihood) : likelihood
+    return T1(x.X,x.y,x.nSample,x.nDim,x.nFeature,x.nLatent,x.IndependentPriors,x.nPrior,x.μ,x.Σ,x.η₁,x.η₂,x.Knn,x.invKnn,x.kernel,likelihood,inference,x.verbose,x.Autotuning,x.atfrequency,x.Trained)
 end

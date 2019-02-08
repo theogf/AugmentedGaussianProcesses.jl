@@ -2,13 +2,13 @@
 Logistic likelihood : ``p(y|f) = σ(yf) = (1+exp(-yf))⁻¹ ``
 """
 #TODO Separate into a numerical and analytic version
-struct LogisticLikelihood{T<:Real} <: Likelihood{T}
+struct LogisticLikelihood{T<:Real} <: ClassificationLikelihood{T}
     c::AbstractVector{AbstractVector{T}}
     θ::AbstractVector{AbstractVector{T}}
     function LogisticLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function LogisticLikelihood{T}(c::AbstractVector{AbstractVector{<:Real}},θ::AbstractVector{AbstractVector{<:Real}})
+    function LogisticLikelihood{T}(c::AbstractVector{AbstractVector{<:Real}},θ::AbstractVector{AbstractVector{<:Real}}) where {T<:Real}
         new{T}(c,θ)
     end
 end
@@ -38,12 +38,12 @@ function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:Logist
     end
 end
 
-function local_updates!(model::VGP{<:LogisticLikelihood,<:AnalyticInference)
+function local_updates!(model::VGP{<:LogisticLikelihood,<:AnalyticInference})
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(diag(Σ)+μ.^2),model.μ,model.Σ)
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.c)
 end
 
-function local_updates!(model::SVGP{<:LogisticLikelihood,<:AnalyticInference)
+function local_updates!(model::SVGP{<:LogisticLikelihood,<:AnalyticInference})
     model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ')+(κ*μ).^2),model.μ,model.Σ,model.K̃,model.κ)
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.c)
 end
@@ -72,6 +72,22 @@ end
 
 function expec_Σ(model::GP{<:LogisticLikelihood})
     return 0.5*model.likelihood.θ
+end
+
+function compute_proba(l::LogisticLikelihood,μ::AbstractVector{AbstractVector},σ²::AbstractVector{AbstractVector})
+    K = length(μ)
+    N = length(μ[1])
+    pred = [zeros(N) for _ in 1:K]
+    for k in 1:model.K
+        for i in 1:N
+            if σ²[k][i] <= 0.0
+                pred[k][i] = logit(μ[k][i])
+            else
+                pred[k][i] = expectation(logit,Normal(μ[k][i],sqrt(σ²[k][i])))
+            end
+        end
+    end
+    return pred
 end
 
 function ELBO(model::GP{<:LogisticLikelihood})

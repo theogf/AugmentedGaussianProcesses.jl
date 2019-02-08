@@ -98,10 +98,8 @@ X_grid = hcat([j for i in x_grid, j in x_grid][:],[i for i in x_grid, j in x_gri
 
 
 ##Which algorithm are tested
-fullm = !true
-sfullm = !true
-sparsem = true
-ssparsem = !true
+fullm = true
+sparsem = !true
 # for l in [0.001,0.005,0.01,0.05,0.1,0.5,1.0]
 # for l in [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
 function initial_lengthscale(X)
@@ -160,10 +158,10 @@ function callback(model,iter)
     # display(p1)
 end
 if fullm
-    global fmodel = AugmentedGaussianProcesses.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=2,IndependentGPs=true)
+    global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=false,atfrequency=2,IndependentPriors=true)
     # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(fmodel,X_test=X_test,y_test=y_test)
     # full_model.AutotuningFrequency=1
-    t_full = @elapsed fmodel.train(iterations=50,callback=callback)
+    t_full = @elapsed train!(fmodel,iterations=50,callback=callback)
 
     global y_full,sig_full = fmodel.predict(X_test)
     global y_fall = AugmentedGaussianProcesses.multiclasspredict(fmodel,X_test,true)

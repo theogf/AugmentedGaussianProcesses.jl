@@ -9,6 +9,8 @@ mutable struct MCMCIntegrationInference{T<:Real} <: NumericalInference{T}
     MBIndices::AbstractVector #Indices of the minibatch
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
+    ∇η₁::AbstractVector{AbstractVector}
+    ∇η₂::AbstractVector{AbstractArray}
     ∇μE::AbstractVector{AbstractVector}
     ∇ΣE::AbstractVector{AbstractVector}
     function MCMCIntegrationInference{T}(ϵ::T,nMC::Integer,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
@@ -18,6 +20,10 @@ mutable struct MCMCIntegrationInference{T<:Real} <: NumericalInference{T}
     ∇ΣE::AbstractVector{<:AbstractVector}) where T
         return new{T}(ϵ,nIter,optimizer,nMC,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag,∇μE,∇ΣE)
     end
+end
+
+function defaultn(::Type{MCMCIntegrationInference})
+    return 200
 end
 
 
