@@ -29,5 +29,15 @@ function check_implementation(likelihood::L,inference::I) where {I<:Inference,L<
         elseif isa(inference,NumericalInference)
             return true
         end
+    elseif isa(likelihood,AbstractLogisticSoftMaxLikelihood)
+        if isaugmented(likelihood) && isa(inference,AnalyticInference)
+            return true
+        elseif !isaugmented(likelihood) && isa(inference,NumericalInference)
+            return true
+        else
+            return false
+        end
+    else
+        return false
     end
 end

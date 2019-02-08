@@ -4,14 +4,14 @@
 Compute the mean of the predicted latent distribution of f on X_test for full GP models
 Return also the variance if `covf=true`
 """
-function predict_f(model::VGP,X_test::AbstractArray{T};covf::Bool=true) where T
+function predict_f(model::VGP,X_test::AbstractMatrix{T};covf::Bool=true) where T
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     μ_f = k_star.*model.invKnn.*model.μ
     if !covf
         return μ_f
     end
-    A = model.invKnn.*(I.-model.Σ.*model.invKnn)
-    k_starstar = [kerneldiagmatrix(X_test,model.kernel[i]) for i in 1:model.K]
+    A = model.invKnn.*([I].-model.Σ.*model.invKnn)
+    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
     Σ_f = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,A)
     return μ_f,Σ_f
 end
@@ -20,30 +20,21 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for sparse GP models
 Return also the variance if `covf=true`
 """
-function predict_f(model::SVGP,X_test::AbstractArray{T};covf::Bool=true) where T
+function predict_f(model::SVGP,X_test::Matrix{T};covf::Bool=true) where T
     k_star = kernelmatrix.([X_test],model.Z,model.kernel)
     μ_f = k_star.*model.invKmm.*model.μ
     if !covf
         return μ_f
     end
     A = model.invKmm.*([I].-model.Σ.*model.invKmm)
-    k_starstar = [kerneldiagmatrix(X_test,model.kernel[i]) for i in 1:model.nLatent]
+    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
     Σ_f = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,A)
     return μ_f,Σ_f
 end
 
-function predict_f(model::GP,X_test::AbstractVector{T};confidence::Bool=false) where T
-    predict_f(model,reshape(X_test,length(X_test),1),confidence=confidence)
+function predict_f(model::GP,X_test::AbstractVector{T};covf::Bool=false) where T
+    predict_f(model,reshape(X_test,length(X_test),1),covf=covf)
 end
-
-function predict_f(model::GP,X_test::AbstractMatrix{T};confidence::Bool=false) where T
-    if confidence
-        μ_f,Σ_f = predict_f(model,X_test,true)
-    else
-        μ_f = predict_f(model,X_test,false)
-    end
-end
-
 
 # "Return the predicted class {-1,1} with a linear model via the probit link"
 # function probitpredict(model::LinearModel,X_test::AbstractArray{T}) where {T<:Real}
@@ -62,8 +53,9 @@ function predict_y(model::GP{<:ClassificationLikelihood},X_test::AbstractMatrix)
 end
 
 function predict_y(model::GP{<:MultiClassLikelihood},X_test::AbstractMatrix)
+    n = size(X_test,1)
     μ_f = predict_f(model,X_test,covf=false)
-    return [model.class_mapping[argmax([μ[i] for μ in μ_f])] for i in 1:n]
+    return [model.likelihood.class_mapping[argmax([μ[i] for μ in μ_f])] for i in 1:n]
 end
 
 function predict_y(model::GP{<:LogisticLikelihood},X_test::AbstractMatrix)

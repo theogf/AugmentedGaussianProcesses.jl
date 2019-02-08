@@ -3,14 +3,14 @@ by making a numerical approximation (quadrature or MC integration)
 of the expected log-likelihood"""
 abstract type NumericalInference{T<:Real} <: Inference{T} end
 
-function NumericalInference(integration_technique::Symbol=:quad,)
-if integration_technique == :quad
-    QuadratureInference{T}()
-elseif integration_technique == :mcmc
-    MCMCIntegrationInference{T}()
-else
-    @error "Only possible integration techniques are quadrature : :quad or mcmc integration :mcmc"
-end
+function NumericalInference(integration_technique::Symbol=:quad)
+    if integration_technique == :quad
+        QuadratureInference{T}()
+    elseif integration_technique == :mcmc
+        MCMCIntegrationInference{T}()
+    else
+        @error "Only possible integration techniques are quadrature : :quad or mcmc integration :mcmc"
+    end
 end
 
 function NumericalInference(nSamples::Integer;ϵ::T=1e-5,nMC::Integer=200,optimizer::Optimizer=VanillaGradDescent(η=1.0)) where {T<:Real}

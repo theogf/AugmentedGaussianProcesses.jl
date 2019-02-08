@@ -4,6 +4,7 @@ abstract type MultiClassLikelihood{T<:Real} <: Likelihood{T} end
 function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:MultiClassLikelihood}
     @assert N <= 1 "Target should be a vector of labels"
     likelihood = init_multiclass_likelihood(likelihood,y)
+    likelihood.Y,likelihood
 end
 
 function init_multiclass_likelihood(likelihood::L,y::AbstractVector) where {L<:MultiClassLikelihood}
@@ -27,6 +28,25 @@ function one_of_K_mapping(y)
     ind_values = Dict(value => key for (key,value) in enumerate(y_values))
     return Y,y_values,ind_values,y_class
 end
+
+function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractVector},σ²::AbstractVector{<:AbstractVector}) where T
+    K = length(μ)
+    n = length(μ[1])
+    μ = hcat(μ...)
+    μ = [μ[i,:] for i in 1:n]
+    σ² = hcat(σ²...)
+    σ² = [σ²[i,:] for i in 1:n]
+    pred = zeros(n,K)
+    nSamples = 200
+    for i in 1:n
+        p = MvNormal(μ[i],sqrt.(max.(eps(T),σ²[i])))
+        for _ in 1:nSamples
+            pred[i,:] += pdf(l,rand(p))/nSamples
+        end
+    end
+    return DataFrame(pred,Symbol.(l.class_mapping))
+end
+
 
 
 include("softmax.jl")

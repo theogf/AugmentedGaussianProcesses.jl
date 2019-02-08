@@ -124,49 +124,55 @@ kernel = AugmentedGaussianProcesses.RBFKernel(l,dim=N_dim)
 AugmentedGaussianProcesses.setvalue!(kernel.fields.variance,1.0)
 # kernel= AugmentedGaussianProcesses.PolynomialKernel([1.0,0.0,1.0])
 metrics = MVHistory()
+elbos = MVHistory()
 params = MVHistory()
-results = MVHistory()
 anim  = Animation()
 function callback(model,iter)
-    push!(metrics,:loglike,iter,-AugmentedGaussianProcesses.ExpecLogLikelihood(model))
-    push!(metrics,:gaussian,iter,AugmentedGaussianProcesses.GaussianKL(model))
-    push!(metrics,:gamma,iter,AugmentedGaussianProcesses.GammaImproperKL(model))
-    push!(metrics,:poisson,iter,AugmentedGaussianProcesses.PoissonKL(model))
-    push!(metrics,:polyagamma,iter,AugmentedGaussianProcesses.PolyaGammaKL(model))
-    push!(metrics,:ELBO,iter,AugmentedGaussianProcesses.ELBO(model))
+    push!(elbos,:loglike,iter,-AugmentedGaussianProcesses.expecLogLikelihood(model))
+    push!(elbos,:gaussian,iter,AugmentedGaussianProcesses.GaussianKL(model))
+    push!(elbos,:gamma,iter,AugmentedGaussianProcesses.GammaImproperKL(model))
+    push!(elbos,:poisson,iter,AugmentedGaussianProcesses.PoissonKL(model))
+    push!(elbos,:polyagamma,iter,AugmentedGaussianProcesses.PolyaGammaKL(model))
+    push!(elbos,:ELBO,iter,AugmentedGaussianProcesses.ELBO(model))
     for i in 1:N_class
         push!(params,Symbol(:k_l,i),getvariance(model.kernel[i]))
         push!(params,Symbol(:k_v,i),getlengthscales(model.kernel[i]))
     end
-    y_pred_test = model.predict(X_test)
-    y_pred_train = model.predict(X)
-    py_pred_test = model.predictproba(X_test)
-    py_pred_train = model.predictproba(X)
-    push!(results,:err_train,1-acc(y,y_pred_train))
-    push!(results,:err_test,1-acc(y_test,y_pred_test))
-    push!(results,:nll_train,-loglike(y,py_pred_train))
-    push!(results,:nll_test,-loglike(y_test,py_pred_test))
-    # y_fgrid =  model.predict(X_grid)
-    # global py_fgrid = model.predictproba(X_grid)
-    # global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))[model.class_mapping]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
-    # col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
-    # global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false)
-    # p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=[1.5,2.5],t=:contour,colorbar=false)
-    # p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="")
-    # p1=plot!(p1,model.inducingPoints[1][:,1],model.inducingPoints[1][:,2],color=:black,t=:scatter,lab="")
-    # frame(anim,p1)
-    # display(p1)
+    y_pred_test = predict_y(model,X_test)
+    y_pred_train = predict_y(model,X)
+    py_pred_test = proba_y(model,X_test)
+    py_pred_train = proba_y(model,X)
+    push!(metrics,:err_train,1-acc(y,y_pred_train))
+    push!(metrics,:err_test,1-acc(y_test,y_pred_test))
+    push!(metrics,:nll_train,-loglike(y,py_pred_train))
+    push!(metrics,:nll_test,-loglike(y_test,py_pred_test))
+end
+
+function callbackplot(model,iter)
+    y_fgrid =  predict_y(model,X_grid)
+    global py_fgrid = proba_y(model,X_grid)
+    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))[collect(values(sort(model.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
+    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,framestyle=:box)
+    lims = (xlims(p1),ylims(p1))
+    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.2)
+    p1=plot!(p1,model.inducingPoints[1][:,1],model.inducingPoints[1][:,2],color=:black,t=:scatter,lab="")
+    p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(0,100),t=:contour,colorbar=false,color=:gray,levels=10)
+    xlims!(p1,lims[1]);ylims!(p1,lims[2])
+    frame(anim,p1)
+    display(p1)
+    return p1
 end
 if fullm
-    global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=false,atfrequency=2,IndependentPriors=true)
+    global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=!false,atfrequency=2,IndependentPriors=true)
     # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(fmodel,X_test=X_test,y_test=y_test)
     # full_model.AutotuningFrequency=1
-    t_full = @elapsed train!(fmodel,iterations=50,callback=callback)
+    t_full = @elapsed train!(fmodel,iterations=100,callback=callback)
 
-    global y_full,sig_full = fmodel.predict(X_test)
-    global y_fall = AugmentedGaussianProcesses.multiclasspredict(fmodel,X_test,true)
-    global y_ftrain, = fmodel.predict(X)
-    global y_fgrid, = fmodel.predict(X_grid)
+    global y_full = predict_y(fmodel,X_test)
+    global y_fall = proba_y(fmodel,X_test)
+    global y_ftrain = predict_y(fmodel,X)
+    global y_fgrid = predict_y(fmodel,X_grid)
     println("Full predictions computed")
     full_score = 0
     for (i,pred) in enumerate(y_full)
@@ -177,25 +183,6 @@ if fullm
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s for l = $l")
 end
 
-
-if sfullm
-    global sfmodel = AugmentedGaussianProcesses.MultiClass(X,y,verbose=3,noise=1e-3,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=5,IndependentGPs=true,KStochastic=true,nClassesUsed=20)
-    sfmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(sfmodel,X_test=X_test,y_test=y_test)
-    # full_model.AutotuningFrequency=1
-    t_sfull = @elapsed sfmodel.train(iterations=200,callback=callback)
-
-    global y_sfull,sig_sfull = sfmodel.predict(X_test)
-    global y_sfall = AugmentedGaussianProcesses.multiclasspredict(sfmodel,X_test,true)
-    global y_sftrain, = sfmodel.predict(X)
-    println("Full predictions computed")
-    sfull_score = 0
-    for (i,pred) in enumerate(y_sfull)
-        if pred == y_test[i]
-            global sfull_score += 1
-        end
-    end
-    println("Full model Accuracy is $(sfull_score/length(y_test)) in $t_sfull s for l = $l")
-end
 
 # end #End for loop on kernel lengthscale
 if sparsem
@@ -224,9 +211,9 @@ if sparsem
 end
 
 
-display(plot(metrics,title="ELBO values"))
+display(plot(elbos,title="ELBO values"))
 display(plot(params,title="kernel parameters"))
-display(plot(results,title="Metrics"))
+display(plot(metrics,title="Metrics"))
 1
     # model = smodel;
     # AugmentedGaussianProcesses.computeMatrices!(model)
@@ -240,27 +227,6 @@ display(plot(results,title="Metrics"))
 
 1
 
-if ssparsem
-    global ssmodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,KStochastic=true, nClassesUsed=5,verbose=3,kernel=kernel,m=100,Autotuning=false,AutotuningFrequency=5,Stochastic=true,batchsize=200,IndependentGPs=true)
-    # smodel.AutotuningFrequency=5
-    ssmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(ssmodel,X_test=X_test,y_test=y_test)
-    # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
-    t_ssparse = @elapsed ssmodel.train(iterations=100)#,callback=callback)
-
-    y_ssparse, = ssmodel.predict(X_test)
-    y_sstrain, = ssmodel.predict(X)
-    y_ssall = AugmentedGaussianProcesses.multiclasspredict(ssmodel,X_test,true)
-    # t_ssparse = @elapsed ssmodel.train(iterations=200,callback=callback)
-
-    println("Sparse predictions computed")
-    ssparse_score=0
-    for (i,pred) in enumerate(y_ssparse)
-        if pred == y_test[i]
-            global ssparse_score += 1
-        end
-    end
-    println("Super Sparse model Accuracy is $(ssparse_score/length(y_test)) in $t_ssparse s")
-end
 # t_ssparse = @elapsed ssmodel.train(iterations=200,callback=callback)
 
 # dim_t = 784
@@ -369,29 +335,29 @@ end
 # end
 # end
 
-using LinearAlgebra, ForwardDiff
-k = Array(exp(Symmetric(rand(10,10))))
-a = cholesky(Array(exp(Symmetric(rand(10,10))))).L
-isposdef(k)
-# a = rand(10)
-X = rand(10,4)
-Y = rand(20,4)
-function foo(s)
-    kernel = RBFKernel(s[1])
-    A = kernelmatrix(X,kernel)+1e-7I
-    B = kernelmatrix(Y,X,kernel)
-    return B*inv(A)
-end
-
-function foo_tilde(sk)
-    return sum(sin.(sk*sk))
-end
-a= 3.0
-foo(3.0)
-g = ForwardDiff.jacobian(foo,[a])
-g̃ = ForwardDiff.gradient(foo_tilde,a*k)
-function grad_foo(a,g̃)
-    return tr(g̃'*k)
-end
-
-grad_foo(a,g̃)
+# using LinearAlgebra, ForwardDiff
+# k = Array(exp(Symmetric(rand(10,10))))
+# a = cholesky(Array(exp(Symmetric(rand(10,10))))).L
+# isposdef(k)
+# # a = rand(10)
+# X = rand(10,4)
+# Y = rand(20,4)
+# function foo(s)
+#     kernel = RBFKernel(s[1])
+#     A = kernelmatrix(X,kernel)+1e-7I
+#     B = kernelmatrix(Y,X,kernel)
+#     return B*inv(A)
+# end
+#
+# function foo_tilde(sk)
+#     return sum(sin.(sk*sk))
+# end
+# a= 3.0
+# foo(3.0)
+# g = ForwardDiff.jacobian(foo,[a])
+# g̃ = ForwardDiff.gradient(foo_tilde,a*k)
+# function grad_foo(a,g̃)
+#     return tr(g̃'*k)
+# end
+#
+# grad_foo(a,g̃)

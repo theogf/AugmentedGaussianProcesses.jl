@@ -43,7 +43,7 @@ import Base: convert, show
 export KMeansModule
 #Useful functions
 export train!
-export predit_f, predict_y
+export predit_f, predict_y, proba_y
 export getLog, getMultiClassLog
 export Kernel,  Matern3_2Kernel, Matern5_2Kernel, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 export kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!

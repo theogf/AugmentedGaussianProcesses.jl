@@ -38,11 +38,12 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
             kernel = [deepcopy(kernel) for _ in 1:nPrior]
 
             μ = [zeros(T1,nFeature) for _ in 1:nLatent]; η₁ = copy(μ)
-            Σ = [Symmetric(Array(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent];
+            Σ = [Symmetric(Array(Diagonal(ones(T1,nFeature)))) for _ in 1:nLatent]
             η₂ = inv.(Σ)*(-0.5);
             Knn = [copy(Σ[1]) for _ in 1:nPrior]; invKnn = copy(Knn)
 
-
+            likelihood = init_likelihood(likelihood,nLatent,nSample)
+            inference = init_inference(inference,nLatent,nSample,nSample)
 
             VGP{LType,IType,T1,AbstractArray{T1,N1}}(X,y,
                     nFeature, nDim, nFeature, nLatent,
@@ -54,5 +55,5 @@ end
 
 """Compute the KL Divergence between the GP Prior and the variational distribution for the full batch model"""
 function GaussianKL(model::VGP)
-    return 0.5*sum(opt_trace.(model.invKnn,model.Σ+model.μ.*transpose.(model.μ)).-model.nSamples.-logdet.(model.Σ).-logdet.(model.invKnn))
+    return 0.5*sum(opt_trace.(model.invKnn,model.Σ+model.μ.*transpose.(model.μ)).-model.nSample.-logdet.(model.Σ).-logdet.(model.invKnn))
 end

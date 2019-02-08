@@ -9,8 +9,8 @@ struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
     function SoftMaxLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function SoftMaxLikelihood{T}(Y::AbstractVector{SparseVector{<:Integer}},
-    class_mapping::AbstractVector{Any}, ind_mapping::Dict{Any,Int},y_class::AbstractVector{Int}) where {T<:Real}
+    function SoftMaxLikelihood{T}(Y::AbstractVector{<:SparseVector{<:Real,<:Int}},
+    class_mapping::AbstractVector, ind_mapping::Dict{<:Any,<:Int},y_class::AbstractVector{<:Int}) where {T<:Real}
         new{T}(Y,class_mapping,ind_mapping,y_class)
     end
 end

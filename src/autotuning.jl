@@ -91,11 +91,3 @@ function hyperparameter_expec_gradient(model::SVGP,ι::AbstractArray,Jmm::Abstra
     dΣ = dot(model.inference.∇ΣE,Jnn+2.0*opt_diag((ι*model.Σ[index]),model.κ[index]))
     return model.inference.ρ*(dμ+dΣ)
 end
-
-function expec_μ(model::SVGP{<:GaussianLikelihood},index::Integer)
-    return model.y[index][model.inference.MBIndices]./model.likelihood.ϵ
-end
-
-function expec_Σ(model::SVGP{<:GaussianLikelihood},index::Integer)
-    return 1.0/model.likelihood.ϵ*ones(model.inference.nSamplesUsed)
-end
