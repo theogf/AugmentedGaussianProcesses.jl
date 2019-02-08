@@ -20,7 +20,14 @@ function GaussianLikelihood(ϵ::AbstractVector{T}) where {T<:Real}
 end
 
 function init_likelihood(likelihood::GaussianLikelihood{T},nLatent::Integer,nSamples::Integer) where {T<:Real}
-    GaussianLikelihood{T}([likelihood.ϵ[1] for _ in 1:nLatent])
+    if length(likelihood.ϵ) ==1 && length(likelihood.ϵ) != nLatent
+        return GaussianLikelihood{T}([likelihood.ϵ[1] for _ in 1:nLatent])
+    elseif length(likelihood.ϵ) != nLatent
+        @warn "Wrong dimension of ϵ : $(length(likelihood.ϵ)), using first value only"
+        return GaussianLikelihood{T}([likelihood.ϵ[1] for _ in 1:nLatent])
+    else
+        return likelihood
+    end
 end
 
 """ Return the labels in a vector of vectors for multiple outputs"""

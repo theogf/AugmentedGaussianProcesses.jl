@@ -1,6 +1,8 @@
 """
 Softmax likelihood : ``p(y=i|{fₖ}) = exp(fᵢ)/ ∑ exp(fₖ) ``
 """
+abstract type AbstractLogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T} end
+
 struct AugmentedLogisticSoftMaxLikelihood{T<:Real} <: AbstractLogisticSoftMaxLikelihood{T}
     Y::Abstract{Vector{SparseVector{Int64}}} #Mapping from instances to classes
     class_mapping::AbstractVector{Any} # Classes labels mapping
@@ -26,7 +28,7 @@ struct AugmentedLogisticSoftMaxLikelihood{T<:Real} <: AbstractLogisticSoftMaxLik
 end
 
 function AugmentedLogisticSoftMaxLikelihood()
-    SoftMaxLikelihood{Float64}()
+    AugmentedLogisticSoftMaxLikelihood{Float64}()
 end
 
 function init_likelihood(likelihood::AugmentedLogisticSoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T
@@ -38,12 +40,27 @@ function init_likelihood(likelihood::AugmentedLogisticSoftMaxLikelihood{T},nLate
     SoftMaxLikelihood{T}(likelihood.Y,likelihood.class_mapping,likelihood.ind_mapping,c,α,β,θ,γ)
 end
 
-""" Return the labels in a vector of vectors for multiple outputs"""
-function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:SoftMaxLikelihood}
-    @assert N <= 1 "Target should be a vector of values"
-    likelihood = init_multiclass_likelihood(y,likelihood)
-
+struct LogisticSoftMaxMultiClassLikelihood{T<:Real} <: AbstractLogisticSoftMaxLikelihood{T}
+    Y::Abstract{Vector{SparseVector{Int64}}} #Mapping from instances to classes
+    class_mapping::AbstractVector{Any} # Classes labels mapping
+    ind_mapping::Dict{Any,Int} # Mapping from label to index
+    function LogisticSoftMaxLikelihood{T}() where {T<:Real}
+        new{T}()
+    end
+    function LogisticSoftMaxLikelihood{T}(Y::Abstract{Vector{SparseVector{<:Integer}}},
+    class_mapping::AbstractVector{Any}, ind_mapping::Dict{Any,Int})
+        new{T}(Y,class_mapping,ind_mapping)
+    end
 end
+
+function LogisticSoftMaxLikelihood()
+    LogisticSoftMaxLikelihood{Float64}()
+end
+
+function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T
+    return likelihood
+end
+
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::VGP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
@@ -93,10 +110,52 @@ function treat_samples(model::GP{<:LogisticSoftMaxMultiClassLikelihood},samples:
         s = samples[i,class]
         g_μ = grad_logisticsoftmax(samples[i,:],σ,class)
         grad_μ .+= g_μ./s
-        grad_Σ .+= hessian_logisticsoftmax(samples[i,:],σ,class)./s .- g_μ.^2 ./s^2
+        grad_Σ .+= diaghessian_logisticsoftmax(samples[i,:],σ,class)./s .- g_μ.^2 ./s^2
     end
     for k in 1:model.nLatent
-        model.∇μE[k][index] = grad_μ[k]/nSamples
-        model.∇ΣE[k][index] = 0.5.*grad_Σ[k]/nSamples
+        model.inference.∇μE[k][index] = grad_μ[k]/nSamples
+        model.inference.∇ΣE[k][index] = 0.5.*grad_Σ[k]/nSamples
     end
+end
+
+
+function logisticsoftmax(f::AbstractVector{<:Real})
+    s = logit.(f)
+    return s./sum(s)
+end
+
+function logisticsoftmax(f::AbstractVector{<:Real},i::Integer)
+    return logisticsoftmax(f)[i]
+end
+
+function grad_logisticsoftmax(s::AbstractVector{<:Real},σ::AbstractVector{<:Real},i::Integer)
+    base_grad = -s.*(1.0.-σ).*s[i]
+    base_grad[i] += s[i]*(1.0-σ[i])
+    return base_grad
+end
+
+function diaghessian_logisticsoftmax(s::AbstractVector{<:Real},σ::AbstractVector{<:Real},i::Integer)
+    m = length(s)
+    hessian = zeros(m)
+    for j in 1:m
+            hessian[j] = (1-σ[j])*s[i]*(
+            (δ(i,j)-s[j])*(1.0-σ[j])*(δ(i,j)-s[j])
+            -s[j]*(1.0-s[j])*(1.0-σ[j])
+            -σ[j]*(δ(i,j)-s[j]))
+    end
+    return hessian
+end
+
+function hessian_logisticsoftmax(s::AbstractVector{<:Real},σ::AbstractVector{<:Real},i::Integer)
+    m = length(s)
+    hessian = zeros(m,m)
+    for j in 1:m
+        for k in 1:m
+            hessian[j,k] = (1-σ[j])*s[i]*(
+            (δ(i,k)-s[k])*(1.0-σ[k])*(δ(i,j)-s[j])
+            -s[j]*(δ(j,k)-s[k])*(1.0-σ[k])
+            -δ(k,j)*σ[j]*(δ(i,j)-s[j]))
+        end
+    end
+    return hessian
 end
