@@ -36,19 +36,9 @@ function opt_diag(A::AbstractMatrix{<:Real},B::AbstractMatrix{<:Real})
     vec(sum(A.*B,dims=2))
 end
 
-function GammaImproperKL(model::GP)
-    return sum(-model.likelihood.α.+log(model.likelihood.β[1]).-log.(gamma.(model.likelihood.α)).-(1.0.-model.likelihood.α).*digamma.(model.likelihood.α))
-end
-
-function PoissonKL(model::GP)
-    return sum(γ->sum(γ.*(log.(γ).-1.0.-digamma.(model.likelihood.α).+log.(model.likelihood.β))+model.likelihood.α./model.likelihood.β),model.likelihood.γ)
-end
-
-function PolyaGammaKL(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
-    return sum(broadcast((y,γ,c,θ)->sum(Array(y+γ).*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
-end
-
-
-function PolyaGammaKL(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
-    return sum(broadcast((y,γ,c,θ)->sum(Array(y[model.inference.MBIndices]+γ).*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
+#Temp fix until the deepcopy of the main package is fixed
+function copy(opt::Optimizer)
+    f = length(fieldnames(typeof(opt)))
+    copied_params = [deepcopy(getfield(opt, k)) for k = 1:f]
+    return typeof(opt)(copied_params...)
 end

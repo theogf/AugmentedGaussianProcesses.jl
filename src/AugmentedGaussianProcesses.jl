@@ -9,7 +9,8 @@ export GP, VGP, SVGP
 export Likelihood, GaussianLikelihood, LogisticLikelihood
 export MultiClassLikelihood, SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export AugmentedLogisticSoftMaxLikelihood
-export Inference, AnalyticInference, GibbsSampling, MCMCIntegrationInference, QuadratureInference
+export Inference, AnalyticInference, StochasticAnalyticInference, GibbsSampling, MCMCIntegrationInference, QuadratureInference
+export ALRSVI
 
 
 
@@ -38,7 +39,7 @@ using SpecialFunctions
 using Dates
 using Expectations
 using SparseArrays
-import Base: convert, show
+import Base: convert, show, copy
 #Exported models
 export KMeansModule
 #Useful functions
@@ -49,6 +50,7 @@ export Kernel,  Matern3_2Kernel, Matern5_2Kernel, RBFKernel, LaplaceKernel, Sigm
 export kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 export setvalue!,getvalue,setfixed!,setfree!,getvariance,getlengthscales
+export opt_diag, opt_trace
 export KMeansInducingPoints
 
 # Main classes
@@ -64,6 +66,9 @@ include("likelihood/likelihood.jl")
 
 include("functions/utils.jl")
 include("functions/init.jl")
+include("functions/KLdivergences.jl")
+include("functions/alrsvi.jl")
+
 #Training Functions
 include("training.jl")
 include("autotuning.jl")

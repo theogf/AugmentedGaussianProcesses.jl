@@ -2,14 +2,14 @@
 Softmax likelihood : ``p(y=i|{fₖ}) = exp(fᵢ)/ ∑ exp(fₖ) ``
 """
 struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
-    Y::AbstractVector{SparseVector{Int64}} #Mapping from instances to classes
+    Y::AbstractVector{BitVector} #Mapping from instances to classes
     class_mapping::AbstractVector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     y_class::AbstractVector{Int64} #GP Index for each sample
     function SoftMaxLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function SoftMaxLikelihood{T}(Y::AbstractVector{<:SparseVector{<:Real,<:Int}},
+    function SoftMaxLikelihood{T}(Y::AbstractVector{<:BitVector},
     class_mapping::AbstractVector, ind_mapping::Dict{<:Any,<:Int},y_class::AbstractVector{<:Int}) where {T<:Real}
         new{T}(Y,class_mapping,ind_mapping,y_class)
     end

@@ -23,9 +23,9 @@ function update_hyperparameters!(model::SVGP)
         Z_gradients = inducingpoints_gradient(model) #Compute the gradient given the inducing points location
         model.Z += GradDescent.update(model.optimizer,Z_gradients) #Apply the gradients on the location
     end
-    apply_gradients_lengthscale!(model.kernel,grads_l)
-    apply_gradients_variance!(model.kernel,grads_v)
-    model.HyperParametersUpdated = true
+    apply_gradients_lengthscale!.(model.kernel,grads_l)
+    apply_gradients_variance!.(model.kernel,grads_v)
+    model.inference.HyperParametersUpdated = true
 end
 
 
@@ -56,9 +56,9 @@ end
 
 
 """Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
-function hyperparameter_gradient_function(model::SVGP) where {T<:Real}
+function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T,<:Any}) where {T<:Real}
     A = (model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ)).-[I]).*model.invKmm
-    ι = Matrix{Real}(undef,model.inference.nSamplesUsed,model.nFeature) #Empty container to save data allocation
+    global ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeature) #Empty container to save data allocation
     if model.IndependentPriors
         return (function(Jmm,Jnm,Jnn,index)
                     return 0.5*(hyperparameter_expec_gradient(model,ι,Jmm,Jnm,Jnn,index)
@@ -87,7 +87,7 @@ end
 function hyperparameter_expec_gradient(model::SVGP,ι::AbstractArray,Jmm::AbstractMatrix,Jnm::AbstractMatrix,Jnn::AbstractVector,index::Integer)
     mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[index])
     Jnn .+= - opt_diag(ι,model.Knm[index]) - opt_diag(model.κ[index],Jnm)
-    dμ = dot(model.inference.∇μE,ι*model.μ[index])
-    dΣ = dot(model.inference.∇ΣE,Jnn+2.0*opt_diag((ι*model.Σ[index]),model.κ[index]))
+    dμ = dot(expec_μ(model,index),ι*model.μ[index])
+    dΣ = dot(expec_Σ(model,index),Jnn+2.0*(opt_diag(ι*model.Σ[index],model.κ[index])+(ι*model.μ[index]).*(model.κ[index]*model.μ[index])))
     return model.inference.ρ*(dμ+dΣ)
 end

@@ -4,7 +4,7 @@ Softmax likelihood : ``p(y=i|{fₖ}) = exp(fᵢ)/ ∑ exp(fₖ) ``
 abstract type AbstractLogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T} end
 
 struct AugmentedLogisticSoftMaxLikelihood{T<:Real} <: AbstractLogisticSoftMaxLikelihood{T}
-    Y::AbstractVector{SparseVector{Int64}} #Mapping from instances to classes
+    Y::AbstractVector{BitVector} #Mapping from instances to classes
     class_mapping::AbstractVector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     y_class::AbstractVector{Int64} # GP Index for each sample
@@ -16,11 +16,11 @@ struct AugmentedLogisticSoftMaxLikelihood{T<:Real} <: AbstractLogisticSoftMaxLik
     function AugmentedLogisticSoftMaxLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function AugmentedLogisticSoftMaxLikelihood{T}(Y::AbstractVector{<:SparseVector{<:Real,<:Integer}},
+    function AugmentedLogisticSoftMaxLikelihood{T}(Y::AbstractVector{<:BitVector},
     class_mapping::AbstractVector, ind_mapping::Dict{<:Any,<:Int},y_class::AbstractVector{<:Int}) where {T<:Real}
         new{T}(Y,class_mapping,ind_mapping,y_class)
     end
-    function AugmentedLogisticSoftMaxLikelihood{T}(Y::AbstractVector{<:SparseVector{<:Real,<:Integer}},
+    function AugmentedLogisticSoftMaxLikelihood{T}(Y::AbstractVector{<:BitVector},
     class_mapping::AbstractVector, ind_mapping::Dict{<:Any,<:Int},y_class::AbstractVector{<:Int},
     c::AbstractVector{<:AbstractVector{<:Real}}, α::AbstractVector{<:Real},
     β::AbstractVector, θ::AbstractVector{<:AbstractVector},γ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
@@ -48,14 +48,14 @@ function init_likelihood(likelihood::AugmentedLogisticSoftMaxLikelihood{T},nLate
 end
 
 struct LogisticSoftMaxLikelihood{T<:Real} <: AbstractLogisticSoftMaxLikelihood{T}
-    Y::AbstractVector{SparseVector{Int64}} #Mapping from instances to classes
+    Y::AbstractVector{BitVector} #Mapping from instances to classes
     class_mapping::AbstractVector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     y_class::AbstractVector{Int64} #GP Index for each sample
     function LogisticSoftMaxLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function LogisticSoftMaxLikelihood{T}(Y::AbstractVector{<:SparseVector{<:Real,<:Int}},
+    function LogisticSoftMaxLikelihood{T}(Y::AbstractVector{<:BitVector},
     class_mapping::AbstractVector, ind_mapping::Dict{<:Any,<:Int},y_class::AbstractVector{<:Int}) where {T<:Real}
         new{T}(Y,class_mapping,ind_mapping,y_class)
     end
@@ -72,52 +72,53 @@ end
 function local_updates!(model::VGP{<:AugmentedLogisticSoftMaxLikelihood,<:AnalyticInference})
     model.likelihood.c .= broadcast((Σ,μ)->sqrt.(Σ.+μ.^2),diag.(model.Σ),model.μ)
     for _ in 1:2
-        model.likelihood.γ .= broadcast((c,μ)->0.5./(model.likelihood.β.*cosh.(0.5.*c)).*exp.(digamma.(model.likelihood.α).-0.5.*μ),
-                                    model.likelihood.c,model.μ)
-        model.likelihood.α .= [1.0+sum(γ[i] for γ in model.likelihood.γ) for i in 1:model.nSample]
+        model.likelihood.γ .= broadcast((c,μ,ψα)->0.5./(model.likelihood.β.*cosh.(0.5.*c)).*exp.(ψα.-0.5.*μ),
+                                    model.likelihood.c,model.μ,[digamma.(model.likelihood.α)])
+        model.likelihood.α .= 1.0.+(model.likelihood.γ...)
     end
-    model.likelihood.θ .= broadcast((y,γ,c)->0.5.*Array(y+γ)./c.*tanh.(0.5.*c),model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
+    model.likelihood.θ .= broadcast((y,γ,c)->0.5.*(y.+γ)./c.*tanh.(0.5.*c),model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
 end
 
 function local_updates!(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood,<:AnalyticInference})
-    model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),
+ broadcast!((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),
+                                    model.likelihood.c,
                                     model.μ,model.Σ,model.κ,model.K̃)
-    for _ in 1:10
-        model.likelihood.γ .= broadcast((c,κ,μ)->0.5./(model.likelihood.β.*cosh.(0.5.*c)) .*exp.(digamma.(model.likelihood.α).-0.5.*κ*μ),
-                                    model.likelihood.c,model.κ,model.μ)
-        model.likelihood.α .= [1.0+sum(γ[i] for γ in model.likelihood.γ) for i in 1:model.nSamplesUsed]
+    for _ in 1:5
+        broadcast!((c,κμ,ψα)->0.5./(model.likelihood.β.*cosh.(0.5.*c)) .*exp.(ψα.-0.5.*κμ),
+                                    model.likelihood.γ,
+                                    model.likelihood.c,model.κ.*model.μ,[digamma.(model.likelihood.α)])
+        model.likelihood.α .= 1.0.+(model.likelihood.γ...)
     end
-    model.likelihood.θ .= broadcast((y,γ::Vector,c::Vector)->0.5.*Array(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5.*c),
+    broadcast!((y,γ::Vector,c::Vector)->0.5.*(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5.*c),
+                                    model.likelihood.θ,
                                     model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::VGP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
-    0.5.*Array(model.likelihood.Y[index]-model.likelihood.γ[index])
+    0.5.*(model.likelihood.Y[index]-model.likelihood.γ[index])
 end
 
 function expec_μ(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
-    0.5.*Array.(model.likelihood.Y.-model.likelihood.γ)
+    0.5.*(model.likelihood.Y.-model.likelihood.γ)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
-    0.5*model.likelihood.ρ*Array(model.likelihood.Y[index][model.MBIndices]-model.likelihood.γ[index])
+    0.5*model.inference.ρ.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
 end
 
 function expec_μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
-    0.5*model.likelihood.ρ*Array.(getindex.(model.likelihood.Y,[model.MBIndices]).-model.likelihood.γ)
+    0.5*model.inference.ρ.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
 end
 
 function expec_Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
-    0.5*model.likelihood.θ[index]
+    0.5*model.inference.ρ.*model.likelihood.θ[index]
 end
 
 function expec_Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
-    0.5.*model.likelihood.θ
+    0.5*model.inference.ρ.*model.likelihood.θ
 end
-
-
 
 function ELBO(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
     return expecLogLikelihood(model) - GaussianKL(model) - GammaImproperKL(model) - PoissonKL(model) - PolyaGammaKL(model)
@@ -126,16 +127,16 @@ end
 function expecLogLikelihood(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
     tot = -model.nSample*log(2)
     tot += -sum(sum.(model.likelihood.γ))*log(2.0)
-    tot +=  0.5*sum(broadcast((y,μ,γ,θ,c)->sum(μ.*Array(y-γ)-θ.*(c.^2)),
+    tot +=  0.5*sum(broadcast((y,μ,γ,θ,c)->sum(μ.*(y-γ)-θ.*(c.^2)),
                     model.likelihood.Y,model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
-    tot = -model.nSamplesUsed*log(2.0)
+    tot = -model.inference.nSamplesUsed*log(2.0)
     tot += -sum(sum.(model.likelihood.γ))*log(2.0)
-    tot += 0.5*sum(broadcast((y,κ,μ,γ,θ,c)->sum((κ*μ).*Array(y[model.inference.MBIndices]-γ)-θ.*(c.^2)),
-                    model.likelihood.Y,model.likelihood.κ,model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
+    tot += 0.5*sum(broadcast((y,κ,μ,γ,θ,c)->sum((κ*μ).*(y[model.inference.MBIndices]-γ)-θ.*(c.^2)),
+                    model.likelihood.Y,model.κ,model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
     return model.inference.ρ*tot
 end
 
