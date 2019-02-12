@@ -30,6 +30,10 @@ function AnalyticInference(;ϵ::T=1e-5,optimizer::Optimizer=VanillaGradDescent(�
     AnalyticInference{Float64}(ϵ,0,[optimizer],[optimizer],false,1,1,[1],1.0,true)
 end
 
+function Base.show(io::IO,inference::AnalyticInference{T}) where T
+    print(io,"($(inference.Stochastic ? "Stochastic analytic" : "Analytic") inference")
+end
+
 function init_inference(inference::AnalyticInference{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {T<:Real}
     inference.nSamples = nSamples
     inference.nSamplesUsed = nSamplesUsed

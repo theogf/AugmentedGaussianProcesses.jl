@@ -38,6 +38,11 @@ function pdf(l::AbstractLogisticSoftMaxLikelihood,f::AbstractVector)
     logisticsoftmax(f)
 end
 
+function Base.show(io::IO,model::AugmentedLogisticSoftMaxLikelihood{T}) where T
+    print(io,"Augmented Logistic-softmax likelihood")
+end
+
+
 function init_likelihood(likelihood::AugmentedLogisticSoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T
     c = [ones(T,nSamplesUsed) for i in 1:nLatent]
     α = nLatent*ones(T,nSamplesUsed)
@@ -63,6 +68,10 @@ end
 
 function LogisticSoftMaxLikelihood()
     LogisticSoftMaxLikelihood{Float64}()
+end
+
+function Base.show(io::IO,model::LogisticSoftMaxLikelihood{T}) where T
+    print(io,"logistic-softmax likelihood")
 end
 
 function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T

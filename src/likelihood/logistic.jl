@@ -21,6 +21,11 @@ function pdf(l::LogisticLikelihood,y::Real,f::Real)
     logit(y*f)
 end
 
+function Base.show(io::IO,model::LogisticLikelihood{T}) where T
+    print(io,"Bernoulli logistic likelihood")
+end
+
+
 function init_likelihood(likelihood::LogisticLikelihood{T},nLatent::Integer,nSamplesUsed) where T
     LogisticLikelihood{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
 end

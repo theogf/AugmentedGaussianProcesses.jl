@@ -27,6 +27,11 @@ function logpdf(l::GaussianLikelihood,y::Real,f::Real)
     logpdf(Normal(y,l.ϵ[1]),f)
 end
 
+function Base.show(io::IO,model::GaussianLikelihood{T}) where T
+    print(io,"Gaussian likelihood")
+end
+
+
 function init_likelihood(likelihood::GaussianLikelihood{T},nLatent::Integer,nSamples::Integer) where {T<:Real}
     if length(likelihood.ϵ) ==1 && length(likelihood.ϵ) != nLatent
         return GaussianLikelihood{T}([likelihood.ϵ[1] for _ in 1:nLatent])

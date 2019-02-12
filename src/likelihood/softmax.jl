@@ -23,6 +23,11 @@ function pdf(l::SoftMaxLikelihood,f::AbstractVector)
     softmax(f)
 end
 
+function Base.show(io::IO,model::SoftmaxLikelihood{T}) where T
+    print(io,"Softmax likelihood")
+end
+
+
 function init_likelihood(likelihood::SoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T
     return likelihood
 end

@@ -23,6 +23,10 @@ function StochasticNumericalInference(nMinibatch::Integer,integration_technique:
     end
 end
 
+function Base.show(io::IO,inference::NumericalInference{T}) where T
+    print(io,"($(inference.Stochastic ? "Stochastic numerical" : "Numerical") inference with $(isa(inference,MCMCIntegrationInference) ? "MCMC Integration" : "Quadrature")")
+end
+
 function init_inference(inference::TInference,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {TInference <: AnalyticInference{T} where T<:Real}
     inference.nSamples = nSamples
     inference.nSamplesUsed = nSamplesUsed
