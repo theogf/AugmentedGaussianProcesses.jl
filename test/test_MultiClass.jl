@@ -9,6 +9,7 @@ using ProfileView, Profile, Traceur
 using ValueHistories
 using Plots
 pyplot()
+clibrary(:cmocean)
 seed!(42)
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
@@ -41,20 +42,35 @@ N_dim=2
 # y.+=1
 # X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 
-for c in 1:N_class
-    global centers = rand(Uniform(-1,1),N_class,N_dim)
-    global variance = 0.7*1/N_class*ones(N_class)#rand(Gamma(1.0,0.5),150)
-end
+art_noise = 0.3
 
-X = zeros(N_data,N_dim)
-y = sample(1:N_class,N_data)
-for i in 1:N_data
-    X[i,:] = rand(MvNormal(centers[y[i],:],variance[y[i]]))
+X_clean = (rand(N_data,N_dim)*2.0).-1.0
+y = zeros(Int64,N_data); y_noise = similar(y)
+function classify(X,y)
+    for i in 1:size(X,1)
+        if X[i,2] < min(0,-X[i,1])
+            y[i] = 1
+        elseif X[i,2] > max(0,X[i,1])
+            y[i] = 2
+        else
+            y[i] = 3
+        end
+    end
+    return y
 end
+X= X_clean+rand(Normal(0,art_noise),N_data,N_dim)
+classify(X_clean,y);classify(X,y_noise);
+bayes_error = count(y.!=y_noise)/length(y)
+
 xmin = minimum(X); xmax = maximum(X)
 X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 x_grid = range(xmin,length=N_grid,stop=xmax)
 X_grid = hcat([j for i in x_grid, j in x_grid][:],[i for i in x_grid, j in x_grid][:])
+
+x₁slice = 0.5
+X_slice = hcat(fill(x₁slice,N_grid),x_grid)
+
+
 # X,y = MNIST.traindata()
 # X=Float64.(reshape(X,28*28,60000)')
 # X_test,y_test = MNIST.testdata()
@@ -132,7 +148,7 @@ function callback(model,iter)
     push!(elbos,:poisson,-AugmentedGaussianProcesses.PoissonKL(model))
     push!(elbos,:polyagamma,-AugmentedGaussianProcesses.PolyaGammaKL(model))
     push!(elbos,:ELBO,AugmentedGaussianProcesses.ELBO(model))
-    for i in 1:N_class
+    for i in 1:model.nPrior
         push!(params,Symbol(:k_v,i),getvariance(model.kernel[i]))
         p = getlengthscales(model.kernel[i])
         for (j,p_j) in enumerate(p)
@@ -158,8 +174,13 @@ end
 function callbackplot(model,iter)
     y_fgrid =  predict_y(model,X_grid)
     global py_fgrid = proba_y(model,X_grid)
-    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))[collect(values(sort(model.likelihood.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    global μ_fslice,σ_fslice = predict_f(model,X_slice,covf=true)
+    remap = collect(values(sort(model.likelihood.ind_mapping)))
+    σ_fslice = [sqrt.(max.(0,σ)) for σ in σ_fslice[remap]]
+    μ_fslice = μ_fslice[remap]
+    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))[remap]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
+    col_name = [:red,:green,:blue]
     global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,framestyle=:box)
     lims = (xlims(p1),ylims(p1))
     p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.2)
@@ -168,21 +189,25 @@ function callbackplot(model,iter)
     end
     p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(0,100),t=:contour,colorbar=false,color=:gray,levels=10)
     xlims!(p1,lims[1]);ylims!(p1,lims[2])
+    plot!(p1,[x₁slice,x₁slice],[xmin xmax],color=:black,alpha=1.0,lab="")
+    p2=plot()
+    for k in 1:model.nLatent
+        p2 = plot!(p2,x_grid,μ_fslice[k],color=col_name[k],lab="y=$k")
+        p2 = plot!(x_grid,μ_fslice[k].+σ_fslice[k],fill=(μ_fslice[k].-2*σ_fslice[k],0.2,col_name[k]),linewidth=0.0,lab="",color=col_name[k])
+    end
     frame(anim,p1)
-    display(p1)
-    return p1
+    display(plot(p1,p2))
+    return plot(p1,p2)
 end
 
 ##Which algorithm are tested
 fullm = !true
-sparsem = !true
-stochm = true
+sparsem = true
+stochm = !true
 
 if fullm
-    global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
-    # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(fmodel,X_test=X_test,y_test=y_test)
-    # full_model.AutotuningFrequency=1
-    t_full = @elapsed train!(fmodel,iterations=100,callback=callbackplot)
+    global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=!true,atfrequency=1,IndependentPriors=true)
+    t_full = @elapsed train!(fmodel,iterations=100,callback=callback)
 
     global y_full = predict_y(fmodel,X_test)
     global y_fall = proba_y(fmodel,X_test)
@@ -196,6 +221,7 @@ if fullm
         end
     end
     println("Full model Accuracy is $(full_score/length(y_test)) in $t_full s for l = $l")
+    callbackplot(fmodel,1)
 end
 
 
@@ -205,7 +231,7 @@ if sparsem
     # smodel.AutotuningFrequency=5
     # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
-    @time train!(smodel,iterations=100,callback=callback)
+    @time train!(smodel,iterations=100,callback=callbackplot)
     # Profile.clear()
     # @profile smodel.train(iterations=10)
     # @time smodel.train(iterations=10)
@@ -222,15 +248,14 @@ if sparsem
         end
     end
     println("Sparse model Accuracy is $(sparse_score/length(y_test))")#" in $t_sparse s")
+    callbackplot(smodel,1)
 end
 
+using GradDescent
 if stochm
-    global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=ALRSVI(τ=200)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=Adam()),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    # global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=ALRSVI(τ=200)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
     @time train!(ssmodel,iterations=200,callback=callback)
-    # Profile.clear()
-    # @profile smodel.train(iterations=10)
-    # @time smodel.train(iterations=10)
-    # t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
     global y_ssparse = predict_y(ssmodel,X_test)
     global y_sstrain = predict_y(ssmodel,X)
     global y_ssall = proba_y(ssmodel,X_test)
@@ -243,6 +268,26 @@ if stochm
         end
     end
     println("Sparse model Accuracy is $(ssparse_score/length(y_test))")#" in $t_sparse s")
+    callbackplot(ssmodel,1)
+end
+
+if stochm
+    global ssmodel = VGP(X,y,kernel,LogisticSoftMaxLikelihood(),MCMCIntegrationInference(10,optimizer=Adam()),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    # global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=ALRSVI(τ=200)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    @time train!(ssmodel,iterations=200,callback=callback)
+    global y_ssparse = predict_y(ssmodel,X_test)
+    global y_sstrain = predict_y(ssmodel,X)
+    global y_ssall = proba_y(ssmodel,X_test)
+
+    println("Stochastic Sparse predictions computed")
+    ssparse_score=0
+    for (i,pred) in enumerate(y_ssparse)
+        if pred == y_test[i]
+            global ssparse_score += 1
+        end
+    end
+    println("Sparse model Accuracy is $(ssparse_score/length(y_test))")#" in $t_sparse s")
+    callbackplot(ssmodel,1)
 end
 
 
@@ -250,17 +295,17 @@ display(plot(elbos,title="ELBO values"))
 display(plot(params,title="kernel parameters",yaxis=:log))
 display(plot(metrics,title="Metrics"))
 1
-    model = ssmodel;
-    AugmentedGaussianProcesses.computeMatrices!(model)
-    AugmentedGaussianProcesses.update_hyperparameters!(model)
-    AugmentedGaussianProcesses.computeMatrices!(model)
-    train!(model;iterations=1)
-    @btime AugmentedGaussianProcesses.update_hyperparameters!(model)
-    Profile.clear()
-    AugmentedGaussianProcesses.computeMatrices!(model)
-    @profile AugmentedGaussianProcesses.update_hyperparameters!(model)
-    @profile AugmentedGaussianProcesses.train!(model;iterations=100)
-    ProfileView.view()
+    # model = ssmodel;
+    # AugmentedGaussianProcesses.computeMatrices!(model)
+    # AugmentedGaussianProcesses.update_hyperparameters!(model)
+    # AugmentedGaussianProcesses.computeMatrices!(model)
+    # train!(model;iterations=1)
+    # @btime AugmentedGaussianProcesses.update_hyperparameters!(model)
+    # Profile.clear()
+    # AugmentedGaussianProcesses.computeMatrices!(model)
+    # @profile AugmentedGaussianProcesses.update_hyperparameters!(model)
+    # @profile AugmentedGaussianProcesses.train!(model;iterations=100)
+    # ProfileView.view()
 
 1
 

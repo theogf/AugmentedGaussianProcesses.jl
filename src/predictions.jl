@@ -6,14 +6,14 @@ Return also the variance if `covf=true`
 """
 function predict_f(model::VGP,X_test::AbstractMatrix{T};covf::Bool=true) where T
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
-    μ_f = k_star.*model.invKnn.*model.μ
+    μf = k_star.*model.invKnn.*model.μ
     if !covf
-        return μ_f
+        return μf
     end
     A = model.invKnn.*([I].-model.Σ.*model.invKnn)
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
-    Σ_f = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,A)
-    return μ_f,Σ_f
+    σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
+    return μf,σ²f
 end
 
 """
@@ -22,24 +22,20 @@ Return also the variance if `covf=true`
 """
 function predict_f(model::SVGP,X_test::Matrix{T};covf::Bool=true) where T
     k_star = kernelmatrix.([X_test],model.Z,model.kernel)
-    μ_f = k_star.*model.invKmm.*model.μ
+    μf = k_star.*model.invKmm.*model.μ
     if !covf
-        return μ_f
+        return μf
     end
     A = model.invKmm.*([I].-model.Σ.*model.invKmm)
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
-    Σ_f = broadcast((k_ss,k_s,x)->(k_ss .- sum((k_s*x).*k_s,dims=2)[:]),k_starstar,k_star,A)
-    return μ_f,Σ_f
+    σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
+    return μf,σ²f
 end
 
 function predict_f(model::GP,X_test::AbstractVector{T};covf::Bool=false) where T
     predict_f(model,reshape(X_test,length(X_test),1),covf=covf)
 end
 
-# "Return the predicted class {-1,1} with a linear model via the probit link"
-# function probitpredict(model::LinearModel,X_test::AbstractArray{T}) where {T<:Real}
-#     return sign.((model.Intercept ? [ones(T,size(X_test,1)) X_test]*model.μ : X_test*model.μ).-0.5)
-# end
 function predict_y(model::GP,X_test::AbstractVector)
     return predict_y(model,reshape(X_test,length(X_test),1))
 end

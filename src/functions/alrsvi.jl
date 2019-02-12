@@ -22,29 +22,28 @@ function init!(inference::Inference{T},model::SVGP) where T
         natural_gradient!(model)
         if n_s == 1
             for (i,opt) in enumerate(inference.optimizer_η₁)
-                opt.τ = inference.nSamplesUsed
-                opt.g = inference.∇η₁[i]
-                opt.h = dot(inference.∇η₁[i],inference.∇η₁[i])
-                opt.ρ = dot(opt.g,opt.g)/opt.h
+                opt.g = inference.∇η₁[i]./10
             end
             for (i,opt) in enumerate(inference.optimizer_η₂)
-                opt.τ = inference.nSamplesUsed
-                opt.g = Array(inference.∇η₂[i])
-                opt.h = dot(inference.∇η₂[i],inference.∇η₂[i])
-                opt.ρ = dot(opt.g,opt.g)/opt.h
+                opt.g = Array(inference.∇η₂[i])./10
+            end
+        else
+            for (i,opt) in enumerate(inference.optimizer_η₁)
+                opt.g .+= inference.∇η₁[i]./10
+            end
+            for (i,opt) in enumerate(inference.optimizer_η₂)
+                opt.g .+= Array(inference.∇η₂[i])./10
             end
         end
     end
     for (i,opt) in enumerate(inference.optimizer_η₁)
-        opt.τ = inference.nSamplesUsed
-        opt.g = inference.∇η₁[i]
-        opt.h = dot(inference.∇η₁[i],inference.∇η₁[i])
+        opt.τ = inference.nSamplesUsed*10
+        opt.h = dot(opt.g,opt.g)
         opt.ρ = dot(opt.g,opt.g)/opt.h
     end
     for (i,opt) in enumerate(inference.optimizer_η₂)
-        opt.τ = inference.nSamplesUsed
-        opt.g = Array(inference.∇η₂[i])
-        opt.h = dot(inference.∇η₂[i],inference.∇η₂[i])
+        opt.τ = inference.nSamplesUsed*10
+        opt.h = dot(opt.g,opt.g)
         opt.ρ = dot(opt.g,opt.g)/opt.h
     end
 end

@@ -70,7 +70,7 @@ function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T
                             + opt_trace(model.Kmm[index],A[index]'))
                 end)
     else
-        return (function(Jmm,index)
+        return (function(Jmm,Jnm,Jnn,index)
                     return 0.5*sum(
                             hyperparameter_expec_gradient(model,ι,Jmm,Jnm,Jnn,i)
                             + opt_trace(Jmm,transpose(A[i])) for i in 1:model.nLatent)
@@ -85,9 +85,10 @@ end
 
 
 function hyperparameter_expec_gradient(model::SVGP,ι::AbstractArray,Jmm::AbstractMatrix,Jnm::AbstractMatrix,Jnn::AbstractVector,index::Integer)
-    mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[index])
-    Jnn .+= - opt_diag(ι,model.Knm[index]) - opt_diag(model.κ[index],Jnm)
+    indK = min(model.nPrior,index)
+    mul!(ι,(Jnm-model.κ[indK]*Jmm),model.invKmm[indK])
+    Jnn .+= - opt_diag(ι,model.Knm[indK]) - opt_diag(model.κ[indK],Jnm)
     dμ = dot(expec_μ(model,index),ι*model.μ[index])
-    dΣ = dot(expec_Σ(model,index),Jnn+2.0*(opt_diag(ι*model.Σ[index],model.κ[index])+(ι*model.μ[index]).*(model.κ[index]*model.μ[index])))
+    dΣ = dot(expec_Σ(model,index),Jnn+2.0*(opt_diag(ι*model.Σ[index],model.κ[indK])+(ι*model.μ[index]).*(model.κ[indK]*model.μ[index])))
     return model.inference.ρ*(dμ+dΣ)
 end

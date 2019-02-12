@@ -43,7 +43,7 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
             Knn = [copy(Σ[1]) for _ in 1:nPrior]; invKnn = copy(Knn)
 
             likelihood = init_likelihood(likelihood,nLatent,nSample)
-            inference = init_inference(inference,nLatent,nSample,nSample)
+            inference = init_inference(inference,nLatent,nSample,nSample,nSample)
 
             VGP{LType,IType,T1,AbstractArray{T1,N1}}(X,y,
                     nFeature, nDim, nFeature, nLatent,

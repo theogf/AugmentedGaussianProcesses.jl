@@ -1,7 +1,8 @@
 mutable struct MCMCIntegrationInference{T<:Real} <: NumericalInference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    optimizer::Optimizer #Learning rate for stochastic updates
+    optimizer_η₁::AbstractVector{Optimizer} #Learning rate for stochastic updates
+    optimizer_η₂::AbstractVector{Optimizer} #Learning rate for stochastic updates
     nMC::Int64 #Number of samples for MC Integrations
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64 #Number of samples of the data
@@ -13,18 +14,17 @@ mutable struct MCMCIntegrationInference{T<:Real} <: NumericalInference{T}
     ∇η₂::AbstractVector{AbstractArray}
     ∇μE::AbstractVector{AbstractVector}
     ∇ΣE::AbstractVector{AbstractVector}
-    function MCMCIntegrationInference{T}(ϵ::T,nMC::Integer,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
-        return new{T}(ϵ,nIter,optimizer,nMC,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag)
+    function MCMCIntegrationInference{T}(ϵ::T,nMC::Integer,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,nSamplesUsed::Integer=1) where T
+        return new{T}(ϵ,nIter,optimizer,nMC,Stochastic,1,nSamplesUsed)
     end
-    function MCMCIntegrationInference{T}(ϵ::T,nMC::Integer,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool,∇μE::AbstractVector{<:AbstractVector},
-    ∇ΣE::AbstractVector{<:AbstractVector}) where T
-        return new{T}(ϵ,nIter,optimizer,nMC,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag,∇μE,∇ΣE)
-    end
+
 end
 
 function defaultn(::Type{MCMCIntegrationInference})
     return 200
 end
+
+function MCMCIntegrationInference()
 
 
 function compute_grad_expectations(model::VGP{<:Likelihood,<:MCMCIntegrationInference})

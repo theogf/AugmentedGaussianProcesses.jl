@@ -21,7 +21,7 @@ mutable struct AnalyticInference{T<:Real} <: Inference{T}
     end
 end
 
-function StochasticAnalyticInference(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=Adagrad()) where {T<:Real}
+function StochasticAnalyticInference(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=ALRSVI()) where {T<:Real}
 # function StochasticAnalyticInference(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=Adam(α=0.001)) where {T<:Real}
     AnalyticInference{T}(ϵ,0,[optimizer],[optimizer],true,1,nMinibatch,1:nMinibatch,1.0,true)
 end
@@ -55,9 +55,10 @@ function variational_updates!(model::SVGP{L,AnalyticInference{T}}) where {L<:Lik
 end
 
 function natural_gradient!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
-    model.η₁ .+= (model.inference.∇η₁ .= expec_μ(model) .- model.η₁)
-    model.inference.∇η₂ .= Symmetric.(-(Diagonal.(expec_Σ(model))+0.5.*model.invKnn) .- model.η₂)
-    model.η₂ .= Symmetric.(model.inference.∇η₂ .+ model.η₂)
+    # model.inference.∇η₁ .= expec_μ(model) .- model.η₁
+    model.η₁ .= expec_μ(model)
+    # model.inference.∇η₂ .= Symmetric.(-(Diagonal.(expec_Σ(model))+0.5.*model.invKnn) .- model.η₂)
+    model.η₂ .= .-Symmetric.(Diagonal.(expec_Σ(model))+0.5.*model.invKnn)
 end
 
 function natural_gradient!(model::SVGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
