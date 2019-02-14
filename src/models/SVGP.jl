@@ -79,7 +79,6 @@ function SVGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
             end
 end
 
-"""Compute the KL Divergence between the Sparse GP Prior and the variational distribution for the full batch model"""
-function GaussianKL(model::SVGP)
-    return 0.5*sum(opt_trace.(model.invKmm,model.Σ+model.μ.*transpose.(model.μ)).-model.nFeature.-logdet.(model.Σ).-logdet.(model.invKmm))
+function Base.show(io::IO,model::SVGP{<:Likelihood,<:Inference,T}) where T
+    print(io,"Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end

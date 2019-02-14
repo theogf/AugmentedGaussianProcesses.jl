@@ -3,7 +3,7 @@ by making a numerical approximation (quadrature or MC integration)
 of the expected log-likelihood"""
 abstract type NumericalInference{T<:Real} <: Inference{T} end
 
-function NumericalInference(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))
+function NumericalInference(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
     if integration_technique == :quad
         QuadratureInference{T}(ϵ,nGaussHermite,0,optimizer,false)
     elseif integration_technique == :mcmc
@@ -13,7 +13,7 @@ function NumericalInference(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::
     end
 end
 
-function StochasticNumericalInference(nMinibatch::Integer,integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))
+function StochasticNumericalInference(nMinibatch::Integer,integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
     if integration_technique == :quad
         QuadratureInference{T}(ϵ,nGaussHermite,0,optimizer,false,nMinibatch)
     elseif integration_technique == :mcmc

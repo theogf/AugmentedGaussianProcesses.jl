@@ -53,7 +53,7 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
 end
 
 
-"""Compute the KL Divergence between the GP Prior and the variational distribution for the full batch model"""
-function GaussianKL(model::VGP)
-    return 0.5*sum(opt_trace.(model.invKnn,model.Σ+model.μ.*transpose.(model.μ)).-model.nSample.-logdet.(model.Σ).-logdet.(model.invKnn))
+"""Basic displaying function"""
+function Base.show(io::IO,model::VGP{<:Likelihood,<:Inference,T}) where T
+    print(io,"Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end

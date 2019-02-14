@@ -23,7 +23,7 @@ function pdf(l::SoftMaxLikelihood,f::AbstractVector)
     softmax(f)
 end
 
-function Base.show(io::IO,model::SoftmaxLikelihood{T}) where T
+function Base.show(io::IO,model::SoftMaxLikelihood{T}) where T
     print(io,"Softmax likelihood")
 end
 
