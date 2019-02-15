@@ -27,7 +27,7 @@ function Base.show(io::IO,inference::NumericalInference{T}) where T
     print(io,"($(inference.Stochastic ? "Stochastic numerical" : "Numerical") inference with $(isa(inference,MCMCIntegrationInference) ? "MCMC Integration" : "Quadrature")")
 end
 
-function init_inference(inference::TInference,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {TInference <: AnalyticInference{T} where T<:Real}
+function init_inference(inference::TInference,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {TInference <: NumericalInference{T2} where T2,T<:Real}
     inference.nSamples = nSamples
     inference.nSamplesUsed = nSamplesUsed
     inference.MBIndices = 1:nSamplesUsed

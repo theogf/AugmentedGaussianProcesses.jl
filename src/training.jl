@@ -15,7 +15,6 @@ function train!(model::GP;iterations::Integer=100,callback=0,Convergence=0)
 
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
-
             update_parameters!(model) #Update all the variational parameters
             model.Trained = true
             if model.Autotuning && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
@@ -53,7 +52,7 @@ function train!(model::GP;iterations::Integer=100,callback=0,Convergence=0)
         end
     end
     if model.verbose > 0
-      println("Training ended after $local_iter iterations")
+      println("Training ended after $local_iter iterations. Total number of iterations $(model.inference.nIter)")
     end
     computeMatrices!(model) #Compute final version of the matrices for prediction
     post_process!(model)
@@ -91,16 +90,12 @@ function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Rea
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
         model.Knm .= broadcast((Z,kernel)->KernelModule.kernelmatrix(model.X[model.inference.MBIndices,:],Z,kernel),model.Z,model.kernel)
-        # model.Knm .= broadcast((points,kernel,v)->MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:],points)*v,model.inducingPoints[model.KIndices],model.altkernel[model.KIndices],model.altvar[model.KIndices])
-            # broadcast((points,kernel,Knm)->kernelmatrix!(Knm,model.X[model.MBIndices,:],points,kernel),model.inducingPoints[model.KIndices],model.kernel[model.KIndices],model.Knm)
         model.κ .= model.Knm.*model.invKmm
         model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
-        # model.K̃ .= broadcast((knm,kappa,kernel,v)->(diag(MLKernels.kernelmatrix(kernel,model.X[model.MBIndices,:])) - sum(kappa.*knm,dims=2)[:])*v,model.Knm,model.κ,model.altkernel[model.KIndices],model.altvar[model.KIndices])
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     end
     model.inference.HyperParametersUpdated=false
 end
-#### Computations of the learning rates ###
 
 function MCInit!(model::GP)
     if typeof(model) <: MultiClassGPModel
@@ -145,42 +140,3 @@ function MCInit!(model::GP)
         end
     end
 end
-
-function computeLearningRate_Stochastic!(model::GP,iter::Integer,grad_1,grad_2)
-    if model.Stochastic
-        if model.AdaptiveLearningRate
-            #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)
-            model.g = (1-1/model.τ)*model.g + vcat(grad_1-model.η₁,reshape(grad_2-model.η₂,size(grad_2,1)^2))./model.τ
-            model.h = (1-1/model.τ)*model.h + norm(vcat(grad_1-model.η₁,reshape(grad_2-model.η₂,size(grad_2,1)^2)))^2/model.τ
-            model.ρ_s = norm(model.g)^2/model.h
-            model.τ = (1.0 - model.ρ_s)*model.τ + 1.0
-        else
-            #Simple model of time decreasing learning rate
-            model.ρ_s = (iter+model.τ_s)^(-model.κ_s)
-        end
-    else
-      #Non-Stochastic case
-      model.ρ_s = 1.0
-    end
-end
-#
-# function computeLearningRate_Stochastic!(model::MultiClassGPModel,iter::Integer,grad_1,grad_2)
-#     if model.Stochastic
-#         if model.AdaptiveLearningRate
-#             #Using the paper on the adaptive learning rate for the SVI (update from the natural gradients)
-#             model.g[model.KIndices] .= broadcast((tau,g,grad1,eta_1,grad2,eta_2)->(1-1/tau)*g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ[model.KIndices],model.g[model.KIndices],grad_1,model.η₁[model.KIndices],grad_2,model.η₂[model.KIndices])
-#
-#             model.h[model.KIndices] .= broadcast((tau,h,grad1,eta_1,grad2,eta_2)->(1-1/tau)*h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ[model.KIndices],model.h[model.KIndices],grad_1,model.η₁[model.KIndices],grad_2,model.η₂[model.KIndices])
-#             # println("G : $(norm(model.g[1])), H : $(model.h[1])")
-#             model.ρ_s[model.KIndices] .= broadcast((g,h)->norm(g)^2/h,model.g[model.KIndices],model.h[model.KIndices])
-#             model.τ[model.KIndices] .= broadcast((rho,tau)->(1.0 - rho)*tau + 1.0,model.ρ_s[model.KIndices],model.τ[model.KIndices])
-#         else
-#             #Simple model of time decreasing learning rate
-#             model.ρ_s[model.KIndices] = [(iter+model.τ_s)^(-model.κ_s) for i in model.KIndices]
-#         end
-#     else
-#       #Non-Stochastic case
-#       model.ρ_s[model.KIndices] .= [1.0 for i in 1:model.K]
-#     end
-#     # println("rho : $(model.ρ_s[1])")
-# end

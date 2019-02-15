@@ -9,19 +9,19 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,A<:AbstractArray} <: GP{L
     nLatent::Int64 # Number pf latent GPs
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
-    Z::AbstractVector{AbstractMatrix} #Inducing points locations
-    μ::AbstractVector{AbstractVector}
-    Σ::AbstractVector{AbstractMatrix}
-    η₁::AbstractVector{AbstractVector}
-    η₂::AbstractVector{AbstractMatrix}
-    Kmm::AbstractVector{AbstractMatrix}
-    invKmm::AbstractVector{AbstractMatrix}
-    Knm::AbstractVector{AbstractMatrix}
-    κ::AbstractVector{AbstractMatrix}
-    K̃::AbstractVector{AbstractVector}
+    Z::AbstractVector{AbstractMatrix{T}} #Inducing points locations
+    μ::AbstractVector{AbstractVector{T}}
+    Σ::AbstractVector{AbstractMatrix{T}}
+    η₁::AbstractVector{AbstractVector{T}}
+    η₂::AbstractVector{AbstractMatrix{T}}
+    Kmm::AbstractVector{AbstractMatrix{T}}
+    invKmm::AbstractVector{AbstractMatrix{T}}
+    Knm::AbstractVector{AbstractMatrix{T}}
+    κ::AbstractVector{AbstractMatrix{T}}
+    K̃::AbstractVector{AbstractVector{T}}
     kernel::AbstractVector{Kernel}
-    likelihood::Likelihood
-    inference::Inference
+    likelihood::Likelihood{T}
+    inference::Inference{T}
     verbose::Int64
     Autotuning::Bool
     atfrequency::Int64

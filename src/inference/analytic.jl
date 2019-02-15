@@ -60,15 +60,14 @@ end
 
 function natural_gradient!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
     # model.inference.∇η₁ .= expec_μ(model) .- model.η₁
-    model.η₁ .= expec_μ(model)
+    model.η₁ .= ∇μ(model)
     # model.inference.∇η₂ .= Symmetric.(-(Diagonal.(expec_Σ(model))+0.5.*model.invKnn) .- model.η₂)
-    model.η₂ .= .-Symmetric.(Diagonal.(expec_Σ(model))+0.5.*model.invKnn)
+    model.η₂ .= .-Symmetric.(Diagonal.(∇Σ(model))+0.5.*model.invKnn)
 end
 
 function natural_gradient!(model::SVGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
-    model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*expec_μ(model) .- model.η₁
-    model.inference.∇η₂ .= Symmetric.(-(model.inference.ρ.*transpose.(model.κ).*Diagonal.(expec_Σ(model)).*model.κ.+0.5.*model.invKmm) .- model.η₂)
-    # model.inference.∇η₂ .= Symmetric.(-(model.inference.ρ.*transpose.(model.κ).*Diagonal.(expec_Σ(model)).*model.κ.+0.5.*model.invKmm) .- model.η₂)
+    model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*∇μ(model) .- model.η₁
+    model.inference.∇η₂ .= Symmetric.(-(model.inference.ρ.*transpose.(model.κ).*Diagonal.(∇Σ(model)).*model.κ.+0.5.*model.invKmm) .- model.η₂)
 end
 
 function global_update!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}

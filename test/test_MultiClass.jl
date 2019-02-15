@@ -5,7 +5,6 @@ using Random: seed!
 using BenchmarkTools
 using Dates
 using PyCall
-using ProfileView, Profile, Traceur
 using ValueHistories
 using Plots
 pyplot()
@@ -13,7 +12,7 @@ clibrary(:cmocean)
 seed!(42)
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
-N_data = 500
+N_data = 1000
 N_class = 3
 N_test = 50
 N_grid = 50
@@ -178,7 +177,7 @@ function callbackplot(model,iter)
     remap = collect(values(sort(model.likelihood.ind_mapping)))
     σ_fslice = [sqrt.(max.(0,σ)) for σ in σ_fslice[remap]]
     μ_fslice = μ_fslice[remap]
-    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))[remap]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    global cols = reshape([RGB(permutedims(Vector(py_fgrid[i,:]))[remap]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
     col_name = [:red,:green,:blue]
     global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,framestyle=:box)
@@ -193,7 +192,7 @@ function callbackplot(model,iter)
     p2=plot()
     for k in 1:model.nLatent
         p2 = plot!(p2,x_grid,μ_fslice[k],color=col_name[k],lab="y=$k")
-        p2 = plot!(x_grid,μ_fslice[k].+σ_fslice[k],fill=(μ_fslice[k].-2*σ_fslice[k],0.2,col_name[k]),linewidth=0.0,lab="",color=col_name[k])
+        p2 = plot!(x_grid,μ_fslice[k].+2*σ_fslice[k],fill=(μ_fslice[k].-2*σ_fslice[k],0.2,col_name[k]),linewidth=0.0,lab="",color=col_name[k])
     end
     frame(anim,p1)
     display(plot(p1,p2))
@@ -227,14 +226,11 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    global smodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),10,verbose=0,Autotuning=true,atfrequency=1,IndependentPriors=true)
     # smodel.AutotuningFrequency=5
     # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
-    @time train!(smodel,iterations=100,callback=callbackplot)
-    # Profile.clear()
-    # @profile smodel.train(iterations=10)
-    # @time smodel.train(iterations=10)
+    @time train!(smodel,iterations=100)#,callback=callback)
     # t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
     global y_sparse = predict_y(smodel,X_test)
     global y_strain = predict_y(smodel,X)
@@ -248,9 +244,10 @@ if sparsem
         end
     end
     println("Sparse model Accuracy is $(sparse_score/length(y_test))")#" in $t_sparse s")
-    callbackplot(smodel,1)
+    # callbackplot(smodel,1)
 end
-
+@profiler train!(smodel,iterations=100)
+# @btime train!($smodel,iterations=10);
 using GradDescent
 if stochm
     global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=Adam()),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
@@ -326,15 +323,6 @@ display(plot(metrics,title="Metrics"))
 #
 # @elapsed AugmentedGaussianProcesses.KernelFunctions.derivativekernelmatrix(tkernel,Test[1:200,:])
 
-if doMCCompare
-    full_f_star,full_cov_f_star = AugmentedGaussianProcesses.fstar(fmodel,X_test)
-    logit_f = logit.(full_f_star)
-    m_base = AugmentedGaussianProcesses.multiclasspredict(fmodel,X_test,true)
-    # m_base = AugmentedGaussianProcesses.multiclasspredict(smodel,X_test)
-    m_pred,sig_pred = AugmentedGaussianProcesses.multiclasspredictproba(fmodel,X_test)
-    m_pred_mc,sig_pred_mc = AugmentedGaussianProcesses.multiclasspredictprobamcmc(fmodel,X_test,1000)
-end
-println("Sampling done")
 function logit(x)
     return 1.0./(1.0.+exp.(-x))
 end

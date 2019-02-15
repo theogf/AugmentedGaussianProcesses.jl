@@ -28,6 +28,9 @@ function update_hyperparameters!(model::SVGP)
     model.inference.HyperParametersUpdated = true
 end
 
+function hyperparameter_KL_gradient(J::AbstractMatrix{T},A::AbstractMatrix{T}) where {T<:Real}
+    return 0.5*opt_trace(J,A)
+end
 
 
 """Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
@@ -35,50 +38,44 @@ function hyperparameter_gradient_function(model::VGP) where {T<:Real}
     A = (model.invKnn.*(model.Σ.+model.µ.*transpose.(model.μ)).-[I]).*model.invKnn
     if model.IndependentPriors
         return (function(Jnn,index)
-                    return 0.5*sum(Jnn.*transpose(A[index]))
+                    return hyperparameter_KL_gradient(Jnn,A[index])
                 end,
                 function(kernel,index)
-                    return 0.5/getvariance(kernel)*sum(model.Knn[index].*A[index]')
+                    return 1.0/getvariance(kernel)*hyperparameter_KL_gradient(model.Knn[index],A[index])
                 end)
     else
         return (function(Jnn,index)
-            return 0.5*sum(sum(Jnn.*transpose(A[i])) for i in 1:model.nLatent)
+            return sum(hyperparameter_KL_gradient.([Jnn],A))
                 end,
                 function(kernel,index)
-                    return 0.5/getvariance(kernel[1])*sum(sum(model.Knn[1].*transpose(A[i])) for i in 1:model.nLatent)
+                    return 1.0/getvariance(kernel[1])*sum(hyperparameter_KL_gradient.(model.Knn,A))
                 end)
     end
 end
 
-# function hyerparameter_KL_gradient(A::AbstractMatrix,J::AbstractMatrix)
-#
-# end
-
-
 """Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
 function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T,<:Any}) where {T<:Real}
     A = (model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ)).-[I]).*model.invKmm
-    global ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeature) #Empty container to save data allocation
+    ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeature) #Empty container to save data allocation
     if model.IndependentPriors
         return (function(Jmm,Jnm,Jnn,index)
-                    return 0.5*(hyperparameter_expec_gradient(model,ι,Jmm,Jnm,Jnn,index)
-                            + opt_trace(Jmm,A[index]'))
+                    return hyperparameter_expec_gradient(model,ι,Jmm,Jnm,Jnn,index)
+                            + hyperparameter_KL_gradient(Jmm,A[index])
                 end,
                 function(kernel,index)
-                    return 0.5/getvariance(kernel)*(
-                            dot(expec_Σ(model,index),model.K̃[index])
-                            + opt_trace(model.Kmm[index],A[index]'))
+                    return 1.0/getvariance(kernel)*(
+                            0.5*dot(expec_Σ(model,index),model.K̃[index])
+                            + hyperparameter_KL_gradient(model.Kmm[index],A[index]))
                 end)
     else
         return (function(Jmm,Jnm,Jnn,index)
-                    return 0.5*sum(
-                            hyperparameter_expec_gradient(model,ι,Jmm,Jnm,Jnn,i)
-                            + opt_trace(Jmm,transpose(A[i])) for i in 1:model.nLatent)
+                    return sum(hyperparameter_expec_gradient(model,ι,Jmm,Jnm,Jnn,i) for i in 1:model.nLatent)
+                           + sum(hyperparameter_KL_gradient.([Jmm],A))
                 end,
                 function(kernel,index)
-                    return 0.5/getvariance(kernel)*sum(
-                            dot(expec_Σ(model,i),model.K̃[1])
-                            + opt_trace(model.Kmm[1],A[i]') for i in 1:model.nLatent)
+                    return 1.0/getvariance(kernel)*(sum(
+                            0.5*dot(expec_Σ(model,i),model.K̃[1]) for i in 1:model.nLatent)
+                            + sum(hyperparameter_KL_gradient.(model.Kmm,A)))
                 end)
     end
 end
@@ -87,7 +84,7 @@ end
 function hyperparameter_expec_gradient(model::SVGP,ι::AbstractArray,Jmm::AbstractMatrix,Jnm::AbstractMatrix,Jnn::AbstractVector,index::Integer)
     indK = min(model.nPrior,index)
     mul!(ι,(Jnm-model.κ[indK]*Jmm),model.invKmm[indK])
-    Jnn .+= - opt_diag(ι,model.Knm[indK]) - opt_diag(model.κ[indK],Jnm)
+    Jnn .-= opt_diag(ι,model.Knm[indK]) + opt_diag(model.κ[indK],Jnm)
     dμ = dot(expec_μ(model,index),ι*model.μ[index])
     dΣ = dot(expec_Σ(model,index),Jnn+2.0*(opt_diag(ι*model.Σ[index],model.κ[indK])+(ι*model.μ[index]).*(model.κ[indK]*model.μ[index])))
     return model.inference.ρ*(dμ+dΣ)

@@ -89,44 +89,42 @@ function local_updates!(model::VGP{<:AugmentedLogisticSoftMaxLikelihood,<:Analyt
 end
 
 function local_updates!(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood,<:AnalyticInference})
- broadcast!((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),
-                                    model.likelihood.c,
+    model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),
                                     model.μ,model.Σ,model.κ,model.K̃)
     for _ in 1:5
-        broadcast!((c,κμ,ψα)->0.5./(model.likelihood.β.*cosh.(0.5.*c)) .*exp.(ψα.-0.5.*κμ),
-                                    model.likelihood.γ,
+        model.likelihood.γ .= broadcast((c,κμ,ψα)->0.5./(model.likelihood.β[1].*cosh.(0.5.*c)) .*exp.(ψα.-0.5.*κμ),
                                     model.likelihood.c,model.κ.*model.μ,[digamma.(model.likelihood.α)])
         model.likelihood.α .= 1.0.+(model.likelihood.γ...)
     end
-    broadcast!((y,γ::Vector,c::Vector)->0.5.*(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5.*c),
-                                    model.likelihood.θ,
+    model.likelihood.θ .= broadcast((y,γ::Vector,c::Vector)->0.5.*(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5.*c),
                                     model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
+    return nothing
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::VGP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
+function expec_μ(model::VGP{<:AugmentedLogisticSoftMaxLikelihood},index::Int)
     0.5.*(model.likelihood.Y[index]-model.likelihood.γ[index])
 end
 
-function expec_μ(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
+function ∇μ(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
     0.5.*(model.likelihood.Y.-model.likelihood.γ)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
-    0.5*model.inference.ρ.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
+    0.5.*model.inference.ρ.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
 end
 
-function expec_μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
-    0.5*model.inference.ρ.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
+function ∇μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
+    0.5.*model.inference.ρ.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
 end
 
 function expec_Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
-    0.5*model.inference.ρ.*model.likelihood.θ[index]
+    0.5.*model.likelihood.θ[index]
 end
 
-function expec_Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
-    0.5*model.inference.ρ.*model.likelihood.θ
+function ∇Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
+    0.5.*model.likelihood.θ
 end
 
 function ELBO(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
@@ -134,7 +132,8 @@ function ELBO(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
 end
 
 function expecLogLikelihood(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
-    tot = -model.nSample*log(2)
+    model.likelihood.c .= broadcast((Σ,μ)->sqrt.(Σ.+μ.^2),diag.(model.Σ),model.μ)
+    tot = -model.nSample*log(2.0)
     tot += -sum(sum.(model.likelihood.γ))*log(2.0)
     tot +=  0.5*sum(broadcast((y,μ,γ,θ,c)->sum(μ.*(y-γ)-θ.*(c.^2)),
                     model.likelihood.Y,model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
@@ -142,10 +141,12 @@ function expecLogLikelihood(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
 end
 
 function expecLogLikelihood(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
+    model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),
+                                    model.μ,model.Σ,model.κ,model.K̃)
     tot = -model.inference.nSamplesUsed*log(2.0)
     tot += -sum(sum.(model.likelihood.γ))*log(2.0)
-    tot += 0.5*sum(broadcast((y,κ,μ,γ,θ,c)->sum((κ*μ).*(y[model.inference.MBIndices]-γ)-θ.*(c.^2)),
-                    model.likelihood.Y,model.κ,model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
+    tot += 0.5*sum(broadcast((y,κμ,γ,θ,c)->sum((κμ).*(y[model.inference.MBIndices]-γ)-θ.*(c.^2)),
+                    model.likelihood.Y,model.κ.*model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
     return model.inference.ρ*tot
 end
 

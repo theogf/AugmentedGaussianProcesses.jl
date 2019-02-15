@@ -9,15 +9,15 @@ mutable struct VGP{L<:Likelihood,I<:Inference,T<:Real,A<:AbstractArray} <: GP{L,
     nLatent::Int64 # Number pf latent GPs
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
-    μ::AbstractVector{AbstractVector}
-    Σ::AbstractVector{AbstractMatrix}
-    η₁::AbstractVector{AbstractVector}
-    η₂::AbstractVector{AbstractMatrix}
-    Knn::AbstractVector{AbstractMatrix}
-    invKnn::AbstractVector{AbstractMatrix}
+    μ::AbstractVector{AbstractVector{T}}
+    Σ::AbstractVector{AbstractMatrix{T}}
+    η₁::AbstractVector{AbstractVector{T}}
+    η₂::AbstractVector{AbstractMatrix{T}}
+    Knn::AbstractVector{AbstractMatrix{T}}
+    invKnn::AbstractVector{AbstractMatrix{T}}
     kernel::AbstractVector{Kernel}
-    likelihood::Likelihood
-    inference::Inference
+    likelihood::Likelihood{T}
+    inference::Inference{T}
     verbose::Int64 #Level of printing information
     Autotuning::Bool
     atfrequency::Int64

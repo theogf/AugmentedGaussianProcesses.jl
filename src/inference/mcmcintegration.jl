@@ -21,16 +21,16 @@ mutable struct MCMCIntegrationInference{T<:Real} <: NumericalInference{T}
 end
 
 function defaultn(::Type{MCMCIntegrationInference})
-    return 200
+    return 500
 end
 
 function MCMCIntegrationInference()
 
 
 function compute_grad_expectations(model::VGP{<:Likelihood,<:MCMCIntegrationInference})
-    samples = zeros(model.inference.nMC,model.nLatent)
+    raw_samples = randn(model.inference.nMC,model.nLatent)
     for i in 1:model.nSample
-        samples .= randn(model.inference.nMC,model.nLatent).*[sqrt(model.Σ[k][i,i]) for k in 1:model.nLatent]' .+ [model.μ[k][i] for k in model.nLatent]'
+        samples = raw_samples.*[sqrt(model.Σ[k][i,i]) for k in 1:model.nLatent]' .+ [model.μ[k][i] for k in model.nLatent]'
         treat_samples(model,samples,i)
     end
 end
