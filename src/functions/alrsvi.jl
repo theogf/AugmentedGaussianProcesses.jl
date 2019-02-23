@@ -12,27 +12,28 @@ function ALRSVI(;τ::Int=100)
     ALRSVI("Adaptive Learning Rate for Stochastic Variational Inference",0,[0.0],0.0,τ,-1.0)
 end
 
-params(opt::ALRSVI) = "ρ=$(opt.ρ)"
+GradDescent.params(opt::ALRSVI) = "ρ=$(opt.ρ)"
 
 function init!(inference::Inference{T},model::SVGP) where T
-    for n_s in 1:10
+    n_repeat = ceil(inference.optimizer_η₁[1].τ/model.inference.nSamplesUsed)
+    for n_s in 1:n_repeat
         model.inference.MBIndices = StatsBase.sample(1:model.inference.nSamples,inference.nSamplesUsed,replace=false)
         computeMatrices!(model)
         local_updates!(model)
         natural_gradient!(model)
         if n_s == 1
             for (i,opt) in enumerate(inference.optimizer_η₁)
-                opt.g = inference.∇η₁[i]./10
+                opt.g = inference.∇η₁[i]./n_repeat
             end
             for (i,opt) in enumerate(inference.optimizer_η₂)
-                opt.g = Array(inference.∇η₂[i])./10
+                opt.g = Array(inference.∇η₂[i])./n_repeat
             end
         else
             for (i,opt) in enumerate(inference.optimizer_η₁)
-                opt.g .+= inference.∇η₁[i]./10
+                opt.g .+= inference.∇η₁[i]./n_repeat
             end
             for (i,opt) in enumerate(inference.optimizer_η₂)
-                opt.g .+= Array(inference.∇η₂[i])./10
+                opt.g .+= Array(inference.∇η₂[i])./n_repeat
             end
         end
     end
@@ -48,7 +49,7 @@ function init!(inference::Inference{T},model::SVGP) where T
     end
 end
 
-function update(opt::ALRSVI, g_t::AbstractArray{T,N}) where {T<:Real,N}
+function GradDescent.update(opt::ALRSVI, g_t::AbstractArray{T,N}) where {T<:Real,N}
     # update timestep
     if opt.ρ < 0
         @error "Optimizer has not been initialized externally, it needs a special initialization"

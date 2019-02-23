@@ -201,12 +201,13 @@ end
 
 ##Which algorithm are tested
 fullm = !true
-sparsem = true
+sparsem = !true
 stochm = !true
+expecm = true
 
 if fullm
-    global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=!true,atfrequency=1,IndependentPriors=true)
-    t_full = @elapsed train!(fmodel,iterations=100,callback=callback)
+    global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    t_full = @elapsed train!(fmodel,iterations=100)#,callback=callback)
 
     global y_full = predict_y(fmodel,X_test)
     global y_fall = proba_y(fmodel,X_test)
@@ -226,7 +227,7 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),10,verbose=0,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    global smodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),100,verbose=0,Autotuning=true,atfrequency=1,IndependentPriors=true)
     # smodel.AutotuningFrequency=5
     # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
@@ -246,13 +247,13 @@ if sparsem
     println("Sparse model Accuracy is $(sparse_score/length(y_test))")#" in $t_sparse s")
     # callbackplot(smodel,1)
 end
-@profiler train!(smodel,iterations=100)
+# @profiler train!(smodel,iterations=100)
 # @btime train!($smodel,iterations=10);
 using GradDescent
 if stochm
-    global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=Adam()),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
-    # global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=ALRSVI(τ=200)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
-    @time train!(ssmodel,iterations=200,callback=callback)
+    # global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=Adam(α=0.01)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(100,optimizer=ALRSVI(τ=200)),100,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    @time train!(ssmodel,iterations=200)#,callback=callback)
     global y_ssparse = predict_y(ssmodel,X_test)
     global y_sstrain = predict_y(ssmodel,X)
     global y_ssall = proba_y(ssmodel,X_test)
@@ -268,22 +269,22 @@ if stochm
     callbackplot(ssmodel,1)
 end
 
-if stochm
-    global ssmodel = VGP(X,y,kernel,LogisticSoftMaxLikelihood(),MCMCIntegrationInference(10,optimizer=Adam()),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+if expecm
+    global emodel = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),NumericalInference(:mcmc),10,verbose=3,Autotuning=!true,atfrequency=1,IndependentPriors=true)
     # global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=ALRSVI(τ=200)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
-    @time train!(ssmodel,iterations=200,callback=callback)
-    global y_ssparse = predict_y(ssmodel,X_test)
-    global y_sstrain = predict_y(ssmodel,X)
-    global y_ssall = proba_y(ssmodel,X_test)
+    @time train!(emodel,iterations=200,callback=callback)
+    global y_e = predict_y(emodel,X_test)
+    global y_etrain = predict_y(emodel,X)
+    global y_eall = proba_y(emodel,X_test)
 
     println("Stochastic Sparse predictions computed")
-    ssparse_score=0
-    for (i,pred) in enumerate(y_ssparse)
+    e_score=0
+    for (i,pred) in enumerate(y_e)
         if pred == y_test[i]
-            global ssparse_score += 1
+            global e_score += 1
         end
     end
-    println("Sparse model Accuracy is $(ssparse_score/length(y_test))")#" in $t_sparse s")
+    println("Sparse model Accuracy is $(e_score/length(y_test))")#" in $t_sparse s")
     callbackplot(ssmodel,1)
 end
 

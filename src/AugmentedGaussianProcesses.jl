@@ -9,7 +9,8 @@ export GP, VGP, SVGP
 export Likelihood, GaussianLikelihood, LogisticLikelihood
 export MultiClassLikelihood, SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export AugmentedLogisticSoftMaxLikelihood
-export Inference, AnalyticInference, StochasticAnalyticInference, GibbsSampling, MCMCIntegrationInference, QuadratureInference
+export Inference, AnalyticInference, StochasticAnalyticInference, GibbsSampling
+export NumericalInference, MCMCIntegrationInference, QuadratureInference
 export ALRSVI
 
 
@@ -31,6 +32,7 @@ using .GPAnalysisTools
 #General modules
 # using MLKernels
 using GradDescent
+import GradDescent: update
 using DataFrames
 using Distributions
 using LinearAlgebra

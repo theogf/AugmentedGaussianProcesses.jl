@@ -112,11 +112,11 @@ end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
-    0.5.*model.inference.ρ.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
+    0.5.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
 end
 
 function ∇μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
-    0.5.*model.inference.ρ.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
+    0.5.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
 end
 
 function expec_Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
@@ -151,20 +151,20 @@ function expecLogLikelihood(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
 end
 
 function treat_samples(model::GP{<:LogisticSoftMaxLikelihood},samples::AbstractMatrix,index::Integer)
-    class = model.likelihood.ind_mapping[model.y[index]]
+    class = model.likelihood.ind_mapping[model.likelihood.y_class[index]]
     grad_μ = zeros(model.nLatent)
     grad_Σ = zeros(model.nLatent)
     for i in 1:size(samples,1)
-        σ = logistic(samples[i,:])
-        samples[i,:]  .= logisticsoftmax(samples[i,:])
+        σ = logit.(samples[i,:])
+        samples[i,:]  .= σ./sum(σ)
         s = samples[i,class]
         g_μ = grad_logisticsoftmax(samples[i,:],σ,class)
         grad_μ .+= g_μ./s
         grad_Σ .+= diaghessian_logisticsoftmax(samples[i,:],σ,class)./s .- g_μ.^2 ./s^2
     end
     for k in 1:model.nLatent
-        model.inference.∇μE[k][index] = grad_μ[k]/nSamples
-        model.inference.∇ΣE[k][index] = 0.5.*grad_Σ[k]/nSamples
+        model.inference.∇μE[k][index] = grad_μ[k]/size(samples,1)
+        model.inference.∇ΣE[k][index] = 0.5.*grad_Σ[k]/size(samples,1)
     end
 end
 

@@ -3,6 +3,8 @@ by making a numerical approximation (quadrature or MC integration)
 of the expected log-likelihood"""
 abstract type NumericalInference{T<:Real} <: Inference{T} end
 
+include("quadrature.jl")
+include("mcmcintegration.jl")
 function NumericalInference(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
     if integration_technique == :quad
         QuadratureInference{T}(ϵ,nGaussHermite,0,optimizer,false)
@@ -24,10 +26,11 @@ function StochasticNumericalInference(nMinibatch::Integer,integration_technique:
 end
 
 function Base.show(io::IO,inference::NumericalInference{T}) where T
-    print(io,"($(inference.Stochastic ? "Stochastic numerical" : "Numerical") inference with $(isa(inference,MCMCIntegrationInference) ? "MCMC Integration" : "Quadrature")")
+    print(io,"$(inference.Stochastic ? "Stochastic numerical" : "Numerical") inference with $(isa(inference,MCMCIntegrationInference) ? "MCMC Integration" : "Quadrature")")
 end
 
-function init_inference(inference::TInference,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {TInference <: NumericalInference{T2} where T2,T<:Real}
+function init_inference(inference::TInference,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {TInference <: NumericalInference{T2} where T2}
+    T = Float64
     inference.nSamples = nSamples
     inference.nSamplesUsed = nSamplesUsed
     inference.MBIndices = 1:nSamplesUsed
@@ -51,7 +54,6 @@ end
 function variational_updates!(model::SVGP{<:Likelihood,<:NumericalInference}) where {L<:Likelihood,T}
     compute_grad_expectations!(model)
     natural_gradient!(model)
-    compute_learningrate!(model)
     global_update!(model)
 end
 
