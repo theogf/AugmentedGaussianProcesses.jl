@@ -41,7 +41,7 @@ N_dim=2
 # y.+=1
 # X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 
-art_noise = 0.3
+art_noise = 0.1
 
 X_clean = (rand(N_data,N_dim)*2.0).-1.0
 y = zeros(Int64,N_data); y_noise = similar(y)
@@ -138,7 +138,9 @@ AugmentedGaussianProcesses.setvalue!(kernel.fields.variance,1.0)
 # kernel= AugmentedGaussianProcesses.PolynomialKernel([1.0,0.0,1.0])
 metrics = MVHistory()
 elbos = MVHistory()
-params = MVHistory()
+ρparams = MVHistory()
+lparams = MVHistory()
+vparams = MVHistory()
 anim  = Animation()
 function callback(model,iter)
     push!(elbos,:loglike,AugmentedGaussianProcesses.expecLogLikelihood(model))
@@ -148,16 +150,16 @@ function callback(model,iter)
     push!(elbos,:polyagamma,-AugmentedGaussianProcesses.PolyaGammaKL(model))
     push!(elbos,:ELBO,AugmentedGaussianProcesses.ELBO(model))
     for i in 1:model.nPrior
-        push!(params,Symbol(:k_v,i),getvariance(model.kernel[i]))
+        push!(vparams,Symbol(:k,i),getvariance(model.kernel[i]))
         p = getlengthscales(model.kernel[i])
         for (j,p_j) in enumerate(p)
-            push!(params,Symbol("k_l",i,"_j",j),p_j)
+            push!(lparams,Symbol("k",i,"_j",j),p_j)
         end
     end
     if isa(model.inference.optimizer_η₁[1],ALRSVI)
         for i in 1:model.nLatent
-            push!(params,Symbol("opt_η₁_",i),model.inference.optimizer_η₁[i].ρ)
-            push!(params,Symbol("opt_η₂_",i),model.inference.optimizer_η₂[i].ρ)
+            push!(ρparams,Symbol("opt_η₁_",i),model.inference.optimizer_η₁[i].ρ)
+            push!(ρparams,Symbol("opt_η₂_",i),model.inference.optimizer_η₂[i].ρ)
         end
     end
     y_pred_test = predict_y(model,X_test)
@@ -201,8 +203,9 @@ end
 
 ##Which algorithm are tested
 fullm = !true
-sparsem = true
-stochm = !true
+sparsem = !true
+stochm = true
+expecm = !true
 
 if fullm
     global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=!true,atfrequency=1,IndependentPriors=true)
@@ -246,11 +249,30 @@ if sparsem
     println("Sparse model Accuracy is $(sparse_score/length(y_test))")#" in $t_sparse s")
     # callbackplot(smodel,1)
 end
-@profiler train!(smodel,iterations=100)
+# @profiler train!(smodel,iterations=100)
 # @btime train!($smodel,iterations=10);
 using GradDescent
 if stochm
-    global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=Adam()),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(100,optimizer=ALRSVI()),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=!true)
+    # global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=ALRSVI(τ=200)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    @time train!(ssmodel,iterations=50,callback=callback)
+    global y_ssparse = predict_y(ssmodel,X_test)
+    global y_sstrain = predict_y(ssmodel,X)
+    global y_ssall = proba_y(ssmodel,X_test)
+
+    println("Stochastic Sparse predictions computed")
+    ssparse_score=0
+    for (i,pred) in enumerate(y_ssparse)
+        if pred == y_test[i]
+            global ssparse_score += 1
+        end
+    end
+    println("Sparse model Accuracy is $(ssparse_score/length(y_test))")#" in $t_sparse s")
+    callbackplot(ssmodel,1)
+end
+
+if expecm
+    global ssmodel = VGP(X,y,kernel,LogisticSoftMaxLikelihood(),MCMCIntegrationInference(100,optimizer=Adam(α=0.1)),100,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
     # global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=ALRSVI(τ=200)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
     @time train!(ssmodel,iterations=200,callback=callback)
     global y_ssparse = predict_y(ssmodel,X_test)
@@ -268,28 +290,9 @@ if stochm
     callbackplot(ssmodel,1)
 end
 
-if stochm
-    global ssmodel = VGP(X,y,kernel,LogisticSoftMaxLikelihood(),MCMCIntegrationInference(10,optimizer=Adam()),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
-    # global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=ALRSVI(τ=200)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
-    @time train!(ssmodel,iterations=200,callback=callback)
-    global y_ssparse = predict_y(ssmodel,X_test)
-    global y_sstrain = predict_y(ssmodel,X)
-    global y_ssall = proba_y(ssmodel,X_test)
 
-    println("Stochastic Sparse predictions computed")
-    ssparse_score=0
-    for (i,pred) in enumerate(y_ssparse)
-        if pred == y_test[i]
-            global ssparse_score += 1
-        end
-    end
-    println("Sparse model Accuracy is $(ssparse_score/length(y_test))")#" in $t_sparse s")
-    callbackplot(ssmodel,1)
-end
-
-
-display(plot(elbos,title="ELBO values"))
-display(plot(params,title="kernel parameters",yaxis=:log))
+display(plot(plot(elbos,title="ELBO values"),plot(ρparams,title="learning rate",yaxis=:log)))
+display(plot(plot(lparams,title="lengthscale",yaxis=:log),plot(vparams,title="variance",yaxis=:log)))
 display(plot(metrics,title="Metrics"))
 1
     # model = ssmodel;

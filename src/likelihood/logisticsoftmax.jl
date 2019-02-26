@@ -112,11 +112,11 @@ end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
-    0.5.*model.inference.ρ.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
+    0.5.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
 end
 
 function ∇μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
-    0.5.*model.inference.ρ.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
+    0.5.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
 end
 
 function expec_Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)

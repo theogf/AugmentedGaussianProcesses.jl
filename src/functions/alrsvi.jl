@@ -1,4 +1,4 @@
-mutable struct ALRSVI <: Optimizer
+mutable struct ALRSVI <: GradDescent.Optimizer
     opt_type::String
     t::Int64
     g::AbstractArray
@@ -14,41 +14,43 @@ end
 
 params(opt::ALRSVI) = "ρ=$(opt.ρ)"
 
-function init!(inference::Inference{T},model::SVGP) where T
-    for n_s in 1:10
+function init!(inference::Inference{T},model::SVGP,τ::Int=10) where T
+    for n_s in 1:τ
         model.inference.MBIndices = StatsBase.sample(1:model.inference.nSamples,inference.nSamplesUsed,replace=false)
         computeMatrices!(model)
         local_updates!(model)
         natural_gradient!(model)
         if n_s == 1
             for (i,opt) in enumerate(inference.optimizer_η₁)
-                opt.g = inference.∇η₁[i]./10
+                opt.g = inference.∇η₁[i]./τ
+                opt.h = dot(inference.∇η₁[i],inference.∇η₁[i])/τ
             end
             for (i,opt) in enumerate(inference.optimizer_η₂)
-                opt.g = Array(inference.∇η₂[i])./10
+                opt.g = Array(inference.∇η₂[i])./τ
+                opt.h = dot(inference.∇η₂[i],inference.∇η₂[i])/τ
             end
         else
             for (i,opt) in enumerate(inference.optimizer_η₁)
-                opt.g .+= inference.∇η₁[i]./10
+                opt.g .+= inference.∇η₁[i]./τ
+                opt.h += dot(inference.∇η₁[i],inference.∇η₁[i])/τ
             end
             for (i,opt) in enumerate(inference.optimizer_η₂)
-                opt.g .+= Array(inference.∇η₂[i])./10
+                opt.g .+= Array(inference.∇η₂[i])./τ
+                opt.h += dot(inference.∇η₂[i],inference.∇η₂[i])/τ
             end
         end
     end
     for (i,opt) in enumerate(inference.optimizer_η₁)
-        opt.τ = inference.nSamplesUsed*10
-        opt.h = dot(opt.g,opt.g)
+        opt.τ = τ
         opt.ρ = dot(opt.g,opt.g)/opt.h
     end
     for (i,opt) in enumerate(inference.optimizer_η₂)
-        opt.τ = inference.nSamplesUsed*10
-        opt.h = dot(opt.g,opt.g)
+        opt.τ = τ
         opt.ρ = dot(opt.g,opt.g)/opt.h
     end
 end
 
-function update(opt::ALRSVI, g_t::AbstractArray{T,N}) where {T<:Real,N}
+function GradDescent.update(opt::ALRSVI, g_t::AbstractArray{T,N}) where {T<:Real,N}
     # update timestep
     if opt.ρ < 0
         @error "Optimizer has not been initialized externally, it needs a special initialization"

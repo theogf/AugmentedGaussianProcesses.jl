@@ -59,9 +59,7 @@ function variational_updates!(model::SVGP{L,AnalyticInference{T}}) where {L<:Lik
 end
 
 function natural_gradient!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
-    # model.inference.∇η₁ .= expec_μ(model) .- model.η₁
     model.η₁ .= ∇μ(model)
-    # model.inference.∇η₂ .= Symmetric.(-(Diagonal.(expec_Σ(model))+0.5.*model.invKnn) .- model.η₂)
     model.η₂ .= .-Symmetric.(Diagonal.(∇Σ(model))+0.5.*model.invKnn)
 end
 
