@@ -3,12 +3,12 @@ function GaussianKL(model::VGP)
     return 0.5*sum(opt_trace.(model.invKnn,model.Σ+model.μ.*transpose.(model.μ)).-model.nSample.-logdet.(model.Σ).-logdet.(model.invKnn))
 end
 
-"""Compute the KL Divergence between the Sparse GP Prior and the variational distribution for the full batch model"""
+"""Compute the KL Divergence between the Sparse GP Prior and the variational distribution for the sparse model"""
 function GaussianKL(model::SVGP)
     return 0.5*sum(opt_trace.(model.invKmm,model.Σ+model.μ.*transpose.(model.μ)).-model.nFeature.-logdet.(model.Σ).-logdet.(model.invKmm))
 end
 
-""" Compute KL divergence for Polya-Gamma variables """
+""" Compute KL divergence for Polya-Gamma variables (in the binary case)"""
 function PolyaGammaKL(model::GP)
     return model.inference.ρ*sum(broadcast((c,θ)->-0.5*c.^2 .* θ .+ log.(cosh.(0.5.*c)),model.c,model.θ))
 end
@@ -22,10 +22,9 @@ function PoissonKL(model::GP)
 end
 
 function PolyaGammaKL(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
-    return sum(broadcast((y,γ,c,θ)->sum((y+γ).*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
+    return model.inference.ρ*sum(broadcast((y,γ,c,θ)->sum((y+γ).*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
 end
 
-
 function PolyaGammaKL(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
-    return sum(broadcast((y,γ,c,θ)->model.inference.ρ*sum((y[model.inference.MBIndices]+γ).*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
+    return model.inference.ρ*sum(broadcast((y,γ,c,θ)->model.inference.ρ*sum((y[model.inference.MBIndices]+γ).*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
 end

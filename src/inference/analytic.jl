@@ -75,10 +75,10 @@ end
 
 function global_update!(model::SVGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
     if model.inference.Stochastic
-        model.η₁ .= model.η₁ .+ update.(model.inference.optimizer_η₁,model.inference.∇η₁)
-        model.η₂ .= Symmetric.(model.η₂ .+ update.(model.inference.optimizer_η₂,model.inference.∇η₂))
+        model.η₁ .= model.η₁ .+ GradDescent.update.(model.inference.optimizer_η₁,model.inference.∇η₁)
+        model.η₂ .= Symmetric.(model.η₂ .+ GradDescent.update.(model.inference.optimizer_η₂,Array.(model.inference.∇η₂)))
     else
-        model.η₁ .= model.inference.∇η₁ .+ model.η₁
+        model.η₁ .+= model.inference.∇η₁
         model.η₂ .= Symmetric.(model.inference.∇η₂ .+ model.η₂)
     end
     model.Σ .= -0.5.*inv.(model.η₂)

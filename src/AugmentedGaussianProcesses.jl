@@ -32,6 +32,7 @@ using .GPAnalysisTools
 #General modules
 # using MLKernels
 using GradDescent
+import GradDescent: update
 using DataFrames
 using Distributions
 using LinearAlgebra

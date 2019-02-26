@@ -79,6 +79,7 @@ function global_update!(model::GP{<:Likelihood,<:NumericalInference})
                 break;
             catch e
                 if isa(e,AssertionError)
+                    println("Error, results not pos def with α=$α")
                     α *= 0.5
                 else
                     rethrow()
@@ -87,8 +88,10 @@ function global_update!(model::GP{<:Likelihood,<:NumericalInference})
         end
         if isa(model.inference.optimizer_η₂[k],Adam)
             model.inference.optimizer_η₂[k].η = min(model.inference.optimizer_η₂[k].α*α*2.0,1.0)
+            model.inference.optimizer_η₁[k].η = min(model.inference.optimizer_η₁[k].α*α*2.0,1.0)
         elseif isa(model.inference.optimizer_η₂[k],VanillaGradDescent)
             model.inference.optimizer_η₂[k].η = min(model.inference.optimizer_η₂[k].η*α*2.0,1.0)
+            model.inference.optimizer_η₁[k].η = min(model.inference.optimizer_η₁[k].η*α*2.0,1.0)
         elseif isa(model.inference.optimizer_η₂[k],ALRSVI)
         elseif isa(model.inference.optimizer_η₂[k],InverseDecay)
         end

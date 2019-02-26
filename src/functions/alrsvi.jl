@@ -12,7 +12,7 @@ function ALRSVI(;τ::Int=100)
     ALRSVI("Adaptive Learning Rate for Stochastic Variational Inference",0,[0.0],0.0,τ,-1.0)
 end
 
-params(opt::ALRSVI) = "ρ=$(opt.ρ)"
+GradDescent.params(opt::ALRSVI) = "ρ=$(opt.ρ)"
 
 function init!(inference::Inference{T},model::SVGP,τ::Int=10) where T
     for n_s in 1:τ

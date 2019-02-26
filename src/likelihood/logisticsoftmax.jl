@@ -187,8 +187,8 @@ function log_like_samples(model::GP{<:LogisticSoftMaxLikelihood},samples::Abstra
         grad_Σ .+= diaghessian_logisticsoftmax(samples[i,:],σ,class)./s .- g_μ.^2 ./s^2
     end
     for k in 1:model.nLatent
-        model.inference.∇μE[k][index] = grad_μ[k]/nSamples
-        model.inference.∇ΣE[k][index] = 0.5.*grad_Σ[k]/nSamples
+        model.inference.∇μE[k][index] = grad_μ[k]/size(samples,1)
+        model.inference.∇ΣE[k][index] = 0.5.*grad_Σ[k]/size(samples,1)
     end
 end
 

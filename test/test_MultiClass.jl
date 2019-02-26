@@ -215,8 +215,8 @@ stochm = !true
 expecm = true
 
 if fullm
-    global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=!true,atfrequency=1,IndependentPriors=true)
-    t_full = @elapsed train!(fmodel,iterations=100,callback=callback)
+    global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    t_full = @elapsed train!(fmodel,iterations=100)#,callback=callback)
 
     global y_full = predict_y(fmodel,X_test)
     global y_fall = proba_y(fmodel,X_test)
@@ -236,7 +236,7 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),10,verbose=0,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    global smodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),100,verbose=0,Autotuning=true,atfrequency=1,IndependentPriors=true)
     # smodel.AutotuningFrequency=5
     # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)

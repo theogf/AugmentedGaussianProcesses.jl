@@ -64,7 +64,7 @@ function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T
                 end,
                 function(kernel,index)
                     return 1.0/getvariance(kernel)*(
-                            - dot(expec_Σ(model,index),model.K̃[index])
+                            - model.inference.ρ*dot(expec_Σ(model,index),model.K̃[index])
                             - hyperparameter_KL_gradient(model.Kmm[index],A[index]))
                 end)
     else
@@ -73,7 +73,7 @@ function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T
                            - sum(hyperparameter_KL_gradient.([Jmm],A))
                 end,
                 function(kernel,index)
-                    return 1.0/getvariance(kernel)*(sum(
+                    return 1.0/getvariance(kernel)*(model.inference.ρ*sum(
                             - dot(expec_Σ(model,i),model.K̃[1]) for i in 1:model.nLatent)
                             - sum(hyperparameter_KL_gradient.(model.Kmm,A)))
                 end)
