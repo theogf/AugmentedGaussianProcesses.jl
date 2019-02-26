@@ -3,6 +3,9 @@ by making a numerical approximation (quadrature or MC integration)
 of the expected log-likelihood"""
 abstract type NumericalInference{T<:Real} <: Inference{T} end
 
+include("quadrature.jl")
+include("mcmcintegration.jl")
+
 function NumericalInference(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
     if integration_technique == :quad
         QuadratureInference{T}(ϵ,nGaussHermite,0,optimizer,false)
@@ -27,7 +30,7 @@ function Base.show(io::IO,inference::NumericalInference{T}) where T
     print(io,"($(inference.Stochastic ? "Stochastic numerical" : "Numerical") inference with $(isa(inference,MCMCIntegrationInference) ? "MCMC Integration" : "Quadrature")")
 end
 
-function init_inference(inference::TInference,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {TInference <: NumericalInference{T2} where T2,T<:Real}
+function init_inference(inference::NumericalInference{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {T<:Real}
     inference.nSamples = nSamples
     inference.nSamplesUsed = nSamplesUsed
     inference.MBIndices = 1:nSamplesUsed
@@ -51,26 +54,52 @@ end
 function variational_updates!(model::SVGP{<:Likelihood,<:NumericalInference}) where {L<:Likelihood,T}
     compute_grad_expectations!(model)
     natural_gradient!(model)
-    compute_learningrate!(model)
     global_update!(model)
 end
 
-
 function natural_gradient!(model::VGP{<:Likelihood,<:NumericalInference})
-    model.inference.∇η₁ .= model.Σ*model.inference.∇μE .- model.η₁
-    model.inference.∇η₂ .= Symmetric.(-Diagonal.(model.inference.∇ΣE)+0.5.*model.invKmm .- model.η₂)
+    model.inference.∇η₁ .= model.inference.∇μE .- model.invKnn.*model.μ
+    model.inference.∇η₂ .= Symmetric.(Diagonal.(model.inference.∇ΣE).-0.5.*model.invKnn .- model.η₂)
 end
 
 function natural_gradient!(model::SVGP{<:Likelihood,<:NumericalInference})
-    model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*model.inference.∇μE .- model.η₁
-    model.inference.∇η₂ .= Symmetric.(-model.inference.ρ.*transpose.(model.κ).*Diagonal.(model.inference.∇ΣE).*model.κ.+0.5.*model.invKmm .- model.η₂)
+    model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*model.inference.∇μE .- model.invK.*model.μ
+    model.inference.∇η₂ .= Symmetric.(model.inference.ρ.*transpose.(model.κ).*Diagonal.(model.inference.∇ΣE).*model.κ.-0.5.*model.invKmm .- model.η₂)
 end
 
-function global_update!(model::VGP)
-    model.η₁ .+= model.inference.∇η₁
-    model.η₂ .+= model.inference.∇η₂
-    model.Σ .= inv.(model.∇η₂)*(-0.5)
-    model.μ .= model.Σ.*model.η₁
+function global_update!(model::GP{<:Likelihood,<:NumericalInference})
+    model.η₁ .= model.η₁ .+ update.(model.inference.optimizer_η₁,model.inference.∇η₁)
+    for k in 1:model.nLatent
+        Δ = update(model.inference.optimizer_η₂[k],model.inference.∇η₂[k])
+        α=1.0
+        while true
+            try
+                @assert isposdef(-Symmetric(model.η₂[k]+α*Δ))
+                model.η₂[k] = Symmetric(model.η₂[k]+α*Δ)
+                break;
+            catch e
+                if isa(e,AssertionError)
+                    α *= 0.5
+                else
+                    rethrow()
+                end
+            end
+        end
+        if isa(model.inference.optimizer_η₂[k],Adam)
+            model.inference.optimizer_η₂[k].η = min(model.inference.optimizer_η₂[k].α*α*2.0,1.0)
+        elseif isa(model.inference.optimizer_η₂[k],VanillaGradDescent)
+            model.inference.optimizer_η₂[k].η = min(model.inference.optimizer_η₂[k].η*α*2.0,1.0)
+        elseif isa(model.inference.optimizer_η₂[k],ALRSVI)
+        elseif isa(model.inference.optimizer_η₂[k],InverseDecay)
+        end
+    end
+    model.Σ .= -0.5.*inv.(model.η₂)
+    model.μ .= model.η₁
+    # model.μ .= model.Σ.*model.η₁
+end
+
+function ELBO(model::GP{<:Likelihood,<:NumericalInference})
+    return expecLogLikelihood(model) - GaussianKL(model)
 end
 
 function expec_μ(model::GP{<:Likelihood,<:NumericalInference},index::Integer)
@@ -88,10 +117,6 @@ end
 
 function expec_Σ(model::GP{<:Likelihood,<:NumericalInference})
     return model.inference.∇ΣE
-end
-
-function compute_learningrate!(model::SVGP{L,NumericalInference{T}}) where {L<:Likelihood,T}
- #TODO learningrate_optimizer
 end
 
 function global_update!(model::SVGP{L,NumericalInference{T}}) where {L<:Likelihood,T}

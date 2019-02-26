@@ -142,12 +142,14 @@ elbos = MVHistory()
 lparams = MVHistory()
 vparams = MVHistory()
 anim  = Animation()
-function callback(model,iter)
+function callback(model::GP{TLike,TInf},iter) where {TLike,TInf}
     push!(elbos,:loglike,AugmentedGaussianProcesses.expecLogLikelihood(model))
     push!(elbos,:gaussian,-AugmentedGaussianProcesses.GaussianKL(model))
-    push!(elbos,:gamma,-AugmentedGaussianProcesses.GammaImproperKL(model))
-    push!(elbos,:poisson,-AugmentedGaussianProcesses.PoissonKL(model))
-    push!(elbos,:polyagamma,-AugmentedGaussianProcesses.PolyaGammaKL(model))
+    if AugmentedGaussianProcesses.isaugmented(TLike())
+        push!(elbos,:gamma,-AugmentedGaussianProcesses.GammaImproperKL(model))
+        push!(elbos,:poisson,-AugmentedGaussianProcesses.PoissonKL(model))
+        push!(elbos,:polyagamma,-AugmentedGaussianProcesses.PolyaGammaKL(model))
+    end
     push!(elbos,:ELBO,AugmentedGaussianProcesses.ELBO(model))
     for i in 1:model.nPrior
         push!(vparams,Symbol(:k,i),getvariance(model.kernel[i]))
@@ -204,8 +206,8 @@ end
 ##Which algorithm are tested
 fullm = !true
 sparsem = !true
-stochm = true
-expecm = !true
+stochm = !true
+expecm = true
 
 if fullm
     global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=!true,atfrequency=1,IndependentPriors=true)
@@ -272,7 +274,7 @@ if stochm
 end
 
 if expecm
-    global ssmodel = VGP(X,y,kernel,LogisticSoftMaxLikelihood(),MCMCIntegrationInference(100,optimizer=Adam(α=0.1)),100,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    global ssmodel = VGP(X,y,kernel,LogisticSoftMaxLikelihood(),NumericalInference(:mcmc,optimizer=VanillaGradDescent(η=0.01)),verbose=3,Autotuning=!true,atfrequency=1,IndependentPriors=true)
     # global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=ALRSVI(τ=200)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
     @time train!(ssmodel,iterations=200,callback=callback)
     global y_ssparse = predict_y(ssmodel,X_test)

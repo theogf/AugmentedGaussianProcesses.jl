@@ -36,6 +36,16 @@ function opt_diag(A::AbstractMatrix{<:Real},B::AbstractMatrix{<:Real})
     vec(sum(A.*B,dims=2))
 end
 
+""" Logistic function (1+exp(-x))^-1 """
+function logistic(x::Real)
+    1.0/(1.0+exp(-x))
+end
+
+""" Logistic function (1+exp(-x))^-1 """
+function logistic(x::AbstractVector{<:Real})
+    1.0./(1.0.+exp.(-x))
+end
+
 #Temp fix until the deepcopy of the main package is fixed
 function copy(opt::Optimizer)
     f = length(fieldnames(typeof(opt)))

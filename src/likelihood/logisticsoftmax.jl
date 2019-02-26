@@ -38,6 +38,11 @@ function pdf(l::AbstractLogisticSoftMaxLikelihood,f::AbstractVector)
     logisticsoftmax(f)
 end
 
+
+function pdf(l::AbstractLogisticSoftMaxLikelihood,y::Integer,f::AbstractVector)
+    logisticsoftmax(f)[y]
+end
+
 function Base.show(io::IO,model::AugmentedLogisticSoftMaxLikelihood{T}) where T
     print(io,"Augmented Logistic-softmax likelihood")
 end
@@ -150,11 +155,30 @@ function expecLogLikelihood(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
     return model.inference.ρ*tot
 end
 
-function treat_samples(model::GP{<:LogisticSoftMaxLikelihood},samples::AbstractMatrix,index::Integer)
-    class = model.likelihood.ind_mapping[model.y[index]]
+function grad_samples(model::GP{<:LogisticSoftMaxLikelihood},samples::AbstractMatrix,index::Integer)
+    class = model.likelihood.y_class[index]
     grad_μ = zeros(model.nLatent)
     grad_Σ = zeros(model.nLatent)
-    for i in 1:size(samples,1)
+    nSamples = size(samples,1)
+    for i in 1:nSamples
+        σ = logistic(samples[i,:])
+        samples[i,:]  .= logisticsoftmax(samples[i,:])
+        s = samples[i,class]
+        g_μ = grad_logisticsoftmax(samples[i,:],σ,class)
+        grad_μ .+= g_μ./s
+        grad_Σ .+= diaghessian_logisticsoftmax(samples[i,:],σ,class)./s .- g_μ.^2 ./s^2
+    end
+    for k in 1:model.nLatent
+        model.inference.∇μE[k][index] = grad_μ[k]/nSamples
+        model.inference.∇ΣE[k][index] = 0.5.*grad_Σ[k]/nSamples
+    end
+end
+
+function log_like_samples(model::GP{<:LogisticSoftMaxLikelihood},samples::AbstractMatrix,index::Integer)
+    class = model.likelihood.y_class[index]
+    nSamples = size(samples,1)
+    loglike = 0.0
+    for i in 1:nSamples
         σ = logistic(samples[i,:])
         samples[i,:]  .= logisticsoftmax(samples[i,:])
         s = samples[i,class]

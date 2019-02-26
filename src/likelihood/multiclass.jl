@@ -47,7 +47,9 @@ function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractV
     return DataFrame(pred,Symbol.(l.class_mapping))
 end
 
-
+function expecLogLikelihood(model::VGP{<:MultiClassLikelihood,<:NumericalInference})
+    compute_log_expectations(model)
+end
 
 include("softmax.jl")
 include("logisticsoftmax.jl")

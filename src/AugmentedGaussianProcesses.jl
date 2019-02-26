@@ -10,6 +10,7 @@ export Likelihood, GaussianLikelihood, LogisticLikelihood
 export MultiClassLikelihood, SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export AugmentedLogisticSoftMaxLikelihood
 export Inference, AnalyticInference, StochasticAnalyticInference, GibbsSampling, MCMCIntegrationInference, QuadratureInference
+export NumericalInference, StochasticNumericalInference
 export ALRSVI
 
 
@@ -68,6 +69,9 @@ include("functions/utils.jl")
 include("functions/init.jl")
 include("functions/KLdivergences.jl")
 include("functions/alrsvi.jl")
+include("functions/inversedecay.jl")
+#Deprecated constructors
+include("deprecated.jl")
 
 #Training Functions
 include("training.jl")

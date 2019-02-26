@@ -15,9 +15,8 @@ mutable struct MCMCIntegrationInference{T<:Real} <: NumericalInference{T}
     ∇μE::AbstractVector{AbstractVector}
     ∇ΣE::AbstractVector{AbstractVector}
     function MCMCIntegrationInference{T}(ϵ::T,nMC::Integer,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,nSamplesUsed::Integer=1) where T
-        return new{T}(ϵ,nIter,optimizer,nMC,Stochastic,1,nSamplesUsed)
+        return new{T}(ϵ,nIter,[optimizer],[optimizer],nMC,Stochastic,1,nSamplesUsed)
     end
-
 end
 
 function defaultn(::Type{MCMCIntegrationInference})
@@ -25,12 +24,24 @@ function defaultn(::Type{MCMCIntegrationInference})
 end
 
 function MCMCIntegrationInference()
+end
 
-
-function compute_grad_expectations(model::VGP{<:Likelihood,<:MCMCIntegrationInference})
+function compute_grad_expectations!(model::VGP{<:Likelihood,<:MCMCIntegrationInference})
     raw_samples = randn(model.inference.nMC,model.nLatent)
+    samples = similar(raw_samples)
     for i in 1:model.nSample
-        samples = raw_samples.*[sqrt(model.Σ[k][i,i]) for k in 1:model.nLatent]' .+ [model.μ[k][i] for k in model.nLatent]'
-        treat_samples(model,samples,i)
+        samples .= raw_samples.*[sqrt(model.Σ[k][i,i]) for k in 1:model.nLatent]' .+ [model.μ[k][i] for k in 1:model.nLatent]'
+        grad_samples(model,samples,i)
     end
+end
+
+function compute_log_expectations(model::VGP{<:Likelihood,<:MCMCIntegrationInference})
+    raw_samples = randn(model.inference.nMC,model.nLatent)
+    samples = similar(raw_samples)
+    loglike = 0.0
+    for i in 1:model.nSample
+        samples .= raw_samples.*[sqrt(model.Σ[k][i,i]) for k in 1:model.nLatent]' .+ [model.μ[k][i] for k in 1:model.nLatent]'
+        loglike += mean(mapslices(f->log(pdf(model.likelihood,model.likelihood.y_class[i],f)),samples,dims=1))
+    end
+    return loglike
 end
