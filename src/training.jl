@@ -17,12 +17,12 @@ function train!(model::GP;iterations::Integer=100,callback=0,Convergence=0)
         try #Allow for keyboard interruption without losing the model
             update_parameters!(model) #Update all the variational parameters
             model.Trained = true
+            if callback != 0
+                # computeMatrices!(model) #Reupdate matrices after optimization
+                callback(model,model.inference.nIter) #Use a callback method if put by user
+            end
             if model.Autotuning && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
-            end
-            if callback != 0
-                computeMatrices!(model) #Reupdate matrices after optimization
-                callback(model,model.inference.nIter) #Use a callback method if put by user
             end
             # if !isa(model,BatchGPRegression)
             #     conv = Convergence(model,iter) #Check for convergence

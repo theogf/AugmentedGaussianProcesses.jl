@@ -35,13 +35,38 @@ function compute_grad_expectations!(model::VGP{<:Likelihood,<:MCMCIntegrationInf
     end
 end
 
+function compute_grad_expectations!(model::SVGP{<:Likelihood,<:MCMCIntegrationInference})
+    raw_samples = randn(model.inference.nMC,model.nLatent)
+    samples = similar(raw_samples)
+    Σ = opt_diag.(model.κ.*model.Σ,model.κ)
+    μ = model.κ.*model.μ
+    for i in 1:model.nSample
+        samples .= raw_samples.*[sqrt(Σ[k][i]) for k in 1:model.nLatent]' .+ [μ[k][i] for k in 1:model.nLatent]'
+        grad_samples(model,samples,i)
+    end
+end
+
 function compute_log_expectations(model::VGP{<:Likelihood,<:MCMCIntegrationInference})
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     loglike = 0.0
     for i in 1:model.nSample
         samples .= raw_samples.*[sqrt(model.Σ[k][i,i]) for k in 1:model.nLatent]' .+ [model.μ[k][i] for k in 1:model.nLatent]'
-        loglike += mean(mapslices(f->log(pdf(model.likelihood,model.likelihood.y_class[i],f)),samples,dims=1))
+        loglike += mean(mapslices(f->log(pdf(model.likelihood,model.likelihood.y_class[i],f)),samples,dims=2))
     end
     return loglike
+end
+
+
+function compute_log_expectations(model::SVGP{<:Likelihood,<:MCMCIntegrationInference})
+    raw_samples = randn(model.inference.nMC,model.nLatent)
+    samples = similar(raw_samples)
+    loglike = 0.0
+    Σ = opt_diag.(model.κ.*model.Σ,model.κ)
+    μ = model.κ.*model.μ
+    for i in model.inference.MBIndices
+        samples .= raw_samples.*[sqrt(Σ[k][i]) for k in 1:model.nLatent]' .+ [μ[k][i] for k in 1:model.nLatent]'
+        loglike += mean(mapslices(f->log(pdf(model.likelihood,model.likelihood.y_class[i],f)),samples,dims=2))
+    end
+    return model.inference.ρ*loglike
 end

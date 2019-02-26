@@ -163,6 +163,11 @@ function callback(model::GP{TLike,TInf},iter) where {TLike,TInf}
             push!(ρparams,Symbol("opt_η₁_",i),model.inference.optimizer_η₁[i].ρ)
             push!(ρparams,Symbol("opt_η₂_",i),model.inference.optimizer_η₂[i].ρ)
         end
+    elseif isa(model.inference.optimizer_η₁[1],VanillaGradDescent)
+        for i in 1:model.nLatent
+                push!(ρparams,Symbol("opt_η₁_",i),model.inference.optimizer_η₁[i].η)
+                push!(ρparams,Symbol("opt_η₂_",i),model.inference.optimizer_η₂[i].η)
+        end
     end
     y_pred_test = predict_y(model,X_test)
     y_pred_train = predict_y(model,X)
@@ -274,22 +279,22 @@ if stochm
 end
 
 if expecm
-    global ssmodel = VGP(X,y,kernel,LogisticSoftMaxLikelihood(),NumericalInference(:mcmc,optimizer=VanillaGradDescent(η=0.01)),verbose=3,Autotuning=!true,atfrequency=1,IndependentPriors=true)
+    global emodel = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),NumericalInference(:mcmc,optimizer=VanillaGradDescent(η=0.01)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
     # global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=ALRSVI(τ=200)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
-    @time train!(ssmodel,iterations=200,callback=callback)
-    global y_ssparse = predict_y(ssmodel,X_test)
-    global y_sstrain = predict_y(ssmodel,X)
-    global y_ssall = proba_y(ssmodel,X_test)
+    @time train!(emodel,iterations=200,callback=callback)
+    global y_expec = predict_y(emodel,X_test)
+    global y_expectrain = predict_y(emodel,X)
+    global y_expecall = proba_y(emodel,X_test)
 
     println("Stochastic Sparse predictions computed")
-    ssparse_score=0
-    for (i,pred) in enumerate(y_ssparse)
+    expec_score=0
+    for (i,pred) in enumerate(y_expec)
         if pred == y_test[i]
-            global ssparse_score += 1
+            global expec_score += 1
         end
     end
-    println("Sparse model Accuracy is $(ssparse_score/length(y_test))")#" in $t_sparse s")
-    callbackplot(ssmodel,1)
+    println("Expected Gradient model Accuracy is $(expec_score/length(y_test))")#" in $t_sparse s")
+    callbackplot(emodel,1)
 end
 
 

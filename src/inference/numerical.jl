@@ -63,7 +63,7 @@ function natural_gradient!(model::VGP{<:Likelihood,<:NumericalInference})
 end
 
 function natural_gradient!(model::SVGP{<:Likelihood,<:NumericalInference})
-    model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*model.inference.∇μE .- model.invK.*model.μ
+    model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*model.inference.∇μE .- model.invKmm.*model.μ
     model.inference.∇η₂ .= Symmetric.(model.inference.ρ.*transpose.(model.κ).*Diagonal.(model.inference.∇ΣE).*model.κ.-0.5.*model.invKmm .- model.η₂)
 end
 
