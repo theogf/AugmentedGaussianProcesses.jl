@@ -59,8 +59,7 @@ function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T
     ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeature) #Empty container to save data allocation
     if model.IndependentPriors
         return (function(Jmm,Jnm,Jnn,index)
-                    return hyperparameter_expec_gradient(model,ι,Jmm,Jnm,Jnn,index)
-                            - hyperparameter_KL_gradient(Jmm,A[index])
+                    return (hyperparameter_expec_gradient(model,ι,Jmm,Jnm,Jnn,index)-hyperparameter_KL_gradient(Jmm,A[index]))
                 end,
                 function(kernel,index)
                     return 1.0/getvariance(kernel)*(
@@ -69,12 +68,12 @@ function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T
                 end)
     else
         return (function(Jmm,Jnm,Jnn,index)
-                    return  hyperparameter_expec_gradient(model,ι,Jmm,Jnm,Jnn)
-                           - sum(hyperparameter_KL_gradient.([Jmm],A))
+                    return  (hyperparameter_expec_gradient(model,ι,Jmm,Jnm,Jnn)
+                           - sum(hyperparameter_KL_gradient.([Jmm],A)))
                 end,
                 function(kernel,index)
                     return 1.0/getvariance(kernel)*(model.inference.ρ*sum(
-                            - dot(expec_Σ(model,i),model.K̃[1]) for i in 1:model.nLatent)
+                            -dot(expec_Σ(model,i),model.K̃[1]) for i in 1:model.nLatent)
                             - sum(hyperparameter_KL_gradient.(model.Kmm,A)))
                 end)
     end

@@ -11,6 +11,7 @@ module KernelModule
 using LinearAlgebra
 using Distances
 using SpecialFunctions
+using GradDescent: Optimizer
 include("hyperparameters/HyperParametersModule.jl")
 using .HyperParametersModule:
     Bound,
@@ -31,11 +32,12 @@ using .HyperParametersModule:
         upperboundtheta,
         update!,
         setfixed!,
-        setfree!
+        setfree!,
+        setparamoptimizer!
 
 import Base: *, +, getindex, show
 export Kernel, KernelSum, KernelProduct
-export RBFKernel, SEKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, MaternKernel, Matern5_2Kernel
+export RBFKernel, SEKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel, MaternKernel, Matern3_2Kernel, Matern5_2Kernel
 export kernelmatrix,kernelmatrix!,kerneldiagmatrix,kerneldiagmatrix!
 export computeIndPointsJ
 export apply_gradients_lengthscale!, apply_gradients_variance!, apply_gradients!
@@ -44,7 +46,7 @@ export kernelderivativematrix,kernelderivativediagmatrix
 export InnerProduct, SquaredEuclidean, Identity
 export compute_hyperparameter_gradient
 export compute,plotkernel
-export getvalue,setvalue!,setfixed!,setfree!
+export getvalue,setvalue!,setfixed!,setfree!,setoptimizer!
 export getlengthscales, getvariance
 export isARD,isIso
 export HyperParameter,HyperParameters,Interval, OpenBound,  NullBound
@@ -89,6 +91,12 @@ end
 """Return the lengthscales of the ARD Kernel"""
 function getlengthscales(k::Kernel{T,ARDKernel}) where {T<:Real}
     return getvalue(k.fields.lengthscales)
+end
+
+"""Set optimizers of all parameters of the kernel"""
+function setoptimizer!(k::Kernel{T},opt::Optimizer) where {T<:Real}
+    setparamoptimizer!(k.fields.variance,opt)
+    setparamoptimizer!(k.fields.lengthscales,opt)
 end
 
 isARD(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: ARDKernel

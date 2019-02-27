@@ -59,7 +59,7 @@ function predict_y(model::GP{<:LogisticLikelihood},X_test::AbstractMatrix)
 end
 
 function proba_y(model::GP,X_test::AbstractVector)
-    return proba_y(model,rehsape(X_test,length(X_test),1))
+    return proba_y(model,reshape(X_test,length(X_test),1))
 end
 
 function proba_y(model::GP,X_test::AbstractMatrix)

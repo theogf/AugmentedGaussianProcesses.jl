@@ -24,6 +24,10 @@ function setvalue!(θ::HyperParameter{T}, x::T) where {T}
     return θ
 end
 
+function setparamoptimizer!(θ::HyperParameter{T},opt::Optimizer) where {T}
+    θ.opt = copy(opt)
+end
+
 checkvalue(θ::HyperParameter{T}, x::T) where {T} = checkvalue(θ.interval, x)
 
 convert(::Type{HyperParameter{T}}, θ::HyperParameter{T}) where {T<:Real} = θ
@@ -77,6 +81,12 @@ end
 
 function HyperParameters(θ::Vector{T},intervals::Vector{Interval{T,A,B}}) where {A<:Bound{T},B<:Bound{T}} where {T<:Real}
     HyperParameters{T}(θ,intervals)
+end
+
+function setparamoptimizer!(θs::HyperParameters{T},opt::Optimizer) where {T}
+    for θ in θs.hyperparameters
+        θ.opt = copy(opt)
+    end
 end
 
 @inline getvalue(θ::HyperParameters{T}) where T = broadcast(getvalue,θ.hyperparameters)

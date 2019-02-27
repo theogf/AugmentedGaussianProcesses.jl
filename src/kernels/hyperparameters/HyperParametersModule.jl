@@ -23,7 +23,8 @@ export
     upperboundtheta,
     lowerboundtheta,
     setfixed!,
-    setfree!
+    setfree!,
+    setparamoptimizer!
 
 include("bound.jl")
 include("interval.jl")

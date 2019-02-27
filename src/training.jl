@@ -18,7 +18,6 @@ function train!(model::GP;iterations::Integer=100,callback=0,Convergence=0)
             update_parameters!(model) #Update all the variational parameters
             model.Trained = true
             if callback != 0
-                # computeMatrices!(model) #Reupdate matrices after optimization
                 callback(model,model.inference.nIter) #Use a callback method if put by user
             end
             if model.Autotuning && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
@@ -35,13 +34,12 @@ function train!(model::GP;iterations::Integer=100,callback=0,Convergence=0)
             ### Print out informations about the convergence
             if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
                 print("Iteration : $local_iter ")
-            #     print("Iteration : $iter, convergence = $conv \n")
                  print("ELBO is : $(ELBO(model))")
                  print("\n")
              end
-            (local_iter < iterations) || break; #Verify if the number of maximum iterations has been reached
+             local_iter += 1; model.inference.nIter += 1
+            (local_iter <= iterations) || break; #Verify if the number of maximum iterations has been reached
             # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
-            local_iter += 1; model.inference.nIter += 1
         catch e
             if isa(e,InterruptException)
                 println("Training interrupted by user at iteration $local_iter");
