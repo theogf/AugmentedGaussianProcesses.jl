@@ -18,13 +18,13 @@ function GammaImproperKL(model::GP)
 end
 
 function PoissonKL(model::GP)
-    return model.inference.ρ*sum(γ->sum(γ.*(log.(γ).-1.0.-digamma.(model.likelihood.α).+log.(model.likelihood.β))+model.likelihood.α./model.likelihood.β),model.likelihood.γ)
+    return model.inference.ρ*sum(γ->sum(xlogx.(γ).+γ.*(-1.0.-digamma.(model.likelihood.α).+log.(model.likelihood.β))+model.likelihood.α./model.likelihood.β),model.likelihood.γ)
 end
 
 function PolyaGammaKL(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
-    return model.inference.ρ*sum(broadcast((y,γ,c,θ)->sum((y+γ).*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
+    return sum(broadcast((y,γ,c,θ)->sum((y+γ).*logcosh.(0.5.*c)-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
 end
 
 function PolyaGammaKL(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
-    return model.inference.ρ*sum(broadcast((y,γ,c,θ)->model.inference.ρ*sum((y[model.inference.MBIndices]+γ).*log.(cosh.(0.5.*c))-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
+    return model.inference.ρ*sum(broadcast((y,γ,c,θ)->sum((y[model.inference.MBIndices]+γ).*logcosh.(0.5.*c)-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
 end

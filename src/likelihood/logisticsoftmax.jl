@@ -97,7 +97,7 @@ function local_updates!(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood,<:Analy
     model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),
                                     model.μ,model.Σ,model.κ,model.K̃)
     for _ in 1:5
-        model.likelihood.γ .= broadcast((c,κμ,ψα)->0.5./(model.likelihood.β[1].*cosh.(0.5.*c)) .*exp.(ψα.-0.5.*κμ),
+        model.likelihood.γ .= broadcast((c,κμ,ψα)->0.5./(model.likelihood.β[1]).*exp.(ψα).*safe_expcosh.(κμ,c),
                                     model.likelihood.c,model.κ.*model.μ,[digamma.(model.likelihood.α)])
         model.likelihood.α .= 1.0.+(model.likelihood.γ...)
     end

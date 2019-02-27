@@ -89,10 +89,10 @@ function treat_samples(model::GP{<:SoftMaxLikelihood},samples::AbstractMatrix,in
 end
 
 
-function softmax(f::AbstractVector{<:Real})
-    s = exp.(f)
-    return s./sum(s)
-end
+# function softmax(f::AbstractVector{<:Real})
+#     s = exp.(f)
+#     return s./sum(s)
+# end
 
 function softmax(f::AbstractVector{<:Real},i::Integer)
     return softmax(f)[i]

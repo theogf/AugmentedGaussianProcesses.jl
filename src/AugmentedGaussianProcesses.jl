@@ -37,6 +37,7 @@ using DataFrames
 using Distributions
 using LinearAlgebra
 using StatsBase
+using StatsFuns
 using SpecialFunctions
 using Dates
 using Expectations
