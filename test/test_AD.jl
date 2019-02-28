@@ -25,13 +25,15 @@ K = length(unique(y))
 
 function tracekernel(sigma)
      k= RBFKernel(sigma[1],dim=N_dim)
-     K = kernelmatrix(X,k)
+     K = KernelModule.kernelmatrix(typeof(sigma[1]).(X),k)
      tr(A*K)
 end
 
+
+
 # tracekernel(3.0)
 # tracekernel'(3.0)
-# ForwardDiff.gradient(tracekernel,[3.0])
+ForwardDiff.gradient(tracekernel,[3.0])
 m = SparseMultiClass(X,y,Autotuning=true,m=100,kernel=RBFKernel(1.0))
 train!(m,iterations=10)
 ### TEST 1 with matrix precomputation
@@ -53,7 +55,8 @@ vars = ones(m.nLatent*2)
 KernelModule.kernelmatrix(m.X[m.inference.MBIndices,:],m.Z[1],m.kernel[1])
 function compute_grad_AD(k_var)
     kernel = [KernelModule.RBFKernel(k_var[i],variance=k_var[i+K]) for i in 1:K]
-    m = SparseMultiClass(X,y,Autotuning=true,m=100,kernel=kernel)
+    m = SparseMultiClass(typeof(k_var[1]).(X),y,Autotuning=true,m=100,kernel=kernel[1])
+    m.kernel = kernel
     m.inference.HyperParametersUpdated = true
     AugmentedGaussianProcesses.computeMatrices!(m)
     ELBO(m)

@@ -12,7 +12,7 @@ clibrary(:cmocean)
 seed!(42)
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
-N_data = 1000
+N_data = 500
 N_class = 3
 N_test = 50
 N_grid = 50
@@ -134,7 +134,7 @@ end
 
 kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim)
 # kernel = AugmentedGaussianProcesses.RBFKernel(l)
-AugmentedGaussianProcesses.setvalue!(kernel.fields.variance,1.0)
+AugmentedGaussianProcesses.setvalue!(kernel.fields.variance,100.0)
 # kernel= AugmentedGaussianProcesses.PolynomialKernel([1.0,0.0,1.0])
 metrics = MVHistory()
 elbos = MVHistory()
@@ -158,12 +158,12 @@ function callback(model::GP{TLike,TInf},iter) where {TLike,TInf}
             push!(lparams,Symbol("k",i,"_j",j),p_j)
         end
     end
-    if isa(model.inference.optimizer_η₁[1],ALRSVI)
+    if !isa(model.inference,GibbsSampling) &&isa(model.inference.optimizer_η₁[1],ALRSVI)
         for i in 1:model.nLatent
             push!(ρparams,Symbol("opt_η₁_",i),model.inference.optimizer_η₁[i].ρ)
             push!(ρparams,Symbol("opt_η₂_",i),model.inference.optimizer_η₂[i].ρ)
         end
-    elseif isa(model.inference.optimizer_η₁[1],VanillaGradDescent)
+    elseif !isa(model.inference,GibbsSampling) && isa(model.inference.optimizer_η₁[1],VanillaGradDescent)
         for i in 1:model.nLatent
                 push!(ρparams,Symbol("opt_η₁_",i),model.inference.optimizer_η₁[i].η)
                 push!(ρparams,Symbol("opt_η₂_",i),model.inference.optimizer_η₂[i].η)
@@ -212,7 +212,8 @@ end
 fullm = !true
 sparsem = !true
 stochm = !true
-expecm = true
+expecm = !true
+samplem = true
 
 if fullm
     global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
@@ -297,10 +298,30 @@ if expecm
     callbackplot(emodel,1)
 end
 
+if samplem
+    global samplemodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),GibbsSampling(nBurnin=10,samplefrequency=1),verbose=2,Autotuning=!true,atfrequency=1,IndependentPriors=true)
+    # global ssmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),StochasticAnalyticInference(10,optimizer=ALRSVI(τ=200)),10,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
 
-display(plot(plot(elbos,title="ELBO values"),plot(ρparams,title="learning rate",yaxis=:log)))
-display(plot(plot(lparams,title="lengthscale",yaxis=:log),plot(vparams,title="variance",yaxis=:log)))
-display(plot(metrics,title="Metrics"))
+    @time train!(samplemodel,iterations=500)#,callback=callback)
+    global y_sample = predict_y(samplemodel,X_test)
+    global y_sampletrain = predict_y(samplemodel,X)
+    global y_sampleall = proba_y(samplemodel,X_test)
+
+    println("Gibbs Sampling predictions computed")
+    sample_score=0
+    for (i,pred) in enumerate(y_sample)
+        if pred == y_test[i]
+            global sample_score += 1
+        end
+    end
+    println("Gibbss Sampling model Accuracy is $(sample_score/length(y_test))")#" in $t_sparse s")
+    callbackplot(samplemodel,1)
+end
+# @profiler train!(samplemodel,iterations = 20)
+
+# display(plot(plot(elbos,title="ELBO values"),plot(ρparams,title="learning rate",yaxis=:log)))
+# display(plot(plot(lparams,title="lengthscale",yaxis=:log),plot(vparams,title="variance",yaxis=:log)))
+# display(plot(metrics,title="Metrics"))
 1
     # model = ssmodel;
     # AugmentedGaussianProcesses.computeMatrices!(model)
@@ -332,10 +353,6 @@ display(plot(metrics,title="Metrics"))
 # end
 #
 # @elapsed AugmentedGaussianProcesses.KernelFunctions.derivativekernelmatrix(tkernel,Test[1:200,:])
-
-function logit(x)
-    return 1.0./(1.0.+exp.(-x))
-end
 #
 # callbacktests = false
 # if callbacktests

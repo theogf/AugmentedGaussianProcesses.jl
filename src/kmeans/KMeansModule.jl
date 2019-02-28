@@ -290,10 +290,11 @@ end
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
 function KMeansInducingPoints(X::Array{T,N},nC::Integer;nMarkov::Integer=10,kweights::Vector{<:Real}=[0.0]) where {T<:Real,N}
     C = copy(transpose(KmeansSeed(X,nC,nMarkov)))
+    println(typeof(C))
     if kweights!=[0.0]
-        Clustering.kmeans!(copy(transpose(X)),C,weights=kweights,tol=1e-3)
+        Clustering.kmeans!(X',C,weights=kweights,tol=1e-3)
     else
-        Clustering.kmeans!(copy(transpose(X)),C)
+        Clustering.kmeans!(X',C)
     end
     return copy(transpose(C))
 end
@@ -305,7 +306,7 @@ function KmeansSeed(X::AbstractArray{T,N},nC::Integer,nMarkov::Integer) where {T
   init = StatsBase.sample(1:NSamples,1)
   C = zeros(T,nC,size(X,2))
   C[1,:] = X[init,:]
-  q = zeros(NSamples)
+  q = zeros(T,NSamples)
   for i in 1:NSamples
     q[i] = 0.5*norm(X[i,:].-C[1])^2
   end

@@ -106,6 +106,23 @@ function local_updates!(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood,<:Analy
     return nothing
 end
 
+function sample_local!(model::VGP{<:AugmentedLogisticSoftMaxLikelihood,<:GibbsSampling})
+    if model.inference.nIter <= 1
+        model.likelihood.α .= 10.0.*model.likelihood.α./model.likelihood.β
+    end
+    model.likelihood.γ .= broadcast(μ::AbstractVector{<:Real}->rand.(Poisson.(0.5*model.likelihood.α.*safe_expcosh.(-0.5.*μ,0.5*μ))), model.μ)
+    model.likelihood.α .= rand.(Gamma.(1.0.+(model.likelihood.γ...),1.0./model.likelihood.β))
+    model.likelihood.θ .= broadcast((y::BitVector,γ::AbstractVector{<:Real},μ::AbstractVector{<:Real})->PolyaGammaDist().draw.(y.+γ,abs.(μ)),model.likelihood.Y,model.likelihood.γ,model.μ)
+    return nothing
+end
+
+function sample_global!(model::VGP{<:AugmentedLogisticSoftMaxLikelihood,<:GibbsSampling})
+    model.Σ .= inv.(Symmetric.(Diagonal.(model.likelihood.θ).+model.invKnn))
+    model.μ .= rand.(MvNormal.(0.5.*model.Σ.*(model.likelihood.Y.-model.likelihood.γ),model.Σ))
+    return nothing
+end
+
+
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::VGP{<:AugmentedLogisticSoftMaxLikelihood},index::Int)
     0.5.*(model.likelihood.Y[index]-model.likelihood.γ[index])

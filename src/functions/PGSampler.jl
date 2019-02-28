@@ -139,7 +139,7 @@ end
 
 function draw(n::T, z::T) where {T<:Real}
   if n < 1
-    @warn "PolyaGamma::draw: n < 1.  Set n = 1."
+    @warn "PolyaGamma::draw: n < 1.  Set n = 1." maxlog=1
     n = 1;
   end
   sum = 0.0;

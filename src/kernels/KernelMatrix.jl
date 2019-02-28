@@ -1,6 +1,6 @@
 """Create the covariance matrix between the matrix X1 and X2 with the covariance function `kernel`"""
 function kernelmatrix(X1::AbstractArray{T1},X2::AbstractArray{T2},kernel::Kernel) where {T1<:Real,T2<:Real}
-    K = pairwise(getmetric(kernel),X1',X2')
+    K = pairwise(getmetric(kernel),X1,X2,dims=1)
     v = getvariance(kernel)
     return lmul!(v,map!(kappa(kernel),K,K))
 end
@@ -44,7 +44,7 @@ end
 """Compute only the diagonal elements of the covariance matrix"""
 function kerneldiagmatrix(X::AbstractArray{T1},kernel::Kernel) where {T1<:Real}
     n = size(X,1)
-    K = zeros(T2,n)
+    K = zeros(T1,n)
     v = getvariance(kernel)
     f = kappa(kernel)
     @simd for i in eachindex(K)
@@ -55,8 +55,7 @@ end
 
 """Compute only the diagonal elements of the covariance matrix in preallocated vector K"""
 function kerneldiagmatrix!(K::AbstractVector{T1},X::AbstractArray{T2},kernel::Kernel) where {T1<:Real,T2<:Real}
-    n = size(K,1)
-    @assert n == size(X,1)
+    @assert size(K,1) == size(X,1)
     v = getvariance(kernel)
     f = kappa(kernel)
     @simd for i in eachindex(K)
@@ -81,7 +80,7 @@ function CreateColumnMatrix(n::Int,m::Int,iter::Int,gradient::AbstractVector{T1}
 end
 
 "Compute the gradients given the inducing point locations, (general gradients are computed to be then remapped correctly)"
-function computeIndPointsJ(model::SVGP,iter::Int)
+function computeIndPointsJ(model,iter::Int)
     Dnm = computeIndPointsJnm(model.kernel,model.X[model.MBIndices,:],model.inducingPoints[iter,:],iter,model.Knm)
     Dmm = computeIndPointsJmm(model.kernel,model.inducingPoints,iter,model.Kmm)
     Jnm = zeros(model.nDim,model.nSamplesUsed,model.m)
