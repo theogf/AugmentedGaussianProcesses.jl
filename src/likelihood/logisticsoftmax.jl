@@ -138,8 +138,8 @@ end
 
 function expecLogLikelihood(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
     model.likelihood.c .= broadcast((Σ,μ)->sqrt.(Σ.+μ.^2),diag.(model.Σ),model.μ)
-    tot = -model.nSample*log(2.0)
-    tot += -sum(sum.(model.likelihood.γ))*log(2.0)
+    tot = -model.nSample*logtwo
+    tot += -sum(sum.(model.likelihood.γ))*logtwo
     tot +=  0.5*sum(broadcast((y,μ,γ,θ,c)->sum(μ.*(y-γ)-θ.*(c.^2)),
                     model.likelihood.Y,model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
     return tot
@@ -148,8 +148,8 @@ end
 function expecLogLikelihood(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
     model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),
                                     model.μ,model.Σ,model.κ,model.K̃)
-    tot = -model.inference.nSamplesUsed*log(2.0)
-    tot += -sum(sum.(model.likelihood.γ))*log(2.0)
+    tot = -model.inference.nSamplesUsed*logtwo
+    tot += -sum(sum.(model.likelihood.γ))*logtwo
     tot += 0.5*sum(broadcast((y,κμ,γ,θ,c)->sum((κμ).*(y[model.inference.MBIndices]-γ)-θ.*(c.^2)),
                     model.likelihood.Y,model.κ.*model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
     return model.inference.ρ*tot

@@ -13,6 +13,8 @@ export Inference, AnalyticInference, StochasticAnalyticInference, GibbsSampling,
 export NumericalInference, StochasticNumericalInference
 export ALRSVI
 
+#Deprecated
+export MultiClass, SparseMultiClass
 
 
 #Useful functions and module

@@ -58,5 +58,5 @@ function safe_expcosh(μ::Real,c::Real)
 end
 
 function logcosh(c::Real)
-    return log(exp(-2.0*c)+1.0)+c-log(2.0)
+    return log(exp(-2.0*c)+1.0)+c-logtwo
 end
