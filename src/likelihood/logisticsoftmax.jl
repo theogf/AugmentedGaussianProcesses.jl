@@ -86,7 +86,7 @@ end
 function local_updates!(model::VGP{<:AugmentedLogisticSoftMaxLikelihood,<:AnalyticInference})
     model.likelihood.c .= broadcast((Σ,μ)->sqrt.(Σ.+μ.^2),diag.(model.Σ),model.μ)
     for _ in 1:2
-        model.likelihood.γ .= broadcast((c,μ,ψα)->0.5./(model.likelihood.β.*cosh.(0.5.*c)).*exp.(ψα.-0.5.*μ),
+        model.likelihood.γ .= broadcast((c,μ,ψα)->0.5/(model.likelihood.β[1]).*exp.(ψα).*safe_expcosh.(0.5.*μ,0.5.*c),
                                     model.likelihood.c,model.μ,[digamma.(model.likelihood.α)])
         model.likelihood.α .= 1.0.+(model.likelihood.γ...)
     end

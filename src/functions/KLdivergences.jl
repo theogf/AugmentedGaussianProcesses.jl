@@ -14,7 +14,7 @@ function PolyaGammaKL(model::GP)
 end
 
 function GammaImproperKL(model::GP)
-    return model.inference.ρ*sum(-model.likelihood.α.+log(model.likelihood.β[1]).-log.(gamma.(model.likelihood.α)).-(1.0.-model.likelihood.α).*digamma.(model.likelihood.α))
+    return model.inference.ρ*sum(-model.likelihood.α.+log(model.likelihood.β[1]).-lgamma.(model.likelihood.α).-(1.0.-model.likelihood.α).*digamma.(model.likelihood.α))
 end
 
 function PoissonKL(model::GP)
