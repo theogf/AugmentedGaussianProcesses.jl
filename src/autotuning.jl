@@ -81,9 +81,9 @@ function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T
 end
 
 
-function hyperparameter_expec_gradient(model::SVGP,ι::AbstractArray,Jmm::AbstractMatrix,Jnm::AbstractMatrix,Jnn::AbstractVector,index::Integer)
+function hyperparameter_expec_gradient(model::SVGP,ι::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Integer) where {T<:Real}
     mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[index])
-    Jnn .-= opt_diag(ι,model.Knm[index]) + opt_diag(model.κ[index],Jnm)
+    Jnn .-= (opt_diag(ι,model.Knm[index]) + opt_diag(model.κ[index],Jnm))
     dμ = dot(expec_μ(model,index),ι*model.μ[index])
     dΣ = -dot(expec_Σ(model,index),Jnn+2.0*(opt_diag(ι*model.Σ[index],model.κ[index])))
     if isaugmented(model.likelihood)
@@ -92,7 +92,7 @@ function hyperparameter_expec_gradient(model::SVGP,ι::AbstractArray,Jmm::Abstra
     return model.inference.ρ*(dμ+dΣ)
 end
 
-function hyperparameter_expec_gradient(model::SVGP,ι::AbstractArray,Jmm::AbstractMatrix,Jnm::AbstractMatrix,Jnn::AbstractVector)
+function hyperparameter_expec_gradient(model::SVGP,ι::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
     mul!(ι,(Jnm-model.κ[1]*Jmm),model.invKmm[1])
     Jnn .-= opt_diag(ι,model.Knm[1]) + opt_diag(model.κ[1],Jnm)
     dμ = sum(dot(expec_μ(model,i),ι*model.μ[i]) for i in 1:model.nLatent)

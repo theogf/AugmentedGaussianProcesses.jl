@@ -42,11 +42,11 @@ function init!(inference::Inference{T},model::SVGP,τ::Int=10) where T
     end
     for (i,opt) in enumerate(inference.optimizer_η₁)
         opt.τ = τ
-        opt.ρ = dot(opt.g,opt.g)/opt.h
+        opt.ρ = 1.0#dot(opt.g,opt.g)/opt.h
     end
     for (i,opt) in enumerate(inference.optimizer_η₂)
         opt.τ = τ
-        opt.ρ = dot(opt.g,opt.g)/opt.h
+        opt.ρ = 1.0#dot(opt.g,opt.g)/opt.h
     end
 end
 

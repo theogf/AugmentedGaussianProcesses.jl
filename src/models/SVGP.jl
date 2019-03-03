@@ -10,11 +10,11 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractArray{T}} <: G
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
     Z::LatentArray{V} #Inducing points locations
     μ::LatentArray{V}
-    Σ::LatentArray{Symmetric{T,V}}
+    Σ::LatentArray{Symmetric{T,Matrix{T}}}
     η₁::LatentArray{V}
-    η₂::LatentArray{Symmetric{T,V}}
-    Kmm::LatentArray{Symmetric{T,V}}
-    invKmm::LatentArray{Symmetric{T,V}}
+    η₂::LatentArray{Symmetric{T,Matrix{T}}}
+    Kmm::LatentArray{Symmetric{T,Matrix{T}}}
+    invKmm::LatentArray{Symmetric{T,Matrix{T}}}
     Knm::LatentArray{V}
     κ::LatentArray{V}
     K̃::LatentArray{V}
@@ -66,13 +66,13 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             nFeature = nInducingPoints
 
 
-            μ = ArrayType([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = copy(μ);
-            Σ = ArrayType([Symmetric(ArrayType(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
-            η₂ = inv.(Σ)*(-0.5);
-            κ = ArrayType([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample, nFeature) for _ in 1:nPrior])
+            μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = copy(μ);
+            Σ = LatentArray([Symmetric(ArrayType(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
+            η₂ = -0.5*inv.(Σ);
+            κ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample, nFeature) for _ in 1:nPrior])
             Knm = copy(κ)
-            K̃ = ArrayType([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample) for _ in 1:nPrior])
-            Kmm = ArrayType([copy(Σ[1]) for _ in 1:nPrior]); invKmm = copy(Kmm)
+            K̃ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample) for _ in 1:nPrior])
+            Kmm = LatentArray([copy(Σ[1]) for _ in 1:nPrior]); invKmm = copy(Kmm)
             nSamplesUsed = nSample
             if inference.Stochastic
                 @assert inference.nSamplesUsed > 0 && inference.nSamplesUsed < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"

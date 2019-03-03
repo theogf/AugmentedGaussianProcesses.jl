@@ -9,11 +9,11 @@ mutable struct VGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractArray{T}} <: GP
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
     μ::LatentArray{V}
-    Σ::LatentArray{Symmetric{T,V}}
+    Σ::LatentArray{Symmetric{T,Matrix{T}}}
     η₁::LatentArray{V}
-    η₂::LatentArray{Symmetric{T,V}}
-    Knn::LatentArray{Symmetric{T,V}}
-    invKnn::LatentArray{Symmetric{T,V}}
+    η₂::LatentArray{Symmetric{T,Matrix{T}}}
+    Knn::LatentArray{Symmetric{T,Matrix{T}}}
+    invKnn::LatentArray{Symmetric{T,Matrix{T}}}
     kernel::LatentArray{Kernel}
     likelihood::Likelihood{T}
     inference::Inference{T}
@@ -52,10 +52,10 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
             nFeature = nSample = size(X,1); nDim = size(X,2);
             kernel = ArrayType([deepcopy(kernel) for _ in 1:nPrior])
 
-            μ = ArrayType([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = copy(μ)
-            Σ = ArrayType([Symmetric(ArrayType(Diagonal(ones(T1,nFeature)))) for _ in 1:nLatent])
+            μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = copy(μ)
+            Σ = LatentArray([Symmetric(ArrayType(Diagonal(ones(T1,nFeature)))) for _ in 1:nLatent])
             η₂ = inv.(Σ)*(-0.5);
-            Knn = [copy(Σ[1]) for _ in 1:nPrior]; invKnn = copy(Knn)
+            Knn = LatentArray([copy(Σ[1]) for _ in 1:nPrior]; invKnn = copy(Knn))
 
             likelihood = init_likelihood(likelihood,nLatent,nSample)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
