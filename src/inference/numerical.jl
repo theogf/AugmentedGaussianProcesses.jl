@@ -1,6 +1,8 @@
-""" Solve any non-conjugate likelihood
+"""
+Solve any non-conjugate likelihood
 by making a numerical approximation (quadrature or MC integration)
-of the expected log-likelihood"""
+of the expected log-likelihood ad its gradients
+"""
 abstract type NumericalInference{T<:Real} <: Inference{T} end
 
 include("quadrature.jl")

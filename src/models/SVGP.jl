@@ -1,25 +1,24 @@
 """ Class for sparse variational Gaussian Processes """
-
-mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,A<:AbstractArray} <: GP{L,I,T,A}
-    X::AbstractMatrix #Feature vectors
-    y::AbstractVector{AbstractVector} #Output (-1,1 for classification, real for regression, matrix for multiclass)
+mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractArray{T}} <: GP{L,I,T,V}
+    X::V #Feature vectors
+    y::LatentArray{V} #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
     nFeature::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
-    Z::AbstractVector{AbstractMatrix{T}} #Inducing points locations
-    μ::AbstractVector{AbstractVector{T}}
-    Σ::AbstractVector{AbstractMatrix{T}}
-    η₁::AbstractVector{AbstractVector{T}}
-    η₂::AbstractVector{AbstractMatrix{T}}
-    Kmm::AbstractVector{AbstractMatrix{T}}
-    invKmm::AbstractVector{AbstractMatrix{T}}
-    Knm::AbstractVector{AbstractMatrix{T}}
-    κ::AbstractVector{AbstractMatrix{T}}
-    K̃::AbstractVector{AbstractVector{T}}
-    kernel::AbstractVector{Kernel}
+    Z::LatentArray{V} #Inducing points locations
+    μ::LatentArray{V}
+    Σ::LatentArray{Symmetric{T,V}}
+    η₁::LatentArray{V}
+    η₂::LatentArray{Symmetric{T,V}}
+    Kmm::LatentArray{Symmetric{T,V}}
+    invKmm::LatentArray{Symmetric{T,V}}
+    Knm::LatentArray{V}
+    κ::LatentArray{V}
+    K̃::LatentArray{V}
+    kernel::LatentArray{Kernel}
     likelihood::Likelihood{T}
     inference::Inference{T}
     verbose::Int64
@@ -29,11 +28,29 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,A<:AbstractArray} <: GP{L
     Trained::Bool
 end
 
-function SVGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
-            likelihood::LType,inference::IType,
-            nInducingPoints::Integer=0#,Z::Union{AbstractVector{AbstractArray},AbstractArray}=[],
+"""Create a sparse variational Gaussian Process model
+Argument list :
+
+**Mandatory arguments**
+ - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
+ - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
+ - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
+ - `likelihood` : likelihood of the model, currently implemented : Gaussian, Bernoulli (with logistic link), Multiclass (softmax or logistic-softmax) see [`Likelihood`](@ref)
+ - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see [`Inference`](@ref)
+ - `nInducingPoints` : number of inducing points
+**Optional arguments**
+ - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
+ - `Autotuning` : Flag for optimizing hyperparameters
+ - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
+ - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
+ - `OptimizeInducingPoints` : Flag for optimizing the inducing points locations
+ - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
+"""
+function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
+            likelihood::LikelihoodType,inference::InferenceType,
+            nInducingPoints::Integer
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
-            IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false) where {T1<:Real,T2,N1,N2,LType<:Likelihood,IType<:Inference}
+            IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Array) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
             X,y,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
@@ -49,13 +66,13 @@ function SVGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
             nFeature = nInducingPoints
 
 
-            μ = [zeros(T1,nFeature) for _ in 1:nLatent]; η₁ = copy(μ)
-            Σ = [Symmetric(Array(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent];
+            μ = ArrayType([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = copy(μ);
+            Σ = ArrayType([Symmetric(ArrayType(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
             η₂ = inv.(Σ)*(-0.5);
-            κ = [zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample, nFeature) for _ in 1:nPrior]
+            κ = ArrayType([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample, nFeature) for _ in 1:nPrior])
             Knm = copy(κ)
-            K̃ = [zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample) for _ in 1:nPrior]
-            Kmm = [copy(Σ[1]) for _ in 1:nPrior]; invKmm = copy(Kmm)
+            K̃ = ArrayType([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample) for _ in 1:nPrior])
+            Kmm = ArrayType([copy(Σ[1]) for _ in 1:nPrior]); invKmm = copy(Kmm)
             nSamplesUsed = nSample
             if inference.Stochastic
                 @assert inference.nSamplesUsed > 0 && inference.nSamplesUsed < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
@@ -64,7 +81,7 @@ function SVGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
 
             likelihood = init_likelihood(likelihood,nLatent,nSamplesUsed)
             inference = init_inference(inference,nLatent,nFeature,nSample,nSamplesUsed)
-            model = SVGP{LType,IType,T1,AbstractArray{T1,N1}}(X,y,
+            model = SVGP{LikelihoodType,InferenceType,T1,ArrayType{T1}}(X,y,
                     nSample, nDim, nFeature, nLatent,
                     IndependentPriors,nPrior,
                     Z,μ,Σ,η₁,η₂,
@@ -73,10 +90,8 @@ function SVGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
                     verbose,Autotuning,atfrequency,OptimizeInducingPoints,false)
             if isa(inference.optimizer_η₁[1],ALRSVI)
                 init!(model.inference,model)
-                return model
-            else
-                return model
             end
+            return model
 end
 
 function Base.show(io::IO,model::SVGP{<:Likelihood,<:Inference,T}) where T
