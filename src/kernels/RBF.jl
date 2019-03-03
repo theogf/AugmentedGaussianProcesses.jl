@@ -82,7 +82,7 @@ function kernelderivativematrix(X::AbstractArray{T},kernel::RBFKernel{T,IsoKerne
 end
 
 """Return the matrix derivative for the Iso RBFKernel with the covariance matrix precomputed"""
-function kernelderivativematrix_K(X::AbstractArray{T},K::Symmetric{T,Array{T,N}},kernel::RBFKernel{T,IsoKernel}) where {T<:Real,N}
+function kernelderivativematrix_K(X::AbstractArray{T},K::Symmetric{T,AbstractArray{T,2}},kernel::RBFKernel{T,IsoKernel}) where {T<:Real}
     v = getvariance(kernel); l = getlengthscales(kernel)
     P = pairwise(SqEuclidean(),X')
     return Symmetric(lmul!(v./(l^3),P.*=K))
@@ -98,7 +98,7 @@ function kernelderivativematrix(X::AbstractArray{T},kernel::RBFKernel{T,ARDKerne
 end
 
 """Return the matrix derivative for the Iso RBFKernel with the covariance matrix precomputed"""
-function kernelderivativematrix_K(X::AbstractArray{T},K::Symmetric{T,Array{T,N}},kernel::RBFKernel{T,ARDKernel}) where {T<:Real}
+function kernelderivativematrix_K(X::AbstractArray{T},K::Symmetric{T,AbstractArray{T,2}},kernel::RBFKernel{T,ARDKernel}) where {T<:Real}
     v = getvariance(kernel); ls = getlengthscales(kernel)
     Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:length(ls)]
     return Symmetric.(map((pi,l)->lmul!(v./(l^3),pi.*=K),Pi,ls))

@@ -81,7 +81,7 @@ function CreateColumnMatrix(n::Int,m::Int,iter::Int,gradient::AbstractVector{T1}
 end
 
 "Compute the gradients given the inducing point locations, (general gradients are computed to be then remapped correctly)"
-function computeIndPointsJ(model::SVGP,iter::Int)
+function computeIndPointsJ(model,iter::Int)
     Dnm = computeIndPointsJnm(model.kernel,model.X[model.MBIndices,:],model.inducingPoints[iter,:],iter,model.Knm)
     Dmm = computeIndPointsJmm(model.kernel,model.inducingPoints,iter,model.Kmm)
     Jnm = zeros(model.nDim,model.nSamplesUsed,model.m)

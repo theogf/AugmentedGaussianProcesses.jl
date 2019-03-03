@@ -62,6 +62,8 @@ export KMeansInducingPoints
 abstract type Inference{T<:Real} end
 abstract type Likelihood{T<:Real}  end
 
+const LatentArray = Vector #For future optimization : How collection of latent GPs are stored
+
 include("models/GP.jl")
 include("models/VGP.jl")
 include("models/SVGP.jl")
