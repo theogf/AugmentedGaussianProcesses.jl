@@ -2,16 +2,16 @@
 mutable struct AnalyticInference{T<:Real} <: Inference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    optimizer_η₁::AbstractVector{Optimizer} #Learning rate for stochastic updates
-    optimizer_η₂::AbstractVector{Optimizer} #Learning rate for stochastic updates
+    optimizer_η₁::LatentArray{Optimizer} #Learning rate for stochastic updates
+    optimizer_η₂::LatentArray{Optimizer} #Learning rate for stochastic updates
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64
     nSamplesUsed::Int64 #Size of mini-batches
-    MBIndices::AbstractVector #Indices of the minibatch
+    MBIndices::Vector{Int64} #Indices of the minibatch
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
-    ∇η₁::AbstractVector{AbstractVector}
-    ∇η₂::AbstractVector{AbstractArray}
+    ∇η₁::LatentArray{Vector{T}}
+    ∇η₂::LatentArray{Matrix{T}} #Stored as a matrix since symmetric sums do not help for the moment WARNING
     function AnalyticInference{T}(ϵ::T,nIter::Integer,optimizer_η₁::AbstractVector{<:Optimizer},optimizer_η₂::AbstractVector{<:Optimizer},Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
         return new{T}(ϵ,nIter,optimizer_η₁,optimizer_η₂,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag)
     end
@@ -42,7 +42,7 @@ function init_inference(inference::AnalyticInference{T},nLatent::Integer,nFeatur
     inference.optimizer_η₁ = [copy(inference.optimizer_η₁[1]) for _ in 1:nLatent]
     inference.optimizer_η₂ = [copy(inference.optimizer_η₂[1]) for _ in 1:nLatent]
     inference.∇η₁ = [zeros(T,nFeatures) for _ in 1:nLatent];
-    inference.∇η₂ = [Symmetric(Diagonal(ones(T,nFeatures))) for _ in 1:nLatent]
+    inference.∇η₂ = [Matrix(Diagonal(ones(T,nFeatures))) for _ in 1:nLatent]
     return inference
 end
 
@@ -65,7 +65,7 @@ end
 
 function natural_gradient!(model::SVGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
     model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*∇μ(model) .- model.η₁
-    model.inference.∇η₂ .= Symmetric.(-(model.inference.ρ.*transpose.(model.κ).*Diagonal.(∇Σ(model)).*model.κ.+0.5.*model.invKmm) .- model.η₂)
+    model.inference.∇η₂ .= -(model.inference.ρ.*transpose.(model.κ).*Diagonal.(∇Σ(model)).*model.κ.+0.5.*model.invKmm) .- model.η₂
 end
 
 function global_update!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
@@ -76,7 +76,7 @@ end
 function global_update!(model::SVGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
     if model.inference.Stochastic
         model.η₁ .= model.η₁ .+ GradDescent.update.(model.inference.optimizer_η₁,model.inference.∇η₁)
-        model.η₂ .= Symmetric.(model.η₂ .+ GradDescent.update.(model.inference.optimizer_η₂,Array.(model.inference.∇η₂)))
+        model.η₂ .= Symmetric.(model.η₂ .+ GradDescent.update.(model.inference.optimizer_η₂,model.inference.∇η₂))
     else
         model.η₁ .+= model.inference.∇η₁
         model.η₂ .= Symmetric.(model.inference.∇η₂ .+ model.η₂)

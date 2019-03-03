@@ -89,7 +89,7 @@ end
 
 function computeIndPointsJmm(k::MaternKernel{T,KT},X::Matrix{T},iPoint::Integer,K::Symmetric{T,Matrix{T}}) where {T,KT}
     l = (getlengthscales(k)); v = getvariance(k); ν = k.ν; C = 2^(1.0-ν)/gamma(ν)
-    P = sqrt(2.0*ν).*pairwise(getmetric(k),X')
+    P = sqrt(2.0*ν).*pairwise(getmetric(k),X,dims=1)
     P .= ifelse.(P.<eps(T),eps(T),P)
     if KT == IsoKernel
         return -(2.0*C*v*ν) .* (X[iPoint,:]'.-X)./(l^2) .* (P[iPoint,:]./l).^(ν-1.0) .* besselk.(ν-1.0,P[iPoint,:]./l)
@@ -100,7 +100,7 @@ end
 
 function computeIndPointsJnm(k::MaternKernel{T,KT},X::Matrix{T},x::Vector{T},iPoint::Integer,K::Matrix{T}) where {T,KT}
     l = (getlengthscales(k)); v = getvariance(k); ν = k.ν; C = 2^(1.0-ν)/gamma(ν)
-    P = sqrt(2.0*ν).*pairwise(getmetric(k),x[:,:],X')[:]
+    P = sqrt(2.0*ν).*pairwise(getmetric(k),x[:,:],X,dims=1)[:]
     P .= ifelse.(P.<eps(T),eps(T),P)
     if KT == IsoKernel
         return -(2.0*C*v*ν).* (x'.-X)./(l^2) .* (P./l).^(ν-1.0) .* besselk.(ν-1.0,P./l)
@@ -114,7 +114,7 @@ end
 """Return the derivatives of Knn for the Iso MaternKernel"""
 function kernelderivativematrix(X::Array{T,N},kernel::MaternKernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel); ν=kernel.ν; C = (2^(1.0-ν))/gamma(ν)
-    P = (sqrt(2.0*ν)/l).*pairwise(Euclidean(),X');
+    P = (sqrt(2.0*ν)/l).*pairwise(Euclidean(),X,dims=1);
     P .= ifelse.(P.<eps(T),eps(T),P)
     return Symmetric(lmul!(C*v/l, P.^(ν+1.0) .* besselk.(ν-1.0,P)))
 end
@@ -122,7 +122,7 @@ end
 """Return the derivatives of Knn for the Iso MaternKernel with Knn precomputed"""
 function kernelderivativematrix_K(X::Array{T,N},K::Symmetric{T,Array{T,N}},kernel::MaternKernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel); ν=kernel.ν;  C = (2^(1.0-ν))/gamma(ν)
-    P = (sqrt(2.0*ν)/l).*pairwise(Euclidean(),X');
+    P = (sqrt(2.0*ν)/l).*pairwise(Euclidean(),X,dims=1);
     P .= ifelse.(P.<eps(T),eps(T),P)
     return Symmetric(lmul!(C*v/l,P.^(ν+1.0) .* besselk.(ν-1.0,P)))
 end
@@ -130,18 +130,18 @@ end
 "Return the derivatives of Knn for the ARD MaternKernel"
 function kernelderivativematrix(X::Array{T,N},kernel::MaternKernel{T,ARDKernel}) where {T,N}
     v = getvariance(kernel); ls = getlengthscales(kernel); ν = kernel.ν; C = (2^(1.0-ν))/gamma(ν)
-    P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X') #d/ρ
+    P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X,dims=1) #d/ρ
     P .= ifelse.(P.<eps(T),eps(T),P)
-    Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:length(ls)] # (x_i-x_i')
+    Pi = [pairwise(SqEuclidean(),X[:,i],dims=1) for i in 1:length(ls)] # (x_i-x_i')
     return Symmetric.(map((pi,l)->lmul!(2.0*C*v*ν/(l^3),pi .* P.^(ν-1.0) .* besselk.(ν-1.0,P)),Pi,ls))
 end
 
 """Return the derivatives of Knn for the ARD MaternKernel with Knn precomputed"""
 function kernelderivativematrix_K(X::Array{T,N},K::Symmetric{T,Array{T,N}},kernel::MaternKernel{T,ARDKernel}) where {T,N}
     v = getvariance(kernel); ls = getlengthscales(kernel); ν = kernel.ν; C = (2^(1.0-ν))/gamma(ν)
-    P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X') #d/ρ
+    P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X,dims=1) #d/ρ
     P .= ifelse.(P.<eps(T),eps(T),P)
-    Pi = [pairwise(SqEuclidean(),X[:,i]') for i in 1:length(ls)] # (x_i-x_i')
+    Pi = [pairwise(SqEuclidean(),X[:,i],dims=1) for i in 1:length(ls)] # (x_i-x_i')
     return Symmetric.(map((pi,l)->lmul!(2.0*C*v*ν/(l^3),pi .* P.^(ν-1.0) .* besselk.(ν-1.0,P)),Pi,ls))
 end
 
@@ -149,7 +149,7 @@ end
 """Return the derivatives of Knm for the Iso MaternKernel"""
 function kernelderivativematrix(X::Array{T,N},Y::Array{T,N},kernel::MaternKernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel); ν=kernel.ν;  C = 2^(1.0-ν)/gamma(ν)
-    P = (sqrt(2.0*ν)/l)*pairwise(Euclidean(),X',Y');
+    P = (sqrt(2.0*ν)/l)*pairwise(Euclidean(),X,Y,dims=1);
     P .= ifelse.(P.<eps(T),eps(T),P)
     return lmul!(C*v/l,P.^(ν+1.0).*besselk.(ν-1.0,P))
 end
@@ -157,7 +157,7 @@ end
 """Return the derivatives of Knn for the Iso MaternKernel with Knm precomputed"""
 function kernelderivativematrix_K(X::Array{T,N},Y::Array{T,N},K::Array{T,N},kernel::MaternKernel{T,IsoKernel}) where {T,N}
     v = getvariance(kernel); l = getlengthscales(kernel); ν=kernel.ν; C = 2^(1.0-ν)/gamma(ν)
-    P = (sqrt(2.0*ν)/l)*pairwise(Euclidean(),X',Y');
+    P = (sqrt(2.0*ν)/l)*pairwise(Euclidean(),X,Y,dims=1);
     P .= ifelse.(P.<eps(T),eps(T),P)
     return lmul!(C*v/l,P.^(ν+1.0).*besselk.(ν-1.0,P))
 end
@@ -165,18 +165,18 @@ end
 """Return the derivatives of Knm for the ARD MaternKernel"""
 function kernelderivativematrix(X::Array{T,N},Y::Array{T,N},kernel::MaternKernel{T,ARDKernel}) where {T,N}
     v = getvariance(kernel); ls = getlengthscales(kernel); ν = kernel.ν; C = 2^(1.0-ν)/gamma(ν)
-    P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X',Y')
+    P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X,Y,dims=1)
     P .= ifelse.(P.<eps(T),eps(T),P)
-    Pi = [pairwise(SqEuclidean(),X[:,i]',Y[:,i]') for i in 1:length(ls)] # (x_i-x_i')
+    Pi = [pairwise(SqEuclidean(),X[:,i],Y[:,i],dims=1) for i in 1:length(ls)] # (x_i-x_i')
     return map((pi,l)->lmul!(2.0*C*v*ν/(l^3),pi .* P.^(ν-1.0).*besselk.(ν-1.0,P)),Pi,ls)
 end
 
 """Return the derivatives of Knn for the ARD MaternKernel with Knm precomputed"""
 function kernelderivativematrix_K(X::Array{T,N},Y::Array{T,N},K::Array{T,N},kernel::MaternKernel{T,ARDKernel}) where {T,N}
     v = getvariance(kernel); ls = getlengthscales(kernel); ν = kernel.ν; C = 2^(1.0-ν)/gamma(ν)
-    P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X',Y')
+    P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X,Y,dims=1)
     P .= ifelse.(P.<eps(T),eps(T),P)
-    Pi = [pairwise(SqEuclidean(),X[:,i]',Y[:,i]') for i in 1:length(ls)] # (x_i-x_i')
+    Pi = [pairwise(SqEuclidean(),X[:,i],Y[:,i],dims=1) for i in 1:length(ls)] # (x_i-x_i')
     return map((pi,l)->lmul!(2.0*C*v*ν/(l^3),pi .* P.^(ν-1.0).*besselk.(ν-1.0,P)),Pi,ls)
 end
 

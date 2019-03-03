@@ -79,54 +79,10 @@ function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Rea
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
-        model.Knm .= broadcast((Z,kernel)->KernelModule.kernelmatrix(model.X[model.inference.MBIndices,:],Z,kernel),model.Z,model.kernel)
+        KernelModule.kernelmatrix!.(model.Knm,[model.X[model.inference.MBIndices,:]],model.Z,model.kernel)
         model.κ .= model.Knm.*model.invKmm
         model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     end
     model.inference.HyperParametersUpdated=false
-end
-
-function MCInit!(model::GP)
-    if typeof(model) <: MultiClassGPModel
-        model.g = [zeros(model.m*(model.m+1)) for i in 1:model.K]
-        model.h = zeros(model.K)
-        #Make a MC estimation using τ samples
-        # model.τ[1] = 40
-        for i in 1:model.τ[1]
-            if model.verbose > 2
-                println("MC sampling $i/$(model.τ[1])")
-            end
-            model.inference.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
-            computeMatrices!(model);local_update!(model);
-            (grad_η₁, grad_η₂) = natural_gradient(model)
-            model.g = broadcast((tau,g,grad1,eta_1,grad2,eta_2)->g + vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2))./tau,model.τ,model.g,grad_η₁,model.η₁,grad_η₂,model.η₂)
-            model.h = broadcast((tau,h,grad1,eta_1,grad2,eta_2)->h + norm(vcat(grad1-eta_1,reshape(grad2-eta_2,size(grad2,1)^2)))^2/tau,model.τ,model.h,grad_η₁,model.η₁,grad_η₂,model.η₂)
-        end
-        model.τ .*= model.nSamplesUsed
-        model.ρ_s = broadcast((g,h)->norm(g)^2/h,model.g,model.h)
-        if model.KStochastic
-            reinit_variational_parameters!(model) #resize the vectors for class subsampling
-        end
-        if model.verbose > 1
-            println("$(now()): Estimation of the natural gradient for the adaptive learning rate completed")
-        end
-    else
-        model.g = zeros(model.m*(model.m+1));
-        model.h = 0;
-        #Make a MC estimation using τ samples
-        for i in 1:model.τ
-            model.MBIndices = StatsBase.sample(1:model.nSamples,model.nSamplesUsed,replace=false);
-            computeMatrices!(model)
-            local_update!(model)
-            (grad_η₁,grad_η₂) =     natural_gradient(model)
-            grads = vcat(grad_η₁,reshape(grad_η₂,size(grad_η₂,1)^2))
-            model.g = model.g + grads/model.τ
-            model.h = model.h + norm(grads)^2/model.τ
-        end
-        model.ρ_s = norm(model.g)^2/model.h
-        if model.verbose > 1
-            println("MCMC estimation of the gradient completed")
-        end
-    end
 end

@@ -1,24 +1,24 @@
 """ Class for sparse variational Gaussian Processes """
-mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractArray{T}} <: GP{L,I,T,V}
-    X::V #Feature vectors
-    y::LatentArray{V} #Output (-1,1 for classification, real for regression, matrix for multiclass)
+mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: GP{L,I,T,V}
+    X::Matrix{T} #Feature vectors
+    y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
     nFeature::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
-    Z::LatentArray{V} #Inducing points locations
+    Z::LatentArray{Matrix{T}} #Inducing points locations
     μ::LatentArray{V}
     Σ::LatentArray{Symmetric{T,Matrix{T}}}
     η₁::LatentArray{V}
     η₂::LatentArray{Symmetric{T,Matrix{T}}}
     Kmm::LatentArray{Symmetric{T,Matrix{T}}}
     invKmm::LatentArray{Symmetric{T,Matrix{T}}}
-    Knm::LatentArray{V}
-    κ::LatentArray{V}
+    Knm::LatentArray{Matrix{T}}
+    κ::LatentArray{Matrix{T}}
     K̃::LatentArray{V}
-    kernel::LatentArray{Kernel}
+    kernel::LatentArray{Kernel{T}}
     likelihood::Likelihood{T}
     inference::Inference{T}
     verbose::Int64
@@ -50,7 +50,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             likelihood::LikelihoodType,inference::InferenceType,
             nInducingPoints::Integer
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
-            IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Array) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
+            IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
             X,y,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
@@ -67,7 +67,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
 
 
             μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = copy(μ);
-            Σ = LatentArray([Symmetric(ArrayType(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
+            Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
             η₂ = -0.5*inv.(Σ);
             κ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample, nFeature) for _ in 1:nPrior])
             Knm = copy(κ)

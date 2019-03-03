@@ -10,7 +10,7 @@ function kernelmatrix!(K::AbstractArray{T1},X1::AbstractArray{T2},X2::AbstractAr
     (n1,n2) = size(K)
     @assert n1==size(X1,1)
     @assert n2==size(X2,1)
-    pairwise!(K,getmetric(kernel),X1',X2')
+    pairwise!(K,getmetric(kernel),X1,X2,dims=1)
     v = getvariance(kernel)
     map!(kappa(kernel),K,K)
     return lmul!(v,K)
@@ -21,7 +21,7 @@ function kernelmatrix(X::AbstractArray{T1},kernel::Kernel;diag::Bool=false) wher
     if diag
         return kerneldiagmatrix(X,kernel)
     end
-    K = pairwise(getmetric(kernel),X')
+    K = pairwise(getmetric(kernel),X,dims=1)
     v = getvariance(kernel)
     # return v.*map(kappa(kernel),K)
     return lmul!(v,map!(kappa(kernel),K,K))
@@ -35,7 +35,7 @@ function kernelmatrix!(K::AbstractArray{T1},X::AbstractArray{T2},kernel::Kernel;
     (n1,n2) = size(K)
     @assert n1==size(X,1)
     @assert n1==n2
-    pairwise!(K,getmetric(kernel),X')
+    pairwise!(K,getmetric(kernel),X,dims=1)
     v = getvariance(kernel)
     map!(kappa(kernel),K,K)
     return lmul!(v,K)
