@@ -30,6 +30,7 @@ end
 
 """Create a sparse variational Gaussian Process model
 Argument list :
+
 **Mandatory arguments**
  - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
  - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)

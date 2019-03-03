@@ -28,13 +28,13 @@ end
 function compute_proba(l::AbstractLogisticLikelihood{T},μ::AbstractVector{<:AbstractVector},σ²::AbstractVector{<:AbstractVector}) where {T<:Real}
     K = length(μ)
     N = length(μ[1])
-    pred = [zeros(,TN) for _ in 1:K]
+    pred = [zeros(T,N) for _ in 1:K]
     for k in 1:model.K
         for i in 1:N
             if σ²[k][i] <= 0.0
                 pred[k][i] = logistic(μ[k][i])
             else
-                pred[k][i] = expectation(logit,Normal(μ[k][i],sqrt(σ²[k][i])))
+                pred[k][i] =  expectation(logistic,Normal(μ[k][i],sqrt(σ²[k][i])))
             end
         end
     end
@@ -43,13 +43,13 @@ end
 
 ###############################################################################
 
-struct AugmentedAugmentedLogisticLikelihood{T<:Real} <: AbstractLogisticSoftMaxLikelihood{T}
+struct AugmentedLogisticLikelihood{T<:Real} <: AbstractLogisticLikelihood{T}
     c::AbstractVector{AbstractVector{T}}
     θ::AbstractVector{AbstractVector{T}}
     function AugmentedLogisticLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function AugmentedLogisticLikelihood{T}(c::AbstractVector{AbstractVector{<:Real}},θ::AbstractVector{AbstractVector{<:Real}}) where {T<:Real}
+    function AugmentedLogisticLikelihood{T}(c::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{AbstractVector{<:Real}}) where {T<:Real}
         new{T}(c,θ)
     end
 end
@@ -58,6 +58,7 @@ function AugmentedLogisticLikelihood()
     AugmentedLogisticLikelihood{Float64}()
 end
 
+isaugmented(::AugmentedLogisticLikelihood{T}) where T = true
 
 function init_likelihood(likelihood::AugmentedLogisticLikelihood{T},nLatent::Integer,nSamplesUsed) where T
     AugmentedLogisticLikelihood{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
@@ -120,7 +121,7 @@ end
 
 ###############################################################################
 
-struct LogisticLikelihood{T<:Real} <: AbstractLogisticSoftMaxLikelihood
+struct LogisticLikelihood{T<:Real} <: AbstractLogisticLikelihood{T}
     function LogisticLikelihood{T}() where {T<:Real}
         new{T}()
     end

@@ -3,7 +3,7 @@ Student-t likelihood : ``Γ((ν+1)/2)/(√(νπ)Γ(ν/2)) (1+t²/ν)^(-(ν+1)/2)
 """
 abstract type AbstractStudentTLikelikelihood{T<:Real} <: RegressionLikelihood{T} end
 
-function pdf(l::LogisticLikelihood,y::Real,f::Real)
+function pdf(l::AbstractStudentTLikelikelihood,y::Real,f::Real)
     tdistpdf(l.ν,y-f)
 end
 
@@ -37,6 +37,8 @@ struct AugmentedStudentTLikelihood{T<:Real} <:AbstractStudentTLikelikelihood{T}
         new{T}(ν,(ν+one(T))/2.0,β,θ)
     end
 end
+
+isaugmented(::AugmentedStudentTLikelihood{T}) where T = true
 
 function AugmentedStudentTLikelihood(ν::T) where {T<:Real}
     AugmentedStudentTLikelihood{T}(ν)
@@ -98,20 +100,14 @@ function compute_proba(l::AugmentedStudentTLikelihood,μ::AbstractVector{Abstrac
     return pred
 end
 
-function ELBO(model::GP{<:LogisticLikelihood})
-    return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
+function ELBO(model::GP{<:AugmentedStudentTLikelihood})
+    return expecLogLikelihood(model) - InverseGammaKL(model)
 end
 
-function expecLogLikelihood(model::VGP{LogisticLikelihood{T}}) where T
-    tot = -model.nLatent*(0.5*model.nSamples*log(2))
-    tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-opt_trace(θ,(diag(Σ)+μ.^2))),
-                        model.μ,model.y,model.θ,model.Σ))
-    return tot
+function expecLogLikelihood(model::VGP{AugmentedStudentTLikelihood{T}}) where T
+    return -Inf #TODO
 end
 
-function expecLogLikelihood(model::SVGP{LogisticLikelihood{T}}) where T
-    tot = -model.nLatent*(0.5*model.nSamples*log(2))
-    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y)-opt_trace(θ,K̃+κΣκ+κμ.^2))),
-                        model.κ.*model.μ,model.y,model.θ,opt_diag(model.κ*model.Σ,model.κ'),model.K̃)
-    return model.inference.ρ*tot
+function expecLogLikelihood(model::SVGP{AugmentedStudentTLikelihood{T}}) where T
+    return -Inf #TODO
 end
