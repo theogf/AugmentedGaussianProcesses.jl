@@ -41,9 +41,10 @@ function variational_updates!(model::VGP{L,GibbsSampling{T}}) where {L<:Likeliho
     end
 end
 
-function post_process!(model::GP{<:Likelihood,GibbsSampling})
+function post_process!(model::GP{<:Likelihood,<:GibbsSampling})
     for k in 1:model.nLatent
-        model.μ[k] = vec(mean(hcat(model.sample_store[k]...),dims=2))
-        model.Σ[k] = Symmetric(cov(hcat(model.sample_store[k]...),dims=2))
+        model.μ[k] = vec(mean(hcat(model.inference.sample_store[k]...),dims=2))
+        model.Σ[k] = Symmetric(cov(hcat(model.inference.sample_store[k]...),dims=2))
     end
+    nothing
 end

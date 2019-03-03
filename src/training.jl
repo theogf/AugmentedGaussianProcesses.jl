@@ -23,21 +23,13 @@ function train!(model::GP;iterations::Integer=100,callback=0,Convergence=0)
             if model.Autotuning && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
-            # if !isa(model,BatchGPRegression)
-            #     conv = Convergence(model,iter) #Check for convergence
-            # else
-            #     if model.verbose > 2
-            #         # warn("BatchGPRegression does not need any convergence criteria")
-            #     end
-            #     conv = Inf
-            # end
             ### Print out informations about the convergence
             if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
                 print("Iteration : $local_iter ")
                  print("ELBO is : $(ELBO(model))")
                  print("\n")
              end
-             local_iter += 1; model.inference.nIter += 1
+            local_iter += 1; model.inference.nIter += 1
             (local_iter <= iterations) || break; #Verify if the number of maximum iterations has been reached
             # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         catch e

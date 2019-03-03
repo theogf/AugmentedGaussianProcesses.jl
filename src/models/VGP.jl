@@ -37,10 +37,10 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Kernel,
             nFeature = nSample = size(X,1); nDim = size(X,2);
             kernel = [deepcopy(kernel) for _ in 1:nPrior]
 
-            μ = [zeros(T1,nFeature) for _ in 1:nLatent]; η₁ = copy(μ)
-            Σ = [Symmetric(Array(Diagonal(ones(T1,nFeature)))) for _ in 1:nLatent]
-            η₂ = inv.(Σ)*(-0.5);
-            Knn = [copy(Σ[1]) for _ in 1:nPrior]; invKnn = copy(Knn)
+            μ = [zeros(T1,nFeature) for _ in 1:nLatent]; η₁ = copy.(μ)
+            Σ = [Symmetric(diagm(0=>ones(T1,nFeature))) for _ in 1:nLatent]
+            η₂ = -0.5*inv.(Σ);
+            Knn = [copy(Σ[1]) for _ in 1:nPrior]; invKnn = copy.(Knn)
 
             likelihood = init_likelihood(likelihood,nLatent,nSample)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)

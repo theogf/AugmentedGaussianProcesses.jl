@@ -1,4 +1,4 @@
-"Update all hyperparameters for the full batch GP models"
+"""Update all hyperparameters for the full batch GP models"""
 function  update_hyperparameters!(model::VGP)
     Jnn = kernelderivativematrix.([model.X],model.kernel)
     f_l,f_v = hyperparameter_gradient_function(model)
@@ -9,7 +9,7 @@ function  update_hyperparameters!(model::VGP)
     model.inference.HyperParametersUpdated = true
 end
 
-"Update all hyperparameters for the full batch GP models"
+"""Update all hyperparameters for the full batch GP models"""
 function update_hyperparameters!(model::SVGP)
     matrix_derivatives =broadcast((kernel,Z)->
                     [kernelderivativematrix(Z,kernel), #Jmm
@@ -28,6 +28,7 @@ function update_hyperparameters!(model::SVGP)
     model.inference.HyperParametersUpdated = true
 end
 
+"""Return the derivative of the KL divergence between the posterior and the GP prior"""
 function hyperparameter_KL_gradient(J::AbstractMatrix{T},A::AbstractMatrix{T}) where {T<:Real}
     return 0.5*opt_trace(J,A)
 end
@@ -84,7 +85,10 @@ function hyperparameter_expec_gradient(model::SVGP,ι::AbstractArray,Jmm::Abstra
     mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[index])
     Jnn .-= opt_diag(ι,model.Knm[index]) + opt_diag(model.κ[index],Jnm)
     dμ = dot(expec_μ(model,index),ι*model.μ[index])
-    dΣ = -dot(expec_Σ(model,index),Jnn+2.0*(opt_diag(ι*model.Σ[index],model.κ[index])+(ι*model.μ[index]).*(model.κ[index]*model.μ[index])))
+    dΣ = -dot(expec_Σ(model,index),Jnn+2.0*(opt_diag(ι*model.Σ[index],model.κ[index])))
+    if isaugmented(model.likelihood)
+        dΣ += -dot(expec_Σ(model,index),2.0*(ι*model.μ[index]).*(model.κ[index]*model.μ[index]))
+    end
     return model.inference.ρ*(dμ+dΣ)
 end
 
@@ -92,6 +96,9 @@ function hyperparameter_expec_gradient(model::SVGP,ι::AbstractArray,Jmm::Abstra
     mul!(ι,(Jnm-model.κ[1]*Jmm),model.invKmm[1])
     Jnn .-= opt_diag(ι,model.Knm[1]) + opt_diag(model.κ[1],Jnm)
     dμ = sum(dot(expec_μ(model,i),ι*model.μ[i]) for i in 1:model.nLatent)
-    dΣ = -sum(dot(expec_Σ(model,i),Jnn+2.0*(opt_diag(ι*model.Σ[i],model.κ[1])+(ι*model.μ[i]).*(model.κ[1]*model.μ[i]))) for i in 1:model.nLatent)
+    dΣ = -sum(dot(expec_Σ(model,i),Jnn+2.0*(opt_diag(ι*model.Σ[i],model.κ[1]))) for i in 1:model.nLatent)
+    if isaugmented(model.likelihood)
+        dΣ += -sum(dot(expec_Σ(model,i),2.0*(ι*model.μ[i]).*(model.κ[1]*model.μ[i])) for i in 1:model.nLatent)
+    end
     return model.inference.ρ*(dμ+dΣ)
 end

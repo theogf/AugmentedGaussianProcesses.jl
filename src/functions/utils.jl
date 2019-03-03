@@ -54,9 +54,19 @@ function copy(opt::Optimizer)
 end
 
 function safe_expcosh(μ::Real,c::Real)
-    return isfinite(exp(-0.5*μ)/cosh(0.5*c)) ? exp(-0.5*μ)/cosh(0.5*c) : 2*logistic(max(μ,c))
+    return isfinite(exp(μ)/cosh(c)) ? exp(μ)/cosh(c) : 2*logistic(2.0*max(μ,c))
 end
 
 function logcosh(c::Real)
     return log(exp(-2.0*c)+1.0)+c-logtwo
+end
+
+
+function logisticsoftmax(f::AbstractVector{<:Real})
+    s = logistic.(f)
+    return s/sum(s)
+end
+
+function logisticsoftmax(f::AbstractVector{<:Real},i::Integer)
+    return logisticsoftmax(f)[i]
 end

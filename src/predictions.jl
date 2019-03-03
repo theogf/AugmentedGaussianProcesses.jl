@@ -1,7 +1,7 @@
 #File treating all the prediction functions
 
 """
-Compute the mean of the predicted latent distribution of f on X_test for full GP models
+Compute the mean of the predicted latent distribution of `f` on `X_test` for full GP model `model`
 Return also the variance if `covf=true`
 """
 function predict_f(model::VGP,X_test::AbstractMatrix{T};covf::Bool=true) where T
@@ -32,6 +32,18 @@ function predict_f(model::SVGP,X_test::Matrix{T};covf::Bool=true) where T
     return μf,σ²f
 end
 
+function predict_f(model::VGP{<:Likelihood,<:GibbsSampling},X_test::Matrix{T};covf::Bool=true) where T
+    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
+    f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
+    μf =  [vec(mean(hcat(f[k]...),dims=2)) for k in 1:model.nLatent]
+    if !covf
+        return μf
+    end
+    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
+    σ²f = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+  diag.(cov.(f))
+    return μf,σ²f
+end
+
 function predict_f(model::GP,X_test::AbstractVector{T};covf::Bool=false) where T
     predict_f(model,reshape(X_test,length(X_test),1),covf=covf)
 end
@@ -54,17 +66,35 @@ function predict_y(model::GP{<:MultiClassLikelihood},X_test::AbstractMatrix)
     return [model.likelihood.class_mapping[argmax([μ[i] for μ in μ_f])] for i in 1:n]
 end
 
-function predict_y(model::GP{<:LogisticLikelihood},X_test::AbstractMatrix)
+function predict_y(model::GP{<:LogisticLikelihood},X_test::AbstractMatrix{T}) where {T<:Real}
     return sign.(predict_f(model,X_test,covf=false).-0.5)
 end
 
-function proba_y(model::GP,X_test::AbstractVector)
+function proba_y(model::GP,X_test::AbstractVector{T}) where {T<:Real}
     return proba_y(model,reshape(X_test,length(X_test),1))
 end
 
-function proba_y(model::GP,X_test::AbstractMatrix)
+function proba_y(model::GP,X_test::AbstractMatrix{T}) where {T<:Real}
     μ_f,Σ_f = predict_f(model,X_test,covf=true)
     compute_proba(model.likelihood,μ_f,Σ_f)
+end
+
+function proba_y(model::VGP{<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
+    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
+    f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
+    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
+    K̃ = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+ [zeros(size(X_test,1)) for i in 1:model.nLatent]
+    nf = length(model.inference.sample_store[1])
+    proba = zeros(size(X_test,1),model.nLatent)
+    labels = Array{Symbol}(undef,model.nLatent)
+    for i in 1:nf
+        res = compute_proba(model.likelihood,getindex.(f,[i]),K̃)
+        if i ==  1
+            labels = names(res)
+        end
+        proba .+= Matrix(res)
+    end
+    return DataFrame(proba/nf,labels)
 end
 
 function compute_proba(l::Likelihood,μ::AbstractVector{AbstractVector},σ²::AbstractVector{AbstractVector})

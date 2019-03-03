@@ -6,7 +6,7 @@ abstract type NumericalInference{T<:Real} <: Inference{T} end
 include("quadrature.jl")
 include("mcmcintegration.jl")
 
-function NumericalInference(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
+function NumericalInference(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
     if integration_technique == :quad
         QuadratureInference{T}(ϵ,nGaussHermite,0,optimizer,false)
     elseif integration_technique == :mcmc
@@ -27,7 +27,7 @@ function StochasticNumericalInference(nMinibatch::Integer,integration_technique:
 end
 
 function Base.show(io::IO,inference::NumericalInference{T}) where T
-    print(io,"($(inference.Stochastic ? "Stochastic numerical" : "Numerical") inference with $(isa(inference,MCMCIntegrationInference) ? "MCMC Integration" : "Quadrature")")
+    print(io,"$(inference.Stochastic ? "Stochastic numerical" : "Numerical") inference with $(isa(inference,MCMCIntegrationInference) ? "MCMC Integration" : "Quadrature")")
 end
 
 function init_inference(inference::NumericalInference{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {T<:Real}
@@ -35,7 +35,7 @@ function init_inference(inference::NumericalInference{T},nLatent::Integer,nFeatu
     inference.nSamplesUsed = nSamplesUsed
     inference.MBIndices = 1:nSamplesUsed
     inference.ρ = nSamples/nSamplesUsed
-    inference.HyperParametersUpdated = false
+    inference.HyperParametersUpdated = true
     inference.optimizer_η₁ = [copy(inference.optimizer_η₁[1]) for _ in 1:nLatent]
     inference.optimizer_η₂ = [copy(inference.optimizer_η₂[1]) for _ in 1:nLatent]
     inference.∇η₁ = [zeros(T,nFeatures) for _ in 1:nLatent];
@@ -58,12 +58,12 @@ function variational_updates!(model::SVGP{<:Likelihood,<:NumericalInference}) wh
 end
 
 function natural_gradient!(model::VGP{<:Likelihood,<:NumericalInference})
-    model.inference.∇η₁ .= model.inference.∇μE .- model.invKnn.*model.μ
+    model.inference.∇η₁ .= model.Σ.*(model.inference.∇μE .- model.invKnn.*model.μ)
     model.inference.∇η₂ .= Symmetric.(Diagonal.(model.inference.∇ΣE).-0.5.*model.invKnn .- model.η₂)
 end
 
 function natural_gradient!(model::SVGP{<:Likelihood,<:NumericalInference})
-    model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*model.inference.∇μE .- model.invKmm.*model.μ
+    model.inference.∇η₁ .= model.Σ.*(model.inference.ρ.*transpose.(model.κ).*model.inference.∇μE .- model.invKmm.*model.μ)
     model.inference.∇η₂ .= Symmetric.(model.inference.ρ.*transpose.(model.κ).*Diagonal.(model.inference.∇ΣE).*model.κ.-0.5.*model.invKmm .- model.η₂)
 end
 
@@ -74,24 +74,29 @@ function global_update!(model::GP{<:Likelihood,<:NumericalInference})
         α=1.0
         while true
             try
-                @assert isposdef(-Symmetric(model.η₂[k]+α*Δ))
+                @assert isposdef(-(model.η₂[k]+α*Δ))
                 model.η₂[k] = Symmetric(model.η₂[k]+α*Δ)
+                model.η₁[k] .+= update(model.inference.optimizer_η₁[k],model.inference.∇η₁[k])
                 break;
             catch e
                 if isa(e,AssertionError)
                     println("Error, results not pos def with α=$α")
                     α *= 0.5
+                    if α < 1e-6
+                        @error "α too small, stopping loop"
+                        rethrow()
+                    end
                 else
                     rethrow()
                 end
             end
         end
         if isa(model.inference.optimizer_η₂[k],Adam)
-            model.inference.optimizer_η₂[k].η = min(model.inference.optimizer_η₂[k].α*α*2.0,1.0)
-            model.inference.optimizer_η₁[k].η = min(model.inference.optimizer_η₁[k].α*α*2.0,1.0)
+            model.inference.optimizer_η₂[k].α = min(model.inference.optimizer_η₂[k].α*α*2.0,1.0)
+            # model.inference.optimizer_η₁[k].α = min(model.inference.optimizer_η₁[k].α*α*2.0,1.0)
         elseif isa(model.inference.optimizer_η₂[k],VanillaGradDescent)
-            model.inference.optimizer_η₂[k].η = min(model.inference.optimizer_η₂[k].η*α*2.0,1.0)
-            model.inference.optimizer_η₁[k].η = min(model.inference.optimizer_η₁[k].η*α*2.0,1.0)
+            # model.inference.optimizer_η₂[k].η = min(model.inference.optimizer_η₂[k].η*α*2.0,1.0)
+            # model.inference.optimizer_η₁[k].η = min(model.inference.optimizer_η₁[k].η*α*2.0,1.0)
         elseif isa(model.inference.optimizer_η₂[k],ALRSVI)
         elseif isa(model.inference.optimizer_η₂[k],InverseDecay)
         end

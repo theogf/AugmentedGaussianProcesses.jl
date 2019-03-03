@@ -84,20 +84,20 @@ function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},nLatent::Integ
 end
 
 function local_updates!(model::VGP{<:AugmentedLogisticSoftMaxLikelihood,<:AnalyticInference})
-    model.likelihood.c .= broadcast((Σ,μ)->sqrt.(Σ.+μ.^2),diag.(model.Σ),model.μ)
+    model.likelihood.c .= broadcast((Σ,μ)->sqrt.(Σ.+abs2.(μ)),diag.(model.Σ),model.μ)
     for _ in 1:2
-        model.likelihood.γ .= broadcast((c,μ,ψα)->0.5/(model.likelihood.β[1]).*exp.(ψα).*safe_expcosh.(0.5.*μ,0.5.*c),
+        model.likelihood.γ .= broadcast((c,μ,ψα)->0.5/(model.likelihood.β[1])*exp.(ψα).*safe_expcosh.(-0.5*μ,0.5*c),
                                     model.likelihood.c,model.μ,[digamma.(model.likelihood.α)])
         model.likelihood.α .= 1.0.+(model.likelihood.γ...)
     end
-    model.likelihood.θ .= broadcast((y,γ,c)->0.5.*(y.+γ)./c.*tanh.(0.5.*c),model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
+    model.likelihood.θ .= broadcast((y,γ,c)->0.5*(y.+γ)./c.*tanh.(0.5*c),model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
 end
 
 function local_updates!(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood,<:AnalyticInference})
-    model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),
+    model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
                                     model.μ,model.Σ,model.κ,model.K̃)
     for _ in 1:5
-        model.likelihood.γ .= broadcast((c,κμ,ψα)->0.5./(model.likelihood.β[1]).*exp.(ψα).*safe_expcosh.(κμ,c),
+        model.likelihood.γ .= broadcast((c,κμ,ψα)->(0.5/(model.likelihood.β[1]))*exp.(ψα).*safe_expcosh.(-0.5*κμ,0.5*c),
                                     model.likelihood.c,model.κ.*model.μ,[digamma.(model.likelihood.α)])
         model.likelihood.α .= 1.0.+(model.likelihood.γ...)
     end
@@ -108,11 +108,11 @@ end
 
 function sample_local!(model::VGP{<:AugmentedLogisticSoftMaxLikelihood,<:GibbsSampling})
     if model.inference.nIter <= 1
-        model.likelihood.α .= 10.0.*model.likelihood.α./model.likelihood.β
+        # model.likelihood.α .= 10.0.*model.likelihood.α./model.likelihood.β
     end
-    model.likelihood.γ .= broadcast(μ::AbstractVector{<:Real}->rand.(Poisson.(0.5*model.likelihood.α.*safe_expcosh.(-0.5.*μ,0.5*μ))), model.μ)
+    model.likelihood.γ .= broadcast(μ::AbstractVector{<:Real}->rand.(Poisson.(0.5*model.likelihood.α.*safe_expcosh.(-0.5*μ,0.5*μ))), model.μ)
     model.likelihood.α .= rand.(Gamma.(1.0.+(model.likelihood.γ...),1.0./model.likelihood.β))
-    model.likelihood.θ .= broadcast((y::BitVector,γ::AbstractVector{<:Real},μ::AbstractVector{<:Real})->PolyaGammaDist().draw.(y.+γ,abs.(μ)),model.likelihood.Y,model.likelihood.γ,model.μ)
+    model.likelihood.θ .= broadcast((y::BitVector,γ::AbstractVector{<:Real},μ::AbstractVector{<:Real})->PolyaGammaDist().draw.(y.+γ,μ),model.likelihood.Y,model.likelihood.γ,model.μ)
     return nothing
 end
 
@@ -154,36 +154,37 @@ function ELBO(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
 end
 
 function expecLogLikelihood(model::VGP{<:AugmentedLogisticSoftMaxLikelihood})
-    model.likelihood.c .= broadcast((Σ,μ)->sqrt.(Σ.+μ.^2),diag.(model.Σ),model.μ)
+    model.likelihood.c .= broadcast((Σ,μ)->sqrt.(Σ.+abs2.(μ)),diag.(model.Σ),model.μ)
     tot = -model.nSample*logtwo
     tot += -sum(sum.(model.likelihood.γ))*logtwo
-    tot +=  0.5*sum(broadcast((y,μ,γ,θ,c)->sum(μ.*(y-γ)-θ.*(c.^2)),
+    tot +=  0.5*sum(broadcast((y,μ,γ,θ,c)->sum(μ.*(y-γ)-θ.*abs2.(c)),
                     model.likelihood.Y,model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
-    model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),
+    model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
                                     model.μ,model.Σ,model.κ,model.K̃)
     tot = -model.inference.nSamplesUsed*logtwo
     tot += -sum(sum.(model.likelihood.γ))*logtwo
-    tot += 0.5*sum(broadcast((y,κμ,γ,θ,c)->sum((κμ).*(y[model.inference.MBIndices]-γ)-θ.*(c.^2)),
+    tot += 0.5*sum(broadcast((y,κμ,γ,θ,c)->sum((κμ).*(y[model.inference.MBIndices]-γ)-θ.*abs2.(c)),
                     model.likelihood.Y,model.κ.*model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
     return model.inference.ρ*tot
 end
 
-function grad_samples(model::GP{<:LogisticSoftMaxLikelihood},samples::AbstractMatrix,index::Integer)
-    class = model.likelihood.y_class[index]
-    grad_μ = zeros(model.nLatent)
-    grad_Σ = zeros(model.nLatent)
+function grad_samples(model::GP{<:LogisticSoftMaxLikelihood,<:NumericalInference,T},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
+    class = model.likelihood.y_class[index]::Int64
+    grad_μ = zeros(T,model.nLatent)
+    grad_Σ = zeros(T,model.nLatent)
+    g_μ = similar(grad_μ)
     nSamples = size(samples,1)
-    for i in 1:nSamples
-        σ = logistic(samples[i,:])
+    @views @inbounds for i in 1:nSamples
+        σ = logistic.(samples[i,:])
         samples[i,:]  .= logisticsoftmax(samples[i,:])
         s = samples[i,class]
-        g_μ = grad_logisticsoftmax(samples[i,:],σ,class)
-        grad_μ .+= g_μ./s
-        grad_Σ .+= diaghessian_logisticsoftmax(samples[i,:],σ,class)./s .- g_μ.^2 ./s^2
+        g_μ .= grad_logisticsoftmax(samples[i,:],σ,class)/s
+        grad_μ += g_μ
+        grad_Σ += diaghessian_logisticsoftmax(samples[i,:],σ,class)/s - abs2.(g_μ)
     end
     for k in 1:model.nLatent
         model.inference.∇μE[k][index] = grad_μ[k]/nSamples
@@ -191,59 +192,36 @@ function grad_samples(model::GP{<:LogisticSoftMaxLikelihood},samples::AbstractMa
     end
 end
 
-function log_like_samples(model::GP{<:LogisticSoftMaxLikelihood},samples::AbstractMatrix,index::Integer)
+function log_like_samples(model::GP{<:LogisticSoftMaxLikelihood,<:Inference,T},samples::AbstractMatrix,index::Integer) where {T<:Real}
     class = model.likelihood.y_class[index]
     nSamples = size(samples,1)
-    loglike = 0.0
+    loglike = zero(T)
     for i in 1:nSamples
-        σ = logistic(samples[i,:])
-        samples[i,:]  .= logisticsoftmax(samples[i,:])
-        s = samples[i,class]
-        g_μ = grad_logisticsoftmax(samples[i,:],σ,class)
-        grad_μ .+= g_μ./s
-        grad_Σ .+= diaghessian_logisticsoftmax(samples[i,:],σ,class)./s .- g_μ.^2 ./s^2
+        σ = logistic.(samples[i,:])
+        loglike += log(σ[class])-log(sum(σ))
     end
-    for k in 1:model.nLatent
-        model.inference.∇μE[k][index] = grad_μ[k]/size(samples,1)
-        model.inference.∇ΣE[k][index] = 0.5.*grad_Σ[k]/size(samples,1)
-    end
+    return loglike/nSamples
 end
 
 function remove_augmentation(l::Type{AugmentedLogisticSoftMaxLikelihood{T}}) where T
     return LogisticSoftMaxLikelihood{T}(l.Y,l.class_mapping,l.ind_mapping)
 end
 
-function logisticsoftmax(f::AbstractVector{<:Real})
-    s = logit.(f)
-    return s./sum(s)
-end
-
-function logisticsoftmax(f::AbstractVector{<:Real},i::Integer)
-    return logisticsoftmax(f)[i]
-end
-
 function grad_logisticsoftmax(s::AbstractVector{<:Real},σ::AbstractVector{<:Real},i::Integer)
-    base_grad = -s.*(1.0.-σ).*s[i]
-    base_grad[i] += s[i]*(1.0-σ[i])
-    return base_grad
+    s[i]*(δ.(i,eachindex(σ)).-s).*(1.0.-σ)
 end
 
 function diaghessian_logisticsoftmax(s::AbstractVector{<:Real},σ::AbstractVector{<:Real},i::Integer)
-    m = length(s)
-    hessian = zeros(m)
-    for j in 1:m
-            hessian[j] = (1-σ[j])*s[i]*(
-            (δ(i,j)-s[j])*(1.0-σ[j])*(δ(i,j)-s[j])
-            -s[j]*(1.0-s[j])*(1.0-σ[j])
-            -σ[j]*(δ(i,j)-s[j]))
-    end
-    return hessian
+    s[i]*(1.0.-σ).*(
+    abs2.(δ.(i,eachindex(σ))-s).*(1.0.-σ)
+    -s.*(1.0.-s).*(1.0.-σ)
+    -σ.*(δ.(i,eachindex(σ))-s))
 end
 
-function hessian_logisticsoftmax(s::AbstractVector{<:Real},σ::AbstractVector{<:Real},i::Integer)
+function hessian_logisticsoftmax(s::AbstractVector{T},σ::AbstractVector{T},i::Integer) where {T<:Real}
     m = length(s)
-    hessian = zeros(m,m)
-    for j in 1:m
+    hessian = zeros(T,m,m)
+    @inbounds for j in 1:m
         for k in 1:m
             hessian[j,k] = (1-σ[j])*s[i]*(
             (δ(i,k)-s[k])*(1.0-σ[k])*(δ(i,j)-s[j])

@@ -11,7 +11,7 @@ export MultiClassLikelihood, SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export AugmentedLogisticSoftMaxLikelihood
 export Inference, AnalyticInference, StochasticAnalyticInference, GibbsSampling, MCMCIntegrationInference, QuadratureInference
 export NumericalInference, StochasticNumericalInference
-export ALRSVI
+export ALRSVI, InverseDecay
 
 #Deprecated
 export MultiClass, SparseMultiClass

@@ -60,7 +60,7 @@ end
 
 function natural_gradient!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
     model.η₁ .= ∇μ(model)
-    model.η₂ .= .-Symmetric.(Diagonal.(∇Σ(model))+0.5.*model.invKnn)
+    model.η₂ .= -Symmetric.(Diagonal.(∇Σ(model)).+0.5.*model.invKnn)
 end
 
 function natural_gradient!(model::SVGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
