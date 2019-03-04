@@ -16,6 +16,6 @@ params(opt::InverseDecay) = "τ=$(opt.τ), κ=$(opt.κ)"
 
 function GradDescent.update(opt::InverseDecay, g_t::AbstractArray{T,N}) where {T<:Real,N}
     opt.t += 1
-    opt.ρ = (opt.t+opt.ρ)^(-opt.κ)
+    opt.ρ = (opt.t+opt.τ)^(-opt.κ)
     return opt.ρ * g_t
 end
