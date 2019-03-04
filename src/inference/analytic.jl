@@ -58,14 +58,14 @@ function variational_updates!(model::SVGP{L,AnalyticInference{T}}) where {L<:Lik
     global_update!(model)
 end
 
-function natural_gradient!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
+function natural_gradient!(model::VGP{L,AnalyticInference{T}}) where {T<:Real,L<:Likelihood{T}}
     model.η₁ .= ∇μ(model)
-    model.η₂ .= -Symmetric.(Diagonal.(∇Σ(model)).+0.5.*model.invKnn)
+    model.η₂ .= -(∇Σ(model).+0.5.*model.invKnn)
 end
 
-function natural_gradient!(model::SVGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}
+function natural_gradient!(model::SVGP{L,AnalyticInference{T}}) where {T<:Real,L<:Likelihood{T}}
     model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*∇μ(model) .- model.η₁
-    model.inference.∇η₂ .= -(model.inference.ρ.*transpose.(model.κ).*Diagonal.(∇Σ(model)).*model.κ.+0.5.*model.invKmm) .- model.η₂
+    model.inference.∇η₂ .= -(model.inference.ρ.*transpose.(model.κ).*∇Σ(model).*model.κ.+0.5.*model.invKmm) .- model.η₂
 end
 
 function global_update!(model::VGP{L,AnalyticInference{T}}) where {L<:Likelihood,T}

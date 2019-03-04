@@ -83,25 +83,25 @@ function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},nLatent::Integ
     return likelihood
 end
 
-function local_updates!(model::VGP{<:AugmentedLogisticSoftMaxLikelihood,<:AnalyticInference})
-    model.likelihood.c .= broadcast((Σ,μ)->sqrt.(Σ.+abs2.(μ)),diag.(model.Σ),model.μ)
+function local_updates!(model::VGP{AugmentedLogisticSoftMaxLikelihood{T},AnalyticInference{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
+    model.likelihood.c .= broadcast((Σ::V,μ::V)->sqrt.(Σ.+abs2.(μ)),diag.(model.Σ),model.μ)
     for _ in 1:2
-        model.likelihood.γ .= broadcast((c,μ,ψα)->0.5/(model.likelihood.β[1])*exp.(ψα).*safe_expcosh.(-0.5*μ,0.5*c),
+        model.likelihood.γ .= broadcast((c::V,μ::V,ψα::V)->0.5/(model.likelihood.β[1])*exp.(ψα).*safe_expcosh.(-0.5*μ,0.5*c),
                                     model.likelihood.c,model.μ,[digamma.(model.likelihood.α)])
         model.likelihood.α .= 1.0.+(model.likelihood.γ...)
     end
-    model.likelihood.θ .= broadcast((y,γ,c)->0.5*(y.+γ)./c.*tanh.(0.5*c),model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
+    model.likelihood.θ .= broadcast((y::BitVector,γ::V,c::V)->0.5*(y.+γ)./c.*tanh.(0.5*c),model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
 end
 
-function local_updates!(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood,<:AnalyticInference})
-    model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
+function local_updates!(model::SVGP{AugmentedLogisticSoftMaxLikelihood{T},AnalyticInference{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
+    model.likelihood.c .= broadcast((μ::V,Σ::Symmetric{T,Matrix{T}},κ::Matrix{T},K̃::V)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
                                     model.μ,model.Σ,model.κ,model.K̃)
     for _ in 1:5
-        model.likelihood.γ .= broadcast((c,κμ,ψα)->(0.5/(model.likelihood.β[1]))*exp.(ψα).*safe_expcosh.(-0.5*κμ,0.5*c),
+        model.likelihood.γ .= broadcast((c::V,κμ::V,ψα::V)->(0.5/(model.likelihood.β[1]))*exp.(ψα).*safe_expcosh.(-0.5*κμ,0.5*c),
                                     model.likelihood.c,model.κ.*model.μ,[digamma.(model.likelihood.α)])
         model.likelihood.α .= 1.0.+(model.likelihood.γ...)
     end
-    model.likelihood.θ .= broadcast((y,γ::Vector,c::Vector)->0.5.*(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5.*c),
+    model.likelihood.θ .= broadcast((y::BitVector,γ::V,c::V)->0.5.*(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5.*c),
                                     model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
     return nothing
 end
@@ -145,8 +145,8 @@ function expec_Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer
     0.5.*model.likelihood.θ[index]
 end
 
-function ∇Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
-    0.5.*model.likelihood.θ
+function ∇Σ(model::GP{AugmentedLogisticSoftMaxLikelihood{T}}) where {T<:Real}
+    Diagonal{T}.(0.5.*model.likelihood.θ)
 end
 
 function ELBO(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
