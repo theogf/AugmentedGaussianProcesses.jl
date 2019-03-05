@@ -96,7 +96,7 @@ function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:Inference{T
     return model.inference.ρ*(dμ+dΣ)
 end
 
-function hyperparameter_expec_gradient(model::SVGP,ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
+function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:Inference{T},T},ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
     mul!(ι,(Jnm-model.κ[1]*Jmm),model.invKmm[1])
     Jnn .-= opt_diag(ι,model.Knm[1]) + opt_diag(model.κ[1],Jnm)
     dμ = sum(dot(expec_μ(model,i),ι*model.μ[i]) for i in 1:model.nLatent)
@@ -105,4 +105,28 @@ function hyperparameter_expec_gradient(model::SVGP,ι::Matrix{T},κΣ::Vector{Ma
         dΣ += -sum(dot(expec_Σ(model,i),2.0*(ι*model.μ[i]).*(model.κ[1]*model.μ[i])) for i in 1:model.nLatent)
     end
     return model.inference.ρ*(dμ+dΣ)
+end
+
+
+"""Return a function computing the gradient of the ELBO given the inducing point locations"""
+function inducingpoints_gradient(model::SVGP{<:Likelihood{T},<:Inference{T},T}) where {T<:Real}
+    if model.IndependentPriors
+        gradients_inducing_points = zero(model.Z[1])
+        A = ([I].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
+        #preallocation
+        ι = Matrix{T}(undef,model.nSamplesUsed,model.nInducingPoints)
+        for k in 1:model.nPrior
+            for i in 1:model.nInducingPoints #Iterate over the points
+                Jnm,Jmm = computeIndPointsJ(model,i) #TODO
+                for j in 1:model.nDim #iterate over the dimensions
+                    @views mul!(ι,(Jnm[j,:,:]-model.κ[k]*Jmm[j,:,:]),model.invKmm[k])
+                    @views gradients_inducing_points[c][i,j] =  hyperparameter_expec_gradient(model,ι,κΣ,Jmm[j,:,:],Jnm[j,:,:],zeros(T,model.nSamplesUsed))-hyperparameter_KL_gradient(Jmm[j,:,:],A[k])
+                end
+            end
+        end
+        return gradients_inducing_points
+    else
+        @warn "Inducing points for shared prior not implemented yet"
+        gradients_inducing_points = zero(model.inducingPoints[1]) #TODO
+    end
 end

@@ -52,10 +52,10 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
             nFeature = nSample = size(X,1); nDim = size(X,2);
             kernel = ArrayType([deepcopy(kernel) for _ in 1:nPrior])
 
-            μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = copy(μ)
+            μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = deepcopy(μ)
             Σ = LatentArray([Symmetric(ArrayType(Diagonal(ones(T1,nFeature)))) for _ in 1:nLatent])
             η₂ = inv.(Σ)*(-0.5);
-            Knn = LatentArray([copy(Σ[1]) for _ in 1:nPrior]; invKnn = copy(Knn))
+            Knn = LatentArray([deepcopy(Σ[1]) for _ in 1:nPrior]; invKnn = copy(Knn))
 
             likelihood = init_likelihood(likelihood,nLatent,nSample)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)

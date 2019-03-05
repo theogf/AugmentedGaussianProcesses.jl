@@ -62,17 +62,17 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
 
 
             @assert nInducingPoints > 0 && nInducingPoints < nSample "The number of inducing points is incorrect (negative or bigger than number of samples)"
-            Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10); Z=[copy(Z) for _ in 1:nPrior]
+            Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10); Z=[deepcopy(Z) for _ in 1:nPrior]
             nFeature = nInducingPoints
 
 
-            μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = copy(μ);
+            μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = deepcopy(μ);
             Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
             η₂ = -0.5*inv.(Σ);
             κ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample, nFeature) for _ in 1:nPrior])
-            Knm = copy(κ)
+            Knm = deepcopy(κ)
             K̃ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample) for _ in 1:nPrior])
-            Kmm = LatentArray([copy(Σ[1]) for _ in 1:nPrior]); invKmm = copy(Kmm)
+            Kmm = LatentArray([similar(Σ[1]) for _ in 1:nPrior]); invKmm = similar.(Kmm)
             nSamplesUsed = nSample
             if inference.Stochastic
                 @assert inference.nSamplesUsed > 0 && inference.nSamplesUsed < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
