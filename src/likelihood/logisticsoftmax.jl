@@ -93,7 +93,7 @@ function local_updates!(model::VGP{AugmentedLogisticSoftMaxLikelihood{T},Analyti
     model.likelihood.θ .= broadcast((y::BitVector,γ::V,c::V)->0.5*(y.+γ)./c.*tanh.(0.5*c),model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
 end
 
-function local_updates!(model::SVGP{AugmentedLogisticSoftMaxLikelihood{T},AnalyticInference{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
+function local_updates!(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood{T},AnalyticInference{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
     model.likelihood.c .= broadcast((μ::V,Σ::Symmetric{T,Matrix{T}},κ::Matrix{T},K̃::V)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
                                     model.μ,model.Σ,model.κ,model.K̃)
     for _ in 1:5

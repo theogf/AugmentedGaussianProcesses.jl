@@ -43,17 +43,6 @@ function init_likelihood(likelihood::GaussianLikelihood{T},nLatent::Integer,nSam
     end
 end
 
-""" Return the labels in a vector of vectors for multiple outputs"""
-function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:GaussianLikelihood}
-    @assert T<:Real "For regression target(s) should be real valued"
-    @assert N <= 2 "Target should be a matrix or a vector"
-    if N == 1
-        return [y]
-    else
-        return [y[:,i] for i in 1:size(y,2)]
-    end
-end
-
 function local_updates!(model::VGP{GaussianLikelihood{T}}) where T
 end
 
