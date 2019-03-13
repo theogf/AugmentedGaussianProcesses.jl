@@ -23,6 +23,8 @@ function kernelmatrix(X::AbstractArray{T1},kernel::Kernel;diag::Bool=false) wher
     end
     K = pairwise(getmetric(kernel),X,dims=1)
     v = getvariance(kernel)
+    # println(typeof(K))
+    # println(typeof(v))
     # return v.*map(kappa(kernel),K)
     return lmul!(v,map!(kappa(kernel),K,K))
 end

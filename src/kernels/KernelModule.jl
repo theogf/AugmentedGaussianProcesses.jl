@@ -99,8 +99,10 @@ function setoptimizer!(k::Kernel{T},opt::Optimizer) where {T<:Real}
     setparamoptimizer!(k.fields.lengthscales,opt)
 end
 
-isARD(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: ARDKernel
-isIso(k::Kernel{T,KT}) where {T<:Real,KT<:KernelType} = KT <: IsoKernel
+isARD(::Kernel{T,KT}) where {T<:Real,KT<:ARDKernel} = true
+isARD(::Kernel{T,KT}) where {T<:Real,KT<:IsoKernel} = false
+isIso(::Kernel{T,KT}) where {T<:Real,KT<:ARDKernel} = false
+isIso(::Kernel{T,KT}) where {T<:Real,KT<:IsoKernel} = true
 
 function Base.show(io::IO,k::Kernel{T,KT}) where {T,KT}
     print(io,"$(k.fields.name)"*(isARD(k) ? " ARD" : "")*" kernel, with variance $(getvariance(k)) and lengthscales $(getlengthscales(k))")

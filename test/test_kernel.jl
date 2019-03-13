@@ -5,14 +5,73 @@ using MLKernels, Statistics, LinearAlgebra
 using ForwardDiff
 seed!(42)
 dims= 2
-A = rand(1000,dims)
-B = rand(100,dims)
+A = rand(10,dims)
+B = rand(5,dims)
 #Compare kernel results with MLKernels package
+@testset "Kernels" begin
 
+    @testset "Kernel computation" begin
+        θ = 0.5; ν = 2.0
+        @testset "Iso Kernels" begin
+            kernels_GP = [KernelModule.RBFKernel(θ),KernelModule.MaternKernel(θ,ν)]
+            kernels_ML = [MLKernels.GaussianKernel(0.5/θ^2),MLKernels.MaternKernel(ν,θ)]
+            test_name = ["RBFKernel","MaternKernel"]
+            for (k_GP,k_ML,t_name) in zip(kernels_GP,kernels_ML,test_name)
+                @testset "$t_name" begin
+                    @test sum(abs.(MLKernels.kernelmatrix(k_ML,A)- KernelModule.kernelmatrix(A,k_GP))) ≈ 0 atol=1e-6
+                    @test sum(abs.(MLKernels.kernelmatrix(k_ML,A,B)- KernelModule.kernelmatrix(A,B,k_GP))) ≈ 0 atol=1e-6
+                    @test sum(abs.(diag(KernelModule.kernelmatrix(A,k_GP))-KernelModule.kerneldiagmatrix(A,k_GP))) ≈ 0 atol=1e-6
+                end
+            end
+        end
+        @testset "ARD Kernels" begin
+            kernels_Iso = [KernelModule.RBFKernel(θ),KernelModule.MaternKernel(θ,ν)]
+            kernels_ARD = [KernelModule.RBFKernel(fill(θ,dims)),KernelModule.MaternKernel(fill(θ,dims),ν)]
+            test_name = ["RBFKernel","MaternKernel"]
+            for (k_iso,k_ard,t_name) in zip(kernels_Iso,kernels_ARD,test_name)
+                @testset "$t_name" begin
+                    @test sum(abs.(KernelModule.kernelmatrix(A,k_iso)- KernelModule.kernelmatrix(A,k_ard))) ≈ 0 atol=1e-6
+                    @test sum(abs.(KernelModule.kernelmatrix(A,B,k_iso)- KernelModule.kernelmatrix(A,B,k_ard))) ≈ 0 atol=1e-6
+                    @test sum(abs.(diag(KernelModule.kernelmatrix(A,k_ard))-KernelModule.kerneldiagmatrix(A,k_ard))) ≈ 0 atol=1e-6
+                end
+            end
+        end
+    end
+
+    @testset "Kernel derivatives" begin
+        θ = 0.5; ν = 2.0
+        @testset "Iso Kernels" begin
+            kernels = [KernelModule.RBFKernel(θ),KernelModule.MaternKernel(θ,ν)]
+            test_name = ["RBFKernel","MaternKernel"]
+            for (k,t_name) in zip(kernels,test_name)
+                @testset "$t_name" begin
+                    @test sum(abs.(MLKernels.kernelderivativematrix(k_ML,A).- KernelModule.kernelmatrix(A,k_GP))) ≈ 0 atol=1e-6
+                    @test sum(abs.(MLKernels.kernelmatrix(k_ML,A,B)- KernelModule.kernelmatrix(A,B,k_GP))) ≈ 0 atol=1e-6
+                    @test sum(abs.(diag(KernelModule.kernelmatrix(A,k_GP))-KernelModule.kerneldiagmatrix(A,k_GP))) ≈ 0 atol=1e-6
+                end
+            end
+        end
+        @testset "ARD Kernels" begin
+            kernels_Iso = [KernelModule.RBFKernel(θ),KernelModule.MaternKernel(θ,ν)]
+            kernels_ARD = [KernelModule.RBFKernel(fill(θ,dims)),KernelModule.MaternKernel(fill(θ,dims),ν)]
+            test_name = ["RBFKernel","MaternKernel"]
+            for (k_iso,k_ard,t_name) in zip(kernels_Iso,kernels_ARD,test_name)
+                @testset "$t_name" begin
+                    @test sum(abs.(KernelModule.kernelmatrix(A,k_iso)- KernelModule.kernelmatrix(A,k_ard))) ≈ 0 atol=1e-6
+                    @test sum(abs.(KernelModule.kernelmatrix(A,B,k_iso)- KernelModule.kernelmatrix(A,B,k_ard))) ≈ 0 atol=1e-6
+                    @test sum(abs.(diag(KernelModule.kernelmatrix(A,k_ard))-KernelModule.kerneldiagmatrix(A,k_ard))) ≈ 0 atol=1e-6
+                end
+            end
+        end
+
+    end
+end
 #RBF Kernel
-# θ = 0.5
+θ = 0.5
 # mlk = MLKernels.SquaredExponentialKernel(0.5/θ^2)
-# agpk = KernelModule.SEKernel([θ,0.1])
+agpk = KernelModule.RBFKernel([θ,0.1])
+ForwardDiff.jacobian(x->KernelModule.kernelmatrix(A,KernelModule.RBFKernel(x[1])),[θ])
+Zygote.gradient(x->KernelModule.kernelmatrix(A,KernelModule.RBFKernel(x[1])),[θ])
 # mlK = MLKernels.kernelmatrix(mlk,A)
 # agpK = KernelModule.kernelmatrix(A,agpk)
 # mlKab = MLKernels.kernelmatrix(mlk,A,B)
@@ -72,20 +131,20 @@ B = rand(100,dims)
 #         end
 #     end
 # end
-C = rand(1000,1000)
-θ = [0.5,0.1]
-function create_mat(X,l)
-    k = MLKernels.SquaredExponentialKernel(l)
-    return tr(C*MLKernels.kernelmatrix(k,X))
-end
-
-function create_mat2(X,l)
-    k = KernelModule.RBFKernel(l)
-    return tr(C*KernelModule.kernelmatrix(X,k))
-end
-v = 0.5./θ.^2
-create_mat(A,v)
-create_mat2(A,θ)
-
-@btime tr.([C].*KernelModule.kernelderivativematrix(A,KernelModule.RBFKernel(θ)));
-@btime ForwardDiff.gradient(x->create_mat(A,x),v);
+# C = rand(1000,1000)
+# θ = [0.5,0.1]
+# function create_mat(X,l)
+#     k = MLKernels.SquaredExponentialKernel(l)
+#     return tr(C*MLKernels.kernelmatrix(k,X))
+# end
+#
+# function create_mat2(X,l)
+#     k = KernelModule.RBFKernel(l)
+#     return tr(C*KernelModule.kernelmatrix(X,k))
+# end
+# v = 0.5./θ.^2
+# create_mat(A,v)
+# create_mat2(A,θ)
+#
+# @btime tr.([C].*KernelModule.kernelderivativematrix(A,KernelModule.RBFKernel(θ)));
+# @btime ForwardDiff.gradient(x->create_mat(A,x),v);

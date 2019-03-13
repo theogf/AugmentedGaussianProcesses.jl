@@ -43,7 +43,7 @@ using StatsFuns
 using SpecialFunctions
 using Dates
 using Expectations
-using SparseArrays
+using Random
 import Base: convert, show, copy
 #Exported models
 export KMeansModule
@@ -74,8 +74,6 @@ include("likelihood/likelihood.jl")
 include("functions/utils.jl")
 include("functions/init.jl")
 include("functions/KLdivergences.jl")
-include("functions/alrsvi.jl")
-include("functions/inversedecay.jl")
 #Deprecated constructors
 include("deprecated.jl")
 

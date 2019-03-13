@@ -1,7 +1,7 @@
 """
     Matern Kernel
 """
-struct MaternKernel{T<:AbstractFloat,KT<:KernelType} <: Kernel{T,KT}
+struct MaternKernel{T<:Real,KT<:KernelType} <: Kernel{T,KT}
     fields::KernelFields{T,KT}
     ν::Float64
     function MaternKernel{T,KT}(θ::Vector{T},ν::Real;variance::T=one(T),dim::Integer=0) where {T<:AbstractFloat,KT<:KernelType}
