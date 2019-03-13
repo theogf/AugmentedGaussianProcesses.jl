@@ -1,5 +1,6 @@
 
-include("learning_rate/learning_rate.jl")
+include("learning_rate/alrsvi.jl")
+include("learning_rate/inversedecay.jl")
 include("analytic.jl")
 include("gibbssampling.jl")
 include("numerical.jl")
