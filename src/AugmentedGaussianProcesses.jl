@@ -16,7 +16,7 @@ export NumericalInference, StochasticNumericalInference
 export ALRSVI, InverseDecay
 
 #Deprecated
-export MultiClass, SparseMultiClass
+export BatchGPRegression, SparseGPRegression, MultiClass, SparseMultiClass, BatchXGPC, SparseXGPC, BatchStudentT, SparseStudentT
 
 
 #Useful functions and module
