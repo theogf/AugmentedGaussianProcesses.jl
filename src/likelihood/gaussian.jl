@@ -43,28 +43,28 @@ function init_likelihood(likelihood::GaussianLikelihood{T},nLatent::Integer,nSam
     end
 end
 
-function local_updates!(model::VGP{GaussianLikelihood{T}}) where T
+function local_updates!(model::VGP{GaussianLikelihood{T}}) where {T<:Real}
 end
 
-function local_updates!(model::SVGP{GaussianLikelihood{T}}) where T
+function local_updates!(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
     model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *
     norm.(getindex.(model.y,[model.inference.MBIndices]).*model.κ.*model.μ) + opt_trace.((model.κ'.*model.κ),model.Σ) + sum.(model.K̃)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::SVGP{<:GaussianLikelihood},index::Integer)
+function expec_μ(model::SVGP{GaussianLikelihood{T},AnalyticInference},index::Integer) where {T<:Real}
     return model.y[index][model.inference.MBIndices]./model.likelihood.ϵ[index]
 end
 
-function ∇μ(model::SVGP{<:GaussianLikelihood{T}}) where {T<:Real}
+function ∇μ(model::SVGP{GaussianLikelihood{T},AnalyticInference{T}}) where {T<:Real}
     return getindex.(model.y,[model.inference.MBIndices])./model.likelihood.ϵ[index]
 end
 
-function expec_Σ(model::SVGP{<:GaussianLikelihood},index::Integer)
+function expec_Σ(model::SVGP{GaussianLikelihood{T},AnalyticInference{T}},index::Integer) where {T<:Real}
     return 0.5/model.likelihood.ϵ[index]*ones(model.inference.nSamplesUsed)
 end
 
-function ∇Σ(model::SVGP{<:GaussianLikelihood{T}}) {T<:Real}
+function ∇Σ(model::SVGP{GaussianLikelihood{T},AnalyticInference{T}}) where {T<:Real}
     return [0.5/model.likelihood.ϵ[i]*ones(model.inference.nSamplesUsed) for i in 1:model.nLatent]
 end
 
@@ -77,18 +77,22 @@ function global_update!(model::VGP{GaussianLikelihood{T},AnalyticInference{T}}) 
     end
 end
 
-function proba_y(model::GP{GaussianLikelihood{T},AnalyticInference{T}},X_test::AbstractMatrix) where {T<:Real}
-    μ_f,Σ_f = predict_f(model,X_test,covf=true)
-    Σ_f .+= [ones(size(X_test,1))].*model.likelihood.ϵ
-    return μ_f,Σ_f
+function proba_y(model::Union{VGP{GaussianLikelihood{T},AnalyticInference{T}},SVGP{GaussianLikelihood{T},AnalyticInference{T}}},X_test::AbstractMatrix{T}) where {T<:Real}
+    μf, σ²f = predict_f(model,X_test,covf=true)
+    if model.nLatent == 1
+        return μf,σ²f.+model.likelihood.ϵ[1]
+    else
+        σ²f .+= [ones(size(X_test,1))].*model.likelihood.ϵ
+        return μf,σ²f
+    end
 end
 
 ### Special case where the ELBO is equal to the marginal likelihood
-function ELBO(model::VGP{<:GaussianLikelihood{T}}) where {T<:Real}
+function ELBO(model::VGP{GaussianLikelihood{T}}) where {T<:Real}
     return -0.5*sum(broadcast((y,K,ϵ)->dot(y,inv(K+ϵ*I)*y)            + logdet(K+ϵ*I)+ model.nFeature*log(twoπ),model.y,model.Knn,model.likelihood.ϵ))
 end
 
-function ELBO(model::SVGP{<:GaussianLikelihood{T}}) where {T<:real}
+function ELBO(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
     return expecLogLikelihood(model) - GaussianKL(model)
 end
 
@@ -98,7 +102,7 @@ function expecLogLikelihood(model::SVGP{GaussianLikelihood{T}}) where T
                 sum.(model.K̃)+opt_trace.(model.κ.*model.Σ,model.κ))./model.likelihood.ϵ)
 end
 
-function hyperparameter_gradient_function(model::VGP{<:GaussianLikelihood})
+function hyperparameter_gradient_function(model::VGP{GaussianLikelihood{T}}) where {T<:Real}
     model.Σ .= broadcast((invK,ϵ)->Symmetric(inv(invK +ϵ*I)),model.invKnn,model.likelihood.ϵ)
     A = (model.Σ.*(model.µ.*transpose.(model.μ)).-[I]).*model.Σ
     if model.IndependentPriors

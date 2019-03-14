@@ -12,30 +12,27 @@ function Base.show(io::IO,model::AbstractStudentTLikelihood{T}) where T
 end
 
 
-function compute_proba(l::AbstractStudentTLikelihood{T},μ::AbstractVector{<:AbstractVector{T}},σ²::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
-    K = length(μ)
-    N = length(μ[1])
+function compute_proba(l::AbstractStudentTLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
+    N = length(μ)
     st = TDist(l.ν)
     nSamples = 200
-    μ_pred = [zeros(T,N) for _ in 1:K]
-    σ²_pred = [zeros(T,N) for _ in 1:K]
-    for k in 1:K
-        temp_array = zeros(T,nSamples)
-        for i in 1:N
-            if σ²[k][i] <= 1e-3
-                pyf =  LocationScale(μ[k][i],1.0,st)
-                for j in 1:nSamples
-                    temp_array[j] = rand(pyf)
-                end
-            else
-                d = Normal(μ[k][i],sqrt(σ²[k][i]))
-                for j in 1:nSamples
-                    temp_array[j] = rand(LocationScale(rand(d),1.0,st))
-                end
+    μ_pred = zeros(T,N)
+    σ²_pred = zeros(T,N)
+    temp_array = zeros(T,nSamples)
+    for i in 1:N
+        if σ²[i] <= 1e-3
+            pyf =  LocationScale(μ[i],1.0,st)
+            for j in 1:nSamples
+                temp_array[j] = rand(pyf)
             end
-            μ_pred[k][i] = mean(temp_array);
-            σ²_pred[k][i] = cov(temp_array)
+        else
+            d = Normal(μ[i],sqrt(σ²[i]))
+            for j in 1:nSamples
+                temp_array[j] = rand(LocationScale(rand(d),1.0,st))
+            end
         end
+        μ_pred[i] = mean(temp_array);
+        σ²_pred[i] = cov(temp_array)
     end
     return μ_pred,σ²_pred
 end

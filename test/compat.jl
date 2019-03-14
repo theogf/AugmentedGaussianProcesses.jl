@@ -23,7 +23,7 @@ function testconv(model::GP,problem_type::String,X::AbstractArray,y::AbstractArr
     y_pred = predict_y(model,X)
     py_pred = proba_y(model,X)
     if problem_type == "Regression"
-        err = sum(abs2(y_pred-y))
+        err = sum(abs2.(y_pred-y))
     elseif problem_type == "Classification"
         err = mean(y_pred.!=y)
     elseif problem_type == "MultiClass"

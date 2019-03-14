@@ -13,7 +13,7 @@ function predict_f(model::VGP,X_test::AbstractMatrix{T};covf::Bool=true) where T
     A = model.invKnn.*([I].-model.Σ.*model.invKnn)
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
     σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
-    return model.nLatent == 1 ? μf[1],σ²f[1] : μf,σ²f
+    return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 end
 
 """
@@ -29,7 +29,7 @@ function predict_f(model::SVGP,X_test::AbstractMatrix{T};covf::Bool=true) where 
     A = model.invKmm.*([I].-model.Σ.*model.invKmm)
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
     σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
-    return model.nLatent == 1 ? μf[1],σ²f[1] : μf,σ²f
+    return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 end
 
 function predict_f(model::VGP{<:Likelihood,<:GibbsSampling},X_test::Matrix{T};covf::Bool=true) where T
@@ -41,7 +41,7 @@ function predict_f(model::VGP{<:Likelihood,<:GibbsSampling},X_test::Matrix{T};co
     end
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
     σ²f = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+  diag.(cov.(f))
-    return model.nLatent == 1 ? μf[1],σ²f[1] : μf,σ²f
+    return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 end
 
 function predict_f(model::GP,X_test::AbstractVector{T};covf::Bool=false) where T
@@ -71,7 +71,6 @@ function proba_y(model::GP,X_test::AbstractVector{T}) where {T<:Real}
     return proba_y(model,reshape(X_test,length(X_test),1))
 end
 
-### I Have to think about this solution
 
 function proba_y(model::GP,X_test::AbstractMatrix{T}) where {T<:Real}
     μ_f,Σ_f = predict_f(model,X_test,covf=true)
@@ -97,8 +96,10 @@ function proba_y(model::VGP{<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix
 end
 
 function compute_proba(l::Likelihood{T},μ::AbstractVector{<:AbstractVector{T}},σ²::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
-    compute_proba.(l,μ,σ²)
+    compute_proba.([l],μ,σ²)
 end
+
+### I Have to think about this solution
 
 
 function compute_proba(l::Likelihood{T},μ::AbstractVector{T},σ²::AbstractVector{}) where {T<:Real}

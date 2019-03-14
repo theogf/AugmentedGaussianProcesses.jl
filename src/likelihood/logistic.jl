@@ -13,17 +13,14 @@ function Base.show(io::IO,model::AbstractLogisticLikelihood{T}) where T
 end
 
 
-function compute_proba(l::AbstractLogisticLikelihood{T},μ::AbstractVector{<:AbstractVector},σ²::AbstractVector{<:AbstractVector}) where {T<:Real}
-    K = length(μ)
-    N = length(μ[1])
-    pred = [zeros(T,N) for _ in 1:K]
-    for k in 1:K
-        for i in 1:N
-            if σ²[k][i] <= 0.0
-                pred[k][i] = logistic(μ[k][i])
-            else
-                pred[k][i] =  expectation(logistic,Normal(μ[k][i],sqrt(σ²[k][i])))
-            end
+function compute_proba(l::AbstractLogisticLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
+    N = length(μ)
+    pred = zeros(T,N)
+    for i in 1:N
+        if σ²[i] <= 0.0
+            pred[i] = logistic(μ[i])
+        else
+            pred[i] =  expectation(logistic,Normal(μ[i],sqrt(σ²[i])))
         end
     end
     return pred

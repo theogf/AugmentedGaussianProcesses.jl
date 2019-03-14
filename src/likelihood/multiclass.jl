@@ -29,7 +29,7 @@ function one_of_K_mapping(y)
     return Y,y_values,ind_values,y_class
 end
 
-function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractVector},σ²::AbstractVector{<:AbstractVector}) where T
+function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractVector{T}},σ²::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
     K = length(μ)
     n = length(μ[1])
     μ = hcat(μ...)
