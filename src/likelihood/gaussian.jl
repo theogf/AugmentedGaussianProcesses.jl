@@ -69,11 +69,11 @@ function expec_Σ(model::SVGP{<:GaussianLikelihood})
     return [0.5/model.likelihood.ϵ[i]*ones(model.inference.nSamplesUsed) for i in 1:model.nLatent]
 end
 
-function natural_gradient!(model::VGP{GaussianLikelihood{T},AnalyticInference{T}}) where T
+function natural_gradient!(model::VGP{GaussianLikelihood{T},AnalyticInference{T}}) where {T<:Real}
 end
 
-function global_update!(model::VGP{GaussianLikelihood{T}}) where T
-    if model.inference.nIter == 0
+function global_update!(model::VGP{GaussianLikelihood{T},AnalyticInference{T}}) where {T<:Real}
+    if model.inference.nIter <= 1
         model.μ .= model.y
     end
 end
@@ -102,7 +102,7 @@ function expecLogLikelihood(model::SVGP{GaussianLikelihood{T}}) where T
 end
 
 function hyperparameter_gradient_function(model::VGP{<:GaussianLikelihood})
-    model.Σ = inv.(model.invKnn.+model.likelihood.ϵ.*I)
+    model.Σ .= broadcast((invK,ϵ)->Symmetric(inv(invK +ϵ*I)),model.invKnn,model.likelihood.ϵ)
     A = (model.Σ.*(model.µ.*transpose.(model.μ)).-[I]).*model.Σ
     if model.IndependentPriors
         return (function(Jnn,index)

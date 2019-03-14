@@ -146,7 +146,7 @@ function expec_Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer
 end
 
 function ∇Σ(model::GP{AugmentedLogisticSoftMaxLikelihood{T}}) where {T<:Real}
-    Diagonal{T}.(0.5.*model.likelihood.θ)
+    0.5.*model.likelihood.θ
 end
 
 function ELBO(model::GP{<:AugmentedLogisticSoftMaxLikelihood})

@@ -1,6 +1,7 @@
 using Test
 using AugmentedGaussianProcesses
 using LinearAlgebra
+using Statistics
 const AGP = AugmentedGaussianProcesses
 include("compat.jl")
 
@@ -28,8 +29,9 @@ floattypes = [Float64]
                             if in(inference,methods_implemented[l])
                                 for floattype in floattypes
                                     @test typeof(VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()")))) <: VGP{eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*"}")),floattype,Vector{floattype}}
-                                    model = VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()")),Autotuning=true)
+                                    model = VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()")),Autotuning=true,verbose=3)
                                     @test train!(model,iterations=10)
+                                    @test testconv(model,l_names,X,y[l_names])
                                 end
                             else
                                 @test_throws AssertionError VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()")))

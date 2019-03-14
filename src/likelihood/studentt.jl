@@ -24,12 +24,12 @@ end
 struct AugmentedStudentTLikelihood{T<:Real} <:AbstractStudentTLikelihood{T}
     ν::T
     α::T
-    β::Vector{T}
-    θ::Vector{T}
+    β::LatentArray{Vector{T}}
+    θ::LatentArray{Vector{T}}
     function AugmentedStudentTLikelihood{T}(ν::T) where {T<:Real}
-        new{T}(ν)
+        new{T}(ν,(ν+one(T))/2.0)
     end
-    function AugmentedStudentTLikelihood{T}(ν::T,β::AbstractVector{T},θ::AbstractVector{T}) where {T<:Real}
+    function AugmentedStudentTLikelihood{T}(ν::T,β::AbstractVector{<:AbstractVector{T}},θ::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
         new{T}(ν,(ν+one(T))/2.0,β,θ)
     end
 end
@@ -41,42 +41,42 @@ function AugmentedStudentTLikelihood(ν::T) where {T<:Real}
 end
 
 function init_likelihood(likelihood::AugmentedStudentTLikelihood{T},nLatent::Int,nSamplesUsed::Int) where T
-    AugmentedStudentTLikelihood{T}(likelihood.ν,abs2.(T.(rand(T,nSamplesUsed))),zeros(T,nSamplesUsed))
+    AugmentedStudentTLikelihood{T}(likelihood.ν,[abs2.(T.(rand(T,nSamplesUsed))) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
 end
 
 function local_updates!(model::VGP{<:AugmentedStudentTLikelihood,<:AnalyticInference})
-    model.likelihood.β .= 0.5*(diag(model.Σ)+abs2.(model.μ.-model.y).+model.likelihood.ν)
-    model.likelihood.θ .= 0.5*(model.likelihood.ν+1.0)./model.likelihood.β
+    model.likelihood.β .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y).+model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
+    model.likelihood.θ .= broadcast(β->0.5*(model.likelihood.ν+1.0)./β,model.likelihood.β)
 end
 
 function local_updates!(model::SVGP{<:AugmentedStudentTLikelihood,<:AnalyticInference})
-    model.likelihood.β .= 0.5*(model.K̃ + opt_diag(model.κ*model.Σ,model.κ) + abs2.(model.κ*model.μ-model.y[model.likelihood.MBIndices]) .+model.likelihood.ν)
-    model.likelihood.θ .= 0.5*(model.likelihood.ν+1.0)./model.likelihood.β
+    model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.likelihood.MBIndices]) .+model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
+    model.likelihood.θ .= broadcast(β->0.5*(model.likelihood.ν+1.0)./β,model.likelihood.β)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::VGP{<:AugmentedStudentTLikelihood},index::Integer)
-    return model.likelihood.θ*model.y[index]
+    return model.likelihood.θ[index].*model.y[index]
 end
 
-function expec_μ(model::VGP{<:AugmentedStudentTLikelihood})
-    return model.likelihood.θ*model.y
+function ∇μ(model::VGP{<:AugmentedStudentTLikelihood})
+    return hadamard.(model.likelihood.θ,model.y)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::SVGP{<:AugmentedStudentTLikelihood},index::Integer)
-    return 0.5.*model.y[index][model.inference.MBIndices]
+    return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]
 end
 
-function expec_μ(model::SVGP{<:AugmentedStudentTLikelihood})
-    return 0.5.*getindex.(model.y,[model.inference.MBIndices])
+function ∇μ(model::SVGP{<:AugmentedStudentTLikelihood})
+    return hadamard.(model.likelihood.θ,model.y[model.inference.MBIndices])
 end
 
 function expec_Σ(model::GP{<:AugmentedStudentTLikelihood},index::Integer)
     return 0.5*model.likelihood.θ[index]
 end
 
-function expec_Σ(model::GP{<:AugmentedStudentTLikelihood})
+function ∇Σ(model::GP{<:AugmentedStudentTLikelihood})
     return 0.5*model.likelihood.θ
 end
 

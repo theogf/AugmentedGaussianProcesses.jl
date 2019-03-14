@@ -68,7 +68,7 @@ function expec_μ(model::VGP{<:AugmentedLogisticLikelihood},index::Integer)
     return 0.5*model.y[index]
 end
 
-function expec_μ(model::VGP{<:AugmentedLogisticLikelihood})
+function ∇μ(model::VGP{<:AugmentedLogisticLikelihood})
     return 0.5*model.y
 end
 
@@ -77,7 +77,7 @@ function expec_μ(model::SVGP{<:AugmentedLogisticLikelihood},index::Integer)
     return 0.5.*model.y[index][model.inference.MBIndices]
 end
 
-function expec_μ(model::SVGP{<:AugmentedLogisticLikelihood})
+function ∇μ(model::SVGP{<:AugmentedLogisticLikelihood})
     return 0.5.*getindex.(model.y,[model.inference.MBIndices])
 end
 
@@ -85,7 +85,7 @@ function expec_Σ(model::GP{<:AugmentedLogisticLikelihood},index::Integer)
     return 0.5*model.likelihood.θ[index]
 end
 
-function expec_Σ(model::GP{<:AugmentedLogisticLikelihood})
+function ∇Σ(model::GP{<:AugmentedLogisticLikelihood})
     return 0.5*model.likelihood.θ
 end
 
@@ -94,7 +94,7 @@ function ELBO(model::GP{<:AugmentedLogisticLikelihood})
 end
 
 function expecLogLikelihood(model::VGP{AugmentedLogisticLikelihood{T}}) where T
-    tot = -model.nLatent*(0.5*model.nSamples*log(2))
+    tot = -model.nLatent*(0.5*model.nSample*log(2))
     tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-opt_trace(θ,(diag(Σ)+μ.^2))),
                         model.μ,model.y,model.θ,model.Σ))
     return tot
