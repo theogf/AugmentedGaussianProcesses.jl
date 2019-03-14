@@ -1,19 +1,27 @@
 """
 Student-t likelihood : ``Γ((ν+1)/2)/(√(νπ)Γ(ν/2)) (1+t²/ν)^(-(ν+1)/2)``
 """
-abstract type AbstractStudentTLikelikelihood{T<:Real} <: RegressionLikelihood{T} end
+abstract type AbstractStudentTLikelihood{T<:Real} <: RegressionLikelihood{T} end
 
-function pdf(l::AbstractStudentTLikelikelihood,y::Real,f::Real)
+function pdf(l::AbstractStudentTLikelihood,y::Real,f::Real)
     tdistpdf(l.ν,y-f)
 end
 
-function Base.show(io::IO,model::AbstractStudentTLikelikelihood{T}) where T
+function Base.show(io::IO,model::AbstractStudentTLikelihood{T}) where T
     print(io,"Student-t likelihood")
+end
+
+
+function compute_proba(l::AbstractStudentTLikelihood,μ::AbstractVector{AbstractVector},σ²::AbstractVector{AbstractVector})
+    K = length(μ)
+    N = length(μ[1])
+    @error "Not implemented for StudentT likelihood yet"
+    return pred
 end
 
 ###############################################################################
 
-struct AugmentedStudentTLikelihood{T<:Real} <:AbstractStudentTLikelikelihood{T}
+struct AugmentedStudentTLikelihood{T<:Real} <:AbstractStudentTLikelihood{T}
     ν::T
     α::T
     β::Vector{T}
@@ -42,8 +50,8 @@ function local_updates!(model::VGP{<:AugmentedStudentTLikelihood,<:AnalyticInfer
 end
 
 function local_updates!(model::SVGP{<:AugmentedStudentTLikelihood,<:AnalyticInference})
-    model.β .= 0.5*(model.K̃ + opt_diag(model.κ*model.Σ,model.κ) + abs2.(model.κ*model.μ-model.y[model.MBIndices]) .+model.likelihood.ν)
-    model.θ .= 0.5*(model.likelihood.ν+1.0)./model.likelihood.β
+    model.likelihood.β .= 0.5*(model.K̃ + opt_diag(model.κ*model.Σ,model.κ) + abs2.(model.κ*model.μ-model.y[model.likelihood.MBIndices]) .+model.likelihood.ν)
+    model.likelihood.θ .= 0.5*(model.likelihood.ν+1.0)./model.likelihood.β
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
@@ -72,22 +80,6 @@ function expec_Σ(model::GP{<:AugmentedStudentTLikelihood})
     return 0.5*model.likelihood.θ
 end
 
-function compute_proba(l::AugmentedStudentTLikelihood,μ::AbstractVector{AbstractVector},σ²::AbstractVector{AbstractVector})
-    K = length(μ)
-    N = length(μ[1])
-    pred = [zeros(N) for _ in 1:K]
-    for k in 1:model.K
-        for i in 1:N
-            if σ²[k][i] <= 0.0
-                pred[k][i] = logit(μ[k][i])
-            else
-                pred[k][i] = expectation(logit,Normal(μ[k][i],sqrt(σ²[k][i])))
-            end
-        end
-    end
-    return pred
-end
-
 function ELBO(model::GP{<:AugmentedStudentTLikelihood})
     return expecLogLikelihood(model) - InverseGammaKL(model)
 end
@@ -98,4 +90,23 @@ end
 
 function expecLogLikelihood(model::SVGP{AugmentedStudentTLikelihood{T}}) where T
     return -Inf #TODO
+end
+
+
+##########################################
+
+struct StudentTLikelihood{T<:Real} <:AbstractStudentTLikelihood{T}
+    ν::T
+    α::T
+    function StudentTLikelihood{T}(ν::T) where {T<:Real}
+        new{T}(ν,(ν+one(T))/2.0)
+    end
+end
+
+function gradpdf(::StudentTLikelihood,y::Int,f::T) where {T<:Real}
+    @error "Not implemented yet"
+end
+
+function hessiandiagpdf(::StudentTLikelihood,y::Int,f::T) where {T<:Real}
+    @error "Not implemented yet"
 end

@@ -36,15 +36,19 @@ function opt_diag(A::AbstractMatrix{T},B::AbstractMatrix{T}) where {T<:Real}
     vec(sum(A.*B,dims=2))
 end
 
-# """ Logistic function (1+exp(-x))^-1 """
-# function logistic(x::Real)
-#     1.0/(1.0+exp(-x))
-# end
-#
-# """ Logistic function (1+exp(-x))^-1 """
-# function logistic(x::AbstractVector{<:Real})
-#     1.0./(1.0.+exp.(-x))
-# end
+""" Return the multiplication of Diagonal(v)*B """
+function opt_diag_mul_mat(v::AbstractVector{T},B::AbstractMatrix{T}) where {T<:Real}
+    v.*B
+end
+
+""" Return the addition of a diagonal to a symmetric matrix """
+function opt_add_diag_mat(v::AbstractVector{T},B::AbstractMatrix{T}) where {T<:Real}
+    A = copy(B)
+    @inbounds for i in 1:size(A,1)
+        A[i,i] += v[i]
+    end
+    A
+end
 
 #Temp fix until the deepcopy of the main package is fixed
 function copy(opt::Optimizer)
@@ -53,10 +57,12 @@ function copy(opt::Optimizer)
     return typeof(opt)(copied_params...)
 end
 
+"""Compute exp(μ)/cosh(c) safely if there is an overflow"""
 function safe_expcosh(μ::Real,c::Real)
     return isfinite(exp(μ)/cosh(c)) ? exp(μ)/cosh(c) : 2*logistic(2.0*max(μ,c))
 end
 
+"""Return a safe version of log(cosh(c))"""
 function logcosh(c::Real)
     return log(exp(-2.0*c)+1.0)+c-logtwo
 end

@@ -37,7 +37,7 @@ struct AugmentedLogisticLikelihood{T<:Real} <: AbstractLogisticLikelihood{T}
     function AugmentedLogisticLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function AugmentedLogisticLikelihood{T}(c::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{AbstractVector{<:Real}}) where {T<:Real}
+    function AugmentedLogisticLikelihood{T}(c::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
         new{T}(c,θ)
     end
 end

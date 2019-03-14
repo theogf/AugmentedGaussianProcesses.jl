@@ -31,7 +31,7 @@ function AnalyticInference(;Ïµ::T=1e-5,optimizer::Optimizer=VanillaGradDescent(Î
 end
 
 function Base.show(io::IO,inference::AnalyticInference{T}) where T
-    print(io,"($(inference.Stochastic ? "Stochastic analytic" : "Analytic") inference")
+    print(io,"$(inference.Stochastic ? "Stochastic analytic" : "Analytic") inference")
 end
 
 function init_inference(inference::AnalyticInference{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {T<:Real}

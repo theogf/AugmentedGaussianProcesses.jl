@@ -123,7 +123,7 @@ end
 """Function to determine most adapted type between a selection"""
 function floattype(T_i::DataType...)
     T_max = promote_type(T_i...)
-    T_max <: AbstractFloat ? T_max : Float64
+    T_max <: Real ? T_max : Float64
 end
 #
 # """

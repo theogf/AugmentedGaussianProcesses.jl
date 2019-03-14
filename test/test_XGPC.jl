@@ -1,6 +1,5 @@
 using Distributions
 using LinearAlgebra
-# using Profile, ProfileView
 
 using AugmentedGaussianProcesses
 if !@isdefined doPlots
@@ -15,8 +14,8 @@ if doPlots
 end
 println("Testing the XGPC model")
 ### TESTING WITH TOY XOR DATASET
-    N_data = 1000;N_test = 20
-    N_indpoints = 80; N_dim = 2
+    N_data = 100;N_test = 20
+    N_indpoints = 50; N_dim = 2
     noise = 2.0
     minx=-5.0; maxx=5.0
     function latent(x)
@@ -27,25 +26,6 @@ println("Testing the XGPC model")
     X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
     y = sign.(latent(X)+rand(Normal(0,noise),size(X,1)))
     y_test = sign.(latent(X_test))
-
-### TESTING WITH BANANA DATASET ###
-    # X=readdlm("data/banana_X_train")
-    # y=readdlm("data/banana_Y_train")[:]
-    # maxs = [3.65,3.4]
-    # mins = [-3.25,-2.85]
-    # x1_test = range(mins[1],maxs[1],N_test)
-    # x2_test = range(mins[2],maxs[2],N_test)
-    # X_test = hcat([j for i in x1_test, j in x2_test][:],[i for i in x1_test, j in x2_test][:])
-    # y_test = ones(size(X_test,1))
-
-# (nSamples,nFeatures) = (N_data,1)
-# stochmodel = AugmentedGaussianProcesses.SparseXGPC(X,y,Stochastic=true,batchsize=40,Autotuning=true,AutotuningFrequency=2,verbose=2,m=N_indpoints,noise=noise,kernel=kernel,OptimizeIndPoints=false)
-# stochmodel.train(iterations=7)#,callback=savelog)
-# Profile.clear()
-# Profile.init()
-# @profile stochmodel.train(iterations=10)#,callback=savelog)
-# @time stochmodel.train(iterations=1000)
-# ProfileView.view()
 
 kernel = RBFKernel([3.0],dim=N_dim)
 autotuning=true

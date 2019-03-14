@@ -5,32 +5,32 @@ function check_data!(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},likelihood:
     if N1 == 1 #Reshape a X vector as a matrix
         X = reshape(X,length(X),1);
     end
-    y,likelihood = treat_labels!(y,likelihood)
-    return X,y,likelihood
+    y,nLatent,likelihood = treat_labels!(y,likelihood)
+    return X,y,nLatent,likelihood
 end
 
 """ Verify that the likelihood and inference are compatible (are implemented) """
-function check_implementation(likelihood::L,inference::I) where {I<:Inference,L<:Likelihood}
+function check_implementation(model::Symbol,likelihood::L,inference::I) where {I<:Inference,L<:Likelihood}
     if isa(likelihood,GaussianLikelihood)
         if isa(inference,AnalyticInference)
             return true
         else
             return false
         end
-    elseif isa(likelihood,LogisticLikelihood)
-        if isa(inference,AnalyticInference)
+    elseif isa(likelihood,AbstractLogisticLikelihood)
+        if isaugmented(likelihood) && isa(inference,AnalyticInference)
             return true
         else
             return false
         end
     elseif isa(likelihood,SoftMaxLikelihood)
-        if isa(inference,AnalyticInference)
-            return false
-        elseif isa(inference,NumericalInference)
+        if isa(inference,MCMCIntegrationInference)
             return true
+        else
+            return false
         end
     elseif isa(likelihood,AbstractLogisticSoftMaxLikelihood)
-        if isaugmented(likelihood) && (isa(inference,AnalyticInference) || isa(inference,GibbsSampling))
+        if isaugmented(likelihood) && isa(inference,Union{AnalyticInference,GibbsSampling})
             return true
         elseif !isaugmented(likelihood) && isa(inference,NumericalInference)
             return true

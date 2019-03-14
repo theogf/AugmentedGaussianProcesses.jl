@@ -3,8 +3,8 @@
 """
 struct MaternKernel{T<:Real,KT<:KernelType} <: Kernel{T,KT}
     fields::KernelFields{T,KT}
-    ν::Float64
-    function MaternKernel{T,KT}(θ::Vector{T},ν::Real;variance::T=one(T),dim::Integer=0) where {T<:AbstractFloat,KT<:KernelType}
+    ν::T
+    function MaternKernel{T,KT}(θ::Vector{T},ν::T,variance::T=one(T);dim::Integer=0) where {T<:Real,KT<:KernelType}
         @assert ν > 0 "ν should be bigger than 0!"
         if KT == ARDKernel
             if length(θ)==1 && dim ==0
@@ -18,14 +18,14 @@ struct MaternKernel{T<:Real,KT<:KernelType} <: Kernel{T,KT}
             dim = length(θ)
             return new{T,ARDKernel}(KernelFields{T,ARDKernel}(
                                         "General Matern",
-                                        HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
+                                        HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
                                         HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}()) for _ in 1:dim]),dim,
                                         WeightedEuclidean(one(T)./(θ.^2))),ν)
         else
             return new{T,IsoKernel}(KernelFields{T,IsoKernel}(
                                         "General Matern",
-                                        HyperParameter{T}(variance,interval(OpenBound(zero(T)),nothing),fixed=false),
-                                        HyperParameters{T}(θ,[interval(OpenBound(zero(T)),NullBound{T}())]),1,
+                                        HyperParameter{T}(variance,interval(OpenBound{T}(zero(T)),NullBound{T}()),fixed=false),
+                                        HyperParameters{T}(θ,[interval(OpenBound{T}(zero(T)),NullBound{T}())]),1,
                                         Euclidean()),ν)
         end
     end
@@ -33,7 +33,8 @@ end
 
 
 #TODO Implement specific kernels for matern kernel
-function MaternKernel(θ::T1=1.0,ν::Real=2.5;variance::T2=one(T1),dim::Integer=0,ARD::Bool=false) where {T1<:Real,T2<:Real}
+function MaternKernel(θ::T1=1.0,ν::T2=2.5;variance::T3=one(T1),dim::Integer=0,ARD::Bool=false) where {T1<:Real,T2<:Real,T3<:Real}
+    maxtype = floattype(T1,T2,T3)
     if ARD
         # if ν≈0.5
             # ExponentialKernel{floattype(T1,T2),ARDKernel}([θ],ν,variance=variance,dim=dim)
@@ -42,7 +43,7 @@ function MaternKernel(θ::T1=1.0,ν::Real=2.5;variance::T2=one(T1),dim::Integer=
         # elseif ν≈2.5
             # Matern5_2Kernel{floattype(T1,T2),ARDKernel}([θ],ν,variance=variance,dim=dim)
         # else
-            MaternKernel{floattype(T1,T2),ARDKernel}([θ],ν,variance=variance,dim=dim)
+            MaternKernel{maxtype,ARDKernel}([θ],maxtype(ν),maxtype(variance),dim=dim)
         # end
     else
         # if ν≈0.5
@@ -52,13 +53,14 @@ function MaternKernel(θ::T1=1.0,ν::Real=2.5;variance::T2=one(T1),dim::Integer=
         # elseif ν≈2.5
             # Matern5_2Kernel{floattype(T1,T2),ARDKernel}([θ],ν,variance=variance)
         # else
-            MaternKernel{floattype(T1,T2),IsoKernel}([θ],ν,variance=variance)
+            MaternKernel{maxtype,IsoKernel}([θ],maxtype(ν),maxtype(variance))
         # end
     end
  end
 
-function MaternKernel(θ::Array{T1,1},ν::Real=2.5;variance::T2=one(T1),dim::Integer=0) where {T1<:Real,T2<:Real}
-    MaternKernel{floattype(T1,T2),ARDKernel}(θ,ν,variance=variance,dim=dim)
+function MaternKernel(θ::Array{T1,1},ν::T2=2.5;variance::T3=one(T1),dim::Integer=0) where {T1<:Real,T2<:Real,T3<:Real}
+    maxtype = floattype(T1,T2,T3)
+    MaternKernel{maxtype,ARDKernel}(θ,maxtype(ν),maxtype(variance),dim=dim)
 end
 
 
@@ -112,7 +114,7 @@ end
 
 ################# Matrix derivatives for the Matern kernel###################################
 """Return the derivatives of Knn for the Iso MaternKernel"""
-function kernelderivativematrix(X::Array{T,N},kernel::MaternKernel{T,IsoKernel}) where {T,N}
+function kernelderivativematrix(X::Array{T},kernel::MaternKernel{T,IsoKernel}) where {T<:Real}
     v = getvariance(kernel); l = getlengthscales(kernel); ν=kernel.ν; C = (2^(1.0-ν))/gamma(ν)
     P = (sqrt(2.0*ν)/l).*pairwise(Euclidean(),X,dims=1);
     P .= ifelse.(P.<eps(T),eps(T),P)

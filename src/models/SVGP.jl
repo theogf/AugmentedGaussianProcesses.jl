@@ -52,10 +52,9 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
             IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
-            X,y,likelihood = check_data!(X,y,likelihood)
-            @assert check_implementation(likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
+            X,y,nLatent,likelihood = check_data!(X,y,likelihood)
+            @assert check_implementation(:SVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
 
-            nLatent = length(y);
             nPrior = IndependentPriors ? nLatent : 1
             nSample = size(X,1); nDim = size(X,2);
             kernel = [deepcopy(kernel) for _ in 1:nPrior]
