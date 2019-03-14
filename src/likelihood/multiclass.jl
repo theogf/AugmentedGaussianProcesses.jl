@@ -4,7 +4,7 @@ abstract type MultiClassLikelihood{T<:Real} <: Likelihood{T} end
 function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:MultiClassLikelihood}
     @assert N <= 1 "Target should be a vector of labels"
     likelihood = init_multiclass_likelihood(likelihood,y)
-    likelihood.Y,likelihood
+    return likelihood.Y,length(likelihood.Y),likelihood
 end
 
 function init_multiclass_likelihood(likelihood::L,y::AbstractVector) where {L<:MultiClassLikelihood}

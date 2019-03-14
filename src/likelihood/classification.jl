@@ -12,7 +12,7 @@ function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:Classi
     labels = Int64.(unique(y))
     @assert (length(labels) <= 2) && ((sort(labels) == [0;1]) || (sort(labels) == [-1;1])) "Labels of y should be binary {-1,1} or {0,1}"
     if N == 1
-        return y,1,likelihood
+        return [y],1,likelihood
     else
         return [y[:,i] for i in 1:size(y,2)],size(y,2),likelihood
     end

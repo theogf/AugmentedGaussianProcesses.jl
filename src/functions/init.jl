@@ -17,6 +17,12 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
         else
             return false
         end
+    elseif isa(likelihood,AbstractStudentTLikelihood)
+        if isaugmented(likelihood) && isa(inference,AnalyticInference)
+            return true
+        else
+            return false
+        end
     elseif isa(likelihood,AbstractLogisticLikelihood)
         if isaugmented(likelihood) && isa(inference,AnalyticInference)
             return true

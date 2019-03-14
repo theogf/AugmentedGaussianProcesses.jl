@@ -41,7 +41,7 @@ function AugmentedStudentTLikelihood(ν::T) where {T<:Real}
 end
 
 function init_likelihood(likelihood::AugmentedStudentTLikelihood{T},nLatent::Int,nSamplesUsed::Int) where T
-    AugmentedStudentTLikelihood{T}(likelihood.ν,abs2(T.(rand(T,nSamplesUsed))),zeros(T,nSamplesUsed))
+    AugmentedStudentTLikelihood{T}(likelihood.ν,abs2.(T.(rand(T,nSamplesUsed))),zeros(T,nSamplesUsed))
 end
 
 function local_updates!(model::VGP{<:AugmentedStudentTLikelihood,<:AnalyticInference})
@@ -101,6 +101,10 @@ struct StudentTLikelihood{T<:Real} <:AbstractStudentTLikelihood{T}
     function StudentTLikelihood{T}(ν::T) where {T<:Real}
         new{T}(ν,(ν+one(T))/2.0)
     end
+end
+
+function StudentTLikelihood(ν::T) where {T<:Real}
+    StudentTLikelihood{T}(ν)
 end
 
 function gradpdf(::StudentTLikelihood,y::Int,f::T) where {T<:Real}

@@ -69,7 +69,7 @@ function expec_Σ(model::SVGP{<:GaussianLikelihood})
     return [0.5/model.likelihood.ϵ[i]*ones(model.inference.nSamplesUsed) for i in 1:model.nLatent]
 end
 
-function natural_gradient!(model::VGP{GaussianLikelihood{T}}) where T
+function natural_gradient!(model::VGP{GaussianLikelihood{T},AnalyticInference{T}}) where T
 end
 
 function global_update!(model::VGP{GaussianLikelihood{T}}) where T

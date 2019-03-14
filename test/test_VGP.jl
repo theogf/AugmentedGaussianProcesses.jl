@@ -7,7 +7,7 @@ include("compat.jl")
 nData = 100; nDim = 2
 m = 50; b= 10
 k = AGP.RBFKernel()
-ν = 5
+ν = 5.0
 
 X = rand(nData,nDim)
 y = Dict("Regression"=>norm.(eachrow(X)),"Classification"=>Int64.(sign.(norm.(eachrow(X)).-0.5)),"MultiClass"=>floor.(Int64,norm.(eachrow(X.*2))))
@@ -26,8 +26,10 @@ floattypes = [Float64]
                     for inference in inferences
                         @testset "$(string(inference))" begin
                             if in(inference,methods_implemented[l])
-                                for floattype in floattypes                              println(VGP(floattype.(X),y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()"))))
-                                # for floattype in floattypes                              @test typeof(VGP(floattype.(X),y[l_names],k,eval(Meta.parse(l*"()")),eval(Meta.parse(inference*"("*(isStochastic(inference) ? string(b) : "")*")")),m)) <: SVGP{eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*"}")),floattype,Vector{floattype}}
+                                for floattype in floattypes
+                                    @test typeof(VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()")))) <: VGP{eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*"}")),floattype,Vector{floattype}}
+                                    model = VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()")),Autotuning=true)
+                                    @test train!(model,iterations=10)
                                 end
                             else
                                 @test_throws AssertionError VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()")))

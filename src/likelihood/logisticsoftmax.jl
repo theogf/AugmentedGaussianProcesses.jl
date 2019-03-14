@@ -76,7 +76,7 @@ function LogisticSoftMaxLikelihood()
 end
 
 function Base.show(io::IO,model::LogisticSoftMaxLikelihood{T}) where T
-    print(io,"logistic-softmax likelihood")
+    print(io,"Logistic-softmax likelihood")
 end
 
 function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T
