@@ -48,8 +48,7 @@ end
 
 function local_updates!(model::SVGP{GaussianLikelihood{T}}) where T
     model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *
-    norm.(getindex.(model.y,[model.inference.MBIndices]).*model.κ.*model.μ)
-    + opt_trace.((model.κ'.*model.κ),model.Σ + sum.(model.K̃) )
+    norm.(getindex.(model.y,[model.inference.MBIndices]).*model.κ.*model.μ) + opt_trace.((model.κ'.*model.κ),model.Σ) + sum.(model.K̃)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
@@ -57,7 +56,7 @@ function expec_μ(model::SVGP{<:GaussianLikelihood},index::Integer)
     return model.y[index][model.inference.MBIndices]./model.likelihood.ϵ[index]
 end
 
-function expec_μ(model::SVGP{<:GaussianLikelihood})
+function ∇μ(model::SVGP{<:GaussianLikelihood{T}}) where {T<:Real}
     return getindex.(model.y,[model.inference.MBIndices])./model.likelihood.ϵ[index]
 end
 
@@ -65,7 +64,7 @@ function expec_Σ(model::SVGP{<:GaussianLikelihood},index::Integer)
     return 0.5/model.likelihood.ϵ[index]*ones(model.inference.nSamplesUsed)
 end
 
-function expec_Σ(model::SVGP{<:GaussianLikelihood})
+function ∇Σ(model::SVGP{<:GaussianLikelihood{T}}) {T<:Real}
     return [0.5/model.likelihood.ϵ[i]*ones(model.inference.nSamplesUsed) for i in 1:model.nLatent]
 end
 
@@ -78,20 +77,18 @@ function global_update!(model::VGP{GaussianLikelihood{T},AnalyticInference{T}}) 
     end
 end
 
-function proba_y(model::GP{<:GaussianLikelihood},X_test::AbstractMatrix)
+function proba_y(model::GP{GaussianLikelihood{T},AnalyticInference{T}},X_test::AbstractMatrix) where {T<:Real}
     μ_f,Σ_f = predict_f(model,X_test,covf=true)
     Σ_f .+= [ones(size(X_test,1))].*model.likelihood.ϵ
     return μ_f,Σ_f
 end
 
 ### Special case where the ELBO is equal to the marginal likelihood
-function ELBO(model::VGP{<:GaussianLikelihood})
-    return -0.5*sum(dot.(model.y,inv.(model.Knn.+Diagonal.(model.likelihood.ϵ)).*model.y)
-            + logdet.(model.Knn.+Diagonal.(model.likelihood.ϵ))
-            .+ model.nFeature*log(2.0π))
+function ELBO(model::VGP{<:GaussianLikelihood{T}}) where {T<:Real}
+    return -0.5*sum(broadcast((y,K,ϵ)->dot(y,inv(K+ϵ*I)*y)            + logdet(K+ϵ*I)+ model.nFeature*log(twoπ),model.y,model.Knn,model.likelihood.ϵ))
 end
 
-function ELBO(model::SVGP{<:GaussianLikelihood})
+function ELBO(model::SVGP{<:GaussianLikelihood{T}}) where {T<:real}
     return expecLogLikelihood(model) - GaussianKL(model)
 end
 

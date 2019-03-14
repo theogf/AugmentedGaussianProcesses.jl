@@ -20,7 +20,7 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for sparse GP models
 Return also the variance if `covf=true`
 """
-function predict_f(model::SVGP,X_test::Matrix{T};covf::Bool=true) where T
+function predict_f(model::SVGP,X_test::AbstractMatrix{T};covf::Bool=true) where T
     k_star = kernelmatrix.([X_test],model.Z,model.kernel)
     μf = k_star.*model.invKmm.*model.μ
     if !covf

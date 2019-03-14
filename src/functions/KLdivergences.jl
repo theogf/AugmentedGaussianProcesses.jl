@@ -10,7 +10,7 @@ end
 
 """ Compute KL divergence for Polya-Gamma variables (in the binary case)"""
 function PolyaGammaKL(model::GP)
-    return model.inference.ρ*sum(broadcast((c,θ)->-0.5*c.^2 .* θ .+ log.(cosh.(0.5.*c)),model.c,model.θ))
+    return model.inference.ρ*sum(broadcast((c,θ)->sum(-0.5*c.^2 .* θ .+ logcosh.(0.5.*c)),model.likelihood.c,model.likelihood.θ))
 end
 
 function GammaImproperKL(model::GP)

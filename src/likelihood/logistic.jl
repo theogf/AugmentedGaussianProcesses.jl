@@ -17,7 +17,7 @@ function compute_proba(l::AbstractLogisticLikelihood{T},μ::AbstractVector{<:Abs
     K = length(μ)
     N = length(μ[1])
     pred = [zeros(T,N) for _ in 1:K]
-    for k in 1:model.K
+    for k in 1:K
         for i in 1:N
             if σ²[k][i] <= 0.0
                 pred[k][i] = logistic(μ[k][i])
@@ -94,16 +94,16 @@ function ELBO(model::GP{<:AugmentedLogisticLikelihood})
 end
 
 function expecLogLikelihood(model::VGP{AugmentedLogisticLikelihood{T}}) where T
-    tot = -model.nLatent*(0.5*model.nSample*log(2))
-    tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-opt_trace(θ,(diag(Σ)+μ.^2))),
-                        model.μ,model.y,model.θ,model.Σ))
+    tot = -model.nLatent*(0.5*model.nSample*logtwo)
+    tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-dot(θ,(diag(Σ)+μ.^2))),
+                        model.μ,model.y,model.likelihood.θ,model.Σ))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{AugmentedLogisticLikelihood{T}}) where T
-    tot = -model.nLatent*(0.5*model.nSamples*log(2))
-    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y)-opt_trace(θ,K̃+κΣκ+κμ.^2))),
-                        model.κ.*model.μ,model.y,model.θ,opt_diag(model.κ*model.Σ,model.κ'),model.K̃)
+    tot = -model.nLatent*(0.5*model.nSamples*logtwo)
+    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y)-dot(θ,K̃+κΣκ+κμ.^2))),
+                        model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag(model.κ*model.Σ,model.κ'),model.K̃)
     return model.inference.ρ*tot
 end
 

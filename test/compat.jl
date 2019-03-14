@@ -30,4 +30,5 @@ function testconv(model::GP,problem_type::String,X::AbstractArray,y::AbstractArr
         err = mean(y_pred.!=y)
     end
     println(problem_type,model,err)
+    return true
 end
