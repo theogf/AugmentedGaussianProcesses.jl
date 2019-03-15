@@ -1,5 +1,7 @@
 using Test
 using AugmentedGaussianProcesses
+using LinearAlgebra
+using Statistics
 const AGP = AugmentedGaussianProcesses
 include("testingtools.jl")
 

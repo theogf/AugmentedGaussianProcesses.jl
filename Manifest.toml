@@ -174,12 +174,6 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 [[Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
-[[MLKernels]]
-deps = ["LinearAlgebra", "SpecialFunctions", "Statistics", "Test"]
-git-tree-sha1 = "d8ae6ac28480a25ddaae9ad9108371035ef9a346"
-uuid = "6899632a-1081-549c-8d71-752c8a25a7ba"
-version = "0.4.0"
-
 [[Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
