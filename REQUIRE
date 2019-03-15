@@ -1,12 +1,17 @@
-julia 0.7
+julia 1.1
 
 Clustering
+DataFrames
 Distances
 Distributions
 Expectations
 FileIO
+GradDescent
 JLD2
 LaTeXStrings
+MLKernels
 SpecialFunctions
+Statistics
 StatsBase
+StatsFuns
 ValueHistories

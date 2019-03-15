@@ -84,15 +84,3 @@ end
 
     end
 end
-#RBF Kernel
-θ = 0.5
-θ2 = [0.5,0.5]
-dA_ad = reshape(ForwardDiff.jacobian(x->begin;k_ = RBFKernel(x[1]); AGP.kernelmatrix(adapt_AD(k_,A),k_); end,[θ]),nA,nA)
-# mlk = MLKernels.SquaredExponentialKernel(0.5/θ^2)
-agpk = AugmentedGaussianProcesses.RBFKernel(θ2)
-dA_ad = reshape(ForwardDiff.jacobian(x->begin;k_ = create_kernel(k_AD,x[1],t_name,ν=ν); AGP.kernelmatrix(adapt_AD(k_,A),k_); end,[θ]),nA,nA)
-
-D = ForwardDiff.jacobian(x->AGP.kernelmatrix(A,AGP.RBFKernel(x[1])),[θ])
-C= AugmentedGaussianProcesses.kernelderivativematrix(A,B,agpk)
-C = hcat(vec.(C)...)
-# Zygote.gradient.(x->tr(AGP.kernelmatrix(A,AGP.RBFKernel(x))),θ)
