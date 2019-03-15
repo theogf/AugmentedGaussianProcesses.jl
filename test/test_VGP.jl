@@ -3,7 +3,7 @@ using AugmentedGaussianProcesses
 using LinearAlgebra
 using Statistics
 const AGP = AugmentedGaussianProcesses
-include("compat.jl")
+include("testingtools.jl")
 
 nData = 100; nDim = 2
 m = 50; b= 10
@@ -30,7 +30,7 @@ floattypes = [Float64]
                                 for floattype in floattypes
                                     @test typeof(VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()")))) <: VGP{eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*"}")),floattype,Vector{floattype}}
                                     model = VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()")),Autotuning=true,verbose=3)
-                                    @test train!(model,iterations=10)
+                                    @test train!(model,iterations=50)
                                     @test testconv(model,l_names,X,y[l_names])
                                 end
                             else

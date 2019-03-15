@@ -47,17 +47,17 @@ function local_updates!(model::VGP{GaussianLikelihood{T}}) where {T<:Real}
 end
 
 function local_updates!(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
-    model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *
-    norm.(getindex.(model.y,[model.inference.MBIndices]).*model.κ.*model.μ) + opt_trace.((model.κ'.*model.κ),model.Σ) + sum.(model.K̃)
+    model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->dot(y[model.inference.MBIndices],κ*μ)+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
+    # (dot.(getindex.(model.y,[model.inference.MBIndices]),model.κ.*model.μ) + opt_trace.(model.κ'.*model.κ,model.Σ) + sum.(model.K̃))
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::SVGP{GaussianLikelihood{T},AnalyticInference},index::Integer) where {T<:Real}
+function expec_μ(model::SVGP{GaussianLikelihood{T},AnalyticInference{T}},index::Integer) where {T<:Real}
     return model.y[index][model.inference.MBIndices]./model.likelihood.ϵ[index]
 end
 
 function ∇μ(model::SVGP{GaussianLikelihood{T},AnalyticInference{T}}) where {T<:Real}
-    return getindex.(model.y,[model.inference.MBIndices])./model.likelihood.ϵ[index]
+    return getindex.(model.y,[model.inference.MBIndices])./model.likelihood.ϵ
 end
 
 function expec_Σ(model::SVGP{GaussianLikelihood{T},AnalyticInference{T}},index::Integer) where {T<:Real}
@@ -97,9 +97,9 @@ function ELBO(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
 end
 
 function expecLogLikelihood(model::SVGP{GaussianLikelihood{T}}) where T
-    return -0.5*(model.inference.nSamplesUsed*sum(log.(2π.*model.likelihood.ϵ)) +
-                sum(broadcast(x->dot(x,x),getindex.(model.y,[model.inference.MBIndices]).-model.κ.*model.μ) .+
-                sum.(model.K̃)+opt_trace.(model.κ.*model.Σ,model.κ))./model.likelihood.ϵ)
+    return -0.5*model.inference.ρ*(model.inference.nSamplesUsed*sum(log.(twoπ.*model.likelihood.ϵ)) +
+                sum((broadcast(x->dot(x,x),getindex.(model.y,[model.inference.MBIndices]).-model.κ.*model.μ) .+
+                sum.(model.K̃)+opt_trace.(model.κ.*model.Σ,model.κ))./model.likelihood.ϵ))
 end
 
 function hyperparameter_gradient_function(model::VGP{GaussianLikelihood{T}}) where {T<:Real}

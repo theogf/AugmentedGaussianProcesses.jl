@@ -6,7 +6,7 @@ and give a convergence method to stop the algorithm given specific criteria
 """
 function train!(model::GP;iterations::Integer=100,callback=0,Convergence=0)
     if model.verbose > 0
-      println("Starting training of data of $(model.nSample) samples with $(size(model.X,2)) features and $(model.nLatent) latent GPs")# using the "*model.Name*" model")
+      println("Starting training $model with $(model.nSample) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))# using the "*model.Name*" model")
     end
 
     @assert iterations > 0  "Number of iterations should be positive"
@@ -66,7 +66,7 @@ end
 "Compute of kernel matrices for variational GPs"
 function computeMatrices!(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ [Diagonal(convert(T,Jittering())*I,model.nFeature)])
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ convert(T,Jittering()).*[I])
         model.invKnn .= inv.(model.Knn)
     end
 end

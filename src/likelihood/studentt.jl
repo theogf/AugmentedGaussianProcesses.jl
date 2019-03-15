@@ -15,11 +15,15 @@ end
 function compute_proba(l::AbstractStudentTLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
     N = length(μ)
     st = TDist(l.ν)
-    nSamples = 200
+    nSamples = 2000
     μ_pred = zeros(T,N)
     σ²_pred = zeros(T,N)
     temp_array = zeros(T,nSamples)
     for i in 1:N
+        # e = expectation(Normal(μ[i],sqrt(σ²[i])))
+        # μ_pred[i] = μ[i]
+        #
+        # σ²_pred[i] = e(x->pdf(LocationScale(x,1.0,st))^2) - e(x->pdf(LocationScale(x,1.0,st)))^2
         if σ²[i] <= 1e-3
             pyf =  LocationScale(μ[i],1.0,st)
             for j in 1:nSamples
@@ -31,7 +35,7 @@ function compute_proba(l::AbstractStudentTLikelihood{T},μ::AbstractVector{T},σ
                 temp_array[j] = rand(LocationScale(rand(d),1.0,st))
             end
         end
-        μ_pred[i] = mean(temp_array);
+        μ_pred[i] = μ[i];
         σ²_pred[i] = cov(temp_array)
     end
     return μ_pred,σ²_pred
@@ -68,7 +72,7 @@ function local_updates!(model::VGP{<:AugmentedStudentTLikelihood,<:AnalyticInfer
 end
 
 function local_updates!(model::SVGP{<:AugmentedStudentTLikelihood,<:AnalyticInference})
-    model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.likelihood.MBIndices]) .+model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
+    model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices]) .+model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
     model.likelihood.θ .= broadcast(β->0.5*(model.likelihood.ν+1.0)./β,model.likelihood.β)
 end
 
@@ -87,7 +91,7 @@ function expec_μ(model::SVGP{<:AugmentedStudentTLikelihood},index::Integer)
 end
 
 function ∇μ(model::SVGP{<:AugmentedStudentTLikelihood})
-    return hadamard.(model.likelihood.θ,model.y[model.inference.MBIndices])
+    return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))
 end
 
 function expec_Σ(model::GP{<:AugmentedStudentTLikelihood},index::Integer)
@@ -103,11 +107,17 @@ function ELBO(model::GP{<:AugmentedStudentTLikelihood})
 end
 
 function expecLogLikelihood(model::VGP{AugmentedStudentTLikelihood{T}}) where T
-    return -Inf #TODO
+    tot = -0.5*model.nLatent*model.nSample*log(twoπ)
+    tot -= 0.5.*sum(broadcast(β->sum(log.(β).-model.nSample*digamma(model.likelihood.α)),model.likelihood.β))
+    tot -= 0.5.*sum(broadcast((β,Σ,μ,y)->dot(model.likelihood.α./β,Σ+abs2.(μ)-2.0*μ.*y-abs2.(y)),model.likelihood.β,diag.(model.Σ),model.μ,model.y))
+    return tot
 end
 
 function expecLogLikelihood(model::SVGP{AugmentedStudentTLikelihood{T}}) where T
-    return -Inf #TODO
+    tot = -0.5*model.nLatent*model.inference.nSamplesUsed*log(twoπ)
+    tot -= 0.5.*sum(broadcast(β->sum(log.(β).-model.inference.nSamplesUsed*digamma(model.likelihood.α)),model.likelihood.β))
+    tot -= 0.5.*sum(broadcast((β,K̃,κ,Σ,μ,y)->dot(model.likelihood.α./β,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)-2.0*(κ*μ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.β,model.K̃,model.κ,model.Σ,model.μ,model.y))
+    return model.inference.ρ*tot
 end
 
 

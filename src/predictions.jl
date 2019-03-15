@@ -32,7 +32,7 @@ function predict_f(model::SVGP,X_test::AbstractMatrix{T};covf::Bool=true) where 
     return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 end
 
-function predict_f(model::VGP{<:Likelihood,<:GibbsSampling},X_test::Matrix{T};covf::Bool=true) where T
+function predict_f(model::VGP{<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true) where T
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
     μf =  [vec(mean(hcat(f[k]...),dims=2)) for k in 1:model.nLatent]

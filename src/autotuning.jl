@@ -52,7 +52,7 @@ function hyperparameter_gradient_function(model::VGP) where {T<:Real}
             return sum(hyperparameter_KL_gradient.([Jnn],A))
                 end,
                 function(kernel,index)
-                    return 1.0/getvariance(kernel[1])*sum(hyperparameter_KL_gradient.(model.Knn,A))
+                    return 1.0/getvariance(kernel)*sum(hyperparameter_KL_gradient.(model.Knn,A))
                 end)
     end
 end
