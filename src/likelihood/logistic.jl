@@ -56,7 +56,7 @@ function local_updates!(model::VGP{<:AugmentedLogisticLikelihood,<:AnalyticInfer
 end
 
 function local_updates!(model::SVGP{<:AugmentedLogisticLikelihood,<:AnalyticInference})
-    model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ')+(κ*μ).^2),model.μ,model.Σ,model.K̃,model.κ)
+    model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),model.μ,model.Σ,model.K̃,model.κ)
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.c)
 end
 

@@ -61,7 +61,7 @@ end
 
 
 function callbackmakie(model::GP)
-    scene = Scene()
+    scene = Makie.Scene()
     if model.nDim == 1
         makie1D!(scene,model)
     elseif model.nDim == 2
@@ -83,16 +83,16 @@ end
 function makie1D!(scene::Scene,model::GP{<:RegressionLikelihood},x_grid::AbstractVector)
     μ_grid,σ²_grid = proba_y(model,x_grid)
     if model.nLatent == 1
-        scatter!(scene,model.X[:,1],model.y[1],markersize=0.01,color=:black)
-        lines!(scene,x_grid,μ_grid,linewidth=3.0)
-        fill_between!(x_grid,μ_grid.+sqrt.(σ²_grid),μ_grid-sqrt.(σ²_grid),where = trues(length(x_grid)),alpha=0.3)
+        Makie.scatter!(scene,model.X[:,1],model.y[1],markersize=0.01,color=:black)
+        Makie.lines!(scene,x_grid,μ_grid,linewidth=3.0)
+        Makie.fill_between!(x_grid,μ_grid.+sqrt.(σ²_grid),μ_grid-sqrt.(σ²_grid),where = trues(length(x_grid)),alpha=0.3)
         return scene
     else
         ps = []
         for i in 1:model.nLatent
-            p = scatter(model.X[:,1],model.y[i],markersize=0.01,color=:black,title="y$i")
-            lines!(p,x_grid,μ_grid[i],linewidth=3.0)
-            fill_between!(x_grid,μ_grid[i].+sqrt.(σ²_grid[i]),μ_grid[i]-sqrt.(σ²_grid[i]),where = trues(length(x_grid)),alpha=0.3)
+            p = Makie.scatter(model.X[:,1],model.y[i],markersize=0.01,color=:black,title="y$i")
+            Makie.lines!(p,x_grid,μ_grid[i],linewidth=3.0)
+            Makie.fill_between!(x_grid,μ_grid[i].+sqrt.(σ²_grid[i]),μ_grid[i]-sqrt.(σ²_grid[i]),where = trues(length(x_grid)),alpha=0.3)
             push!(ps,p)
         end
         scene = hbox(ps...)
@@ -104,15 +104,15 @@ function makie1D!(scene::Scene,model::GP{<:ClassificationLikelihood},x_grid::Abs
     μ_grid,σ²_grid = predict_f(model,x_grid,covf=true)
     py_grid = proba_y(model,x_grid)
     if model.nLatent == 1
-        p = scatter(model.X[:,1],model.y[1],markersize=0.01,color=:black)
-        lines!(scene,x_grid,py_grid,linewidth=3.0)
+        p = Makie.scatter(model.X[:,1],model.y[1],markersize=0.01,color=:black)
+        Makie.lines!(scene,x_grid,py_grid,linewidth=3.0)
         scene = p
         # fill_between!(x_grid,μ_grid.+sqrt.(σ²_grid),μ_grid-sqrt.(σ²_grid),where = trues(length(x_grid)),alpha=0.3)
     else
         ps = []
         for i in 1:model.nLatent
-            p = scatter(model.X[:,1],model.y[i],markersize=0.01,color=:black,title="y$i")
-            lines!(scene,x_grid,py_grid[i],linewidth=3.0)
+            p = Makie.scatter(model.X[:,1],model.y[i],markersize=0.01,color=:black,title="y$i")
+            Makie.lines!(scene,x_grid,py_grid[i],linewidth=3.0)
         end
         scene = hbox(ps...)
     end

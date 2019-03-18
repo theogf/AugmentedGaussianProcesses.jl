@@ -4,15 +4,21 @@
 Compute the mean of the predicted latent distribution of `f` on `X_test` for full GP model `model`
 Return also the variance if `covf=true`
 """
-function predict_f(model::VGP,X_test::AbstractMatrix{T};covf::Bool=true) where T
+function predict_f(model::VGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where T
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     μf = k_star.*model.invKnn.*model.μ
     if !covf
         return model.nLatent == 1 ? μf[1] : μf
     end
     A = model.invKnn.*([I].-model.Σ.*model.invKnn)
-    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
-    σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
+    σ²f = []
+    if fullcov
+        k_starstar = kernelmatrix.([X_test],model.kernel)
+        σ²f = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star) .+ convert(T,Jittering()).*[I])
+    else
+        k_starstar = kerneldiagmatrix.([X_test],model.kernel)
+        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
+    end
     return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 end
 
@@ -20,32 +26,43 @@ end
 Compute the mean of the predicted latent distribution of f on X_test for sparse GP models
 Return also the variance if `covf=true`
 """
-function predict_f(model::SVGP,X_test::AbstractMatrix{T};covf::Bool=true) where T
+function predict_f(model::SVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where T
     k_star = kernelmatrix.([X_test],model.Z,model.kernel)
     μf = k_star.*model.invKmm.*model.μ
     if !covf
         return model.nLatent == 1 ? μf[1] : μf
     end
     A = model.invKmm.*([I].-model.Σ.*model.invKmm)
-    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
-    σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
+    if fullcov
+        k_starstar = kernelmatrix.([X_test],model.kernel)
+        σ²f = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
+    else
+        k_starstar = kerneldiagmatrix.([X_test],model.kernel)
+        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
+    end
     return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 end
 
-function predict_f(model::VGP{<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true) where T
+function predict_f(model::VGP{<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where T
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
     μf =  [vec(mean(hcat(f[k]...),dims=2)) for k in 1:model.nLatent]
     if !covf
         return model.nLatent == 1 ? μf[1] : μf
     end
-    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
-    σ²f = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+  diag.(cov.(f))
+    σ²f = []
+    if fullcov
+        k_starstar = kernelmatrix.([X_test],model.kernel)
+        σ²f = Symmetric.(k_starstar .- k_star.*model.invKnn.*transpose.(k_star) .+  cov.(f))
+    else
+        k_starstar = kerneldiagmatrix.([X_test],model.kernel)
+        σ²f = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+  diag.(cov.(f))
+    end
     return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 end
 
-function predict_f(model::GP,X_test::AbstractVector{T};covf::Bool=false) where T
-    predict_f(model,reshape(X_test,length(X_test),1),covf=covf)
+function predict_f(model::GP,X_test::AbstractVector{T};covf::Bool=false,fullcov::Bool=false) where T
+    predict_f(model,reshape(X_test,length(X_test),1),covf=covf,fullcov=fullcov)
 end
 
 function predict_y(model::GP,X_test::AbstractVector)

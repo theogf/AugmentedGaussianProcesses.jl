@@ -53,7 +53,7 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
 
             μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = deepcopy(μ)
             Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
-            η₂ = inv.(Σ)*(-0.5);
+            η₂ = -0.5*inv.(Σ);
             Knn = LatentArray([deepcopy(Σ[1]) for _ in 1:nPrior]);
             invKnn = copy(Knn)
 

@@ -103,7 +103,7 @@ function ∇Σ(model::GP{<:AugmentedStudentTLikelihood})
 end
 
 function ELBO(model::GP{<:AugmentedStudentTLikelihood})
-    return expecLogLikelihood(model) - InverseGammaKL(model)
+    return expecLogLikelihood(model) - InverseGammaKL(model) - GaussianKL(model)
 end
 
 function expecLogLikelihood(model::VGP{AugmentedStudentTLikelihood{T}}) where T
