@@ -8,8 +8,8 @@ end
 end;
 
 Base.convert(::Type{Float64},::Jittering) = Float64(1e-5)
-Base.convert(::Type{Float32},::Jittering) = Float32(1e-2)
-Base.convert(::Type{Float16},::Jittering) = Float16(1e-1)
+Base.convert(::Type{Float32},::Jittering) = Float32(1e-4)
+Base.convert(::Type{Float16},::Jittering) = Float16(1e-3)
 
 """ delta function `(i,j)`, equal `1` if `i == j`, `0` else """
 @inline function δ(i::Integer,j::Integer)
