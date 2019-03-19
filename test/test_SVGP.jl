@@ -28,7 +28,7 @@ floattypes = [Float64]
                     for inference in inferences
                         for s in stochastic
                             @testset "$(string(stoch(s,inference)))" begin
-                                if in(inference,methods_implemented[l])
+                                if in(inference,methods_implemented_SVGP[l])
                                     for floattype in floattypes
                                         @test typeof(SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*(s ? "b" : "")*")")),m)) <: SVGP{eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*"}")),floattype,Vector{floattype}}
                                         model = SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*(s ? "b" : "")*")")),m,Autotuning=true,verbose=3)

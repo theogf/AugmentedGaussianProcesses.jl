@@ -1,5 +1,5 @@
 methods_implemented = Dict{String,Vector{String}}()
-methods_implemented["GaussianLikelihood"] = ["AnalyticInference","StochasticAnalyticInference"]
+methods_implemented["GaussianLikelihood"] = []
 methods_implemented["AugmentedStudentTLikelihood"] = ["AnalyticInference","StochasticAnalyticInference"]
 methods_implemented["StudentTLikelihood"] = []# ["NumericalInference","StochasticNumericalInference"]
 methods_implemented["AugmentedLogisticLikelihood"] = ["AnalyticInference","StochasticAnalyticInference"]#,"GibbsSampling"]
@@ -7,6 +7,12 @@ methods_implemented["LogisticLikelihood"] = []# ["NumericalInference","Stochasti
 methods_implemented["AugmentedLogisticSoftMaxLikelihood"] = ["AnalyticInference","StochasticAnalyticInference"]#,"GibbsSampling"]
 methods_implemented["LogisticSoftMaxLikelihood"] = ["NumericalInference","StochasticNumericalInference"]
 methods_implemented["SoftMaxLikelihood"] = ["NumericalInference","StochasticNumericalInference"]
+
+methods_implemented_VGP = deepcopy(methods_implemented)
+methods_implemented_SVGP = deepcopy(methods_implemented)
+methods_implemented_SVGP["GaussianLikelihood"] = ["AnalyticInference","StochasticAnalyticInference"]
+
+
 
 isStochastic(inference::String) = (inference == "StochasticAnalyticInference" || inference == "StochasticNumericalInference")
 stoch(s::Bool,inference::String) = s ? "Stochastic"*inference : inference

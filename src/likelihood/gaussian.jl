@@ -100,8 +100,8 @@ function proba_y(model::AbstractGP{GaussianLikelihood{T},AnalyticInference{T}},X
 end
 
 ### Special case where the ELBO is equal to the marginal likelihood
-function ELBO(model::VGP{GaussianLikelihood{T}}) where {T<:Real}
-    return -0.5*sum(broadcast((y,K,ϵ)->dot(y,inv(K+ϵ*I)*y)            + logdet(K+ϵ*I)+ model.nFeature*log(twoπ),model.y,model.Knn,model.likelihood.ϵ))
+function ELBO(model::GP{GaussianLikelihood{T}}) where {T<:Real}
+    return -0.5*sum(broadcast((y,invK)->dot(y,invK*y) - logdet(invK)+ model.nFeature*log(twoπ),model.y,model.invKnn))
 end
 
 function ELBO(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
@@ -109,10 +109,7 @@ function ELBO(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
 end
 
 function expecLogLikelihood(model::SVGP{GaussianLikelihood{T}}) where T
-    # return -0.5*model.inference.ρ*(model.inference.nSamplesUsed*sum(log.(twoπ.*model.likelihood.ϵ)) +
-                # sum((broadcast(x->dot(x,x),getindex.(model.y,[model.inference.MBIndices]).-model.κ.*model.μ) .+
-                # sum.(model.K̃)+opt_trace.(model.κ.*model.Σ,model.κ))./model.likelihood.ϵ))
-    return -0.5*model.inference.ρ*sum(broadcast((y,ϵ,κ,Σ,μ,K̃)->1.0/ϵ*(sum(abs2.(y[model.inference.MBIndices]-κ*μ))+sum(K̃)+opt_trace(κ*Σ,κ))+model.inference.nSamplesUsed*(log(twoπ)+log(ϵ)),model.y,model.likelihood.ϵ,model.\κ,model.Σ,model.μ,model.K̃))
+    return -0.5*model.inference.ρ*sum(broadcast((y,ϵ,κ,Σ,μ,K̃)->1.0/ϵ*(sum(abs2.(y[model.inference.MBIndices]-κ*μ))+sum(K̃)+opt_trace(κ*Σ,κ))+model.inference.nSamplesUsed*(log(twoπ)+log(ϵ)),model.y,model.likelihood.ϵ,model.κ,model.Σ,model.μ,model.K̃))
 end
 
 function hyperparameter_gradient_function(model::GP{GaussianLikelihood{T}}) where {T<:Real}

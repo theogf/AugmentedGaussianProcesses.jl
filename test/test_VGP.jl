@@ -26,7 +26,7 @@ floattypes = [Float64]
                 @testset "$(string(l))" begin
                     for inference in inferences
                         @testset "$(string(inference))" begin
-                            if in(inference,methods_implemented[l])
+                            if in(inference,methods_implemented_VGP[l])
                                 for floattype in floattypes
                                     @test typeof(VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()")))) <: VGP{eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*"}")),floattype,Vector{floattype}}
                                     model = VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"()")),Autotuning=true,verbose=3)
