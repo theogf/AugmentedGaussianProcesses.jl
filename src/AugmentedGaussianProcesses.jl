@@ -8,7 +8,7 @@ module AugmentedGaussianProcesses
 export AbstractGP, GP, VGP, SVGP
 export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
 export GaussianLikelihood, AugmentedStudentTLikelihood, StudentTLikelihood
-export AugmentedLogisticLikelihood, LogisticLikelihood
+export AugmentedLogisticLikelihood, LogisticLikelihood, BayesianSVM
 export MultiClassLikelihood, SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export AugmentedLogisticSoftMaxLikelihood
 export Inference, AnalyticInference, StochasticAnalyticInference, GibbsSampling, MCMCIntegrationInference, QuadratureInference

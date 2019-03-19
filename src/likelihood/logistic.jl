@@ -92,15 +92,15 @@ end
 
 function expecLogLikelihood(model::VGP{AugmentedLogisticLikelihood{T}}) where T
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-dot(θ,(diag(Σ)+μ.^2))),
-                        model.μ,model.y,model.likelihood.θ,model.Σ))
+    tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-dot(θ,Σ+μ.^2)),
+                        model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{AugmentedLogisticLikelihood{T}}) where T
-    tot = -model.nLatent*(0.5*model.nSamples*logtwo)
+    tot = -model.nLatent*(0.5*model.nSample*logtwo)
     tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y)-dot(θ,K̃+κΣκ+κμ.^2))),
-                        model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag(model.κ*model.Σ,model.κ'),model.K̃)
+                        model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag(model.κ.*model.Σ,model.κ'),model.K̃)
     return model.inference.ρ*tot
 end
 

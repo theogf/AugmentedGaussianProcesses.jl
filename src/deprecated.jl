@@ -40,6 +40,24 @@ function SparseMultiClass(X::AbstractArray{T},y::AbstractArray;Stochastic::Bool=
     return model
 end
 
+function BatchBSVM(X::AbstractArray{T},y::AbstractArray;Autotuning::Bool=false,nEpochs::Integer = 200, kernel=0,AutotuningFrequency::Integer=1, ϵ::T=1e-5,μ_init::Vector{T}=ones(T,1),verbose::Integer=0) where {T<:Real}
+    @warn deprecation_warning
+    model = VGP(X,y,kernel,BayesianSVM(),AnalyticInference(ϵ=ϵ),verbose=verbose,Autotuning=Autotuning,atfrequency=AutotuningFrequency,IndependentPriors=IndependentGPs)
+    for i in 1:model.nLatent
+        model.μ[i] = μ_init[1]*ones(length(model.μ[i]))
+    end
+    return model
+end
+
+function SparseBSVM(X::AbstractArray{T},y::AbstractArray;Stochastic::Bool=false,AdaptiveLearningRate::Bool=true,Autotuning::Bool=false,OptimizeIndPoints::Bool=false, nEpochs::Integer = 10000,batchsize::Integer=-1,κ_s::Real=1.0,τ_s::Integer=100,kernel=0,m::Integer=0,AutotuningFrequency::Integer=1,ϵ::Real=1e-5,μ_init::Array{Float64,1}=[0.0],SmoothingWindow::Integer=5,verbose::Integer=0) where {T<:Real}
+    @warn deprecation_warning
+    model = SVGP(X,y,kernel,BayesianSVM(),Stochastic ? StochasticAnalyticInference(batchsize,ϵ=ϵ,optimizer=AdaptiveLearningRate ? ALRSVI() : InverseDecay(τ=τ_s,κ=κ_s)) : AnalyticInference(ϵ=ϵ),m,verbose=verbose,Autotuning=Autotuning,atfrequency=AutotuningFrequency,IndependentPriors=IndependentGPs)
+    for i in 1:model.nLatent
+        model.μ[i] = μ_init[1]*ones(length(model.μ[i]))
+    end
+    return model
+end
+
 function BatchXGPC(X::AbstractArray{T},y::AbstractArray;Autotuning::Bool=false,nEpochs::Integer = 200, kernel=0,AutotuningFrequency::Integer=1, ϵ::T=1e-5,μ_init::Vector{T}=ones(T,1),verbose::Integer=0) where {T<:Real}
     @warn deprecation_warning
     model = VGP(X,y,kernel,AugmentedLogisticLikelihood(),AnalyticInference(ϵ=ϵ),verbose=verbose,Autotuning=Autotuning,atfrequency=AutotuningFrequency,IndependentPriors=IndependentGPs)

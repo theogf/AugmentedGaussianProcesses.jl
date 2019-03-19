@@ -35,3 +35,7 @@ end
 function PolyaGammaKL(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
     return model.inference.ρ*sum(broadcast((y,γ,c,θ)->sum((y[model.inference.MBIndices]+γ).*logcosh.(0.5.*c)-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
 end
+
+function GIGKL(model::AbstractGP{<:BayesianSVM})
+    return sum(broadcast(α->-0.25*sum(α)-sum(log.(besselk.(0.5,sqrt.(α))))-0.5*sum(sqrt.(α)),model.likelihood.α))
+end

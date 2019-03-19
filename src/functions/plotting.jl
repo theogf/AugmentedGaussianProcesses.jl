@@ -1,42 +1,42 @@
 using Makie
+using Colors
 
 
-
-function Makie.plot(model::AbstractGP;nGrid::Int=100)
+function Makie.plot(model::AbstractGP;nGrid::Int=100,nsigma::Int=2)
     scene = Makie.Scene()
-    plot!(scene,model,nGrid=nGrid)
+    plot!(scene,model,nGrid=nGrid,nsigma=nsigma)
 end
 
-function Makie.plot!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100)
+function Makie.plot!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100,nsigma::Int=2)
     if model.nDim == 1
-        makie1D!(scene,model,nGrid=nGrid)
+        makie1D!(scene,model,nGrid=nGrid,nσ=nsigma)
     elseif model.nDim == 2
-        makie2D!(scene,model,nGrid=nGrid)
+        makie2D!(scene,model,nGrid=nGrid,nσ=nsigma)
     else
         @error "Cannot plot model if inputs are in more than 2 dimensions"
     end
 end
 
-function makie1D!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100)
+function makie1D!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100,nσ::Int=2)
     xmin = minimum(model.X); xmax = maximum(model.X)
     d = xmax-xmin; xmax += 0.1*d; xmin -= 0.1*d
     x_grid = collect(range(xmin,length=nGrid,stop=xmax))
-    return makie1D!(scene,model,x_grid)
+    return makie1D!(scene,model,x_grid,nσ)
 end
 
-function makie1D!(scene::Scene,model::AbstractGP{<:RegressionLikelihood},x_grid::AbstractVector)
+function makie1D!(scene::Scene,model::AbstractGP{<:RegressionLikelihood},x_grid::AbstractVector,nσ::Int)
     μ_grid,σ²_grid = proba_y(model,x_grid)
     if model.nLatent == 1
         Makie.scatter!(scene,model.X[:,1],model.y[1],markersize=0.01,color=:black)
         Makie.lines!(scene,x_grid,μ_grid,linewidth=3.0)
-        Makie.fill_between!(x_grid,μ_grid.+sqrt.(σ²_grid),μ_grid-sqrt.(σ²_grid),where = trues(length(x_grid)),alpha=0.3)
+        Makie.fill_between!(x_grid,μ_grid.+nσ*sqrt.(σ²_grid),μ_grid-nσ*sqrt.(σ²_grid),where = trues(length(x_grid)),alpha=0.3)
         return scene
     else
         ps = []
         for i in 1:model.nLatent
             p = Makie.scatter(model.X[:,1],model.y[i],markersize=0.01,color=:black,title="y$i")
             Makie.lines!(p,x_grid,μ_grid[i],linewidth=3.0)
-            Makie.fill_between!(x_grid,μ_grid[i].+sqrt.(σ²_grid[i]),μ_grid[i]-sqrt.(σ²_grid[i]),where = trues(length(x_grid)),alpha=0.3)
+            Makie.fill_between!(x_grid,μ_grid[i].+nσ*sqrt.(σ²_grid[i]),μ_grid[i]-nσ*sqrt.(σ²_grid[i]),where = trues(length(x_grid)),alpha=0.3)
             push!(ps,p)
         end
         return hbox(ps...)
@@ -62,21 +62,24 @@ function makie1D!(scene::Makie.Scene,model::AbstractGP{<:ClassificationLikelihoo
     scene
 end
 
-function makie2D!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100)
-    N_fill = 1000
+function makie2D!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100,nσ::Int=2)
     xmin = minimum.(eachcol(model.X)); xmax = maximum.(eachcol(model.X))
     d = xmax.-xmin; xmax .+= 0.01*d; xmin .-= 0.01*d
-    x1_grid = collect(range(xmin[1],length=nGrid,stop=xmax[1]))
-    x2_grid = collect(range(xmin[2],length=nGrid,stop=xmax[2]))
-    x_grid = hcat([j for i in x1_grid, j in x2_grid][:],[i for i in x1_grid, j in x2_grid][:])
-    μ_grid,σ²_grid = predict_f(model,x_grid,covf=true)
-    z_sigma = range(minimum(μ_grid-sqrt.(σ²_grid)),maximum(μ_grid+sqrt.(σ²_grid)),length=N_fill)
-    Z_min = reshape(μ_grid - sqrt.(σ²_grid),N_grid,N_grid)
-    Z_max = reshape(μ_grid + sqrt.(σ²_grid),N_grid,N_grid)
-    global V = [0.2((Z_min[i,j] <= z_sigma[k]) && (Z_max[i,j] >= z_sigma[k])) for i in 1:N_grid, j in 1:N_grid, k in 1:N_fill]
-    scene= volume(xmin[1]..xmax[1],xmin[2]..xmax[2],minimum(z_sigma)..maximum(z_sigma),Float64.(V),algorithm=:absorption,color=RGBA(1,0,0,0.5))
+    global x1_grid = collect(range(xmin[1],length=nGrid,stop=xmax[1]))
+    global x2_grid = collect(range(xmin[2],length=nGrid,stop=xmax[2]))
+    global X_grid = hcat([j for i in x1_grid, j in x2_grid][:],[i for i in x1_grid, j in x2_grid][:])
+    makie2D!(scene,model,x1_grid,x2_grid,X_grid,nσ)
+end
+
+function makie2D!(scene::Makie.Scene,model::AbstractGP{<:RegressionLikelihood},x1_grid::AbstractVector,x2_grid::AbstractVector,X_grid::AbstractMatrix,nσ::Int)
+    μ_grid,σ²_grid = predict_f(model,X_grid,covf=true)
     scatter!(scene,model.X[:,1],model.X[:,2],model.y[1],markersize=0.01,color=:black)
-    surface!(scene,x1_grid,x2_grid,reshape(μ_grid,N_grid,N_grid))
-    # fill_between!(x_grid,μ_grid.+sqrt.(σ²_grid),μ_grid-sqrt.(σ²_grid),where = trues(N_grid),alpha=0.3)
+    surface!(scene,x1_grid,x2_grid,reshape(μ_grid,length(x1_grid),length(x2_grid))')
+    wireframe!(scene,x1_grid,x2_grid,reshape(μ_grid-nσ*sqrt.(σ²_grid),length(x1_grid),length(x2_grid))',transparency=true,color=RGBA(1.0,0.0,0.0,0.1))
+    wireframe!(scene,x1_grid,x2_grid,reshape(μ_grid+nσ*sqrt.(σ²_grid),length(x1_grid),length(x2_grid))',transparency=true,color=RGBA(1.0,0.0,0.0,0.1))
     return scene
+end
+
+function makie2D!(scene::Makie.Scene,model::AbstractGP,x_grid::AbstractMatrix,nσ::Int)
+    @error "Not implemented yet"
 end
