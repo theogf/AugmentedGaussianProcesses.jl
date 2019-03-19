@@ -88,7 +88,7 @@ function local_updates!(model::VGP{AugmentedLogisticSoftMaxLikelihood{T},Analyti
     for _ in 1:2
         model.likelihood.γ .= broadcast((c::V,μ::V,ψα::V)->0.5/(model.likelihood.β[1])*exp.(ψα).*safe_expcosh.(-0.5*μ,0.5*c),
                                     model.likelihood.c,model.μ,[digamma.(model.likelihood.α)])
-        model.likelihood.α .= 1.0.+(model.likelihood.γ...)
+        model.likelihood.α .= 1.0.+(model.likelihood.γ...,)
     end
     model.likelihood.θ .= broadcast((y::BitVector,γ::V,c::V)->0.5*(y.+γ)./c.*tanh.(0.5*c),model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
 end
@@ -99,7 +99,7 @@ function local_updates!(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood{T},Anal
     for _ in 1:5
         model.likelihood.γ .= broadcast((c::V,κμ::V,ψα::V)->(0.5/(model.likelihood.β[1]))*exp.(ψα).*safe_expcosh.(-0.5*κμ,0.5*c),
                                     model.likelihood.c,model.κ.*model.μ,[digamma.(model.likelihood.α)])
-        model.likelihood.α .= 1.0.+(model.likelihood.γ...)
+        model.likelihood.α .= 1.0.+(model.likelihood.γ...,)
     end
     model.likelihood.θ .= broadcast((y::BitVector,γ::V,c::V)->0.5.*(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5.*c),
                                     model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
@@ -111,7 +111,7 @@ function sample_local!(model::VGP{<:AugmentedLogisticSoftMaxLikelihood,<:GibbsSa
         # model.likelihood.α .= 10.0.*model.likelihood.α./model.likelihood.β
     end
     model.likelihood.γ .= broadcast(μ::AbstractVector{<:Real}->rand.(Poisson.(0.5*model.likelihood.α.*safe_expcosh.(-0.5*μ,0.5*μ))), model.μ)
-    model.likelihood.α .= rand.(Gamma.(1.0.+(model.likelihood.γ...),1.0./model.likelihood.β))
+    model.likelihood.α .= rand.(Gamma.(1.0.+(model.likelihood.γ...,),1.0./model.likelihood.β))
     model.likelihood.θ .= broadcast((y::BitVector,γ::AbstractVector{<:Real},μ::AbstractVector{<:Real})->PolyaGammaDist().draw.(y.+γ,μ),model.likelihood.Y,model.likelihood.γ,model.μ)
     return nothing
 end
