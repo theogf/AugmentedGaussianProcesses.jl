@@ -11,37 +11,48 @@ CurrentModule = AugmentedGaussianProcesses
 AugmentedGaussianProcesses
 ```
 
-## Types
+## Model Types
 
 ```@docs
-BatchGPRegression
-SparseGPRegression
-BatchStudentT
-SparseStudentT
-BatchXGPC
-SparseXGPC
-BatchBSVM
-SparseBSVM
+GP
+VGP
+SVGP
+```
+
+## Likelihood Types
+
+```@docs
+GaussianLikelihood
+AugmentedStudentTLikelihood
+BayesianSVM
+AugmentedLogisticLikelihood
+AugmentedLogisticSoftMaxLikelihood
+```
+
+## Inference Types
+
+```@docs
+AnalyticInference
+StochasticAnalyticInference
+NumericalInference
+StochasticNumericalInference
+GibbsSampling
 ```
 
 ## Functions and methods
 
 ```@docs
-train!(::OfflineGPModel)
-regpredict(::GPModel,::AbstractArray)
-regpredictproba
-studenttpredict
-studenttpredictproba
-logitpredict
-logitpredictproba
-svmpredict
-svmpredictproba
+train!
+predict_f
+predict_y
+proba_y
 ```
 
 ## Kernels
 
 ```@docs
 RBFKernel
+MaternKernel
 ```
 
 ## Kernel functions

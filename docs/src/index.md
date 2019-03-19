@@ -20,9 +20,9 @@ pkg> add AugmentedGaussianProcesses
 Here is a simple example to start right away :
 ```julia
 using AugmentedGaussianProcesses
-model = SparseXGPC(X_train,y_train,kernel=RBFKernel(1.0),m=50)
-model.train(iterations=100)
-y_pred = model.predict(X_test)
+model = SVGP(X_train,y_train,kernel=RBFKernel(1.0),AugmentedLogisticLikelihood(),AnalyticInference(),m=50)
+train!(model,iterations=100)
+y_pred = predict_y(model,X_test)
 ```
 
 ### Related Gaussian Processes packages
