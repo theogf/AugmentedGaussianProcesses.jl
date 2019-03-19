@@ -1,6 +1,7 @@
 julia 1.1
 
 Clustering
+Colors
 DataFrames
 Distances
 Distributions
@@ -9,6 +10,7 @@ FileIO
 GradDescent
 JLD2
 LaTeXStrings
+Makie
 MLKernels
 SpecialFunctions
 Statistics
