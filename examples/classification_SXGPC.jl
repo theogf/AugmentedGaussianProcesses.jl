@@ -7,7 +7,7 @@ using AugmentedGaussianProcesses
 using ProfileView
 doPlot = false
 use_dataset = false
-X_data = Array{Float64,2}(0,0)
+X_data = Array{Float64,2}(undef, 0,0)
 if use_dataset
     (X_data,y_data,DatasetName) = get_Dataset("German")
     (nSamples,nFeatures) = size(X_data);
