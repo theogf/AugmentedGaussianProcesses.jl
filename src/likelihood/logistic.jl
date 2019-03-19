@@ -57,7 +57,7 @@ end
 
 function local_updates!(model::SVGP{<:AugmentedLogisticLikelihood,<:AnalyticInference})
     model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),model.μ,model.Σ,model.K̃,model.κ)
-    model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.c)
+    model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
@@ -78,15 +78,15 @@ function ∇μ(model::SVGP{<:AugmentedLogisticLikelihood})
     return 0.5.*getindex.(model.y,[model.inference.MBIndices])
 end
 
-function expec_Σ(model::GP{<:AugmentedLogisticLikelihood},index::Integer)
+function expec_Σ(model::AbstractGP{<:AugmentedLogisticLikelihood},index::Integer)
     return 0.5*model.likelihood.θ[index]
 end
 
-function ∇Σ(model::GP{<:AugmentedLogisticLikelihood})
+function ∇Σ(model::AbstractGP{<:AugmentedLogisticLikelihood})
     return 0.5*model.likelihood.θ
 end
 
-function ELBO(model::GP{<:AugmentedLogisticLikelihood})
+function ELBO(model::AbstractGP{<:AugmentedLogisticLikelihood})
     return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
 end
 

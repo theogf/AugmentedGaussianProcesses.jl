@@ -61,35 +61,35 @@ function predict_f(model::VGP{<:Likelihood,<:GibbsSampling},X_test::AbstractMatr
     return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 end
 
-function predict_f(model::GP,X_test::AbstractVector{T};covf::Bool=false,fullcov::Bool=false) where T
+function predict_f(model::AbstractGP,X_test::AbstractVector{T};covf::Bool=false,fullcov::Bool=false) where T
     predict_f(model,reshape(X_test,length(X_test),1),covf=covf,fullcov=fullcov)
 end
 
-function predict_y(model::GP,X_test::AbstractVector)
+function predict_y(model::AbstractGP,X_test::AbstractVector)
     return predict_y(model,reshape(X_test,length(X_test),1))
 end
 
-function predict_y(model::GP{<:RegressionLikelihood},X_test::AbstractMatrix)
+function predict_y(model::AbstractGP{<:RegressionLikelihood},X_test::AbstractMatrix)
     return predict_f(model,X_test,covf=false)
 end
 
-function predict_y(model::GP{<:ClassificationLikelihood},X_test::AbstractMatrix)
+function predict_y(model::AbstractGP{<:ClassificationLikelihood},X_test::AbstractMatrix)
     return [sign.(f) for f in predict_f(model,X_test,covf=false)]
 end
 
-function predict_y(model::GP{<:MultiClassLikelihood},X_test::AbstractMatrix)
+function predict_y(model::AbstractGP{<:MultiClassLikelihood},X_test::AbstractMatrix)
     n = size(X_test,1)
     μ_f = predict_f(model,X_test,covf=false)
     return [model.likelihood.class_mapping[argmax([μ[i] for μ in μ_f])] for i in 1:n]
 end
 
 
-function proba_y(model::GP,X_test::AbstractVector{T}) where {T<:Real}
+function proba_y(model::AbstractGP,X_test::AbstractVector{T}) where {T<:Real}
     return proba_y(model,reshape(X_test,length(X_test),1))
 end
 
 
-function proba_y(model::GP,X_test::AbstractMatrix{T}) where {T<:Real}
+function proba_y(model::AbstractGP,X_test::AbstractMatrix{T}) where {T<:Real}
     μ_f,Σ_f = predict_f(model,X_test,covf=true)
     compute_proba(model.likelihood,μ_f,Σ_f)
 end
@@ -137,7 +137,7 @@ end
 # end
 
 """Return the mean of likelihood p(y*=1|X,x*) via the probit link with a GP model"""
-function probitpredictproba(model::GP,X_test::AbstractArray{<:Real})
+function probitpredictproba(model::AbstractGP,X_test::AbstractArray{<:Real})
     m_f,cov_f = predict_f(model,X_test,covf=true)
     return broadcast((m,c)->cdf(Normal(),m/(c+1)),m_f,cov_f)
 end
@@ -155,12 +155,12 @@ end
 
 
 """Return the point estimate of the likelihood of class y=1 via the SVM likelihood"""
-function svmpredict(model::GP,X_test::AbstractArray)
+function svmpredict(model::AbstractGP,X_test::AbstractArray)
     return sign.(predict_f(model,X_test,covf=false))
 end
 
 """Return the likelihood of class y=1 via the SVM likelihood"""
-function svmpredictproba(model::GP,X_test::AbstractArray)
+function svmpredictproba(model::AbstractGP,X_test::AbstractArray)
     m_f,cov_f = predict_f(model,X_test,covf=true)
     nTest = length(m_f)
     pred = zero(m_f)
@@ -175,67 +175,10 @@ function svmpredictproba(model::GP,X_test::AbstractArray)
     return pred
 end
 
-"""Return logit(x)"""
-function logit(x)
-    return 1.0./(1.0.+exp.(-x))
-end
 
-
-"""Return the predicted class {-1,1} with a GP model via the logit link"""
-function logitpredict(model::GP,X_test::AbstractArray)
-    return sign.(predict_f(model,X_test,covf=false))
-end
-
-"""Return the mean of likelihood p(y*=1|X,x*) via the logit link with a GP model"""
-function logitpredictproba(model::GP,X_test::AbstractArray)
-    m_f,cov_f = predict_f(model,X_test,covf=true)
-    nTest = length(m_f)
-    pred = zero(m_f)
-    for i in 1:nTest
-        if cov_f[i] <= 0
-            pred[i] = logit(m_f[i])
-        else
-            d = Normal(m_f[i],sqrt(cov_f[i]))
-            pred[i] = expectation(logit,d)
-        end
-    end
-    return pred
-end
-
-"""Return the mean of the predictive distribution of f"""
-function regpredict(model::VGP{GaussianLikelihood},X_test::AbstractArray)
-    if model.TopMatrixForPrediction == 0
-        model.TopMatrixForPrediction = model.invK*model.y
-    end
-    k_star = kernelmatrix(X_test,model.X,model.kernel)
-    return k_star*model.TopMatrixForPrediction
-end
-
-"""Return the mean of the predictive distribution of f"""
-function regpredict(model::GP,X_test::AbstractArray)
-    return predict_f(model,X_test,covf=false)
-end
-
-"""Return the mean and variance of the predictive distribution of f"""
-function regpredictproba(model::GP,X_test::AbstractArray)
-    m_f,cov_f =  predict_f(model,X_test,covf=true)
-    cov_f .+= model.gnoise
-    return m_f,cov_f
-end
-
-"""Return the mean of the predictive distribution of f"""
-function studenttpredict(model::GP,X_test::AbstractArray)
-    return predict_f(model,X_test,covf=false)
-end
-
-
-"""Return the mean and variance of the predictive distribution of f"""
-function studenttpredictproba(model::GP,X_test::AbstractArray)
-    return predict_f(model,X_test,covf=true)
-end
 
 "Compute the mean and variance using MC integration"
-function studentpredictprobamc(model::GP,X_test::AbstractArray{T};nSamples=100) where {T<:Real}
+function studentpredictprobamc(model::AbstractGP,X_test::AbstractArray{T};nSamples=100) where {T<:Real}
     m_f,cov_f = predict_f(model,X_test,covf=true)
     nTest = length(m_f)
     mean_pred = zero(m_f)
@@ -259,7 +202,7 @@ function studentpredictprobamc(model::GP,X_test::AbstractArray{T};nSamples=100) 
     return mean_pred,var_pred
 end
 
-function multiclasspredict(model::GP,X_test::AbstractArray{T},likelihood::Bool=false) where {T<:Real}
+function multiclasspredict(model::AbstractGP,X_test::AbstractArray{T},likelihood::Bool=false) where {T<:Real}
     n=size(X_test,1);
     m_f = predict_f(model,X_test,covf=false)
     if !likelihood

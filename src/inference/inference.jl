@@ -5,6 +5,6 @@ include("analytic.jl")
 include("gibbssampling.jl")
 include("numerical.jl")
 
-function post_process!(model::GP{<:Likelihood,<:Inference})
+function post_process!(model::AbstractGP{<:Likelihood,<:Inference})
     nothing
 end

@@ -2,12 +2,12 @@ using Makie
 
 
 
-function Makie.plot(model::GP;nGrid::Int=100)
+function Makie.plot(model::AbstractGP;nGrid::Int=100)
     scene = Makie.Scene()
     plot!(scene,model,nGrid=nGrid)
 end
 
-function Makie.plot!(scene::Makie.Scene,model::GP;nGrid::Int=100)
+function Makie.plot!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100)
     if model.nDim == 1
         makie1D!(scene,model,nGrid=nGrid)
     elseif model.nDim == 2
@@ -17,15 +17,14 @@ function Makie.plot!(scene::Makie.Scene,model::GP;nGrid::Int=100)
     end
 end
 
-function makie1D!(scene::Makie.Scene,model::GP;nGrid::Int=100)
+function makie1D!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100)
     xmin = minimum(model.X); xmax = maximum(model.X)
     d = xmax-xmin; xmax += 0.1*d; xmin -= 0.1*d
     x_grid = collect(range(xmin,length=nGrid,stop=xmax))
-    makie1D!(scene,model,x_grid)
-    return scene
+    return makie1D!(scene,model,x_grid)
 end
 
-function makie1D!(scene::Scene,model::GP{<:RegressionLikelihood},x_grid::AbstractVector)
+function makie1D!(scene::Scene,model::AbstractGP{<:RegressionLikelihood},x_grid::AbstractVector)
     μ_grid,σ²_grid = proba_y(model,x_grid)
     if model.nLatent == 1
         Makie.scatter!(scene,model.X[:,1],model.y[1],markersize=0.01,color=:black)
@@ -40,12 +39,11 @@ function makie1D!(scene::Scene,model::GP{<:RegressionLikelihood},x_grid::Abstrac
             Makie.fill_between!(x_grid,μ_grid[i].+sqrt.(σ²_grid[i]),μ_grid[i]-sqrt.(σ²_grid[i]),where = trues(length(x_grid)),alpha=0.3)
             push!(ps,p)
         end
-        scene = hbox(ps...)
+        return hbox(ps...)
     end
-    return scene
 end
 
-function makie1D!(scene::Makie.Scene,model::GP{<:ClassificationLikelihood},x_grid::AbstractVector)
+function makie1D!(scene::Makie.Scene,model::AbstractGP{<:ClassificationLikelihood},x_grid::AbstractVector)
     μ_grid,σ²_grid = predict_f(model,x_grid,covf=true)
     py_grid = proba_y(model,x_grid)
     if model.nLatent == 1
@@ -64,7 +62,7 @@ function makie1D!(scene::Makie.Scene,model::GP{<:ClassificationLikelihood},x_gri
     scene
 end
 
-function makie2D!(scene::Makie.Scene,model::GP;nGrid::Int=100)
+function makie2D!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100)
     N_fill = 1000
     xmin = minimum.(eachcol(model.X)); xmax = maximum.(eachcol(model.X))
     d = xmax.-xmin; xmax .+= 0.01*d; xmin .-= 0.01*d

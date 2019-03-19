@@ -5,7 +5,7 @@ General Framework for the data augmented Gaussian Processes
 """
 module AugmentedGaussianProcesses
 
-export GP, VGP, SVGP
+export AbstractGP, GP, VGP, SVGP
 export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
 export GaussianLikelihood, AugmentedStudentTLikelihood, StudentTLikelihood
 export AugmentedLogisticLikelihood, LogisticLikelihood
@@ -67,6 +67,7 @@ abstract type Likelihood{T<:Real}  end
 
 const LatentArray = Vector #For future optimization : How collection of latent GPs are stored
 
+include("models/AbstractGP.jl")
 include("models/GP.jl")
 include("models/VGP.jl")
 include("models/SVGP.jl")

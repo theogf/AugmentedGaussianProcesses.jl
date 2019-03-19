@@ -94,15 +94,15 @@ function ∇μ(model::SVGP{<:AugmentedStudentTLikelihood})
     return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))
 end
 
-function expec_Σ(model::GP{<:AugmentedStudentTLikelihood},index::Integer)
+function expec_Σ(model::AbstractGP{<:AugmentedStudentTLikelihood},index::Integer)
     return 0.5*model.likelihood.θ[index]
 end
 
-function ∇Σ(model::GP{<:AugmentedStudentTLikelihood})
+function ∇Σ(model::AbstractGP{<:AugmentedStudentTLikelihood})
     return 0.5*model.likelihood.θ
 end
 
-function ELBO(model::GP{<:AugmentedStudentTLikelihood})
+function ELBO(model::AbstractGP{<:AugmentedStudentTLikelihood})
     return expecLogLikelihood(model) - InverseGammaKL(model) - GaussianKL(model)
 end
 

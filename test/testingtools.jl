@@ -18,7 +18,7 @@ addlargument(likelihood::String) = begin
     end
 end
 
-function testconv(model::GP,problem_type::String,X::AbstractArray,y::AbstractArray)
+function testconv(model::AbstractGP,problem_type::String,X::AbstractArray,y::AbstractArray)
     μ,Σ = predict_f(model,X,covf=true)
     y_pred = predict_y(model,X)
     py_pred = proba_y(model,X)

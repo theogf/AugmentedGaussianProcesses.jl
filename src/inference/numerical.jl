@@ -69,7 +69,7 @@ function natural_gradient!(model::SVGP{<:Likelihood,<:NumericalInference})
     model.inference.∇η₂ .= Symmetric.(model.inference.ρ.*transpose.(model.κ).*Diagonal.(model.inference.∇ΣE).*model.κ.-0.5.*model.invKmm .- model.η₂)
 end
 
-function global_update!(model::GP{<:Likelihood,<:NumericalInference})
+function global_update!(model::AbstractGP{<:Likelihood,<:NumericalInference})
     model.η₁ .= model.η₁ .+ update.(model.inference.optimizer_η₁,model.inference.∇η₁)
     for k in 1:model.nLatent
         Δ = update(model.inference.optimizer_η₂[k],model.inference.∇η₂[k])
@@ -108,24 +108,24 @@ function global_update!(model::GP{<:Likelihood,<:NumericalInference})
     # model.μ .= model.Σ.*model.η₁
 end
 
-function ELBO(model::GP{<:Likelihood,<:NumericalInference})
+function ELBO(model::AbstractGP{<:Likelihood,<:NumericalInference})
     return expecLogLikelihood(model) - GaussianKL(model)
 end
 
-function expec_μ(model::GP{<:Likelihood,<:NumericalInference},index::Integer)
+function expec_μ(model::AbstractGP{<:Likelihood,<:NumericalInference},index::Integer)
     return model.inference.∇μE[index]
 end
 
-function expec_μ(model::GP{<:Likelihood,<:NumericalInference})
+function expec_μ(model::AbstractGP{<:Likelihood,<:NumericalInference})
     return model.inference.∇μE
 end
 
 
-function expec_Σ(model::GP{<:Likelihood,<:NumericalInference},index::Integer)
+function expec_Σ(model::AbstractGP{<:Likelihood,<:NumericalInference},index::Integer)
     return model.inference.∇ΣE[index]
 end
 
-function expec_Σ(model::GP{<:Likelihood,<:NumericalInference})
+function expec_Σ(model::AbstractGP{<:Likelihood,<:NumericalInference})
     return model.inference.∇ΣE
 end
 

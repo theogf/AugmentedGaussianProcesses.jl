@@ -141,15 +141,15 @@ function ∇μ(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
     0.5.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
 end
 
-function expec_Σ(model::GP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
+function expec_Σ(model::AbstractGP{<:AugmentedLogisticSoftMaxLikelihood},index::Integer)
     0.5.*model.likelihood.θ[index]
 end
 
-function ∇Σ(model::GP{AugmentedLogisticSoftMaxLikelihood{T}}) where {T<:Real}
+function ∇Σ(model::AbstractGP{AugmentedLogisticSoftMaxLikelihood{T}}) where {T<:Real}
     0.5.*model.likelihood.θ
 end
 
-function ELBO(model::GP{<:AugmentedLogisticSoftMaxLikelihood})
+function ELBO(model::AbstractGP{<:AugmentedLogisticSoftMaxLikelihood})
     return expecLogLikelihood(model) - GaussianKL(model) - GammaImproperKL(model) - PoissonKL(model) - PolyaGammaKL(model)
 end
 
@@ -172,7 +172,7 @@ function expecLogLikelihood(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
     return model.inference.ρ*tot
 end
 
-function grad_samples(model::GP{<:LogisticSoftMaxLikelihood,<:NumericalInference,T},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
+function grad_samples(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:NumericalInference,T},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
     class = model.likelihood.y_class[index]::Int64
     grad_μ = zeros(T,model.nLatent)
     grad_Σ = zeros(T,model.nLatent)
@@ -192,7 +192,7 @@ function grad_samples(model::GP{<:LogisticSoftMaxLikelihood,<:NumericalInference
     end
 end
 
-function log_like_samples(model::GP{<:LogisticSoftMaxLikelihood,<:Inference,T},samples::AbstractMatrix,index::Integer) where {T<:Real}
+function log_like_samples(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:Inference,T},samples::AbstractMatrix,index::Integer) where {T<:Real}
     class = model.likelihood.y_class[index]
     nSamples = size(samples,1)
     loglike = zero(T)

@@ -4,7 +4,7 @@ Function to train the given GP model, there are options to change the number of 
 give a callback function that will take the model and the actual step as arguments
 and give a convergence method to stop the algorithm given specific criteria
 """
-function train!(model::GP;iterations::Integer=100,callback=0,Convergence=0)
+function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence=0)
     if model.verbose > 0
       println("Starting training $model with $(model.nSample) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))# using the "*model.Name*" model")
     end
@@ -49,7 +49,13 @@ function train!(model::GP;iterations::Integer=100,callback=0,Convergence=0)
     model.Trained = true
 end
 
-"Update all variational parameters of the GP Model"
+"""Recompute the kernel matrices of the GP Model if necessary"""
+function update_parameters!(model::GP)
+    computeMatrices!(model); #Recompute the matrices if necessary (when hyperparameters have been updated)
+end
+
+
+"""Update all variational parameters of the GP Model"""
 function update_parameters!(model::VGP)
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
@@ -63,7 +69,15 @@ function update_parameters!(model::SVGP)
     variational_updates!(model);
 end
 
-"Compute of kernel matrices for variational GPs"
+"""Compute kernel matrices for GP models"""
+function computeMatrices!(model::GP{<:Likelihood,<:Inference,T}) where {T<:Real}
+    if model.inference.HyperParametersUpdated
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ model.likelihood.ϵ.*[I])
+        model.invKnn .= inv.(model.Knn)
+    end
+end
+
+"""Compute kernel matrices for variational GPs"""
 function computeMatrices!(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
     if model.inference.HyperParametersUpdated
         model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ convert(T,Jittering()).*[I])
@@ -71,7 +85,7 @@ function computeMatrices!(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real
     end
 end
 
-"Computate of kernel matrices sparse variational GPs"
+"""Compute kernel matrices sparse variational GPs"""
 function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
     if model.inference.HyperParametersUpdated
         model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)

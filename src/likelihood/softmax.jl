@@ -37,7 +37,7 @@ function init_likelihood(likelihood::SoftMaxLikelihood{T},nLatent::Integer,nSamp
 end
 
 
-function grad_samples(model::GP{<:SoftMaxLikelihood},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
+function grad_samples(model::AbstractGP{<:SoftMaxLikelihood},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
     class = model.likelihood.y_class[index]
     grad_μ = zeros(T,model.nLatent)
     grad_Σ = zeros(T,model.nLatent)
@@ -57,7 +57,7 @@ function grad_samples(model::GP{<:SoftMaxLikelihood},samples::AbstractMatrix{T},
     end
 end
 
-function log_like_samples(model::GP{<:SoftMaxLikelihood},samples::AbstractMatrix,index::Integer)
+function log_like_samples(model::AbstractGP{<:SoftMaxLikelihood},samples::AbstractMatrix,index::Integer)
     class = model.likelihood.y_class[index]
     nSamples = size(samples,1)
     loglike = mapslices(logsumexp,samples,dims=2)/nSamples

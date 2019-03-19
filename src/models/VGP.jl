@@ -1,5 +1,5 @@
 """ Class for variational Gaussian Processes models (non-sparse)"""
-mutable struct VGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: GP{L,I,T,V}
+mutable struct VGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: AbstractGP{L,I,T,V}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points

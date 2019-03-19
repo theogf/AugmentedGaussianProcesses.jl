@@ -9,22 +9,22 @@ function GaussianKL(model::SVGP)
 end
 
 """ Compute KL divergence for Polya-Gamma variables (in the binary case)"""
-function PolyaGammaKL(model::GP)
+function PolyaGammaKL(model::AbstractGP)
     return model.inference.ρ*sum(broadcast((c,θ)->sum(-0.5*c.^2 .* θ .+ logcosh.(0.5.*c)),model.likelihood.c,model.likelihood.θ))
 end
 
-function GammaImproperKL(model::GP)
+function GammaImproperKL(model::AbstractGP)
     return model.inference.ρ*sum(-model.likelihood.α.+log(model.likelihood.β[1]).-lgamma.(model.likelihood.α).-(1.0.-model.likelihood.α).*digamma.(model.likelihood.α))
 end
 
 """Return the KL divergence for the inverse gamma distributions"""
-function InverseGammaKL(model::GP)
+function InverseGammaKL(model::AbstractGP)
     α_p = β_p = model.likelihood.ν/2;
     return (α_p-model.likelihood.α)*digamma(α_p).-log(gamma(α_p)).+log(gamma(model.likelihood.α))
             .+ model.α*(log(β_p).-log.(model.β)).+α_p.*(model.β.-β_p)/β_p
 end
 
-function PoissonKL(model::GP)
+function PoissonKL(model::AbstractGP)
     return model.inference.ρ*sum(γ->sum(xlogx.(γ).+γ.*(-1.0.-digamma.(model.likelihood.α).+log.(model.likelihood.β))+model.likelihood.α./model.likelihood.β),model.likelihood.γ)
 end
 

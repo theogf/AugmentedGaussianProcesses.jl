@@ -12,7 +12,9 @@ end
 """ Verify that the likelihood and inference are compatible (are implemented) """
 function check_implementation(model::Symbol,likelihood::L,inference::I) where {I<:Inference,L<:Likelihood}
     if isa(likelihood,GaussianLikelihood)
-        if isa(inference,AnalyticInference)
+        if model == :GP && isa(inference,AnalyticInference)
+            return true
+        elseif model == :SVGP && isa(inference,AnalyticInference)
             return true
         else
             return false
