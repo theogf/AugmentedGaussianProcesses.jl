@@ -4,27 +4,28 @@
 [![Build Status](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl.svg?branch=master)](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl)
 [![Coverage Status](https://coveralls.io/repos/github/theogf/AugmentedGaussianProcesses.jl/badge.svg)](https://coveralls.io/github/theogf/AugmentedGaussianProcesses.jl)
 
-AugmentedGaussianProcesses! is a Julia package in development for **Data Augmented Sparse Gaussian Processes**. It contains a collection of models for different **gaussian and non-gaussian likelihoods**, which are transformed via data augmentation into **conditionally conjugate likelihood** allowing for **extremely fast inference** via block coordinate updates.
+AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development for **Data Augmented Sparse Gaussian Processes**. It contains a collection of models for different **gaussian and non-gaussian likelihoods**, which are transformed via data augmentation into **conditionally conjugate likelihood** allowing for **extremely fast inference** via block coordinate updates.
 
 # Packages models :
-## Two GP classifier models
-  - **BSVM** : A Classifier with a likelihood equivalent to the classic SVM [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20BSVM.ipynb)/[Reference][arxivbsvm]
-  - **XGPC** : A Classifier with a Bernoulli likelihood with the logistic link [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20XGPC.ipynb)/[Reference][arxivxgpc]
+
+## Two GP classification likelihood
+  - **BayesianSVM** : A Classifier with a likelihood equivalent to the classic SVM [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20BSVM.ipynb)/[Reference][arxivbsvm]
+  - **Logistic** : A Classifier with a Bernoulli likelihood with the logistic link [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20XGPC.ipynb)/[Reference][arxivxgpc]
 
     ![Classification Plot](docs/figures/Classification.png)
 ---
-## Two GP Regression models
-  - **BatchGPRegression** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)/[Reference][arxivgpbigdata]
+## Two GP Regression likelihood
+  - **Gaussian** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)/[Reference][arxivgpbigdata]
   - **StudentT** : The standard Gaussian Process regression with a Student-t likelihood (the degree of freedom ν is not optimizable for the moment) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)/[Reference][jmlrstudentt]
 
    ![Regression Plot](docs/figures/Regression.png)
 ---
 ## More models in development
   - **MultiClass** : A multiclass classifier model, relying on a modified version of softmax
+  - **Heteroscedastic** : Non stationary noise
   - **Probit** : A Classifier with a Bernoulli likelihood with the probit link
   - **Online** : Allowing for all algorithms to work online as well
-
-For each of these models you can either run the fullbatch or sparse version by adding the prefix `Batch` or `Sparse` to the model name.
+  - **Numerical solving** : Allow for a more general class of likelihoods by applying numerical solving
 
 ## Install the package
 
@@ -37,14 +38,16 @@ A complete documentation is currently being written, for now you can use this ve
 
 ```julia
 using AugmentedGaussianProcesses
-model = SparseXGPC(X_train,Y_train;Stochastic=true,batchsize=100,m=64,kernel=RBFKernel(1.0)) #Parameters after ; are optional
-model.train(iterations=100)
-Y_predic = model.predict(X_test) #For getting the label directly
-Y_predic_prob = model.predictproba(X_test) #For getting the likelihood of predicting class 1
+model = SVGP(X_train,Y_train,RBFKernel(1.0),AugmentedLogisticLikelihood(),StochasticAnalyticInference(100),64)
+train!(model,iterations=100)
+Y_predic = predict_y(model,X_test) #For getting the label directly
+Y_predic_prob = proba_y(model,X_test) #For getting the likelihood of predicting class 1
 ```
 The documentation is currently worked on but I invite you to check the self explaining examples in the mean time [here](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/)
 
 ## References :
+
+Check out [my website for more news](https://theogf.github.io)
 
 ["Gaussian Processes for Machine Learning"](http://www.gaussianprocess.org/gpml/) by Carl Edward Rasmussen and Christopher K.I. Williams
 
