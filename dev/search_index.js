@@ -289,35 +289,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api/#AugmentedGaussianProcesses.GP",
-    "page": "API",
-    "title": "AugmentedGaussianProcesses.GP",
-    "category": "type",
-    "text": "Class for variational Gaussian Processes models (non-sparse)\n\n\n\n\n\n"
-},
-
-{
-    "location": "api/#AugmentedGaussianProcesses.VGP",
-    "page": "API",
-    "title": "AugmentedGaussianProcesses.VGP",
-    "category": "type",
-    "text": "Class for variational Gaussian Processes models (non-sparse)\n\n\n\n\n\n"
-},
-
-{
-    "location": "api/#AugmentedGaussianProcesses.SVGP",
-    "page": "API",
-    "title": "AugmentedGaussianProcesses.SVGP",
-    "category": "type",
-    "text": "Class for sparse variational Gaussian Processes \n\n\n\n\n\n"
-},
-
-{
     "location": "api/#Model-Types-1",
     "page": "API",
     "title": "Model Types",
     "category": "section",
-    "text": "GP\nVGP\nSVGP"
+    "text": "GP(X,y,kernel)\nVGP(X,y,kernel,likelihood,inference)\nSVGP(X,y,kernel,likelihood,inference,num_ind_points)"
 },
 
 {
@@ -325,7 +301,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "Likelihood Types",
     "category": "section",
-    "text": "GaussianLikelihood\nAugmentedStudentTLikelihood\nBayesianSVM\nAugmentedLogisticLikelihood\nAugmentedLogisticSoftMaxLikelihood"
+    "text": "GaussianLikelihood()\nAugmentedStudentTLikelihood(ν)\nBayesianSVM()\nAugmentedLogisticLikelihood()\nAugmentedLogisticSoftMaxLikelihood()"
 },
 
 {
@@ -333,7 +309,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "Inference Types",
     "category": "section",
-    "text": "AnalyticInference\nStochasticAnalyticInference\nNumericalInference\nStochasticNumericalInference\nGibbsSampling"
+    "text": "AnalyticInference()\nStochasticAnalyticInference(batchsize)\nNumericalInference(optimizer)\nStochasticNumericalInference(batchsize)\nGibbsSampling()"
 },
 
 {
@@ -341,23 +317,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "Functions and methods",
     "category": "section",
-    "text": "train!\npredict_f\npredict_y\nproba_y"
-},
-
-{
-    "location": "api/#AugmentedGaussianProcesses.KernelModule.RBFKernel",
-    "page": "API",
-    "title": "AugmentedGaussianProcesses.KernelModule.RBFKernel",
-    "category": "type",
-    "text": "Radial Basis Function Kernel also called RBF or SE(Squared Exponential)\n\n\n\n\n\n"
-},
-
-{
-    "location": "api/#AugmentedGaussianProcesses.KernelModule.MaternKernel",
-    "page": "API",
-    "title": "AugmentedGaussianProcesses.KernelModule.MaternKernel",
-    "category": "type",
-    "text": "Matern Kernel\n\n\n\n\n\n"
+    "text": "train!(model)\npredict_f(model,X_test)\npredict_y(model,X_test)\nproba_y(model,X_test)"
 },
 
 {
@@ -365,7 +325,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "Kernels",
     "category": "section",
-    "text": "RBFKernel\nMaternKernel"
+    "text": "RBFKernel()\nMaternKernel)_"
 },
 
 {
