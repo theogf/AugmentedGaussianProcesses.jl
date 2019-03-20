@@ -80,6 +80,15 @@ function makie2D!(scene::Makie.Scene,model::AbstractGP{<:RegressionLikelihood},x
     return scene
 end
 
+function makie2D!(scene::Makie.Scene,model::AbstractGP{<:ClassificationLikelihood},x1_grid::AbstractVector,x2_grid::AbstractVector,X_grid::AbstractMatrix,nσ::Int)
+    y_p = proba_y(model,X_grid)
+    scatter!(scene,model.X[:,1],model.X[:,2],model.y[1],markersize=0.01,color=:black)
+    surface!(scene,x1_grid,x2_grid,reshape(y_p,length(x1_grid),length(x2_grid))')
+    wireframe!(scene,x1_grid,x2_grid,reshape(sign.(y_p.-0.5),length(x1_grid),length(x2_grid))',transparency=true,color=RGBA(1.0,0.0,0.0,0.1))
+    return scene
+end
+
+
 function makie2D!(scene::Makie.Scene,model::AbstractGP,x_grid::AbstractMatrix,nσ::Int)
     @error "Not implemented yet"
 end

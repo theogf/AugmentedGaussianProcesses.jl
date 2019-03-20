@@ -37,5 +37,5 @@ function PolyaGammaKL(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
 end
 
 function GIGKL(model::AbstractGP{<:BayesianSVM})
-    return sum(broadcast(α->-0.25*sum(α)-sum(log.(besselk.(0.5,sqrt.(α))))-0.5*sum(sqrt.(α)),model.likelihood.α))
+    return model.inference.ρ*sum(broadcast(α->-0.25*sum(α)-sum(log.(besselk.(0.5,sqrt.(α))))-0.5*sum(sqrt.(α)),model.likelihood.α))
 end

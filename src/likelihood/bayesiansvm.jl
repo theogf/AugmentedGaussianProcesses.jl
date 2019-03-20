@@ -24,7 +24,6 @@ function svmpseudolikelihood(f::Real)
 end
 
 
-
 function compute_proba(l::AbstractBayesianSVM{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
     N = length(μ)
     pred = zeros(T,N)
@@ -62,39 +61,39 @@ function init_likelihood(likelihood::BayesianSVM{T},nLatent::Integer,nSamplesUse
 end
 
 
-function local_updates!(model::VGP{<:BayesianSVM,<:AnalyticInference})
-    model.likelihood.α .= broadcast((μ,Σ,y)->abs2.(1.0 .- y.*μ) + Σ ,model.μ,diag.(model.Σ),model.y)
-    model.likelihood.θ .= broadcast(α->1.0./sqrt.(α),model.likelihood.α)
+function local_updates!(model::VGP{BayesianSVM{T},<:AnalyticInference}) where {T<:Real}
+    model.likelihood.α .= broadcast((μ,Σ,y)->abs2.(one(T) .- y.*μ) + Σ ,model.μ,diag.(model.Σ),model.y)
+    model.likelihood.θ .= broadcast(α->one(T)./sqrt.(α),model.likelihood.α)
 end
 
-function local_updates!(model::SVGP{<:BayesianSVM,<:AnalyticInference})
-    model.likelihood.α .= broadcast((κ,μ,Σ,y,K̃)->abs2.(1.0 .- y[model.inference.MBIndices].*(κ*μ)) + opt_diag(κ*Σ,κ) + K̃,model.κ,model.μ,diag.(model.Σ),model.y,model.K̃)
-    model.likelihood.θ .= broadcast(α->1.0./sqrt.(α),model.likelihood.α)
-end
-
-""" Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::VGP{<:BayesianSVM},index::Integer)
-    return model.y[index].*(model.likelihood.θ[index].+1.0)
-end
-
-function ∇μ(model::VGP{<:BayesianSVM})
-    return broadcast((y,θ)->y.*(θ.+1.0),model.y,model.likelihood.θ)
+function local_updates!(model::SVGP{BayesianSVM{T},<:AnalyticInference}) where {T<:Real}
+    model.likelihood.α .= broadcast((κ,μ,Σ,y,K̃)->abs2.(one(T) .- y[model.inference.MBIndices].*(κ*μ)) + opt_diag(κ*Σ,κ) + K̃,model.κ,model.μ,diag.(model.Σ),model.y,model.K̃)
+    model.likelihood.θ .= broadcast(α->one(T)./sqrt.(α),model.likelihood.α)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::SVGP{<:BayesianSVM},index::Integer)
-    return model.y[index][model.inference.MBIndices].*(model.likelihood.θ[index].+1.0)
+function expec_μ(model::VGP{BayesianSVM{T}},index::Integer) where {T<:Real}
+    return model.y[index].*(model.likelihood.θ[index] .+ one(T))
 end
 
-function ∇μ(model::SVGP{<:BayesianSVM})
-    return broadcast((y,θ)->y[model.inference.MBIndices].*(θ.+1.0),model.y,model.likelihood.θ)
+function ∇μ(model::VGP{BayesianSVM{T}}) where {T<:Real}
+    return broadcast((y,θ)->y.*(θ.+one(T)),model.y,model.likelihood.θ)
 end
 
-function expec_Σ(model::AbstractGP{<:BayesianSVM},index::Integer)
+""" Return the gradient of the expectation for latent GP `index` """
+function expec_μ(model::SVGP{BayesianSVM{T}},index::Integer) where {T<:Real}
+    return model.y[index][model.inference.MBIndices].*(model.likelihood.θ[index].+one(T))
+end
+
+function ∇μ(model::SVGP{BayesianSVM{T}}) where {T<:Real}
+    return broadcast((y,θ)->y[model.inference.MBIndices].*(θ.+one(T)),model.y,model.likelihood.θ)
+end
+
+function expec_Σ(model::AbstractGP{BayesianSVM{T}},index::Integer) where {T<:Real}
     return 0.5*model.likelihood.θ[index]
 end
 
-function ∇Σ(model::AbstractGP{<:BayesianSVM})
+function ∇Σ(model::AbstractGP{BayesianSVM{T}}) where {T<:Real}
     return 0.5*model.likelihood.θ
 end
 
@@ -102,16 +101,16 @@ function ELBO(model::AbstractGP{<:BayesianSVM})
     return expecLogLikelihood(model) - GaussianKL(model) - GIGKL(model)
 end
 
-function expecLogLikelihood(model::VGP{BayesianSVM{T}}) where T
+function expecLogLikelihood(model::VGP{BayesianSVM{T}}) where {T<:Real}
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((μ,y,θ,Σ)->(sum(μ.*y)-0.5*dot(θ,Σ+abs2.(1.0.-y.*μ))),
+    tot += sum(broadcast((μ,y,θ,Σ)->(sum(μ.*y)-0.5*dot(θ,Σ+abs2.(one(T).-y.*μ))),
                         model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{BayesianSVM{T}}) where T
+function expecLogLikelihood(model::SVGP{BayesianSVM{T}}) where {T<:Real}
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->(sum(κμ.*y)-0.5*dot(θ,K̃+κΣκ+abs2.(1.0.-y.*κμ))),
+    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->(sum(κμ.*y)-0.5*dot(θ,K̃+κΣκ+abs2.(one(T).-y.*κμ))),
                         model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag(model.κ.*model.Σ,model.κ'),model.K̃))
     return model.inference.ρ*tot
 end

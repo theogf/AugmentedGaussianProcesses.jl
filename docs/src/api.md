@@ -14,45 +14,45 @@ AugmentedGaussianProcesses
 ## Model Types
 
 ```@docs
-GP
-VGP
-SVGP
+GP(X,y,kernel)
+VGP(X,y,kernel,likelihood,inference)
+SVGP(X,y,kernel,likelihood,inference,num_ind_points)
 ```
 
 ## Likelihood Types
 
 ```@docs
-GaussianLikelihood
-AugmentedStudentTLikelihood
-BayesianSVM
-AugmentedLogisticLikelihood
-AugmentedLogisticSoftMaxLikelihood
+GaussianLikelihood()
+AugmentedStudentTLikelihood(ν)
+BayesianSVM()
+AugmentedLogisticLikelihood()
+AugmentedLogisticSoftMaxLikelihood()
 ```
 
 ## Inference Types
 
 ```@docs
-AnalyticInference
-StochasticAnalyticInference
-NumericalInference
-StochasticNumericalInference
-GibbsSampling
+AnalyticInference()
+StochasticAnalyticInference(batchsize)
+NumericalInference(optimizer)
+StochasticNumericalInference(batchsize)
+GibbsSampling()
 ```
 
 ## Functions and methods
 
 ```@docs
-train!
-predict_f
-predict_y
-proba_y
+train!(model)
+predict_f(model,X_test)
+predict_y(model,X_test)
+proba_y(model,X_test)
 ```
 
 ## Kernels
 
 ```@docs
-RBFKernel
-MaternKernel
+RBFKernel()
+MaternKernel)_
 ```
 
 ## Kernel functions
