@@ -51,12 +51,12 @@ end
 
 
 function local_updates!(model::VGP{<:AugmentedLogisticLikelihood,<:AnalyticInference})
-    model.likelihood.c .= broadcast((μ,Σ)->sqrt.(diag(Σ)+μ.^2),model.μ,model.Σ)
+    model.likelihood.c .= broadcast((μ,Σ)->sqrt.(Σ+abs2.(μ)),model.μ,diag.(model.Σ))
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end
 
 function local_updates!(model::SVGP{<:AugmentedLogisticLikelihood,<:AnalyticInference})
-    model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ)+(κ*μ).^2),model.μ,model.Σ,model.K̃,model.κ)
+    model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),model.μ,model.Σ,model.K̃,model.κ)
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end
 
@@ -92,14 +92,14 @@ end
 
 function expecLogLikelihood(model::VGP{AugmentedLogisticLikelihood{T}}) where T
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-dot(θ,Σ+μ.^2)),
+    tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-dot(θ,Σ+abs2.(μ))),
                         model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{AugmentedLogisticLikelihood{T}}) where T
-    tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y)-dot(θ,K̃+κΣκ+κμ.^2))),
+    tot = -model.nLatent*(0.5*model.inference.nSamplesUsed*logtwo)
+    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y)-dot(θ,K̃+κΣκ+abs2.(κμ)))),
                         model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag(model.κ.*model.Σ,model.κ'),model.K̃)
     return model.inference.ρ*tot
 end
