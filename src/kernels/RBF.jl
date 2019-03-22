@@ -1,6 +1,4 @@
-"""
-    Radial Basis Function Kernel also called RBF or SE(Squared Exponential)
-"""
+"Radial Basis Function Kernel also called RBF or SE(Squared Exponential)"
 struct RBFKernel{T<:Real,KT<:KernelType} <: Kernel{T,KT}
     fields::KernelFields{T,KT}
     function RBFKernel{T,KT}(θ::Vector{T};variance=one(T),dim::Integer=0) where {T<:Real,KT<:KernelType}
@@ -31,6 +29,14 @@ end
 
 const SEKernel = RBFKernel
 
+"""`RBFKernel(θ::T1=1.0;variance::T2=one(T1),dim::Integer=0,ARD::Bool=false)`
+
+Create a Squared Exponential/Radial Basis Function kernel
+
+``variance\\exp\\left(-\\frac{||x-x'||}{2\\theta^2}\\right)``
+
+The kernel can be made with ARD (Automatic Relevance Determination) by giving `θ` as a vector or setting `ARD` as true, and in both cases setting the `dim` variable appropriately
+"""
 function RBFKernel(θ::T1=1.0;variance::T2=one(T1),dim::Integer=0,ARD::Bool=false) where {T1<:Real,T2<:Real}
     if ARD
         RBFKernel{T1,ARDKernel}([θ],variance=variance,dim=dim)

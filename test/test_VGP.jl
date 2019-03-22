@@ -6,7 +6,6 @@ const AGP = AugmentedGaussianProcesses
 include("testingtools.jl")
 
 nData = 100; nDim = 2
-m = 50; b= 10
 k = AGP.RBFKernel()
 ν = 5.0
 
@@ -17,7 +16,7 @@ class_likelihood = ["BayesianSVM","AugmentedLogisticLikelihood"]#,"LogisticLikel
 multiclass_likelihood = ["AugmentedLogisticSoftMaxLikelihood","LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
 likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood]
 likelihood_names = ["Regression","Classification","MultiClass"]
-inferences = ["AnalyticInference"]#,"NumericalInference"]#,"GibbsSampling"]
+inferences = ["AnalyticVI"]#,"NumericalInference"]#,"GibbsSampling"]
 floattypes = [Float64]
 @testset "VGP" begin
     for (likelihoods,l_names) in zip(likelihood_types,likelihood_names)

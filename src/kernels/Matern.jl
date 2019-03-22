@@ -134,7 +134,7 @@ function kernelderivativematrix(X::Array{T,N},kernel::MaternKernel{T,ARDKernel})
     v = getvariance(kernel); ls = getlengthscales(kernel); ν = kernel.ν; C = (2^(1.0-ν))/gamma(ν)
     P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X,dims=1) #d/ρ
     P .= ifelse.(P.<eps(T),eps(T),P)
-    Pi = [pairwise(SqEuclidean(),X[:,i],dims=1) for i in 1:length(ls)] # (x_i-x_i')
+    Pi = [pairwise(SqEuclidean(),X[:,i]',dims=2) for i in 1:length(ls)] # (x_i-x_i')
     return Symmetric.(map((pi,l)->lmul!(2.0*C*v*ν/(l^3),pi .* P.^(ν-1.0) .* besselk.(ν-1.0,P)),Pi,ls))
 end
 
@@ -143,7 +143,7 @@ function kernelderivativematrix_K(X::Array{T,N},K::Symmetric{T,Array{T,N}},kerne
     v = getvariance(kernel); ls = getlengthscales(kernel); ν = kernel.ν; C = (2^(1.0-ν))/gamma(ν)
     P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X,dims=1) #d/ρ
     P .= ifelse.(P.<eps(T),eps(T),P)
-    Pi = [pairwise(SqEuclidean(),X[:,i],dims=1) for i in 1:length(ls)] # (x_i-x_i')
+    Pi = [pairwise(SqEuclidean(),X[:,i]',dims=2) for i in 1:length(ls)] # (x_i-x_i')
     return Symmetric.(map((pi,l)->lmul!(2.0*C*v*ν/(l^3),pi .* P.^(ν-1.0) .* besselk.(ν-1.0,P)),Pi,ls))
 end
 
@@ -169,7 +169,7 @@ function kernelderivativematrix(X::Array{T,N},Y::Array{T,N},kernel::MaternKernel
     v = getvariance(kernel); ls = getlengthscales(kernel); ν = kernel.ν; C = 2^(1.0-ν)/gamma(ν)
     P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X,Y,dims=1)
     P .= ifelse.(P.<eps(T),eps(T),P)
-    Pi = [pairwise(SqEuclidean(),X[:,i],Y[:,i],dims=1) for i in 1:length(ls)] # (x_i-x_i')
+    Pi = [pairwise(SqEuclidean(),X[:,i]',Y[:,i]',dims=2) for i in 1:length(ls)] # (x_i-x_i')
     return map((pi,l)->lmul!(2.0*C*v*ν/(l^3),pi .* P.^(ν-1.0).*besselk.(ν-1.0,P)),Pi,ls)
 end
 
@@ -178,7 +178,7 @@ function kernelderivativematrix_K(X::Array{T,N},Y::Array{T,N},K::Array{T,N},kern
     v = getvariance(kernel); ls = getlengthscales(kernel); ν = kernel.ν; C = 2^(1.0-ν)/gamma(ν)
     P = (sqrt(2.0*ν)).*pairwise(getmetric(kernel),X,Y,dims=1)
     P .= ifelse.(P.<eps(T),eps(T),P)
-    Pi = [pairwise(SqEuclidean(),X[:,i],Y[:,i],dims=1) for i in 1:length(ls)] # (x_i-x_i')
+    Pi = [pairwise(SqEuclidean(),X[:,i]',Y[:,i]',dims=2) for i in 1:length(ls)] # (x_i-x_i')
     return map((pi,l)->lmul!(2.0*C*v*ν/(l^3),pi .* P.^(ν-1.0).*besselk.(ν-1.0,P)),Pi,ls)
 end
 

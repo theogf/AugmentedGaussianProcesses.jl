@@ -24,7 +24,19 @@ For **classification** one can select a Bernoulli likelihood with a [**logistic 
 
 ### Model creation
 
-Creating a model is as simple as doing `VGP(X,y,kernel,likelihood,inference;args...)` where `args` is described in the API. The compatibility of likelihood and inference will shortly be uploaded and regularly updated. For the kernels check out the kernel section
+Creating a model is as simple as doing `VGP(X,y,kernel,likelihood,inference;args...)` where `args` is described in the API. The compatibility of likelihoods and inferences is described in the next section and is regularly updated. For the kernels check out the kernel section
+
+### Compatibility table
+
+| Likelihood/Inference | AnalyticInference | GibbsSampling | NumericalInference(Quadrature) | NumericalInference(MCMCIntegration) |
+| --- | :-: | :-: | :-: | :-: |
+| GaussianLikelihood   | ✔  | ✖  | ✖ | ✖  |
+| StudentTLikelihood   | ✔  | (dev)  | (dev) | ✖  |
+| LogisticLikelihood   | ✔  | (dev)  | (dev) | ✖  |
+| BayesianSVM   | ✔  | ✖  | ✖ | ✖  |
+| LogisticSoftMaxLikelihood   | ✔  | (dev)  | ✖ | (dev)  |
+| SoftMaxLikelihood   | ✖  |  ✖  | ✖  | (dev)  |
+
 
 ## [Training](@id train)
 

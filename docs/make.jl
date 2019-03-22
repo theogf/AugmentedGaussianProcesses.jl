@@ -1,7 +1,7 @@
 using Documenter, AugmentedGaussianProcesses
 
 makedocs(modules=[AugmentedGaussianProcesses],
-         format = :html,
+         format = Documenter.HTML(),
          sitename= "AugmentedGaussianProcesses.jl",
          pages = [
          "Home"=>"index.md",

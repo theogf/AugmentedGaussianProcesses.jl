@@ -1,8 +1,14 @@
 
-"""
-Function to train the given GP model, there are options to change the number of max iterations,
-give a callback function that will take the model and the actual step as arguments
-and give a convergence method to stop the algorithm given specific criteria
+""" `train!(model::AbstractGP;iterations::Integer=100,callback=0,conv_function=0)`
+
+Function to train the given GP `model`.
+
+**Keyword Arguments**
+
+there are options to change the number of max iterations,
+- `iterations::Int` : Number of iterations (not necessarily epochs!)for training
+- `callback::Function` : Callback function called at every iteration. Should be of type `function(model,iter) ...  end`
+- `conv_function::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
 function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence=0)
     if model.verbose > 0

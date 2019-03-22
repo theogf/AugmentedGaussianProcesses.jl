@@ -1,8 +1,9 @@
 #File treating all the prediction functions
 
 """
-Compute the mean of the predicted latent distribution of `f` on `X_test` for full GP model `model`
-Return also the variance if `covf=true`
+Compute the mean of the predicted latent distribution of `f` on `X_test` for the variational GP `model`
+
+Return also the variance if `covf=true` and the full covariance if `fullcov=true`
 """
 function predict_f(model::VGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where T
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
@@ -23,8 +24,8 @@ function predict_f(model::VGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov:
 end
 
 """
-Compute the mean of the predicted latent distribution of f on X_test for sparse GP models
-Return also the variance if `covf=true`
+Compute the mean of the predicted latent distribution of f on `X_test` for a sparse GP `model`
+Return also the variance if `covf=true` and the full covariance if `fullcov=true`
 """
 function predict_f(model::SVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where T
     k_star = kernelmatrix.([X_test],model.Z,model.kernel)
@@ -69,14 +70,29 @@ function predict_y(model::AbstractGP,X_test::AbstractVector)
     return predict_y(model,reshape(X_test,length(X_test),1))
 end
 
+"""
+`predict_y(model::AbstractGP{<:RegressionLikelihood},X_test::AbstractMatrix)`
+
+Return the predictive mean of `X_test`
+"""
 function predict_y(model::AbstractGP{<:RegressionLikelihood},X_test::AbstractMatrix)
     return predict_f(model,X_test,covf=false)
 end
 
+"""
+`predict_y(model::AbstractGP{<:ClassificationLikelihood},X_test::AbstractMatrix)`
+
+Return the predicted most probable sign of `X_test`
+"""
 function predict_y(model::AbstractGP{<:ClassificationLikelihood},X_test::AbstractMatrix)
     return [sign.(f) for f in predict_f(model,X_test,covf=false)]
 end
 
+"""
+`predict_y(model::AbstractGP{<:MultiClassLikelihood},X_test::AbstractMatrix)`
+
+Return the predicted most probable class of `X_test`
+"""
 function predict_y(model::AbstractGP{<:MultiClassLikelihood},X_test::AbstractMatrix)
     n = size(X_test,1)
     μ_f = predict_f(model,X_test,covf=false)
@@ -88,7 +104,15 @@ function proba_y(model::AbstractGP,X_test::AbstractVector{T}) where {T<:Real}
     return proba_y(model,reshape(X_test,length(X_test),1))
 end
 
+"""
+`proba_y(model::AbstractGP,X_test::AbstractMatrix)`
 
+Return the probability distribution p(y_test|model,X_test) :
+
+    - Tuple of vectors of mean and variance for regression
+    - Vector of probabilities of y_test = 1 for binary classification
+    - Dataframe with columns and probability per class for multi-class classification
+"""
 function proba_y(model::AbstractGP,X_test::AbstractMatrix{T}) where {T<:Real}
     μ_f,Σ_f = predict_f(model,X_test,covf=true)
     compute_proba(model.likelihood,μ_f,Σ_f)

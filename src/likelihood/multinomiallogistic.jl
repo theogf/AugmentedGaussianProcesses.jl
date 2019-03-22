@@ -76,13 +76,13 @@ function init_likelihood(likelihood::MultinomialLogisticLikelihood{T},nLatent::I
     return likelihood
 end
 
-function local_updates!(model::VGP{AugmentedMultinomialLogisticLikelihood{T},AnalyticInference{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
+function local_updates!(model::VGP{AugmentedMultinomialLogisticLikelihood{T},AnalyticVI{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
     model.likelihood.c .= broadcast((Σ::V,μ::V)->Σ.+abs2.(μ),diag.(model.Σ),model.μ)
     c = (x->sqrt.(x)).(model.likelihood.Y.*model.likelihood.c .+ model.likelihood.c)
     model.likelihood.θ .= broadcast((c::V)->1.0./c.*tanh.(0.5*c),model.likelihood.c)
 end
 
-function natural_gradient!(model::VGP{AugmentedMultinomialLogisticLikelihood{T},AnalyticInference{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
+function natural_gradient!(model::VGP{AugmentedMultinomialLogisticLikelihood{T},AnalyticVI{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
     up_y = 0.5*((model.nLatent-1).+2*dot(!y,μ.*θ))
     up_f = 0.5*(1+2*μ[model.likelihood.class_y[i]]*θ[i])
     upsig_y = -0.5*(Diagonal([dot(!getindexmodel(model.likelihood.Y,[i]),getindexmodel(model.likelihood.θ,[i])) for i in 1:model.nSamples]) + invKmm) - model.η₂
@@ -90,7 +90,7 @@ function natural_gradient!(model::VGP{AugmentedMultinomialLogisticLikelihood{T},
 end
 
 
-function local_updates!(model::SVGP{AugmentedMultinomialLogisticLikelihood{T},AnalyticInference{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
+function local_updates!(model::SVGP{AugmentedMultinomialLogisticLikelihood{T},AnalyticVI{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
     model.likelihood.c .= broadcast((μ::V,Σ::Symmetric{T,Matrix{T}},κ::Matrix{T},K̃::V)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
                                     model.μ,model.Σ,model.κ,model.K̃)
     for _ in 1:5
@@ -169,7 +169,7 @@ function expecLogLikelihood(model::SVGP{<:AugmentedMultinomialLogisticLikelihood
     return model.inference.ρ*tot
 end
 
-function grad_samples(model::AbstractGP{<:MultinomialLogisticLikelihood,<:NumericalInference,T},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
+function grad_samples(model::AbstractGP{<:MultinomialLogisticLikelihood,<:NumericalVI,T},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
     class = model.likelihood.y_class[index]::Int64
     grad_μ = zeros(T,model.nLatent)
     grad_Σ = zeros(T,model.nLatent)

@@ -1,8 +1,11 @@
 """
-Softmax likelihood : ``p(y=i|{fₖ}) = exp(fᵢ)/ ∑ exp(fₖ) ``
+Logistic-Softmax likelihood : ``p(y=i|\\{f_k\\}) = \\sigma(f_i)/ \\sum_k \\exp(f_k)``
 """
 abstract type AbstractLogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T} end
 
+"""
+The Logistic-Softmax likelihood : ``p(y=i|\\{f_k\\}) = \\sigma(f_i)/ \\sum_k \\sigma(f_k)`` where σ is the logistic function has the same properties as softmax. However it can be transformed into a conditionally conjugate likelihood via a series of augmentation. Paper with details under submission
+"""
 struct AugmentedLogisticSoftMaxLikelihood{T<:Real} <: AbstractLogisticSoftMaxLikelihood{T}
     Y::AbstractVector{BitVector} #Mapping from instances to classes
     class_mapping::AbstractVector{Any} # Classes labels mapping
@@ -83,7 +86,7 @@ function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},nLatent::Integ
     return likelihood
 end
 
-function local_updates!(model::VGP{AugmentedLogisticSoftMaxLikelihood{T},AnalyticInference{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
+function local_updates!(model::VGP{AugmentedLogisticSoftMaxLikelihood{T},AnalyticVI{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
     model.likelihood.c .= broadcast((Σ::V,μ::V)->sqrt.(Σ.+abs2.(μ)),diag.(model.Σ),model.μ)
     for _ in 1:2
         model.likelihood.γ .= broadcast((c::V,μ::V,ψα::V)->0.5/(model.likelihood.β[1])*exp.(ψα).*safe_expcosh.(-0.5*μ,0.5*c),
@@ -93,7 +96,7 @@ function local_updates!(model::VGP{AugmentedLogisticSoftMaxLikelihood{T},Analyti
     model.likelihood.θ .= broadcast((y::BitVector,γ::V,c::V)->0.5*(y.+γ)./c.*tanh.(0.5*c),model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
 end
 
-function local_updates!(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood{T},AnalyticInference{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
+function local_updates!(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood{T},AnalyticVI{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
     model.likelihood.c .= broadcast((μ::V,Σ::Symmetric{T,Matrix{T}},κ::Matrix{T},K̃::V)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
                                     model.μ,model.Σ,model.κ,model.K̃)
     for _ in 1:5
@@ -172,7 +175,7 @@ function expecLogLikelihood(model::SVGP{<:AugmentedLogisticSoftMaxLikelihood})
     return model.inference.ρ*tot
 end
 
-function grad_samples(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:NumericalInference,T},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
+function grad_samples(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:NumericalVI,T},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
     class = model.likelihood.y_class[index]::Int64
     grad_μ = zeros(T,model.nLatent)
     grad_Σ = zeros(T,model.nLatent)

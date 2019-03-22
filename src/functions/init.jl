@@ -12,41 +12,41 @@ end
 """ Verify that the likelihood and inference are compatible (are implemented) """
 function check_implementation(model::Symbol,likelihood::L,inference::I) where {I<:Inference,L<:Likelihood}
     if isa(likelihood,GaussianLikelihood)
-        if model == :GP && isa(inference,AnalyticInference)
+        if model == :GP && isa(inference,Analytic)
             return true
-        elseif model == :SVGP && isa(inference,AnalyticInference)
+        elseif model == :SVGP && isa(inference,AnalyticVI)
             return true
         else
             return false
         end
     elseif isa(likelihood,AbstractStudentTLikelihood)
-        if isaugmented(likelihood) && isa(inference,AnalyticInference)
+        if isaugmented(likelihood) && isa(inference,AnalyticVI)
             return true
         else
             return false
         end
     elseif isa(likelihood,AbstractLogisticLikelihood)
-        if isaugmented(likelihood) && isa(inference,AnalyticInference)
+        if isaugmented(likelihood) && isa(inference,AnalyticVI)
             return true
         else
             return false
         end
     elseif isa(likelihood,AbstractBayesianSVM)
-        if isa(inference,AnalyticInference)
+        if isa(inference,AnalyticVI)
             return true
         else
             return false
         end
     elseif isa(likelihood,SoftMaxLikelihood)
-        if isa(inference,MCMCIntegrationInference)
+        if isa(inference,MCMCIntegrationVI)
             return true
         else
             return false
         end
     elseif isa(likelihood,AbstractLogisticSoftMaxLikelihood)
-        if isaugmented(likelihood) && isa(inference,Union{AnalyticInference,GibbsSampling})
+        if isaugmented(likelihood) && isa(inference,Union{AnalyticVI,GibbsSampling})
             return true
-        elseif !isaugmented(likelihood) && isa(inference,NumericalInference)
+        elseif !isaugmented(likelihood) && isa(inference,NumericalVI)
             return true
         else
             return false

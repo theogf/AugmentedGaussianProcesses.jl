@@ -1,4 +1,4 @@
-""" Class for variational Gaussian Processes models (non-sparse)"""
+"Class for variational Gaussian Processes models (non-sparse)"
 mutable struct GP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: AbstractGP{L,I,T,V}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
@@ -37,7 +37,7 @@ function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel
             verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
             IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2}
             likelihood = GaussianLikelihood(noise)
-            inference = AnalyticInference()
+            inference = Analytic()
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
 
             nPrior = IndependentPriors ? nLatent : 1
@@ -50,7 +50,7 @@ function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel
             likelihood = init_likelihood(likelihood,nLatent,nSample)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
 
-            model = GP{GaussianLikelihood{T1},AnalyticInference{T1},T1,ArrayType{T1}}(X,y,
+            model = GP{GaussianLikelihood{T1},Analytic{T1},T1,ArrayType{T1}}(X,y,
                     nFeature, nDim, nFeature, nLatent,
                     IndependentPriors,nPrior,
                     Knn,invKnn,kernel,likelihood,inference,

@@ -1,5 +1,5 @@
 """
-Student-t likelihood : ``Γ((ν+1)/2)/(√(νπ)Γ(ν/2)) (1+t²/ν)^(-(ν+1)/2)``
+Student-t likelihood : ``\\Gamma((\\nu+1)/2)/(\\sqrt{\\nu\\pi}\\Gamma(\\nu/2)) (1+t\\^2/\\nu)^(-(\\nu+1)/2)``
 """
 abstract type AbstractStudentTLikelihood{T<:Real} <: RegressionLikelihood{T} end
 
@@ -42,7 +42,10 @@ function compute_proba(l::AbstractStudentTLikelihood{T},μ::AbstractVector{T},σ
 end
 
 ###############################################################################
+"""
+Student-t likelihood : ``\\frac{\\Gamma((\\nu+1)/2)}{\\sqrt{\\nu\\pi}\\Gamma(\\nu/2)}\\left(1+t^2/\\nu\\right)^{(-(\\nu+1)/2)}``
 
+"""
 struct AugmentedStudentTLikelihood{T<:Real} <:AbstractStudentTLikelihood{T}
     ν::T
     α::T
@@ -66,12 +69,12 @@ function init_likelihood(likelihood::AugmentedStudentTLikelihood{T},nLatent::Int
     AugmentedStudentTLikelihood{T}(likelihood.ν,[abs2.(T.(rand(T,nSamplesUsed))) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
 end
 
-function local_updates!(model::VGP{<:AugmentedStudentTLikelihood,<:AnalyticInference})
+function local_updates!(model::VGP{<:AugmentedStudentTLikelihood,<:AnalyticVI})
     model.likelihood.β .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y).+model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
     model.likelihood.θ .= broadcast(β->0.5*(model.likelihood.ν+1.0)./β,model.likelihood.β)
 end
 
-function local_updates!(model::SVGP{<:AugmentedStudentTLikelihood,<:AnalyticInference})
+function local_updates!(model::SVGP{<:AugmentedStudentTLikelihood,<:AnalyticVI})
     model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices]) .+model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
     model.likelihood.θ .= broadcast(β->0.5*(model.likelihood.ν+1.0)./β,model.likelihood.β)
 end

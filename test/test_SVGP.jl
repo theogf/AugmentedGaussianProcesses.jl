@@ -18,7 +18,7 @@ multiclass_likelihood = ["AugmentedLogisticSoftMaxLikelihood"]#,"LogisticSoftMax
 likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood]
 likelihood_names = ["Regression"]#,"Classification","MultiClass"]
 stochastic = [true,false]
-inferences = ["AnalyticInference"]#,"NumericalInference","StochasticNumericalInference","GibbsSampling"]
+inferences = ["AnalyticVI","QuadratureVI","MCMCIntegrationVI"]#,"StochasticNumericalInference","GibbsSampling"]
 floattypes = [Float64]
 @testset "SVGP" begin
     for (likelihoods,l_names) in zip(likelihood_types,likelihood_names)
@@ -28,7 +28,7 @@ floattypes = [Float64]
                     for inference in inferences
                         for s in stochastic
                             @testset "$(string(stoch(s,inference)))" begin
-                                if in(inference,methods_implemented_SVGP[l])
+                                if in(stoch(s,inference),methods_implemented_SVGP[l])
                                     for floattype in floattypes
                                         @test typeof(SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*(s ? "b" : "")*")")),m)) <: SVGP{eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*"}")),floattype,Vector{floattype}}
                                         model = SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*(s ? "b" : "")*")")),m,Autotuning=true,verbose=3)
