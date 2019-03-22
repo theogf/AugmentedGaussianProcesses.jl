@@ -6,7 +6,6 @@ const AGP = AugmentedGaussianProcesses
 include("testingtools.jl")
 
 nData = 100; nDim = 2
-m = 50; b= 10
 k = AGP.RBFKernel()
 ν = 5.0
 
