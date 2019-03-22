@@ -1,6 +1,7 @@
 using ForwardDiff
 # using Zygote
 using AugmentedGaussianProcesses
+const AGP = AugmentedGaussianProcesses
 using AugmentedGaussianProcesses.KernelModule
 using MLKernels
 using LinearAlgebra
@@ -34,7 +35,7 @@ end
 # tracekernel(3.0)
 # tracekernel'(3.0)
 ForwardDiff.gradient(tracekernel,[3.0])
-m = SparseMultiClass(X,y,Autotuning=true,m=100,kernel=RBFKernel(1.0))
+m = SVGP(X,y,RBFKernel(1.0),AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),100,Autotuning=true)
 train!(m,iterations=10)
 ### TEST 1 with matrix precomputation
 
@@ -137,14 +138,21 @@ mod_soft_max(a,1)
 ForwardDiff.gradient(x->mod_soft_max(x,1),a)
 grad_mod(mod_soft_max(a),logit(a),1)
 
+using Zygote
+function adapt_AD(kernel::AGP.Kernel{T},X::AbstractMatrix{T2}) where {T,T2}
+    T.(X)
+end
 
-
+Zygote.refresh()
 θ = 0.5
 θ2 = [0.5,0.5]
 dA_ad = reshape(ForwardDiff.jacobian(x->begin;k_ = RBFKernel(x[1]); AGP.kernelmatrix(adapt_AD(k_,A),k_); end,[θ]),nA,nA)
 # mlk = MLKernels.SquaredExponentialKernel(0.5/θ^2)
 agpk = AugmentedGaussianProcesses.RBFKernel(θ2)
 dA_ad = reshape(ForwardDiff.jacobian(x->begin;k_ = create_kernel(k_AD,x[1],t_name,ν=ν); AGP.kernelmatrix(adapt_AD(k_,A),k_); end,[θ]),nA,nA)
+@adjoint function
+
+Zygote.gradient(x->begin;k_ = RBFKernel(x); AGP.kernelmatrix(adapt_AD(k_,A),k_); end,θ )
 
 D = ForwardDiff.jacobian(x->AGP.kernelmatrix(A,AGP.RBFKernel(x[1])),[θ])
 C= AugmentedGaussianProcesses.kernelderivativematrix(A,B,agpk)
