@@ -67,7 +67,7 @@ function local_updates!(model::VGP{BayesianSVM{T},<:AnalyticInference}) where {T
 end
 
 function local_updates!(model::SVGP{BayesianSVM{T},<:AnalyticInference}) where {T<:Real}
-    model.likelihood.α .= broadcast((κ,μ,Σ,y,K̃)->abs2.(one(T) .- y[model.inference.MBIndices].*(κ*μ)) + opt_diag(κ*Σ,κ) + K̃,model.κ,model.μ,diag.(model.Σ),model.y,model.K̃)
+    model.likelihood.α .= broadcast((κ,μ,Σ,y,K̃)->abs2.(one(T) .- y[model.inference.MBIndices].*(κ*μ)) + opt_diag(κ*Σ,κ) + K̃,model.κ,model.μ,model.Σ,model.y,model.K̃)
     model.likelihood.θ .= broadcast(α->one(T)./sqrt.(α),model.likelihood.α)
 end
 

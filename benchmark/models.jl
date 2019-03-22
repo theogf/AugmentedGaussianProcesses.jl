@@ -1,7 +1,6 @@
-cd(dirname(@__FILE__))
 using BenchmarkTools
 using AugmentedGaussianProcesses
-using Distances, LinearAlgebra, Dates,  DelimitedFiles
+using Distances, LinearAlgebra, DelimitedFiles
 using MLDataUtils: splitobs
 using Random
 
@@ -24,8 +23,8 @@ compat["SVGP"]["AugmentedLogistic"] = ["AnalyticInference","StochasticAnalyticIn
 compat["SVGP"]["BayesianSVM"] = ["AnalyticInference","StochasticAnalyticInference"]
 compat["SVGP"]["AugmentedLogisticSoftMax"] = ["AnalyticInference","StochasticAnalyticInference"]
 
-const SUITE = BenchmarkGroup(["Models"])
-paramfile = "params/multiclass.json"
+# const SUITE = BenchmarkGroup(["Models"])
+# paramfile = "params/multiclass.json"
 Random.seed!(1234)
 nData = 200; nDim = 3;
 X = rand(nData,nDim)
@@ -45,11 +44,10 @@ for m in modelnames
         models[m][l] = Dict{String,AbstractGP}()
         for i in compat[m][l]
             SUITE["Models"][m][l][i] = BenchmarkGroup(funcs)
-            println(m,convertl(l),converti(i))
             if m == "GP"
-                models[m][l][i] = eval(Meta.parse(m*"(X,y[l],kernel,Autotuning=true,atfrequency=1)"))
+                models[m][l][i] = eval(Meta.parse(m*"(X,y[\"$l\"],kernel,Autotuning=true,atfrequency=1)"))
             else
-                models[m][l][i] = eval(Meta.parse(m*"(X,y[l],kernel,$(convertl(l)) ,$(converti(i))$(add_ind(m)),Autotuning=true,atfrequency=1)"))
+                models[m][l][i] = eval(Meta.parse(m*"(X,y[\"$l\"],kernel,$(convertl(l)) ,$(converti(i))$(add_ind(m)),Autotuning=true,atfrequency=1)"))
             end
             SUITE["Models"][m][l][i]["init"] = @benchmarkable eval(Meta.parse(m*"(X,y[l],kernel,$(convertl(l)),$(converti(i))$(add_ind),Autotuning=true,atfrequency=1)"))
             SUITE["Models"][m][l][i]["elbo"] = @benchmarkable ELBO(model) setup=(model=deepcopy($(models[m][l][i])))
