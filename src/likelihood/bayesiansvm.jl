@@ -1,6 +1,5 @@
 """
-Bayesian SVM (hinge loss function) : ``p(y|f) =  ``
-
+Bayesian SVM (hinge loss function) : ``p(y|f) = \\max(0,1-yf)``
 """
 abstract type AbstractBayesianSVM{T<:Real} <: ClassificationLikelihood{T} end
 
@@ -38,7 +37,10 @@ function compute_proba(l::AbstractBayesianSVM{T},μ::AbstractVector{T},σ²::Abs
 end
 
 ###############################################################################
-
+"""
+The [Bayesian SVM](https://arxiv.org/abs/1707.05532) is a Bayesian interpretation of the classical SVM.
+By using an augmentation (Laplace) one gets a conditionally conjugate likelihood (see paper)
+"""
 struct BayesianSVM{T<:Real} <: AbstractBayesianSVM{T}
     α::AbstractVector{AbstractVector{T}}
     θ::AbstractVector{AbstractVector{T}}
@@ -61,12 +63,12 @@ function init_likelihood(likelihood::BayesianSVM{T},nLatent::Integer,nSamplesUse
 end
 
 
-function local_updates!(model::VGP{BayesianSVM{T},<:AnalyticInference}) where {T<:Real}
+function local_updates!(model::VGP{BayesianSVM{T},<:AnalyticVI}) where {T<:Real}
     model.likelihood.α .= broadcast((μ,Σ,y)->abs2.(one(T) .- y.*μ) + Σ ,model.μ,diag.(model.Σ),model.y)
     model.likelihood.θ .= broadcast(α->one(T)./sqrt.(α),model.likelihood.α)
 end
 
-function local_updates!(model::SVGP{BayesianSVM{T},<:AnalyticInference}) where {T<:Real}
+function local_updates!(model::SVGP{BayesianSVM{T},<:AnalyticVI}) where {T<:Real}
     model.likelihood.α .= broadcast((κ,μ,Σ,y,K̃)->abs2.(one(T) .- y[model.inference.MBIndices].*(κ*μ)) + opt_diag(κ*Σ,κ) + K̃,model.κ,model.μ,model.Σ,model.y,model.K̃)
     model.likelihood.θ .= broadcast(α->one(T)./sqrt.(α),model.likelihood.α)
 end

@@ -11,8 +11,8 @@ export GaussianLikelihood, AugmentedStudentTLikelihood, StudentTLikelihood
 export AugmentedLogisticLikelihood, LogisticLikelihood, BayesianSVM
 export MultiClassLikelihood, SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export AugmentedLogisticSoftMaxLikelihood
-export Inference, AnalyticInference, StochasticAnalyticInference, GibbsSampling, MCMCIntegrationInference, QuadratureInference
-export NumericalInference, StochasticNumericalInference
+export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCMCIntegrationVI, MCMCIntegrationSVI, QuadratureVI, QuadratureSVI
+export NumericalVI, NumericalSVI
 export ALRSVI, InverseDecay
 
 #Deprecated
@@ -52,13 +52,13 @@ export KMeansModule
 #Useful functions
 export train!
 export predict_f, predict_y, proba_y
-export getLog, getMultiClassLog
+# export getLog, getMultiClassLog
 export Kernel,  Matern3_2Kernel, Matern5_2Kernel, RBFKernel, LaplaceKernel, SigmoidKernel, PolynomialKernel, ARDKernel
 export kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 export setvalue!,getvalue,setfixed!,setfree!,getvariance,getlengthscales,setoptimizer!
 export opt_diag, opt_trace
-export rand
+export rand, plot
 export KMeansInducingPoints
 
 # Main classes

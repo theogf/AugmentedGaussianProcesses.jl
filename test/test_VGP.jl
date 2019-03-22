@@ -16,7 +16,7 @@ class_likelihood = ["BayesianSVM","AugmentedLogisticLikelihood"]#,"LogisticLikel
 multiclass_likelihood = ["AugmentedLogisticSoftMaxLikelihood","LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
 likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood]
 likelihood_names = ["Regression","Classification","MultiClass"]
-inferences = ["AnalyticInference"]#,"NumericalInference"]#,"GibbsSampling"]
+inferences = ["AnalyticVI"]#,"NumericalInference"]#,"GibbsSampling"]
 floattypes = [Float64]
 @testset "VGP" begin
     for (likelihoods,l_names) in zip(likelihood_types,likelihood_names)

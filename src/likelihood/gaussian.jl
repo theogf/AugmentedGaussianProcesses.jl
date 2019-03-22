@@ -1,5 +1,5 @@
 """
-Gaussian likelihood : ``p(y|f) = 𝓝(y|f,ϵ) ``
+Gaussian likelihood : ``p(y|f) = \\mathcal{N}(y|f,\\epsilon) ``
 """
 struct GaussianLikelihood{T<:Real} <: RegressionLikelihood{T}
     ϵ::AbstractVector{T}
@@ -55,24 +55,24 @@ function local_updates!(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::SVGP{GaussianLikelihood{T},AnalyticInference{T}},index::Integer) where {T<:Real}
+function expec_μ(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}},index::Integer) where {T<:Real}
     return model.y[index][model.inference.MBIndices]./model.likelihood.ϵ[index]
 end
 
-function ∇μ(model::SVGP{GaussianLikelihood{T},AnalyticInference{T}}) where {T<:Real}
+function ∇μ(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
     return getindex.(model.y,[model.inference.MBIndices])./model.likelihood.ϵ
 end
 
-function expec_Σ(model::SVGP{GaussianLikelihood{T},AnalyticInference{T}},index::Integer) where {T<:Real}
+function expec_Σ(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}},index::Integer) where {T<:Real}
     return fill(0.5/model.likelihood.ϵ[index],model.inference.nSamplesUsed)
 end
 
-function ∇Σ(model::SVGP{GaussianLikelihood{T},AnalyticInference{T}}) where {T<:Real}
+function ∇Σ(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
     return [fill(0.5/model.likelihood.ϵ[i],model.inference.nSamplesUsed) for i in 1:model.nLatent]
 end
 
 
-function predict_f(model::GP{GaussianLikelihood{T},AnalyticInference{T}},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T<:Real}
+function predict_f(model::GP{GaussianLikelihood{T},Analytic{T}},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T<:Real}
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     μf = k_star.*model.invKnn.*model.y
     if !covf
@@ -100,11 +100,11 @@ function predict_f(model::GP{GaussianLikelihood{T},AnalyticInference{T}},X_test:
 end
 
 
-function proba_y(model::GP{GaussianLikelihood{T},AnalyticInference{T}},X_test::AbstractMatrix{T}) where {T<:Real}
+function proba_y(model::GP{GaussianLikelihood{T},Analytic{T}},X_test::AbstractMatrix{T}) where {T<:Real}
     μf, σ²f = predict_f(model,X_test,covf=true)
 end
 
-function proba_y(model::SVGP{GaussianLikelihood{T},AnalyticInference{T}},X_test::AbstractMatrix{T}) where {T<:Real}
+function proba_y(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T<:Real}
     μf, σ²f = predict_f(model,X_test,covf=true)
     σ²f .+= model.likelihood.ϵ
     return μf,σ²f

@@ -1,5 +1,5 @@
 """
-Logistic likelihood : ``p(y|f) = σ(yf) = (1+exp(-yf))⁻¹ ``
+Logistic likelihood : ``p(y|f) = \\sigma(yf) = (1+\\exp(-yf))\\^{-1} ``
 More info on [wiki page](https://en.wikipedia.org/wiki/Logistic_function)
 """
 abstract type AbstractLogisticLikelihood{T<:Real} <: ClassificationLikelihood{T} end
@@ -27,7 +27,18 @@ function compute_proba(l::AbstractLogisticLikelihood{T},μ::AbstractVector{T},σ
 end
 
 ###############################################################################
+"""
+**Augmented Logistic Likelihood**
 
+The logistic link for the Bernoulli likelihood is augmented to give a conditionally conjugate likelihood :
+``p(y|f) = \\sigma(yf) = \\frac{1}{1+\\exp(-yf)}``
+
+```math
+p(y|f,\\omega) = \\exp\\left(\\frac{1}{2}\\left(yf - (yf)^2 \\omega\\right)\\right)
+```
+
+See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383)
+"""
 struct AugmentedLogisticLikelihood{T<:Real} <: AbstractLogisticLikelihood{T}
     c::AbstractVector{AbstractVector{T}}
     θ::AbstractVector{AbstractVector{T}}
@@ -50,12 +61,12 @@ function init_likelihood(likelihood::AugmentedLogisticLikelihood{T},nLatent::Int
 end
 
 
-function local_updates!(model::VGP{<:AugmentedLogisticLikelihood,<:AnalyticInference})
+function local_updates!(model::VGP{<:AugmentedLogisticLikelihood,<:AnalyticVI})
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(Σ+abs2.(μ)),model.μ,diag.(model.Σ))
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end
 
-function local_updates!(model::SVGP{<:AugmentedLogisticLikelihood,<:AnalyticInference})
+function local_updates!(model::SVGP{<:AugmentedLogisticLikelihood,<:AnalyticVI})
     model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),model.μ,model.Σ,model.K̃,model.κ)
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end

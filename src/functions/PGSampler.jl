@@ -1,10 +1,11 @@
-# File for sampling from a Polya Gamma Distribution
+"""Module for a Polya-Gamma Sampler"""
 module PGSampler
 
 using Distributions
-__TRUNC = 0.64;
-__TRUNC_RECIP = 1.0 / __TRUNC;
+const __TRUNC = 0.64;
+const __TRUNC_RECIP = 1.0 / __TRUNC;
 export PolyaGammaDist
+"""Sampler object"""
 mutable struct PolyaGammaDist{T}
   # For sum of Gammas.
   T::Int64;

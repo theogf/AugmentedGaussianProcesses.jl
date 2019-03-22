@@ -15,6 +15,17 @@ mutable struct GibbsSampling{T<:Real} <: Inference{T}
     end
 end
 
+
+"""`GibbsSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=10)`
+
+Return a GibbsSampling{T} object to sample from the exact posterior distribution.
+
+**Keywords arguments**
+
+    - `ϵ::T` : convergence criteria, which can be user defined
+    - `nBurnin::Int` : Number of samples discarded before starting to save samples
+    - `samplefrequency::Int` : Frequency of sampling
+"""
 function GibbsSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=10) where {T<:Real}
     GibbsSampling{Float64}(nBurnin,samplefrequency,ϵ,0,false,1,1,[1],1.0,true)
 end

@@ -44,18 +44,18 @@ for model in String.(keys(compat))
         for i in compat[model][likelihood]
             SUITE["Models"][model][likelihood][i] = BenchmarkGroup(funcs)
             if model == "GP"
-                println(Meta.parse(model*"(\$X,\$y[\"$likelihood\"],\$kernel,Autotuning=true,atfrequency=1)"))
+                # println(Meta.parse(model*"(\$X,\$y[\"$likelihood\"],\$kernel,Autotuning=true,atfrequency=1)"))
                 models[model][likelihood][i] = eval(Meta.parse(model*"(X,y[\"$likelihood\"],kernel,Autotuning=true,atfrequency=1)"))
-                SUITE["Models"][model][likelihood][i]["init"] = @benchmarkable eval(Meta.parse(modelname*"(\$X,y_train,\$kernel,Autotuning=true,atfrequency=1)")) setup = (y_train = $y[$likelihood], modelname=$model)
+                SUITE["Models"][model][likelihood][i]["init"] = eval(Meta.parse("@benchmarkable $model(\$X,y_train,\$kernel,Autotuning=true,atfrequency=1) setup=(y_train = \$y[\"$likelihood\"])"))
             else
-                println(Meta.parse(model*"(X,y[\"$likelihood\"],kernel,$(convertl(likelihood)) ,$(converti(i))$(add_ind(model)),Autotuning=true,atfrequency=1)"))
+                # println(Meta.parse(model*"(X,y[\"$likelihood\"],kernel,$(convertl(likelihood)) ,$(converti(i))$(add_ind(model)),Autotuning=true,atfrequency=1)"))
                 models[model][likelihood][i] = eval(Meta.parse(model*"(X,y[\"$likelihood\"],kernel,$(convertl(likelihood)) ,$(converti(i))$(add_ind(model)),Autotuning=true,atfrequency=1)"))
-                SUITE["Models"][model][likelihood][i]["init"] = @benchmarkable eval(Meta.parse($model*"(\$X,y_train,$(convertl($likelihood)),$(converti(i))$(add_ind),Autotuning=true,atfrequency=1)")) setup = (y_train = $y[$likelihood])
+                SUITE["Models"][model][likelihood][i]["init"] = eval(Meta.parse("@benchmarkable $model(\$X,y_train,\$kernel,$(convertl(likelihood)),$(converti(i)) $(add_ind(model)),Autotuning=true,atfrequency=1) setup=(y_train = \$y[\"$likelihood\"])"))
             end
             SUITE["Models"][model][likelihood][i]["elbo"] = @benchmarkable ELBO(gpmodel) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))
             SUITE["Models"][model][likelihood][i]["computematrices"] = @benchmarkable AGP.computeMatrices!(gpmodel) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))
-            SUITE["Models"][model][likelihood][i]["updatevariational"] = @benchmarkable variational_updates!(gpmodel,1) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))
-            SUITE["Models"][model][likelihood][i]["updatehyperparam"] = @benchmarkable updateHyperParameters!(gpmodel) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))
+            SUITE["Models"][model][likelihood][i]["updatevariational"] = @benchmarkable AGP.variational_updates!(gpmodel) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))
+            SUITE["Models"][model][likelihood][i]["updatehyperparam"] = @benchmarkable AGP.update_hyperparameters!(gpmodel) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))
             SUITE["Models"][model][likelihood][i]["predic"] = @benchmarkable predict_y(gpmodel,$X) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))
             SUITE["Models"][model][likelihood][i]["predicproba"] = @benchmarkable proba_y(gpmodel,$X) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))
         end

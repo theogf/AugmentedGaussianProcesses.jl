@@ -33,7 +33,7 @@ Creating a model is as simple as doing `VGP(X,y,kernel,likelihood,inference;args
 | GaussianLikelihood   | ✔  | ✖  | ✖ | ✖  |
 | StudentTLikelihood   | ✔  | (dev)  | (dev) | ✖  |
 | LogisticLikelihood   | ✔  | (dev)  | (dev) | ✖  |
-| BayesianSVM   | ✔  | ✖  | (dev) | ✖  |
+| BayesianSVM   | ✔  | ✖  | ✖ | ✖  |
 | LogisticSoftMaxLikelihood   | ✔  | (dev)  | ✖ | (dev)  |
 | SoftMaxLikelihood   | ✖  |  ✖  | ✖  | (dev)  |
 

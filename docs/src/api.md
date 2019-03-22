@@ -1,6 +1,9 @@
-# Library
+# API Library
 
 ---
+```@contents
+Pages = ["api.md"]
+```
 
 ```@meta
 CurrentModule = AugmentedGaussianProcesses
@@ -14,45 +17,49 @@ AugmentedGaussianProcesses
 ## Model Types
 
 ```@docs
-GP(X,y,kernel)
-VGP(X,y,kernel,likelihood,inference)
-SVGP(X,y,kernel,likelihood,inference,num_ind_points)
+GP
+VGP
+SVGP
 ```
 
 ## Likelihood Types
 
 ```@docs
-GaussianLikelihood()
-AugmentedStudentTLikelihood(ν)
-BayesianSVM()
-AugmentedLogisticLikelihood()
-AugmentedLogisticSoftMaxLikelihood()
+GaussianLikelihood
+AugmentedStudentTLikelihood
+BayesianSVM
+AugmentedLogisticLikelihood
+AugmentedLogisticSoftMaxLikelihood
 ```
 
 ## Inference Types
 
 ```@docs
-AnalyticInference()
-StochasticAnalyticInference(batchsize)
-NumericalInference(optimizer)
-StochasticNumericalInference(batchsize)
-GibbsSampling()
+AnalyticVI
+AnalyticSVI
+NumericalVI
+NumericalSVI
+QuadratureVI
+QuadratureSVI
+MCMCIntegrationVI
+MCMCIntegrationSVI
+GibbsSampling
 ```
 
 ## Functions and methods
 
 ```@docs
-train!(model)
-predict_f(model,X_test)
-predict_y(model,X_test)
-proba_y(model,X_test)
+train!
+predict_f
+predict_y
+proba_y
 ```
 
 ## Kernels
 
 ```@docs
-RBFKernel()
-MaternKernel)_
+RBFKernel
+MaternKernel
 ```
 
 ## Kernel functions
