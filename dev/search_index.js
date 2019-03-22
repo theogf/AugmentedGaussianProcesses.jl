@@ -165,7 +165,15 @@ var documenterSearchIndex = {"docs": [
     "page": "User Guide",
     "title": "Model creation",
     "category": "section",
-    "text": "Creating a model is as simple as doing VGP(X,y,kernel,likelihood,inference;args...) where args is described in the API. The compatibility of likelihood and inference will shortly be uploaded and regularly updated. For the kernels check out the kernel section"
+    "text": "Creating a model is as simple as doing VGP(X,y,kernel,likelihood,inference;args...) where args is described in the API. The compatibility of likelihoods and inferences is described in the next section and is regularly updated. For the kernels check out the kernel section"
+},
+
+{
+    "location": "userguide/#Compatibility-table-1",
+    "page": "User Guide",
+    "title": "Compatibility table",
+    "category": "section",
+    "text": "Likelihood/Inference AnalyticInference GibbsSampling NumericalInference(Quadrature) NumericalInference(MCMCIntegration)\nGaussianLikelihood ✔ ✖ ✖ ✖\nStudentTLikelihood ✔ (dev) (dev) ✖\nLogisticLikelihood ✔ (dev) (dev) ✖\nBayesianSVM ✔ ✖ (dev) ✖\nLogisticSoftMaxLikelihood ✔ (dev) ✖ (dev)\nSoftMaxLikelihood ✖ ✖ ✖ (dev)"
 },
 
 {
