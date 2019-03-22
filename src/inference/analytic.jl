@@ -22,7 +22,7 @@ Analytic inference structure for the classical GP regression
     - `ϵ::T` : convergence criteria, which can be user defined
 """
 function Analytic(;ϵ::T=1e-5) where {T<:Real}
-    Analytic{T}(ϵ,0,false,1,1,collect(1:1),1.0,true)
+    Analytic{T}(ϵ,0,false,1,collect(1:1),1.0,true)
 end
 
 

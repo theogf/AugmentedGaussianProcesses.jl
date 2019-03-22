@@ -8,56 +8,34 @@ export PolyaGammaDist
 """Sampler object"""
 mutable struct PolyaGammaDist{T}
   # For sum of Gammas.
-  T::Int64;
+  trunc::Int64;
   bvec::Vector{T}
-
-  # Draw functions
-  draw::Function
-  draw_sum_of_gammas::Function
-  draw_like_devroye::Function
-
-  # Utility.
-  set_trunc::Function
-
   # Helper.
   #Constructor
-  function PolyaGammaDist{T}(;trunc = 200) where T
+  function PolyaGammaDist{T}(trunc::Int) where {T<:Real}
     this = new{T}()
-    this.set_trunc = function(trunc)
-      set_trunc(this,trunc)
-    end
-    this.set_trunc(trunc);
-    this.draw = function(n,z)
-      draw(n,z)
-    end
-    this.draw_sum_of_gammas = function(n,z)
-      draw_sum_of_gammas(n,z)
-    end
-    this.draw_like_devroye = function(Z)
-      draw_like_devroye(Z)
-    end
-    return this
+	set_trunc(this,trunc)
   end
 end
 
-function PolyaGammaDist(;trunc=200)
-	PolyaGammaDist{Float64}()
+function PolyaGammaDist(;trunc::Int=200)
+	PolyaGammaDist{Float64}(trunc)
 end
 # ////////////////////////////////////////////////////////////////////////////////
 # 				 // Utility //
 # ////////////////////////////////////////////////////////////////////////////////
 
-function set_trunc(pg::PolyaGammaDist,trunc::Int64)
+function set_trunc(pg::PolyaGammaDist{T},trunc::Int64) where {T<:Real}
 
   if trunc < 1
-    @warn "PolyaGamma(int trunc): trunc < 1. Set trunc=1."
+    @warn "PolyaGamma(trunc::Int): trunc < 1. Set trunc=1."
     trunc = 1;
   end
 
-  pg.T = trunc;
-  pg.bvec = zeros(pg.T);
+  pg.trunc = trunc;
+  pg.bvec = zeros(T,pg.trunc);
 
-  for k in 1:pg.T
+  for k in 1:pg.trunc
     d = k - 0.5;
     pg.bvec[k] = 4* pi^2 * d * d;
   end
@@ -138,9 +116,9 @@ end
 # ////////////////////////////////////////////////////////////////////////////////
 
 
-function draw(n::T, z::T) where {T<:Real}
+function draw(pg::PolyaGammaDist{T},n::Real, z::Real) where {T<:Real}
   if n < 1
-    @warn "PolyaGamma::draw: n < 1.  Set n = 1." maxlog=1
+    @warn "draw(PolyaGamma): n < 1.  Set n = 1." maxlog=1
     n = 1;
   end
   sum = 0.0;
@@ -150,11 +128,11 @@ function draw(n::T, z::T) where {T<:Real}
   return sum;
 end # draw
 
-function draw_sum_of_gammas(n::T, z::T, pg::PolyaGammaDist) where {T<:Real}
+function draw_sum_of_gammas(pg::PolyaGammaDist{T},n::T, z::T) where {T<:Real}
   x = 0.0;
   kappa = z * z;
   Gam = Gamma(n,1.0);
-  for k in 1:pg.T
+  for k in 1:pg.trunc
     x += rand(Gam) / (bvec[k] + kappa);
   end
   return 2.0 * x;

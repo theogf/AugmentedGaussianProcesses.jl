@@ -4,7 +4,7 @@ using Random: seed!
 seed!(42)
 
 # Global flags for the tests
-# include("test_kernel.jl")
+include("test_kernel.jl")
 include("test_GP.jl")
 include("test_VGP.jl")
 include("test_SVGP.jl")

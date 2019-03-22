@@ -54,6 +54,8 @@ function Base.show(io::IO,inference::AnalyticVI{T}) where T
     print(io,"Analytic $(inference.Stochastic ? " Stochastic" : "") Variational Inference")
 end
 
+
+"""Initialize the final version of the inference object"""
 function init_inference(inference::AnalyticVI{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {T<:Real}
     inference.nSamples = nSamples
     inference.nSamplesUsed = nSamplesUsed
@@ -66,33 +68,32 @@ function init_inference(inference::AnalyticVI{T},nLatent::Integer,nFeatures::Int
     return inference
 end
 
-function variational_updates!(model::VGP{L,AnalyticVI{T}}) where {L<:Likelihood,T}
+"""Generic method for variational updates using analytical formulas"""
+function variational_updates!(model::AbstractGP{L,AnalyticVI{T}}) where {L<:Likelihood,T}
     local_updates!(model)
     natural_gradient!(model)
     global_update!(model)
 end
 
-function variational_updates!(model::SVGP{L,AnalyticVI{T}}) where {L<:Likelihood,T}
-    local_updates!(model)
-    natural_gradient!(model)
-    global_update!(model)
-end
-
+"""Coordinate ascent updates on the natural parameters"""
 function natural_gradient!(model::VGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
     model.η₁ .= ∇μ(model)
     model.η₂ .= -Symmetric.(Diagonal{T}.(∇Σ(model)).+0.5.*model.invKnn)
 end
 
+"""Computation of the natural gradient for the natural parameters"""
 function natural_gradient!(model::SVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
     model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*∇μ(model) .- model.η₁
     model.inference.∇η₂ .= -(model.inference.ρ.*transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+0.5.*model.invKmm) .- model.η₂
 end
 
+"""Conversion from natural to standard distribution parameters"""
 function global_update!(model::VGP{L,AnalyticVI{T}}) where {L<:Likelihood,T}
     model.Σ .= -0.5.*inv.(model.η₂)
     model.μ .= model.Σ.*model.η₁
 end
 
+"""Update of the natural parameters and conversion from natural to standard distribution parameters"""
 function global_update!(model::SVGP{L,AnalyticVI{T}}) where {L<:Likelihood,T}
     if model.inference.Stochastic
         model.η₁ .= model.η₁ .+ GradDescent.update.(model.inference.optimizer_η₁,model.inference.∇η₁)

@@ -1,4 +1,3 @@
-
 "Structure to combine kernels together by multiplication, can be created by using the constructor with an array or simply using Base.*"
 mutable struct KernelProduct{T<:AbstractFloat,KernelCombination} <: Kernel{T,KernelCombination}
     # @kernelfunctionfields

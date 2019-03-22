@@ -49,7 +49,7 @@ Constructor for Stochastic Variational Inference via quadrature approximation.
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
 function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
-    QuadratureSVI{T}(ϵ,nGaussHermite,0,optimizer,false,nMinibatch)
+    QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false,nMinibatch)
 end
 
 
