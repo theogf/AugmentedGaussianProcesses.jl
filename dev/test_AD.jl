@@ -1,5 +1,5 @@
 using ForwardDiff
-# using Zygote
+using Zygote
 using AugmentedGaussianProcesses
 const AGP = AugmentedGaussianProcesses
 using AugmentedGaussianProcesses.KernelModule
