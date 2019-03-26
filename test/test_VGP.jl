@@ -11,9 +11,9 @@ k = AGP.RBFKernel()
 
 X = rand(nData,nDim)
 y = Dict("Regression"=>norm.(eachrow(X)),"Classification"=>Int64.(sign.(norm.(eachrow(X)).-0.5)),"MultiClass"=>floor.(Int64,norm.(eachrow(X.*2))))
-reg_likelihood = ["GaussianLikelihood","AugmentedStudentTLikelihood","StudentTLikelihood"]
-class_likelihood = ["BayesianSVM","AugmentedLogisticLikelihood"]#,"LogisticLikelihood"]
-multiclass_likelihood = ["AugmentedLogisticSoftMaxLikelihood","LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
+reg_likelihood = ["GaussianLikelihood","StudentTLikelihood"]
+class_likelihood = ["BayesianSVM","LogisticLikelihood"]#,"LogisticLikelihood"]
+multiclass_likelihood = ["LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
 likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood]
 likelihood_names = ["Regression","Classification","MultiClass"]
 inferences = ["AnalyticVI"]#,"NumericalInference"]#,"GibbsSampling"]

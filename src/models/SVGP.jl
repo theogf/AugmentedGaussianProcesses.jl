@@ -78,7 +78,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
                 nSamplesUsed = inference.nSamplesUsed
             end
 
-            likelihood = init_likelihood(likelihood,nLatent,nSamplesUsed)
+            likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed)
             inference = init_inference(inference,nLatent,nFeature,nSample,nSamplesUsed)
             model = SVGP{LikelihoodType,InferenceType,T1,ArrayType{T1}}(X,y,
                     nSample, nDim, nFeature, nLatent,

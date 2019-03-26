@@ -1,13 +1,8 @@
-"""
-Bayesian SVM (hinge loss function) : ``p(y|f) = \\max(0,1-yf)``
-"""
-abstract type AbstractBayesianSVM{T<:Real} <: ClassificationLikelihood{T} end
-
-function pdf(l::AbstractBayesianSVM,y::Real,f::Real)
+function pdf(l::BayesianSVM,y::Real,f::Real)
     svmlikelihood(y*f)
 end
 
-function Base.show(io::IO,model::AbstractBayesianSVM{T}) where T
+function Base.show(io::IO,model::BayesianSVM{T}) where T
     print(io,"Bayesian SVM")
 end
 
@@ -23,7 +18,7 @@ function svmpseudolikelihood(f::Real)
 end
 
 
-function compute_proba(l::AbstractBayesianSVM{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
+function compute_proba(l::BayesianSVM{T},μ::Vector{T},σ²::Vector{T}) where {T<:Real}
     N = length(μ)
     pred = zeros(T,N)
     for i in 1:N
@@ -41,7 +36,7 @@ end
 The [Bayesian SVM](https://arxiv.org/abs/1707.05532) is a Bayesian interpretation of the classical SVM.
 By using an augmentation (Laplace) one gets a conditionally conjugate likelihood (see paper)
 """
-struct BayesianSVM{T<:Real} <: AbstractBayesianSVM{T}
+struct BayesianSVM{T<:Real} <: ClassificationLikelihood{T}
     α::AbstractVector{AbstractVector{T}}
     θ::AbstractVector{AbstractVector{T}}
     function BayesianSVM{T}() where {T<:Real}

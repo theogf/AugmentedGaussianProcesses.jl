@@ -1,9 +1,9 @@
 """
-Softmax likelihood : ``p(y=i|{fₖ}) = exp(fᵢ)/ ∑ exp(fₖ) ``
-"""
-abstract type AbstractMultinomialLogisticLikelihood{T<:Real} <: MultiClassLikelihood{T} end
+**MultinomialLogistic**
 
-struct AugmentedMultinomialLogisticLikelihood{T<:Real} <: AbstractMultinomialLogisticLikelihood{T}
+Multiclass likelihood with Multinomial logistic link : ``p(y=i|{fₖ}) = \\prod_{i\\neq k} \\Theta(f_i-f_k) ``
+"""
+struct MultinomialLogisticLikelihood{T<:Real} <: AbstractMultinomialLogisticLikelihood{T}
     Y::AbstractVector{BitVector} #Mapping from instances to classes
     class_mapping::AbstractVector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index

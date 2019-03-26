@@ -19,19 +19,19 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
         else
             return false
         end
-    elseif isa(likelihood,AbstractStudentTLikelihood)
-        if isaugmented(likelihood) && isa(inference,AnalyticVI)
+    elseif isa(likelihood,StudentTLikelihood)
+        if isa(inference,AnalyticVI)
             return true
         else
             return false
         end
-    elseif isa(likelihood,AbstractLogisticLikelihood)
-        if isaugmented(likelihood) && isa(inference,AnalyticVI)
+    elseif isa(likelihood,LogisticLikelihood)
+        if isa(inference,AnalyticVI)
             return true
         else
             return false
         end
-    elseif isa(likelihood,AbstractBayesianSVM)
+    elseif isa(likelihood,BayesianSVM)
         if isa(inference,AnalyticVI)
             return true
         else
@@ -43,10 +43,10 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
         else
             return false
         end
-    elseif isa(likelihood,AbstractLogisticSoftMaxLikelihood)
-        if isaugmented(likelihood) && isa(inference,Union{AnalyticVI,GibbsSampling})
+    elseif isa(likelihood,LogisticSoftMaxLikelihood)
+        if isa(inference,Union{AnalyticVI,GibbsSampling})
             return true
-        elseif !isaugmented(likelihood) && isa(inference,NumericalVI)
+        elseif isa(inference,MCMCIntegrationVI)
             return true
         else
             return false

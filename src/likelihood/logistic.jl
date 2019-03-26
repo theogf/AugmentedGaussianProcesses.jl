@@ -1,10 +1,9 @@
 """
 Logistic likelihood : ``p(y|f) = \\sigma(yf) = (1+\\exp(-yf))\\^{-1} ``
-More info on [wiki page](https://en.wikipedia.org/wiki/Logistic_function)
-"""
-abstract type AbstractLogisticLikelihood{T<:Real} <: ClassificationLikelihood{T} end
 
-function pdf(l::AbstractLogisticLikelihood,y::Real,f::Real)
+"""
+
+function pdf(l::LogisticLikelihood,y::Real,f::Real)
     logistic(y*f)
 end
 
@@ -28,87 +27,92 @@ end
 
 ###############################################################################
 """
-**Augmented Logistic Likelihood**
+**Logistic Likelihood**
 
-The logistic link for the Bernoulli likelihood is augmented to give a conditionally conjugate likelihood :
-``p(y|f) = \\sigma(yf) = \\frac{1}{1+\\exp(-yf)}``
+Bernoulli likelihood with a logistic link for the Bernoulli likelihood
+``p(y|f) = \\sigma(yf) = \\frac{1}{1+\\exp(-yf)}``, (for more info see : [wiki page](https://en.wikipedia.org/wiki/Logistic_function))
 
+---
+
+For the analytic versionm the likelihood is augmented to give a conditionally conjugate likelihood :
 ```math
 p(y|f,\\omega) = \\exp\\left(\\frac{1}{2}\\left(yf - (yf)^2 \\omega\\right)\\right)
 ```
-
+where ``\\omega \\sim \\text{PG}(\\omega\\mid 1, 0)``, and PG is the Polya-Gamma distribution
 See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383)
 """
-struct AugmentedLogisticLikelihood{T<:Real} <: AbstractLogisticLikelihood{T}
+struct LogisticLikelihood{T<:Real} <: ClassificationLikelihood{T}
     c::AbstractVector{AbstractVector{T}}
     θ::AbstractVector{AbstractVector{T}}
-    function AugmentedLogisticLikelihood{T}() where {T<:Real}
+    function LogisticLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function AugmentedLogisticLikelihood{T}(c::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
+    function LogisticLikelihood{T}(c::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
         new{T}(c,θ)
     end
 end
 
-function AugmentedLogisticLikelihood()
-    AugmentedLogisticLikelihood{Float64}()
+function LogisticLikelihood()
+    LogisticLikelihood{Float64}()
 end
 
-isaugmented(::AugmentedLogisticLikelihood{T}) where T = true
-
-function init_likelihood(likelihood::AugmentedLogisticLikelihood{T},nLatent::Integer,nSamplesUsed) where T
-    AugmentedLogisticLikelihood{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
+function init_likelihood(likelihood::LogisticLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer) where T
+    if inference isa AnalyticVI || inference isa GibbsSampling
+        LogisticLikelihood{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
+    else
+        LogisticLikelihood{T}()
+    end
 end
 
 
-function local_updates!(model::VGP{<:AugmentedLogisticLikelihood,<:AnalyticVI})
+function local_updates!(model::VGP{<:LogisticLikelihood,<:AnalyticVI})
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(Σ+abs2.(μ)),model.μ,diag.(model.Σ))
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end
 
-function local_updates!(model::SVGP{<:AugmentedLogisticLikelihood,<:AnalyticVI})
+function local_updates!(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
     model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),model.μ,model.Σ,model.K̃,model.κ)
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::VGP{<:AugmentedLogisticLikelihood},index::Integer)
+function expec_μ(model::VGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
     return 0.5*model.y[index]
 end
 
-function ∇μ(model::VGP{<:AugmentedLogisticLikelihood})
+function ∇μ(model::VGP{<:LogisticLikelihood,<:AnalyticVI})
     return 0.5*model.y
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::SVGP{<:AugmentedLogisticLikelihood},index::Integer)
+function expec_μ(model::SVGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
     return 0.5.*model.y[index][model.inference.MBIndices]
 end
 
-function ∇μ(model::SVGP{<:AugmentedLogisticLikelihood})
+function ∇μ(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
     return 0.5.*getindex.(model.y,[model.inference.MBIndices])
 end
 
-function expec_Σ(model::AbstractGP{<:AugmentedLogisticLikelihood},index::Integer)
+function expec_Σ(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
     return 0.5*model.likelihood.θ[index]
 end
 
-function ∇Σ(model::AbstractGP{<:AugmentedLogisticLikelihood})
+function ∇Σ(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI})
     return 0.5*model.likelihood.θ
 end
 
-function ELBO(model::AbstractGP{<:AugmentedLogisticLikelihood})
+function ELBO(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI})
     return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
 end
 
-function expecLogLikelihood(model::VGP{AugmentedLogisticLikelihood{T}}) where T
+function expecLogLikelihood(model::VGP{LogisticLikelihood{T},AnalyticVI{T}}) where T
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
     tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-dot(θ,Σ+abs2.(μ))),
                         model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{AugmentedLogisticLikelihood{T}}) where T
+function expecLogLikelihood(model::SVGP{LogisticLikelihood{T},AnalyticVI{T}}) where T
     tot = -model.nLatent*(0.5*model.inference.nSamplesUsed*logtwo)
     tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y)-dot(θ,K̃+κΣκ+abs2.(κμ)))),
                         model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag(model.κ.*model.Σ,model.κ'),model.K̃)
@@ -116,12 +120,6 @@ function expecLogLikelihood(model::SVGP{AugmentedLogisticLikelihood{T}}) where T
 end
 
 ###############################################################################
-
-struct LogisticLikelihood{T<:Real} <: AbstractLogisticLikelihood{T}
-    function LogisticLikelihood{T}() where {T<:Real}
-        new{T}()
-    end
-end
 
 function gradpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
     σ=y*f
