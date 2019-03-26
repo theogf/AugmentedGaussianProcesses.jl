@@ -1,46 +1,4 @@
 """
-Student-t likelihood : ``\\Gamma((\\nu+1)/2)/(\\sqrt{\\nu\\pi}\\Gamma(\\nu/2)) (1+t\\^2/\\nu)^(-(\\nu+1)/2)``
-"""
-function pdf(l::StudentTLikelihood,y::Real,f::Real)
-    tdistpdf(l.ν,y-f)
-end
-
-function Base.show(io::IO,model::StudentTLikelihood{T}) where T
-    print(io,"Student-t likelihood")
-end
-
-
-function compute_proba(l::StudentTLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
-    N = length(μ)
-    st = TDist(l.ν)
-    nSamples = 2000
-    μ_pred = zeros(T,N)
-    σ²_pred = zeros(T,N)
-    temp_array = zeros(T,nSamples)
-    for i in 1:N
-        # e = expectation(Normal(μ[i],sqrt(σ²[i])))
-        # μ_pred[i] = μ[i]
-        #
-        # σ²_pred[i] = e(x->pdf(LocationScale(x,1.0,st))^2) - e(x->pdf(LocationScale(x,1.0,st)))^2
-        if σ²[i] <= 1e-3
-            pyf =  LocationScale(μ[i],1.0,st)
-            for j in 1:nSamples
-                temp_array[j] = rand(pyf)
-            end
-        else
-            d = Normal(μ[i],sqrt(σ²[i]))
-            for j in 1:nSamples
-                temp_array[j] = rand(LocationScale(rand(d),1.0,st))
-            end
-        end
-        μ_pred[i] = μ[i];
-        σ²_pred[i] = cov(temp_array)
-    end
-    return μ_pred,σ²_pred
-end
-
-###############################################################################
-"""
 **Student-T likelihood**
 
 Student-t likelihood for regression: ``\\frac{\\Gamma((\\nu+1)/2)}{\\sqrt{\\nu\\pi}\\Gamma(\\nu/2)}\\left(1+t^2/\\nu\\right)^{(-(\\nu+1)/2)}``
@@ -78,6 +36,45 @@ function init_likelihood(likelihood::StudentTLikelihood{T},inference::Inference{
         StudentTLikelihood{T}(likelihood.ν)
     end
 end
+
+function pdf(l::StudentTLikelihood,y::Real,f::Real)
+    tdistpdf(l.ν,y-f)
+end
+
+function Base.show(io::IO,model::StudentTLikelihood{T}) where T
+    print(io,"Student-t likelihood")
+end
+
+function compute_proba(l::StudentTLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
+    N = length(μ)
+    st = TDist(l.ν)
+    nSamples = 2000
+    μ_pred = zeros(T,N)
+    σ²_pred = zeros(T,N)
+    temp_array = zeros(T,nSamples)
+    for i in 1:N
+        # e = expectation(Normal(μ[i],sqrt(σ²[i])))
+        # μ_pred[i] = μ[i]
+        #
+        # σ²_pred[i] = e(x->pdf(LocationScale(x,1.0,st))^2) - e(x->pdf(LocationScale(x,1.0,st)))^2
+        if σ²[i] <= 1e-3
+            pyf =  LocationScale(μ[i],1.0,st)
+            for j in 1:nSamples
+                temp_array[j] = rand(pyf)
+            end
+        else
+            d = Normal(μ[i],sqrt(σ²[i]))
+            for j in 1:nSamples
+                temp_array[j] = rand(LocationScale(rand(d),1.0,st))
+            end
+        end
+        μ_pred[i] = μ[i];
+        σ²_pred[i] = cov(temp_array)
+    end
+    return μ_pred,σ²_pred
+end
+
+###############################################################################
 
 function local_updates!(model::VGP{<:StudentTLikelihood,<:AnalyticVI})
     model.likelihood.β .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y).+model.likelihood.ν),diag.(model.Σ),model.μ,model.y)

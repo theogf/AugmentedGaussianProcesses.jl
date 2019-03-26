@@ -130,7 +130,7 @@ function expec_Σ(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI},in
     0.5.*model.likelihood.θ[index]
 end
 
-function ∇Σ(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI)
+function ∇Σ(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI})
     0.5.*model.likelihood.θ
 end
 

@@ -51,7 +51,7 @@ function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=ALRSVI(
 end
 
 function Base.show(io::IO,inference::AnalyticVI{T}) where T
-    print(io,"Analytic $(inference.Stochastic ? " Stochastic" : "") Variational Inference")
+    print(io,"Analytic$(inference.Stochastic ? " Stochastic" : "") Variational Inference")
 end
 
 

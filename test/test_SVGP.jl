@@ -16,9 +16,9 @@ reg_likelihood = ["GaussianLikelihood","StudentTLikelihood"]
 class_likelihood = ["BayesianSVM","LogisticLikelihood"]
 multiclass_likelihood = ["LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
 likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood]
-likelihood_names = ["Regression"]#,"Classification","MultiClass"]
+likelihood_names = ["Regression","Classification","MultiClass"]
 stochastic = [true,false]
-inferences = ["AnalyticVI","QuadratureVI","MCMCIntegrationVI"]#,"StochasticNumericalInference","GibbsSampling"]
+inferences = ["AnalyticVI"]#,"QuadratureVI","MCMCIntegrationVI"]#,"GibbsSampling"]
 floattypes = [Float64]
 @testset "SVGP" begin
     for (likelihoods,l_names) in zip(likelihood_types,likelihood_names)

@@ -58,7 +58,7 @@ export kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 export setvalue!,getvalue,setfixed!,setfree!,getvariance,getlengthscales,setoptimizer!
 export opt_diag, opt_trace
-export rand, plot
+export rand
 export KMeansInducingPoints
 
 # Main classes
@@ -78,7 +78,7 @@ include("likelihood/likelihood.jl")
 include("functions/utils.jl")
 include("functions/init.jl")
 include("functions/KLdivergences.jl")
-include("functions/plotting.jl")
+# include("functions/plotting.jl")
 #Deprecated constructors
 include("deprecated.jl")
 
