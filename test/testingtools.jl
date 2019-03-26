@@ -1,17 +1,20 @@
 methods_implemented = Dict{String,Vector{String}}()
 methods_implemented["GaussianLikelihood"] = []
 methods_implemented["StudentTLikelihood"] = ["AnalyticVI","AnalyticSVI"] # ["QuadratureVI","QuadratureSVI"]
-methods_implemented["LogisticLikelihood"] = ["AnalyticVI","AnalyticSVI"]#,"GibbsSampling"]# ["NumericalVI","NumericalSVI"]
-methods_implemented["BayesianSVM"] = ["AnalyticVI","AnalyticSVI"]#,"GibbsSampling"]
-methods_implemented["LogisticSoftMaxLikelihood"] = ["AnalyticVI","AnalyticSVI"]#,"GibbsSampling"] "NumericalVI","NumericalSVI"]
+methods_implemented["LogisticLikelihood"] = ["AnalyticVI","AnalyticSVI"]# ["NumericalVI","NumericalSVI"]
+methods_implemented["BayesianSVM"] = ["AnalyticVI","AnalyticSVI"]
+methods_implemented["LogisticSoftMaxLikelihood"] = ["AnalyticVI","AnalyticSVI"]# "NumericalVI","NumericalSVI"]
 methods_implemented["SoftMaxLikelihood"] = ["QuadratureVI","QuadratureSVI"]
 
 methods_implemented_VGP = deepcopy(methods_implemented)
+push!(methods_implemented_VGP["LogisticLikelihood"],"GibbsSampling")
+push!(methods_implemented_VGP["LogisticSoftMaxLikelihood"],"GibbsSampling")
 methods_implemented_SVGP = deepcopy(methods_implemented)
 methods_implemented_SVGP["GaussianLikelihood"] = ["AnalyticVI","AnalyticSVI"]
 
 
-stoch(s::Bool,inference::String) = s ? inference[1:end-2]*"SVI" : inference
+stoch(s::Bool,inference::String) = inference != "GibbsSampling" ? (s ? inference[1:end-2]*"SVI" : inference) : inference
+addiargument(s::Bool,inference::String) = inference != "GibbsSampling" ? (s ? "b" : "") : "nBurnin=0"
 addlargument(likelihood::String) = begin
     if (likelihood == "StudentTLikelihood")
         return "ν"

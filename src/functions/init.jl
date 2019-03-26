@@ -26,7 +26,7 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
             return false
         end
     elseif isa(likelihood,LogisticLikelihood)
-        if isa(inference,AnalyticVI)
+        if isa(inference,AnalyticVI) || (model == :VGP && isa(inference,GibbsSampling))
             return true
         else
             return false
@@ -44,7 +44,7 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
             return false
         end
     elseif isa(likelihood,LogisticSoftMaxLikelihood)
-        if isa(inference,Union{AnalyticVI,GibbsSampling})
+        if isa(inference,AnalyticVI) || (model == :VGP && isa(inference,GibbsSampling))
             return true
         elseif isa(inference,MCMCIntegrationVI)
             return true

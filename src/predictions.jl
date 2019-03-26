@@ -118,7 +118,7 @@ function proba_y(model::AbstractGP,X_test::AbstractMatrix{T}) where {T<:Real}
     compute_proba(model.likelihood,μ_f,Σ_f)
 end
 
-function proba_y(model::VGP{<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
+function proba_y(model::VGP{<:MultiClassLikelihood,<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
@@ -134,6 +134,23 @@ function proba_y(model::VGP{<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix
         proba .+= Matrix(res)
     end
     return DataFrame(proba/nf,labels)
+end
+
+function proba_y(model::VGP{<:ClassificationLikelihood,<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
+    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
+    f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
+    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
+    K̃ = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+ [zeros(size(X_test,1)) for i in 1:model.nLatent]
+    nf = length(model.inference.sample_store[1])
+    proba = [zeros(size(X_test,1)) for i in 1:model.nLatent]
+    for i in 1:nf
+        proba .+= compute_proba(model.likelihood,getindex.(f,[i]),K̃)
+    end
+    if model.nLatent == 1
+        return proba[1]/nf
+    else
+        return proba./nf
+    end
 end
 
 function compute_proba(l::Likelihood{T},μ::AbstractVector{<:AbstractVector{T}},σ²::AbstractVector{<:AbstractVector{T}}) where {T<:Real}

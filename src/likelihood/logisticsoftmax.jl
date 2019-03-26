@@ -92,18 +92,10 @@ function local_updates!(model::SVGP{LogisticSoftMaxLikelihood{T},AnalyticVI{T},T
 end
 
 function sample_local!(model::VGP{<:LogisticSoftMaxLikelihood,<:GibbsSampling})
-    if model.inference.nIter <= 1
-        # model.likelihood.α .= 10.0.*model.likelihood.α./model.likelihood.β
-    end
     model.likelihood.γ .= broadcast(μ::AbstractVector{<:Real}->rand.(Poisson.(0.5*model.likelihood.α.*safe_expcosh.(-0.5*μ,0.5*μ))), model.μ)
     model.likelihood.α .= rand.(Gamma.(1.0.+(model.likelihood.γ...),1.0./model.likelihood.β))
-    model.likelihood.θ .= broadcast((y::BitVector,γ::AbstractVector{<:Real},μ::AbstractVector{<:Real})->PolyaGammaDist().draw.(y.+γ,μ),model.likelihood.Y,model.likelihood.γ,model.μ)
-    return nothing
-end
-
-function sample_global!(model::VGP{<:LogisticSoftMaxLikelihood,<:GibbsSampling})
-    model.Σ .= inv.(Symmetric.(Diagonal.(model.likelihood.θ).+model.invKnn))
-    model.μ .= rand.(MvNormal.(0.5.*model.Σ.*(model.likelihood.Y.-model.likelihood.γ),model.Σ))
+    pg = PolyaGammaDist()
+    model.likelihood.θ .= broadcast((y::BitVector,γ::AbstractVector{<:Real},μ::AbstractVector{<:Real})->draw.([pg],y.+γ,μ),model.likelihood.Y,model.likelihood.γ,model.μ)
     return nothing
 end
 
@@ -122,7 +114,7 @@ function expec_μ(model::SVGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI},index::I
     0.5.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
 end
 
-function ∇μ(model::SVGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI})
+function ∇μ(model::SVGP{<:LogisticSoftMaxLikelihood})
     0.5.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
 end
 
@@ -130,7 +122,7 @@ function expec_Σ(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI},in
     0.5.*model.likelihood.θ[index]
 end
 
-function ∇Σ(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI})
+function ∇Σ(model::AbstractGP{<:LogisticSoftMaxLikelihood})
     0.5.*model.likelihood.θ
 end
 
