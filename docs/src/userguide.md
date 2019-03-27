@@ -28,7 +28,7 @@ Creating a model is as simple as doing `VGP(X,y,kernel,likelihood,inference;args
 
 ### Compatibility table
 
-| Likelihood/Inference | AnalyticInference | GibbsSampling | NumericalInference(Quadrature) | NumericalInference(MCMCIntegration) |
+| Likelihood/Inference | AnalyticVI | GibbsSampling | QuadratureVI | MCMCIntegrationVI |
 | --- | :-: | :-: | :-: | :-: |
 | GaussianLikelihood   | ✔  | ✖  | ✖ | ✖  |
 | StudentTLikelihood   | ✔  | (dev)  | (dev) | ✖  |
