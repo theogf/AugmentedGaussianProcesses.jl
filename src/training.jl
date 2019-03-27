@@ -61,12 +61,13 @@ function update_parameters!(model::GP)
 end
 
 
-"""Update all variational parameters of the GP Model"""
+"""Update all variational parameters of the variational GP Model"""
 function update_parameters!(model::VGP)
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
 end
 
+"""Update all variational parameters of the sparse variational GP Model"""
 function update_parameters!(model::SVGP)
     if model.inference.Stochastic
         model.inference.MBIndices = StatsBase.sample(1:model.inference.nSamples,model.inference.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
@@ -74,6 +75,17 @@ function update_parameters!(model::SVGP)
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
 end
+
+"""Update all variational parameters of the online sparse variational GP Model"""
+function update_parameters!(model::OnlineVGP)
+    if model.inference.Stochastic
+        model.inference.MBIndices = StatsBase.sample(1:model.inference.nSamples,model.inference.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
+    end
+    updateZ!(model);
+    computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    variational_updates!(model);
+end
+
 
 """Compute kernel matrices for GP models"""
 function computeMatrices!(model::GP{<:Likelihood,<:Inference,T}) where {T<:Real}

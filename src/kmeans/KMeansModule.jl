@@ -9,12 +9,12 @@ using LinearAlgebra, Clustering, Distances
 using AugmentedGaussianProcesses.KernelModule
 
 export KMeansInducingPoints
-export KMeansAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans
+export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans
 export total_cost
 export init!, update!
 
 "Abstract type for kmeans algorithm"
-abstract type KMeansAlg end;
+abstract type ZAlg end;
 "Find the closest center to X among C, return the index and the distance"
 function find_nearest_center(X,C,kernel=0)
     nC = size(C,1)
@@ -40,7 +40,7 @@ function total_cost(X,C,kernel)
 end
 
 "Return the total cost of the current algorithm"
-function total_cost(X::Array{Float64,2},alg::KMeansAlg,kernel=0)
+function total_cost(X::Array{Float64,2},alg::ZAlg,kernel=0)
     n = size(X,1)
     tot = 0
     for i in 1:n
@@ -55,7 +55,7 @@ function distance(X,C,kernel=0)
         return norm(X-C,2)^2
     else
         c = KernelModule.kappa(kernel)
-        return c(evaluate(getmetric(kernel),X,X))+c(evaluate(getmetric(kernel),C,C))-2*c(evaluate(getmetric(kernel),X,C))
+        return c(evaluate(KernelModule.getmetric(kernel),X,X))+c(evaluate(KernelModule.getmetric(kernel),C,C))-2*c(evaluate(KernelModule.getmetric(kernel),X,C))
     end
 end
 

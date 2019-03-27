@@ -1,23 +1,22 @@
 ##From paper "An Algorithm for Online K-Means Clustering" ##
 
 
-mutable struct StreamOnline <: KMeansAlg
+mutable struct StreamOnline <: ZAlg
     k_target::Int64
     k_efficient::Int64
     k::Int64
     f::Float64
     q::Int64
     centers::Array{Float64,2}
-    function StreamOnline()
-        return new()
+    function StreamOnline(k_target::Int64)
+        return new(k_target)
     end
 end
 
 
-function init!(alg::StreamOnline,X,y,model,k::Int64)
+function init!(alg::StreamOnline,X,y,kernel)
     @assert size(X,1)>=10 "The first batch of data should be bigger than 10 samples"
-    alg.k_target = k;
-    alg.k_efficient = max(1,ceil(Int64,(k-15)/5))
+    alg.k_efficient = max(1,ceil(Int64,(alg.k_target-15)/5))
     if alg.k_efficient+10 > size(X,1)
          alg.k_efficient = 0
     end

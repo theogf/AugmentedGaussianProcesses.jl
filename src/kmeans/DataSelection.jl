@@ -1,7 +1,7 @@
 ##Work in progress to test methods##
 
 
-mutable struct DataSelection <: KMeansAlg
+mutable struct DataSelection <: ZAlg
     accepting_function::Function ###From given parameters return if point is accepted (return true or false)
     lim
     k::Int64
@@ -11,7 +11,7 @@ mutable struct DataSelection <: KMeansAlg
     end
 end
 
-function init!(alg::DataSelection,X,y,model,k::Int64)
+function init!(alg::DataSelection,X,y,kernel)
     n = size(X,1)
     # init_k = max(1,ceil(Int64,n/10))
     init_k = min(10,n)
@@ -100,7 +100,6 @@ function get_likelihood_diffs(model,alg,new_points)
 end
 
 
-"""BBLAH"""
 function get_likelihood_diff(model,alg,new_point)
     old_ind = copy(model.MBIndices)
     model.MBIndices = collect(1:model.nSamples)

@@ -1,20 +1,16 @@
-mutable struct OfflineKmeans <: KMeansAlg
-    kernel::Kernel
+mutable struct OfflineKmeans <: ZAlg
     k::Int64
+    kernel::Kernel
     centers::Array{Float64,2}
-    function OfflineKmeans()
-        return new()
+    function OfflineKmeans(nInducingPoints::Integer)
+        return new(nInducingPoints)
     end
 end
 
-function init!(alg::OfflineKmeans,X,y,model,k::Int64)
-    @assert size(X,1)>=k "Input data not big enough given $k"
-    alg.k = k
-    update!(alg,X,y,model)
+function init!(alg::OfflineKmeans,X,y,kernel)
+    @assert size(X,1)>=alg.k "Input data not big enough given $k"
+    alg.centers = KMeansInducingPoints(X,alg.k)
 end
 
 function update!(alg::OfflineKmeans,X,y,model)
-    results = kmeans(Matrix(X'),alg.k)
-    alg.centers = copy(results.centers')
-    return results
 end

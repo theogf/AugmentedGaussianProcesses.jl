@@ -1,10 +1,10 @@
 using Distributions
 using Plots
 using Clustering
+using LinearAlgebra
 pyplot()
-include("../src/AugmentedGaussianProcesses.jl")
-using AugmentedGaussianProcesses.KernelFunctions
-using AugmentedGaussianProcesses.KMeansModule
+using AugmentedGaussianProcesses
+const AGP = AugmentedGaussianProcesses
 println("Packages loaded")
 
 function generate_random_walk_data(N,dim,noise)
@@ -17,7 +17,7 @@ function generate_random_walk_data(N,dim,noise)
         d = MvNormal(zeros(dim),noise)
     end
     for i in 2:N
-        X[i,:] = X[i-1,:]+rand(d)
+        X[i,:] = X[i-1,:].+rand(d)
         f[i] = f[i-1]+rand(df)
     end
     return X,f
@@ -30,11 +30,11 @@ function distance(X,C)
     return 2*(1-exp(-0.5*norm(X-C)^2/(l^2)))
 end
 
-kernel = KernelFunctions.RBFKernel(l)
+kernel = RBFKernel(l)
 
 function sample_gaussian_process(X,noise)
     N = size(X,1)
-    K = KernelFunctions.kernelmatrix(X,kernel)+noise*Diagonal{Float64}(I,N)
+    K = kernelmatrix(X,kernel)+noise*Diagonal{Float64}(I,N)
     return rand(MvNormal(zeros(N),K))
 end
 dim = 2
@@ -55,82 +55,58 @@ if dorand
 end
 
 N_test = 50
-x1_grid = range(minimum(X[:,1]),stop=maximum(X[:,1]),length=N_test)
-x2_grid = range(minimum(X[:,2]),stop=maximum(X[:,2]),length=N_test)
+x1_grid = range(minimum(X[:,1])*1.1,stop=maximum(X[:,1])*1.1,length=N_test)
+x2_grid = range(minimum(X[:,2])*1.1,stop=maximum(X[:,2])*1.1,length=N_test)
 X_test = hcat([i for i in x1_grid, j in x2_grid][:],[j for i in x1_grid, j in x2_grid][:])
 
 ###Basic Offline KMeans
-offkmeans = KMeansModule.OfflineKmeans()
-KMeansModule.init!(offkmeans,X,k)
-KMeansModule.update!(offkmeans,X)
-plot(X[:,1],X[:,2],t=:scatter,lab="",alpha=0.3,markerstrokewidth=0)
-p1 = plot!(offkmeans.centers[:,1],offkmeans.centers[:,2],t=:scatter,color=:red,lab="",title="Offline Kmeans")
-println("Full kmeans cost : $(KMeansModule.total_cost(X,offkmeans.centers)) with $(offkmeans.k) clusters")
+offkmeans = OfflineKmeans(k)
+init!(offkmeans,X,nothing,kernel)
+update!(offkmeans,X,nothing,nothing)
+Plots.plot(X[:,1],X[:,2],t=:scatter,lab="",alpha=0.3,markerstrokewidth=0)
+p1 = Plots.plot!(offkmeans.centers[:,1],offkmeans.centers[:,2],t=:scatter,color=:red,lab="",title="Offline Kmeans")
+println("Full kmeans cost : $(total_cost(X,offkmeans.centers,kernel)) with $(offkmeans.k) clusters")
 ###### Web-scale k-means clustering #####
 
-web = KMeansModule.Webscale()
-KMeansModule.init!(web,X,k)
-i = 1
+web = Webscale(k)
+init!(web,X,f,kernel)
 T=10000
-onepass=true
+onepass=false
 d = zeros(Int64,b)
 if onepass
-    while (i+b) < n
-        KMeansModule.update!(web,X[i:(i+b),:])
-        i += b
+    iter = 1
+    while (iter+b) < n
+        update!(web,X[iter:(iter+b),:],nothing,kernel)
+        global iter += b
     end
 else
-    while i < T
+    iter = 1
+    while iter < T
         samples = sample(1:n,b,replace=false)
-        KMeansModule.update!(web,X[samples,:])
-        i+=1
+        update!(web,X[samples,:],f,kernel )
+        global iter+=1
     end
 end
-plot(X[:,1],X[:,2],t=:scatter,lab="",alpha=0.3,markerstrokewidth=0)
-p2 = plot!(web.centers[:,1],web.centers[:,2],t=:scatter,lab="",marker=:o,title="Webscale ($(web.k))")
-println("Webscale cost : $(KMeansModule.total_cost(X,web.centers)) with $(web.k) clusters")
+Plots.plot(X[:,1],X[:,2],t=:scatter,lab="",alpha=0.3,markerstrokewidth=0)
+p2 = Plots.plot!(web.centers[:,1],web.centers[:,2],t=:scatter,lab="",marker=:o,title="Webscale ($(web.k))")
+println("Webscale cost : $(total_cost(X,web.centers,kernel)) with $(web.k) clusters")
 ###### An algorithm for Online K Means clustering
 ##### The pragmatic online algorithm
-stream = KMeansModule.StreamOnline()
-KMeansModule.init!(stream,X,k)
+stream = StreamOnline(k)
+init!(stream,X,f,kernel)
 
 for i in (k+1):2:n
-    KMeansModule.update!(stream,X[i:i+1,:])
+    update!(stream,X[i:i+1,:],f,nothing)
 end
-plot(X[:,1],X[:,2],t=:scatter,lab="",alpha=0.3,markerstrokewidth=0)
-p3 = plot!(stream.centers[:,1],stream.centers[:,2],t=:scatter,lab="",marker=:o,title="Streaming Online ($(stream.k))")
-println("Streaming Online cost $(KMeansModule.total_cost(X,stream.centers)) with $(stream.k) clusters")
-
-
-function find_nearest_center(X,C)
-    nC = size(C,1)
-    best = Int64(1); best_val = Inf
-    for i in 1:nC
-        val = distance(X,C[i,:])
-        if val < best_val
-            best_val = val
-            best = i
-        end
-    end
-    return best,best_val
-end
-
-
-
-function total_cost(X,C)
-    n = size(X,1)
-    tot = 0
-    for i in 1:n
-        tot += find_nearest_center(X[i,:],C)[2]
-    end
-    return tot
-end
+Plots.plot(X[:,1],X[:,2],t=:scatter,lab="",alpha=0.3,markerstrokewidth=0)
+p3 = Plots.plot!(stream.centers[:,1],stream.centers[:,2],t=:scatter,lab="",marker=:o,title="Streaming Online ($(stream.k))")
+println("Streaming Online cost $(total_cost(X,stream.centers,kernel)) with $(stream.k) clusters")
 
 lim = 0.5
 
 C = reshape(X[1,:],1,2)
 k = size(C,1)
-K_C = KernelFunctions.kernelmatrix(C,kernel)
+K_C = kernelmatrix(C,kernel)
 ind_C = [1]
 s_diff = zeros(size(X,1))
 s_d = zeros(size(X,1))
@@ -143,8 +119,8 @@ for i in 2:size(X,1)
     # diff = norm(f[i]-f[j],2)/abs(0.5*(f[i]+f[j]))
     # s_diff[i]=diff
     # s_d[i]=1-0.5*d
-    K_star = KernelFunctions.kernelmatrix(reshape(X[i,:],1,2),C,kernel)
-    k_starstar = KernelFunctions.diagkernelmatrix(reshape(X[i,:],1,2),kernel)
+    K_star = kernelmatrix(reshape(X[i,:],1,2),C,kernel)
+    k_starstar = kerneldiagmatrix(reshape(X[i,:],1,2),kernel)
     invK = inv(K_C+noise*Diagonal(I,k))
     σ = (k_starstar[1]-((K_star*invK)*transpose(K_star))[1])/(k_starstar[1])
     μ = K_star*invK*f[ind_C]
@@ -158,42 +134,42 @@ for i in 2:size(X,1)
     # display(plot!(C[:,1],C[:,2],t=:scatter,lab="",marker=:o,title="Custom K ($(k))\n σ = $(σ) "))
     if diff_f > sqrt(σ)
         # println("$count : $diff_f, $σ")
-        count += 1
+        global count += 1
     end
     if (0.8*σ+0.2*diff_f)>rand()
     # if σ>diff_f
     # if σ
     # if d>2*(1-lim)
-        C = vcat(C,X[i,:]')
+        global C = vcat(C,X[i,:]')
         push!(ind_C,i)
-        K_C = KernelFunctions.kernelmatrix(C,kernel)
-        k = size(C,1)
+        global K_C = kernelmatrix(C,kernel)
+        global k = size(C,1)
     end
 end
 cust_k = size(C,1)
 ##### Custom implementation
-plot(X[:,1],X[:,2],t=:scatter,lab="",alpha=0.3,markerstrokewidth=0)
-p4 = plot!(C[:,1],C[:,2],t=:scatter,lab="",marker=:o,title="Custom K ($(cust_k)) ")
-println("Custom_k cost $(total_cost(X,C)) with $(cust_k) clusters")
+Plots.plot(X[:,1],X[:,2],t=:scatter,lab="",alpha=0.3,markerstrokewidth=0)
+p4 = Plots.plot!(C[:,1],C[:,2],t=:scatter,lab="",marker=:o,title="Custom K ($(cust_k)) ")
+println("Custom_k cost $(total_cost(X,C,kernel)) with $(cust_k) clusters")
 
 ### Full plotting
-p5 = plot(-5:0.01:5,x->1-0.5*distance(x,0),lab="k(x,0)",linewidth=2.0)
-plot!(x->lim,lab="Threshold",linewidth=3.0)
-p6  =  plot(X[:,1],X[:,2],f[:],t=:scatter,lab="",alpha=0.5,markerstrokewidth=0)
-plot!(C[:,1],C[:,2],f[ind_C],t=:scatter,lab="",marker=:o,title="Custom K ($(cust_k)) ")
-display(plot(p1,p2,p3,p4,p5,p6))
+p5 = Plots.plot(-5:0.01:5,x->1-0.5*distance(x,0),lab="k(x,0)",linewidth=2.0)
+Plots.plot!(x->lim,lab="Threshold",linewidth=3.0)
+p6  =  Plots.plot(X[:,1],X[:,2],f[:],t=:scatter,lab="",alpha=0.5,markerstrokewidth=0)
+Plots.plot!(C[:,1],C[:,2],f[ind_C],t=:scatter,lab="",marker=:o,title="Custom K ($(cust_k)) ")
+display(Plots.plot(p1,p2,p3,p4,p5,p6))
 
 #
 # if true
 
 
-k_starstar = KernelFunctions.diagkernelmatrix(X_test,kernel)
+k_starstar = kerneldiagmatrix(X_test,kernel)
 
 function get_sigma(k_starstar,centers,X_test,kernel,noise)
 # centers = offkmeans.centers
-    k_star = KernelFunctions.kernelmatrix(X_test,centers,kernel)
-    K = KernelFunctions.kernelmatrix(centers,kernel)
-    return k_starstar-sum((k_star*inv(K+noise*Diagonal{Float64}(I,K))).*k_star,2)
+    k_star = kernelmatrix(X_test,centers,kernel)
+    K = kernelmatrix(centers,kernel)
+    return k_starstar-sum((k_star*inv(K+noise*I)).*k_star,dims=2)
 end
 
 σ_off = get_sigma(k_starstar,offkmeans.centers,X_test,kernel,noise)
@@ -213,7 +189,7 @@ println("Webscale median error on σ : $(median(σ_web-σ_true))")
 σ_str = get_sigma(k_starstar,stream.centers,X_test,kernel,noise)
 p3 = plot(x1_grid,x2_grid,reshape(σ_str,N_test,N_test)',t=:contourf)
 plot!(X[:,1],X[:,2],t=:scatter,lab="",alpha=0.5,markerstrokewidth=0,color=:blue)
-plot!(offkmeans.centers[:,1],offkmeans.centers[:,2],t=:scatter,lab="",marker=:o,title="Streaming KMeans ($(stream.k)) ")
+plot!(stream.centers[:,1],stream.centers[:,2],t=:scatter,lab="",marker=:o,title="Streaming KMeans ($(stream.k)) ")
 println("Streaming median error on σ : $(median(σ_str-σ_true))")
 
 σ_cust = get_sigma(k_starstar,C,X_test,kernel,noise)

@@ -1,18 +1,17 @@
-mutable struct Webscale <: KMeansAlg
+mutable struct Webscale <: ZAlg
     k::Int64
     v::Array{Int64,1}
     centers::Array{Float64,2}
-    function Webscale()
-        return new()
+    function Webscale(k::Int)
+        return new(k)
     end
 end
 
 
-function init!(alg::Webscale,X,y,model,k::Int64)
-    @assert size(X,1)>=k "Input data not big enough given $k"
-    alg.k = k;
-    alg.v = zeros(Int64,k);
-    alg.centers = X[sample(1:size(X,1),k),:];
+function init!(alg::Webscale,X,y,kernel)
+    @assert size(X,1)>=alg.k "Input data not big enough given $k"
+    alg.v = zeros(Int64,alg.k);
+    alg.centers = X[sample(1:size(X,1),alg.k),:];
 end
 
 function update!(alg::Webscale,X,y,model)

@@ -5,7 +5,7 @@ General Framework for the data augmented Gaussian Processes
 """
 module AugmentedGaussianProcesses
 
-export AbstractGP, GP, VGP, SVGP
+export AbstractGP, GP, VGP, SVGP, OnlineVGP
 export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
 export GaussianLikelihood, AugmentedStudentTLikelihood, StudentTLikelihood
 export AugmentedLogisticLikelihood, LogisticLikelihood, BayesianSVM
@@ -28,7 +28,7 @@ include("functions/GPAnalysisTools.jl")
 # include("functions/IO_model.jl")
 #Custom modules
 using .KernelModule
-using .KMeansModule
+# using .OnlineModule
 using .PGSampler
 using .PerturbativeCorrection
 using .GPAnalysisTools
@@ -58,7 +58,8 @@ export kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 export setvalue!,getvalue,setfixed!,setfree!,getvariance,getlengthscales,setoptimizer!
 export opt_diag, opt_trace
-export rand, plot
+export rand
+#export plot
 export KMeansInducingPoints
 
 # Main classes
@@ -71,6 +72,7 @@ include("models/AbstractGP.jl")
 include("models/GP.jl")
 include("models/VGP.jl")
 include("models/SVGP.jl")
+include("models/OnlineVGP.jl")
 
 include("inference/inference.jl")
 include("likelihood/likelihood.jl")
