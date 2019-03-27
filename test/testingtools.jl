@@ -14,7 +14,7 @@ methods_implemented_SVGP["GaussianLikelihood"] = ["AnalyticVI","AnalyticSVI"]
 
 
 stoch(s::Bool,inference::String) = inference != "GibbsSampling" ? (s ? inference[1:end-2]*"SVI" : inference) : inference
-addiargument(s::Bool,inference::String) = inference != "GibbsSampling" ? (s ? "b" : "") : "nBurnin=0"
+addiargument(s::Bool,inference::String) = inference == "GibbsSampling" ? "nBurnin=0" : (s ? "b" : "")
 addlargument(likelihood::String) = begin
     if (likelihood == "StudentTLikelihood")
         return "ν"
