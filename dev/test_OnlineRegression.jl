@@ -1,9 +1,8 @@
-using Distributions
+using Distributions, Random
 using Plots
 using Clustering
 pyplot()
-include("../src/AugmentedGaussianProcesses.jl")
-import AugmentedGaussianProcesses
+using AugmentedGaussianProcesses
 
 
 
@@ -18,9 +17,9 @@ function generate_random_walk_data(N,dim,noise,monotone=true)
     end
     for i in 2:N
         if monotone
-            X[i,:] = X[i-1,:]+abs.(rand(d))
+            X[i,:] = X[i-1,:].+abs.(rand(d))
         else
-            X[i,:] = X[i-1,:]+rand(d)
+            X[i,:] = X[i-1,:].+rand(d)
         end
         f[i] = f[i-1]+2*rand(df)
     end
@@ -87,13 +86,13 @@ function sigpart2KLGP(mu,sig,f,sig_f)
 end
 
 function mupartKLGP(mu,sig,f,sig_f)
-    return sum(0.5*(mu-f).^2./sig)
+    return sum(0.5*(mu-f).^2 ./sig)
 end
 
 function JSGP(mu,sig,f,sig_f)
     N = length(f)
     tot = -N*0.25
-    tot += 0.125*sum(sig./(sig_f)+(sig_f)./(sig) + (1./(sig_f)+1./(sig)).*((mu-f).^2))
+    tot += 0.125*sum(sig./(sig_f)+(sig_f)./(sig) + (1.0./(sig_f)+1.0./(sig)).*((mu-f).^2))
 end
 
 function randomf(X)
@@ -118,14 +117,14 @@ noise=0.001
 X,f = generate_random_walk_data(n,dim,0.1,monotone)
 # X = generate_uniform_data(n,dim,5)
 # X = generate_gaussian_data(n,dim)'
-X = (X-mean(X))/sqrt(var(X))
+X = (X.-mean(X))/sqrt(var(X))
 if dim == 1
     y = sample_gaussian_process(X,noise)
     mid = floor(Int64,n/2)
     ind = shuffle(1:n); ind_test = sort(ind[1:mid]); ind = sort(ind[(mid+1):end]);
     X_test = X[ind_test,:]; y_test = y[ind_test]
     X = X[ind,:]; y = y[ind]
-    X_grid = range(minimum(X[:,1]),maximum(X[:,1]),N_test)
+    X_grid = range(minimum(X[:,1]),maximum(X[:,1]),length=N_test)
     x1_test= X_test; x2_test =X_test
 elseif dim == 2
     y = randomf(X)+rand(Normal(0,noise),size(X,1))
@@ -146,11 +145,11 @@ if dorand
     X = X[randord,:]
     f = f[randord]
 end
-if dim ==1
-    plotthisshit = AugmentedGaussianProcesses.IntermediatePlotting(X_test,x1_test,x2_test,y_test)
-else
-    plotthisshit = AugmentedGaussianProcesses.IntermediatePlotting(X_test,x1_test,x2_test,y_test)
-end
+# if dim ==1
+#     plotthisshit = AugmentedGaussianProcesses.IntermediatePlotting(X_test,x1_test,x2_test,y_test)
+# else
+#     plotthisshit = AugmentedGaussianProcesses.IntermediatePlotting(X_test,x1_test,x2_test,y_test)
+# end
 
 # kernel = AugmentedGaussianProcesses.Matern5_2Kernel(0.5)
 # kernel = AugmentedGaussianProcesses.LaplaceKernel(0.5)
@@ -195,32 +194,32 @@ end
 # end
 # println("Streaming KMeans ($t_str s)\n\tRMSE (train) : $(RMSE(onstrgp.predict(X),y))\n\tRMSE (test) : $(RMSE(y_str,y_test))")
 ### Non sparse GP :
-t_full = @elapsed fullgp = AugmentedGaussianProcesses.BatchGPRegression(X,y,kernel=kernel,noise=noise)
-t_full = @elapsed fullgp.train()
-y_full,sig_full = fullgp.predictproba(X_test)
-y_train,sig_train = fullgp.predictproba(X)
+t_full = @elapsed fullgp = GP(X,y,kernel,noise=noise)
+train!(fullgp,iterations=10)
+y_full,sig_full = proba_y(fullgp,X_test)
+y_train,sig_train = proba_y(fullgp,X)
 if dim == 1
     p4 = plotting1D(X,y,[0],[0],X_test,y_full,sig_full,"Full batch GP",full=true)
 elseif dim == 2
     p4 = plotting2D(X,y,[0 0],0,x1_test,x2_test,y_full,minf,maxf,"Full batch GP",full=true)
 end
-println("Full GP ($t_full s)\n\tRMSE (train) : $(RMSE(fullgp.predict(X),y))\n\tRMSE (test) : $(RMSE(y_full,y_test))")
+println("Full GP ($t_full s)\n\tRMSE (train) : $(RMSE(predict_y(fullgp,X),y))\n\tRMSE (test) : $(RMSE(y_full,y_test))")
 
 
 
 #### Custom K finding method with constant limit
-t_const = @elapsed onconstgp = AugmentedGaussianProcesses.OnlineGPRegression(X,y,kmeansalg=AugmentedGaussianProcesses.CircleKMeans(lim=0.90),Sequential=sequential,m=k,batchsize=b,verbose=0,kernel=kernel)
-t_const = @elapsed onconstgp.train(iterations=50,callback=plotthisshit)
-y_const,sig_const = onconstgp.predictproba(X_test)
-y_indconst = onconstgp.predict(onconstgp.kmeansalg.centers)
-y_trainconst, sig_trainconst = onconstgp.predictproba(X)
+t_const = @elapsed circlegp = OnlineVGP(X,y,kernel,GaussianLikelihood(noise),AnalyticSVI(b,optimizer=InverseDecay()),CircleKMeans(0.90),sequential,verbose=0)
+t_circle = @elapsed train!(circlegp,iterations=50)
+y_circle,sig_circle = circlegp.predictproba(X_test)
+y_indcircle = predict_y(circlegp,circlegp.Zalg.centers)
+y_traincircle, sig_traincircle = proba_y(circlegp,X)
 
 if dim == 1
-    pconst = plotting1D(X,y,onconstgp.kmeansalg.centers,y_indconst,X_test,y_const,sig_const,"Constant lim (m=$(onconstgp.m))")
+    pconst = plotting1D(X,y,circlegp.Zalg.centers,y_indcircle,X_test,y_circle,sig_circle,"Circle (m=$(circlegp.Zalg.k))")
 elseif dim == 2
-    pconst = plotting2D(X,y,onconstgp.kmeansalg.centers,y_indconst,x1_test,x2_test,y_const,minf,maxf,"Constant lim (m=$(onconstgp.m))")
+    pconst = plotting2D(X,y,circlegp.Zalg.centers,y_indcircle,x1_test,x2_test,y_circle,minf,maxf,"Constant lim (m=$(circlegp.Zalg.k))")
 end
-println("Constant Lim ($t_const s)\n\tRMSE (train) : $(RMSE(onconstgp.predict(X),y))\n\tRMSE (test) : $(RMSE(y_const,y_test))")
+println("Circle GP ($t_circle s)\n\tRMSE (train) : $(RMSE(predict_y(circlegp,X),y))\n\tRMSE (test) : $(RMSE(y_circle,y_test))")
 kl_const = KLGP.(y_trainconst,sig_trainconst,y_train,sig_train)
 kl_simple = KLGP.(y_trainconst,sig_trainconst,y_train,noise)
 js_const = JSGP.(y_trainconst,sig_trainconst,y_train,sig_train)

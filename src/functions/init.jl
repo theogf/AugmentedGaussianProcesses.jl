@@ -16,6 +16,8 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
             return true
         elseif model == :SVGP && isa(inference,AnalyticVI)
             return true
+        elseif model == :OnlineVGP
+            return true
         else
             return false
         end

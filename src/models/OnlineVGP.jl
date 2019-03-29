@@ -58,7 +58,7 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
-            @assert check_implementation(:OnlineGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
+            @assert check_implementation(:OnlineVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
             @assert inference.Stochastic == true "Only valid for stochastic inference"
 
             nPrior = IndependentPriors ? nLatent : 1
@@ -72,7 +72,7 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
                     inference.MBIndices = 1:(inference.nSamplesUsed)
                     init!(Zalg,X[inference.MBIndices,:],y[1][inference.MBIndices],kernel[1])
                 else
-                    inference.MBIndices = 1:(model.lastindex+model.batchsize-1)
+                    inference.MBIndices = 1:(lastindex+inference.nSamplesUsed-1)
                     init!(Zalg,X[inference.MBIndices,:],y[1][inference.MBIndices],kernel[1])
                 end
             else
@@ -99,7 +99,7 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
                     X,y,
                     nSample, nDim, nFeature, nLatent,
                     IndependentPriors,nPrior,
-                    Zalg,Zupdated,Sequential,dataparse,lastindex,
+                    Zalg,Zupdated,Sequential,dataparsed,lastindex,
                     μ,Σ,η₁,η₂,
                     Kmm,invKmm,Knm,κ,K̃,
                     kernel,likelihood,inference,
@@ -114,23 +114,22 @@ function Base.show(io::IO,model::OnlineVGP{<:Likelihood,<:Inference,T}) where T
     print(io,"Online Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
 
-
-function update_points!(model::OnlineVGP)
-    update!(model.Zalg,model.X[model.MBIndices,:],model.y[1][model.MBIndices],model) #TEMP FOR 1 latent
+function updateZ!(model::OnlineVGP)
+    update!(model.Zalg,model.X[model.inference.MBIndices,:],model.y[1][model.inference.MBIndices],model.kernel[1]) #TEMP FOR 1 latent
     NCenters = model.Zalg.k
     Nnewpoints = NCenters-model.nFeature
     computeMatrices!(model)
     #Make the latent variables larger #TODO Preallocating them might be a better option
     if Nnewpoints!=0
         # println("Adapting to new number of points")
-        model.μ = vcat(model.μ, zeros(Nnewpoints))
-        model.η₁ = vcat(model.η_1, zeros(Nnewpoints))
+        model.μ[1] = vcat(model.μ[1], zeros(Nnewpoints))
+        model.η₁[1] = vcat(model.η₁[1], zeros(Nnewpoints))
         Σ_temp = Matrix{Float64}(I,NCenters,NCenters)
-        Σ_temp[1:model.m,1:model.m] = model.Σ
-        model.Σ = Symmetric(Σ_temp)
+        Σ_temp[1:model.nFeature,1:model.nFeature] = model.Σ[1]
+        model.Σ[1] = Symmetric(Σ_temp)
         η₂temp = Matrix{Float64}(-0.5*I,NCenters,NCenters)
-        η₂temp[1:model.m,1:model.m] = model.η₂
-        model.η₂ = Symmetric(η₂temp)
+        η₂temp[1:model.nFeature,1:model.nFeature] = model.η₂[1]
+        model.η₂[1] = Symmetric(η₂temp)
         model.nFeature = NCenters
     end
     model.Zupdated = true
