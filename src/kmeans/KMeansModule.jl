@@ -9,7 +9,7 @@ using LinearAlgebra, Clustering, Distances
 using AugmentedGaussianProcesses.KernelModule
 
 export KMeansInducingPoints
-export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans
+export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, DPPAlg
 export total_cost
 export init!, update!
 
@@ -93,6 +93,7 @@ function update_matrices!(model,new_centers)
     model.DownMatrixForPrediction = 0
 end
 
+include("DPP.jl")
 include("StreamingKMeans.jl")
 include("Webscale.jl")
 include("CircleKMeans.jl")
