@@ -1,6 +1,6 @@
 using Distributions, Random
 using Plots
-using Clustering
+using Clustering, LinearAlgebra
 pyplot()
 using AugmentedGaussianProcesses
 
@@ -208,9 +208,9 @@ println("Full GP ($t_full s)\n\tRMSE (train) : $(RMSE(predict_y(fullgp,X),y))\n\
 
 
 #### Custom K finding method with constant limit
-t_const = @elapsed circlegp = OnlineVGP(X,y,kernel,GaussianLikelihood(noise),AnalyticSVI(b,optimizer=InverseDecay()),CircleKMeans(0.90),sequential,verbose=0)
+t_const = @elapsed circlegp = OnlineVGP(X,y,kernel,GaussianLikelihood(noise),AnalyticSVI(b,optimizer=InverseDecay()),CircleKMeans(0.90),sequential,verbose=3)
 t_circle = @elapsed train!(circlegp,iterations=50)
-y_circle,sig_circle = circlegp.predictproba(X_test)
+y_circle,sig_circle = proba_y(circlegp,X_test)
 y_indcircle = predict_y(circlegp,circlegp.Zalg.centers)
 y_traincircle, sig_traincircle = proba_y(circlegp,X)
 
@@ -220,10 +220,10 @@ elseif dim == 2
     pconst = plotting2D(X,y,circlegp.Zalg.centers,y_indcircle,x1_test,x2_test,y_circle,minf,maxf,"Constant lim (m=$(circlegp.Zalg.k))")
 end
 println("Circle GP ($t_circle s)\n\tRMSE (train) : $(RMSE(predict_y(circlegp,X),y))\n\tRMSE (test) : $(RMSE(y_circle,y_test))")
-kl_const = KLGP.(y_trainconst,sig_trainconst,y_train,sig_train)
-kl_simple = KLGP.(y_trainconst,sig_trainconst,y_train,noise)
-js_const = JSGP.(y_trainconst,sig_trainconst,y_train,sig_train)
-js_simple = JSGP.(y_trainconst,sig_trainconst,y_train,noise)
+kl_circle = KLGP.(y_traincircle,sig_traincircle,y_train,sig_train)
+kl_simple = KLGP.(y_traincircle,sig_traincircle,y_train,noise)
+js_circle = JSGP.(y_traincircle,sig_traincircle,y_train,sig_train)
+js_simple = JSGP.(y_traincircle,sig_traincircle,y_train,noise)
 # plot!(twinx(),X,[kl_const kl_simple js_const js_simple],lab=["KL" "KL_S" "JS" "JS_S"])
 plot!(twinx(),X,[kl_const js_const],lab=["KL" "JS"])
 #plot!(X,y_trainconst+js_const,fill=(y_trainconst-js_const),alpha=0.3,lab="")

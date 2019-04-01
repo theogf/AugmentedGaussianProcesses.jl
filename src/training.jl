@@ -123,12 +123,12 @@ end
 """Compute kernel matrices for online variational GPs"""
 function computeMatrices!(model::OnlineVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
     if model.inference.HyperParametersUpdated
-        model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Zalg.centers,model.kernel)
+        model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),[model.Zalg.centers],model.kernel)
         model.invKmm .= inv.(model.Kmm)
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
-        KernelModule.kernelmatrix!.(model.Knm,[model.X[model.inference.MBIndices,:]],model.Z,model.kernel)
+        model.Knm .= kernelmatrix.([model.X[model.inference.MBIndices,:]],[model.Zalg.centers],model.kernel)
         model.κ .= model.Knm.*model.invKmm
         model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
