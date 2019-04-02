@@ -44,6 +44,27 @@ function predict_f(model::SVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov
     return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 end
 
+"""
+Compute the mean of the predicted latent distribution of f on `X_test` for a online GP `model`
+Return also the variance if `covf=true` and the full covariance if `fullcov=true`
+"""
+function predict_f(model::OnlineVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where T
+    k_star = kernelmatrix.([X_test],[model.Zalg.centers],model.kernel)
+    μf = k_star.*model.invKmm.*model.μ
+    if !covf
+        return model.nLatent == 1 ? μf[1] : μf
+    end
+    A = model.invKmm.*([I].-model.Σ.*model.invKmm)
+    if fullcov
+        k_starstar = kernelmatrix.([X_test],model.kernel)
+        σ²f = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
+    else
+        k_starstar = kerneldiagmatrix.([X_test],model.kernel)
+        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
+    end
+    return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
+end
+
 function predict_f(model::VGP{<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where T
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]

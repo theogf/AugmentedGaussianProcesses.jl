@@ -6,9 +6,7 @@ mutable struct DPPAlg <: ZAlg
     k::Int64
     dpp::DPP
     K::Symmetric{Float64,Matrix{Float64}}
-    logpdf::Float64
     centers::Array{Float64,2}
-    indices
     function DPPAlg(lim,kernel)
         return new(lim,kernel)
     end
@@ -20,28 +18,26 @@ function init!(alg::DPPAlg,X,y,kernel)
     alg.K = Symmetric(kernelmatrix(X,alg.kernel)+1e-7I)
     alg.dpp = DPP(Symmetric(kernelmatrix(X,alg.kernel)+1e-7I))
     samp = rand(alg.dpp,1)[1]
-    alg.indices = [rand(1:alg.dpp.size)]
-    alg.centers = X[alg.indices,:]
+    alg.centers = X[samp,:]
     # alg.centers = copy(X[samp,:])
     # alg.k = length(samp)
-    alg.k = length(alg.indices)
+    alg.k = length(samp)
     # alg.dpp = DPP(Symmetric(kernelmatrix(alg.centers),alg.centers)+1e-7I)
-    alg.logpdf = logpmf(alg.dpp,collect(1:alg.k))
+    alg.K = Symmetric(kernelmatrix(reshape(X[samp,:],alg.k,size(X,2)),alg.kernel)+1e-7I)
 end
 
 function update!(alg::DPPAlg,X,y,kernel)
-    K = kernelmatrix(alg.centers,kernel)+1e-7I
     for i in 1:size(X,1)
-        if !issubset(i,alg.indices)
-            p = logdet(alg.K[vcat(alg.indices,i),vcat(alg.indices,i)]) - logdet(alg.K[vcat(alg.indices,i),vcat(alg.indices,i)]+Diagonal(vcat(falses(length(alg.indices)),true)))
-            # if p > log(alg.lim)
-            if p > log(rand())
-                println(exp(p))
-                push!(alg.indices,i)
-                alg.centers = vcat(alg.centers,X[i,:]')
-            end
+        k = kernelmatrix(reshape(X[i,:],1,size(X,2)),alg.centers,kernel)
+        kk = kerneldiagmatrix(reshape(X[i,:],1,size(X,2)),kernel)[1]
+        #using (A B; C D) = (A - C invD B, invDB; 0, I)*(I, 0; C, D)
+        p = logdet(alg.K - k'*inv(kk)*k) + logdet(kk) - (logdet(alg.K - k'*inv(kk+1)*k)+logdet(kk+1))
+        # if p > log(alg.lim)
+        if p > log(rand())
+            println(exp(p))
+            alg.centers = vcat(alg.centers,X[i,:]')
+            alg.K = symcat(alg.K,vec(k),kk)
+            alg.k = size(alg.centers,1)
         end
     end
-    # alg.centers = X[alg.indices,:]
-    alg.k = length(alg.indices)
 end

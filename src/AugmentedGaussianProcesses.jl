@@ -11,7 +11,7 @@ export GaussianLikelihood, AugmentedStudentTLikelihood, StudentTLikelihood
 export AugmentedLogisticLikelihood, LogisticLikelihood, BayesianSVM
 export MultiClassLikelihood, SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export AugmentedLogisticSoftMaxLikelihood
-export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCMCIntegrationVI, MCMCIntegrationSVI, QuadratureVI, QuadratureSVI
+export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCMCIntegrationVI, MCMCIntegrationSVI, QuadratureVI, QuadratureSVI, StreamingVI
 export NumericalVI, NumericalSVI
 export ALRSVI, InverseDecay
 

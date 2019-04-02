@@ -110,6 +110,12 @@ function proba_y(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}},X_test::Abstra
     return μf,σ²f
 end
 
+function proba_y(model::OnlineVGP{GaussianLikelihood{T},StreamingVI{T}},X_test::AbstractMatrix{T}) where {T<:Real}
+    μf, σ²f = predict_f(model,X_test,covf=true)
+    σ²f .+= model.likelihood.ϵ
+    return μf,σ²f
+end
+
 ### Special case where the ELBO is equal to the marginal likelihood
 function ELBO(model::GP{GaussianLikelihood{T}}) where {T<:Real}
     return -0.5*sum(broadcast((y,invK)->dot(y,invK*y) - logdet(invK)+ model.nFeature*log(twoπ),model.y,model.invKnn))

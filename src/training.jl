@@ -37,6 +37,7 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
              end
             local_iter += 1; model.inference.nIter += 1
             (local_iter <= iterations) || break; #Verify if the number of maximum iterations has been reached
+            isa(model,OnlineVGP) && model.Sequential && model.dataparsed && break
             # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         catch e
             if isa(e,InterruptException)
@@ -78,11 +79,18 @@ end
 
 """Update all variational parameters of the online sparse variational GP Model"""
 function update_parameters!(model::OnlineVGP)
-    if model.inference.Stochastic
-        model.inference.MBIndices = StatsBase.sample(1:model.inference.nSamples,model.inference.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
+    if model.Sequential
+        model.inference.nSamplesUsed = min(model.inference.nSamplesUsed,model.nSample-model.lastindex+1)
+        model.inference.MBIndices = model.lastindex:(model.lastindex+model.inference.nSamplesUsed-1) #Sample the next nSamplesUsed points
+        model.lastindex += model.inference.nSamplesUsed-1
+        if model.lastindex >= model.nSample
+            model.dataparsed=true #Indicate all data has been visited
+        end
+    else
+        model.inference.MBIndices = StatsBase.sample(1:model.nSample,model.inference.nSamplesUsed,replace=false) #Sample nSamplesUsed points randomly
     end
-    updateZ!(model);
-    computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    # updateZ!(model);
+    # computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
 end
 
@@ -122,16 +130,13 @@ end
 
 """Compute kernel matrices for online variational GPs"""
 function computeMatrices!(model::OnlineVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    if model.inference.HyperParametersUpdated
+    # if model.inference.HyperParametersUpdated
         model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),[model.Zalg.centers],model.kernel)
         model.invKmm .= inv.(model.Kmm)
-    end
-    #If change of hyperparameters or if stochatic
-    if model.inference.HyperParametersUpdated || model.inference.Stochastic
         model.Knm .= kernelmatrix.([model.X[model.inference.MBIndices,:]],[model.Zalg.centers],model.kernel)
         model.κ .= model.Knm.*model.invKmm
-        model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
+        # model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
-    end
+    # end
     model.inference.HyperParametersUpdated=false
 end

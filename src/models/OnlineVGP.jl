@@ -59,7 +59,6 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(:OnlineVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
-            @assert inference.Stochastic == true "Only valid for stochastic inference"
 
             nPrior = IndependentPriors ? nLatent : 1
             nSample = size(X,1); nDim = size(X,2);
@@ -76,7 +75,7 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
                     init!(Zalg,X[inference.MBIndices,:],y[1][inference.MBIndices],kernel[1])
                 end
             else
-                inference.MBIndices = StatsBase.sample(1:inference.nSample,inference.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
+                inference.MBIndices = StatsBase.sample(1:nSample,inference.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
                 init!(Zalg,X,y[1],kernel[1])
             end
             Zupdated = true;
@@ -85,9 +84,9 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = deepcopy(μ);
             Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
             η₂ = -0.5*inv.(Σ);
-            κ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample, nFeature) for _ in 1:nPrior])
+            κ = LatentArray([zeros(T1,inference.nSamplesUsed, nFeature) for _ in 1:nPrior])
             Knm = deepcopy(κ)
-            K̃ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample) for _ in 1:nPrior])
+            K̃ = LatentArray([zeros(T1,inference.nSamplesUsed) for _ in 1:nPrior])
             Kmm = LatentArray([similar(Σ[1]) for _ in 1:nPrior]); invKmm = similar.(Kmm)
             nSamplesUsed = nSample
             @assert inference.nSamplesUsed > 0 && inference.nSamplesUsed < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
@@ -95,7 +94,7 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
 
             likelihood = init_likelihood(likelihood,nLatent,nSamplesUsed)
             inference = init_inference(inference,nLatent,nFeature,nSample,nSamplesUsed)
-            model = OnlineVGP{LikelihoodType,InferenceType,T1,ArrayType{T1}}(
+            return OnlineVGP{LikelihoodType,InferenceType,T1,ArrayType{T1}}(
                     X,y,
                     nSample, nDim, nFeature, nLatent,
                     IndependentPriors,nPrior,
@@ -104,10 +103,6 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
                     Kmm,invKmm,Knm,κ,K̃,
                     kernel,likelihood,inference,
                     verbose,Autotuning,atfrequency,OptimizeInducingPoints,false)
-            if isa(inference.optimizer_η₁[1],ALRSVI)
-                init!(model.inference,model)
-            end
-            return model
 end
 
 function Base.show(io::IO,model::OnlineVGP{<:Likelihood,<:Inference,T}) where T

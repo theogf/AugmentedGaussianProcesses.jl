@@ -1,23 +1,17 @@
 mutable struct StreamingVI{T<:Real} <: Inference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    optimizer_η₁::LatentArray{Optimizer} #Learning rate for stochastic updates
-    optimizer_η₂::LatentArray{Optimizer} #Learning rate for stochastic updates
-    Stochastic::Bool #Use of mini-batches
-    nSamples::Int64
     nSamplesUsed::Int64 #Size of mini-batches
     MBIndices::Vector{Int64} #Indices of the minibatch
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
-    ∇η₁::LatentArray{Vector{T}}
-    ∇η₂::LatentArray{Matrix{T}} #Stored as a matrix since symmetric sums do not help for the moment WARNING
-    function StreamingVI{T}(ϵ::T,nIter::Integer,optimizer_η₁::AbstractVector{<:Optimizer},optimizer_η₂::AbstractVector{<:Optimizer},Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
-        return new{T}(ϵ,nIter,optimizer_η₁,optimizer_η₂,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag)
+    function StreamingVI{T}(ϵ::T,nIter::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,flag::Bool) where T
+        return new{T}(ϵ,nIter,nSamplesUsed,MBIndices,flag)
     end
-    function StreamingVI{T}(ϵ::T,nIter::Integer,optimizer_η₁::AbstractVector{<:Optimizer},optimizer_η₂::AbstractVector{<:Optimizer},Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool,∇η₁::AbstractVector{<:AbstractVector},
-    ∇η₂::AbstractVector{<:AbstractMatrix}) where T
-        return new{T}(ϵ,nIter,optimizer_η₁,optimizer_η₂,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag,∇η₁,∇η₂)
-    end
+end
+
+function StreamingVI(nSamplesUsed::Int64=10;ϵ::T=1e-5) where {T<:Real}
+    StreamingVI{Float64}(ϵ,0,nSamplesUsed,[1],true)
 end
 
 function Base.show(io::IO,inference::StreamingVI{T}) where T
@@ -27,20 +21,43 @@ end
 
 """Initialize the final version of the inference object"""
 function init_inference(inference::StreamingVI{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {T<:Real}
-    inference.nSamples = nSamples
     inference.nSamplesUsed = nSamplesUsed
     inference.MBIndices = 1:nSamplesUsed
-    inference.ρ = nSamples/nSamplesUsed
-    inference.optimizer_η₁ = [copy(inference.optimizer_η₁[1]) for _ in 1:nLatent]
-    inference.optimizer_η₂ = [copy(inference.optimizer_η₂[1]) for _ in 1:nLatent]
-    inference.∇η₁ = [zeros(T,nFeatures) for _ in 1:nLatent];
-    inference.∇η₂ = [Matrix(Diagonal(ones(T,nFeatures))) for _ in 1:nLatent]
     return inference
 end
 
 """Generic method for variational updates using analytical formulas"""
-function variational_updates!(model::AbstractGP{L,StreamingVI{T}}) where {L<:Likelihood,T}
-    # local_updates!(model)
-    # natural_gradient!(model)
-    # global_update!(model)
+function variational_updates!(model::AbstractGP{LType,StreamingVI{T}}) where {LType<:Likelihood,T}
+    #Set as old values
+    println(model.inference.nIter," ",model.nFeature)
+    Kₐ = copy(model.Kmm[1])
+    invKₐ = copy(model.invKmm[1])
+    Zₐ = copy(model.Zalg.centers)
+    Dₐ = Symmetric(inv(model.Σ[1])-invKₐ)# Replace with η₂
+    mₐ = copy(model.nFeature)
+    ŷ = vcat(model.y[1][model.inference.MBIndices],inv(Dₐ)*model.η₁[1]);
+    updateZ!(model)
+    ### DO STUFF WITH HYPERPARAMETERS HERE
+    computeMatrices!(model)
+    L = cholesky(model.Kmm[1])
+    invL = inv(L)
+    Kab = kernelmatrix(Zₐ,model.Zalg.centers,model.kernel[1])
+    Kab[1:mₐ,1:mₐ] = Kab[1:mₐ,1:mₐ] + convert(T,Jittering())*I
+    # if model.m >= 2 && model.oldm >= 2
+    # display(heatmap(Kab))
+    # sleep(0.1)
+    # end
+    Kf̂b = vcat(model.Knm[1],Kab)
+    Σŷ = Matrix(Diagonal{T}(model.likelihood.ϵ[1]*I,(model.inference.nSamplesUsed+mₐ)))
+    Σŷ[model.inference.nSamplesUsed+1:end,model.inference.nSamplesUsed+1:end] = inv(Dₐ)
+    invΣŷ = inv(Σŷ)
+    A = model.invKmm[1]*Kf̂b'/Σŷ
+    invD = inv(I + invL*Kf̂b'*invΣŷ*Kf̂b*invL+convert(T,Jittering())*I)
+    model.Σ[1] = inv(Symmetric(model.invKmm[1]+A*Kf̂b*model.invKmm[1]))
+    model.η₁[1] = A*ŷ
+    model.μ[1] = model.Σ[1]*model.η₁[1]
+end
+
+function ELBO(model::OnlineVGP)
+    return NaN
 end
