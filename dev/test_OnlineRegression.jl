@@ -267,18 +267,3 @@ if dim == 2
 else
     display(plot(pfull,pdpp,pcircle)); gui()
 end
-
-
-
-# println("Sparsity efficiency :
-    # \t Constant lim : KL: $(KLGP(y_trainconst,sig_trainconst,y_train,sig_train)), JS: $(JSGP(y_trainconst,sig_trainconst,y_train,sig_train))
-    # \t Random accept : KL: $(KLGP(y_trainrand,sig_trainrand,y_train,sig_train)), JS: $(JSGP(y_trainrand,sig_trainrand,y_train,sig_train))")
-# \t Offline : $(KLGP(y_trainoff,sig_trainoff,y,noise))
-# \t Webscale : $(KLGP(y_trainweb,sig_trainweb,y,noise))
-# \t Streaming : $(KLGP(y_trainstr,sig_trainstr,y,noise))
-
-# model = AugmentedGaussianProcesses.BatchGPRegression(X,f,kernel=kernel)
-#
-#
-# display(plotting2D(X,f,onstrgp.kmeansalg.centers,y_indstr,x1_test,x2_test,y_pred,"Streaming KMeans"))
-# display(plotting1D(X,f,onstrgp.kmeansalg.centers,y_indstr,X_test,y_pred,"Streaming KMeans"))
