@@ -6,12 +6,14 @@ using AugmentedGaussianProcesses
 const AGP = AugmentedGaussianProcesses
 @pyimport sklearn.model_selection as sp
 
-kernel = AugmentedGaussianProcesses.RBFKernel(0.1)
+kernel = AugmentedGaussianProcesses.RBFKernel(1.0)
 N_dim = 2
 monotone = true
 sequential = true
 N_data = 1000
-N_test= 100
+N_grid= 100
+dpi = 150
+tfontsize = 15.0
 # X = generate_uniform_data(n,dim,1.0)
 σ = 0.4; N_class = N_dim+1
 centers = zeros(N_class,N_dim)
@@ -29,7 +31,7 @@ for i in 1:N_data
     X[i,:] = rand(distr[y[i]])
     true_py[i] = pdf(distr[y[i]],X[i,:])/sum(pdf(distr[k],X[i,:]) for k in 1:N_class)
 end
-
+X = X.- mean.(eachcol(X))'
 xmin = minimum(X); xmax = maximum(X)
 X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 x_grid = range(xmin,length=N_grid,stop=xmax)
@@ -43,28 +45,32 @@ function callbackplot(model,title="")
     global p1= Plots.plot(x_grid,x_grid,cols,t=:contour,colorbar=false,grid=:hide,framestyle=:none,yflip=false,dpi=dpi,title=title,titlefontsize=tfontsize)
     lims = (xlims(p1),ylims(p1))
     p1=Plots.plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.3)
+    if isa(model,OnlineVGP)
+        Plots.plot!(X[model.inference.MBIndices,1],X[model.inference.MBIndices,2],color="black",t=:scatter,lab="")
+        Plots.plot!(model.Z[1][:,1],model.Z[1][:,2],color="white",t=:scatter,lab="",markersize=8.0)
+    end
     # p1=plot!(p1,model.Z[1][:,1],model.Z[1][:,2],color=:black,t=:scatter,lab="")
     p1= Plots.plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(0,100),t=:contour,colorbar=false,color=:gray,levels=10)
     xlims!(p1,lims[1]);ylims!(p1,lims[2])
-    frame(anim,p1)
+    frame(anim)
+    # display(p1)
     return p1
 end
 
 
-
 if monotone
     s = sortperm(norm.(eachrow(X)))
-    X = (X[s,:])[indices,:]; y = (y[s])[indices]
+    X = X[s,:]; y = y[s]
 else
     s = randperm(size(X,1))
-    X = (X[s,:])[indices,:]; y = (y[s])[indices]
+    X = X[s,:]; y = y[s]
 end
 k = 50
 b = 20
 
 ### Non sparse GP :
-t_full = @elapsed fullgp = VGP(X,y,kernel,LogisticSoftMax(),AnalyticVI())
-train!(fullgp,iterations=10)
+t_full = @elapsed fullgp = VGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticVI())
+train!(fullgp,iterations=1)
 y_full = proba_y(fullgp,X_test)
 y_train = proba_y(fullgp,X)
 pfull = callbackplot(fullgp,"Full batch GP")
@@ -73,12 +79,14 @@ pfull = callbackplot(fullgp,"Full batch GP")
 
 ##### DeterminantalPointProcess for selecting points
 
-t_dpp = @elapsed dppgp = OnlineVGP(X,y,kernel,LogisticSVI(noise),AnalyticSVI(24),DPPAlg(0.6,kernel),sequential,verbose=3,Autotuning=false)
-t_dpp = @elapsed train!(dppgp,iterations=15,callback=callbackplot)
+t_dpp = @elapsed dppgp = OnlineVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticSVI(20),DPPAlg(0.6,kernel),sequential,verbose=3,Autotuning=false)
+anim = Animation()
+t_dpp = @elapsed train!(dppgp,iterations=100,callback=callbackplot)
+gif(anim,"multi_online.gif",fps=10)
 # t_dpp = @elapsed train!(dppgp,iterations=100)
 y_dpp,sig_dpp = proba_y(dppgp,X_test)
 y_inddpp = predict_y(dppgp,dppgp.Zalg.centers)
-y_traindpp, sig_traindpp = proba_y(dppgp,X)
+y_traindpp = proba_y(dppgp,X)
 
 pdpp = callbackplot(dppgp,"DPP (m=$(dppgp.Zalg.k))")
 # println("DPP ($t_dpp s)\n\tRMSE (train) : $(RMSE(predict_y(dppgp,X),y))\n\tRMSE (test) : $(RMSE(y_dpp,y_test))")

@@ -1,5 +1,5 @@
 """ Class for sparse variational Gaussian Processes """
-mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: AbstractGP{L,I,T,V}
+mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: SparseGP{L,I,T,V}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
@@ -101,7 +101,7 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             @assert inference.nSamplesUsed > 0 && inference.nSamplesUsed < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
             nSamplesUsed = inference.nSamplesUsed
 
-            likelihood = init_likelihood(likelihood,nLatent,nSamplesUsed)
+            likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed)
             inference = init_inference(inference,nLatent,nFeature,nSample,nSamplesUsed)
             return OnlineVGP{LikelihoodType,InferenceType,T1,ArrayType{T1}}(
                     X,y,
