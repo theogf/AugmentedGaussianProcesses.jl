@@ -1,47 +1,8 @@
 """
-Bayesian SVM (hinge loss function) : ``p(y|f) = \\max(0,1-yf)``
-"""
-abstract type AbstractBayesianSVM{T<:Real} <: ClassificationLikelihood{T} end
-
-function pdf(l::AbstractBayesianSVM,y::Real,f::Real)
-    svmlikelihood(y*f)
-end
-
-function Base.show(io::IO,model::AbstractBayesianSVM{T}) where T
-    print(io,"Bayesian SVM")
-end
-
-"""Return likelihood equivalent to SVM hinge loss"""
-function svmlikelihood(f::Real)
-    pos = svmpseudolikelihood(f)
-    return pos./(pos.+svmpseudolikelihood(-f))
-end
-
-"""Return the pseudo likelihood of the SVM hinge loss"""
-function svmpseudolikelihood(f::Real)
-    return exp.(-2.0*max.(1.0.-f,0))
-end
-
-
-function compute_proba(l::AbstractBayesianSVM{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
-    N = length(μ)
-    pred = zeros(T,N)
-    for i in 1:N
-        if σ²[i] <= 0.0
-            pred[i] = svmlikelihood(μ[i])
-        else
-            pred[i] =  expectation(svmlikelihood,Normal(μ[i],sqrt(σ²[i])))
-        end
-    end
-    return pred
-end
-
-###############################################################################
-"""
 The [Bayesian SVM](https://arxiv.org/abs/1707.05532) is a Bayesian interpretation of the classical SVM.
 By using an augmentation (Laplace) one gets a conditionally conjugate likelihood (see paper)
 """
-struct BayesianSVM{T<:Real} <: AbstractBayesianSVM{T}
+struct BayesianSVM{T<:Real} <: ClassificationLikelihood{T}
     α::AbstractVector{AbstractVector{T}}
     θ::AbstractVector{AbstractVector{T}}
     function BayesianSVM{T}() where {T<:Real}
@@ -58,9 +19,43 @@ end
 
 isaugmented(::BayesianSVM{T}) where T = true
 
-function init_likelihood(likelihood::BayesianSVM{T},nLatent::Integer,nSamplesUsed) where T
+function init_likelihood(likelihood::BayesianSVM{T},inference::Inference{T},nLatent::Integer,nSamplesUsed) where T
     BayesianSVM{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
 end
+function pdf(l::BayesianSVM,y::Real,f::Real)
+    svmlikelihood(y*f)
+end
+
+function Base.show(io::IO,model::BayesianSVM{T}) where T
+    print(io,"Bayesian SVM")
+end
+
+"""Return likelihood equivalent to SVM hinge loss"""
+function svmlikelihood(f::Real)
+    pos = svmpseudolikelihood(f)
+    return pos./(pos.+svmpseudolikelihood(-f))
+end
+
+"""Return the pseudo likelihood of the SVM hinge loss"""
+function svmpseudolikelihood(f::Real)
+    return exp.(-2.0*max.(1.0.-f,0))
+end
+
+
+function compute_proba(l::BayesianSVM{T},μ::Vector{T},σ²::Vector{T}) where {T<:Real}
+    N = length(μ)
+    pred = zeros(T,N)
+    for i in 1:N
+        if σ²[i] <= 0.0
+            pred[i] = svmlikelihood(μ[i])
+        else
+            pred[i] =  expectation(svmlikelihood,Normal(μ[i],sqrt(σ²[i])))
+        end
+    end
+    return pred
+end
+
+###############################################################################
 
 
 function local_updates!(model::VGP{BayesianSVM{T},<:AnalyticVI}) where {T<:Real}
@@ -103,16 +98,16 @@ function ELBO(model::AbstractGP{<:BayesianSVM})
     return expecLogLikelihood(model) - GaussianKL(model) - GIGKL(model)
 end
 
-function expecLogLikelihood(model::VGP{BayesianSVM{T}}) where {T<:Real}
+function expecLogLikelihood(model::VGP{BayesianSVM{T},AnalyticVI{T}}) where {T<:Real}
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
     tot += sum(broadcast((μ,y,θ,Σ)->(sum(μ.*y)-0.5*dot(θ,Σ+abs2.(one(T).-y.*μ))),
                         model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{BayesianSVM{T}}) where {T<:Real}
+function expecLogLikelihood(model::SVGP{BayesianSVM{T},AnalyticVI{T}}) where {T<:Real}
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->(sum(κμ.*y)-0.5*dot(θ,K̃+κΣκ+abs2.(one(T).-y.*κμ))),
-                        model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag(model.κ.*model.Σ,model.κ'),model.K̃))
+    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->(sum(κμ.*y[model.inference.MBIndices])-0.5*dot(θ,K̃+κΣκ+abs2.(one(T).-y[model.inference.MBIndices].*κμ))),
+                        model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
     return model.inference.ρ*tot
 end

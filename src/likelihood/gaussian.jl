@@ -32,7 +32,7 @@ function Base.show(io::IO,model::GaussianLikelihood{T}) where T
 end
 
 
-function init_likelihood(likelihood::GaussianLikelihood{T},nLatent::Integer,nSamples::Integer) where {T<:Real}
+function init_likelihood(likelihood::GaussianLikelihood{T},inference::Inference{T},nLatent::Integer,nSamples::Integer) where {T<:Real}
     if length(likelihood.ϵ) ==1 && length(likelihood.ϵ) != nLatent
         return GaussianLikelihood{T}([likelihood.ϵ[1] for _ in 1:nLatent])
     elseif length(likelihood.ϵ) != nLatent

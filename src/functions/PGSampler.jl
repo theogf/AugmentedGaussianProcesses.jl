@@ -4,7 +4,7 @@ module PGSampler
 using Distributions
 const __TRUNC = 0.64;
 const __TRUNC_RECIP = 1.0 / __TRUNC;
-export PolyaGammaDist
+export PolyaGammaDist, draw
 """Sampler object"""
 mutable struct PolyaGammaDist{T}
   # For sum of Gammas.
@@ -15,6 +15,7 @@ mutable struct PolyaGammaDist{T}
   function PolyaGammaDist{T}(trunc::Int) where {T<:Real}
     this = new{T}()
 	set_trunc(this,trunc)
+	return this
   end
 end
 

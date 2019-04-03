@@ -38,7 +38,7 @@ A complete documentation is currently being written, for now you can use this ve
 
 ```julia
 using AugmentedGaussianProcesses
-model = SVGP(X_train,Y_train,RBFKernel(1.0),AugmentedLogisticLikelihood(),StochasticAnalyticInference(100),64)
+model = SVGP(X_train,Y_train,RBFKernel(1.0),LogisticLikelihood(),AnalyticSVI(100),64)
 train!(model,iterations=100)
 Y_predic = predict_y(model,X_test) #For getting the label directly
 Y_predic_prob = proba_y(model,X_test) #For getting the likelihood of predicting class 1

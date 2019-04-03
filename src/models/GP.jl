@@ -47,7 +47,7 @@ function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel
             Knn = LatentArray([Symmetric(Matrix{T1}(I,nFeature,nFeature)) for _ in 1:nPrior]);
             invKnn = copy(Knn)
 
-            likelihood = init_likelihood(likelihood,nLatent,nSample)
+            likelihood = init_likelihood(likelihood,inference,nLatent,nSample)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
 
             model = GP{GaussianLikelihood{T1},Analytic{T1},T1,ArrayType{T1}}(X,y,

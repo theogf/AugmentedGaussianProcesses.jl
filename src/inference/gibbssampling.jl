@@ -52,6 +52,16 @@ function variational_updates!(model::VGP{L,GibbsSampling{T}}) where {L<:Likeliho
     end
 end
 
+function ELBO(model::AbstractGP{<:Likelihood,<:GibbsSampling})
+    return NaN
+end
+
+function sample_global!(model::VGP{<:Likelihood,<:GibbsSampling})
+    model.Σ .= inv.(Symmetric.(2.0*Diagonal.(∇Σ(model)).+model.invKnn))
+    model.μ .= rand.(MvNormal.(model.Σ.*∇μ(model),model.Σ))
+    return nothing
+end
+
 function post_process!(model::AbstractGP{<:Likelihood,<:GibbsSampling})
     for k in 1:model.nLatent
         model.μ[k] = vec(mean(hcat(model.inference.sample_store[k]...),dims=2))

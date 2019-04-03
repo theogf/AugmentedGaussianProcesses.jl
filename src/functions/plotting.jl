@@ -1,13 +1,12 @@
-using Makie
 using Colors
+using AbstractPlotting
 
-
-function Makie.plot(model::AbstractGP;nGrid::Int=100,nsigma::Int=2)
+function AbstractPlotting.plot(model::AbstractGP;nGrid::Int=100,nsigma::Int=2)
     scene = Makie.Scene()
     plot!(scene,model,nGrid=nGrid,nsigma=nsigma)
 end
 
-function Makie.plot!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100,nsigma::Int=2)
+function AbstractPlotting.plot!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100,nsigma::Int=2)
     if model.nDim == 1
         makie1D!(scene,model,nGrid=nGrid,nσ=nsigma)
     elseif model.nDim == 2
