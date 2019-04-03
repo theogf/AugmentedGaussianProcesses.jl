@@ -87,6 +87,12 @@ function natural_gradient!(model::SVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likel
     model.inference.∇η₂ .= -(model.inference.ρ.*transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+0.5.*model.invKmm) .- model.η₂
 end
 
+"""Computation of the natural gradient for the natural parameters"""
+function natural_gradient!(model::OnlineVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
+    model.η₁ = transpose.(model.κ).*∇μ(model) .+ transpose.(model.κₐ).*model.η₁
+    model.η₂ = -Symmetric.(transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+0.5*transpose.(model.κₐ).*model.invDₐ.*model.κₐ.+0.5.*model.invKmm)
+end
+
 """Conversion from natural to standard distribution parameters"""
 function global_update!(model::VGP{L,AnalyticVI{T}}) where {L<:Likelihood,T}
     model.Σ .= -0.5.*inv.(model.η₂)
@@ -104,4 +110,11 @@ function global_update!(model::SVGP{L,AnalyticVI{T}}) where {L<:Likelihood,T}
     end
     model.Σ .= -0.5.*inv.(model.η₂)
     model.μ .= model.Σ.*model.η₁
+end
+
+
+"""Conversion from natural to standard distribution parameters"""
+function global_update!(model::OnlineVGP{L,AnalyticVI{T}}) where {L<:Likelihood,T}
+    model.Σ = -0.5.*inv.(model.η₂)
+    model.μ = model.Σ.*model.η₁
 end

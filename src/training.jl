@@ -89,8 +89,8 @@ function update_parameters!(model::OnlineVGP)
     else
         model.inference.MBIndices = StatsBase.sample(1:model.nSample,model.inference.nSamplesUsed,replace=false) #Sample nSamplesUsed points randomly
     end
-    # updateZ!(model);
-    # computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    updateZ!(model);
+    computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
 end
 
@@ -131,11 +131,12 @@ end
 """Compute kernel matrices for online variational GPs"""
 function computeMatrices!(model::OnlineVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
     # if model.inference.HyperParametersUpdated
-        model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),[model.Zalg.centers],model.kernel)
+        model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
         model.invKmm .= inv.(model.Kmm)
-        model.Knm .= kernelmatrix.([model.X[model.inference.MBIndices,:]],[model.Zalg.centers],model.kernel)
+        model.κₐ .= broadcast((invKmm,Z,Zₐ,kernel)->kernelmatrix(Zₐ,Z,kernel)*invKmm,model.invKmm,[model.Zalg.centers],model.Zₐ,model.kernel)
+        model.Knm .= kernelmatrix.([model.X[model.inference.MBIndices,:]],model.Z,model.kernel)
         model.κ .= model.Knm.*model.invKmm
-        # model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
+        model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     # end
     model.inference.HyperParametersUpdated=false

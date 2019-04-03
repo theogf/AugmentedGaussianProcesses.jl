@@ -3,7 +3,7 @@ using Plots
 using Clustering, LinearAlgebra
 pyplot()
 using AugmentedGaussianProcesses
-
+const AGP = AugmentedGaussianProcesses
 
 
 function generate_random_walk_data(N,dim,lambda)
@@ -125,11 +125,11 @@ function callbackplot(model,iter)
     y_ind = predict_y(model,model.Zalg.centers)
     y_test,sig_test = proba_y(model,X_test)
     if dim == 1
-        p = plotting1D(X,y,model.Zalg.centers,y_ind,X_test,y_test,sig_test,"$(typeof(model)) (m=$(model.Zalg.k))")
+        p = plotting1D(X,y,model.Zalg.centers,y_ind,X_test,y_test,sig_test,"$(typeof(model.Zalg)) (m=$(model.Zalg.k))")
         scatter!(X[model.inference.MBIndices],y[model.inference,MBIndices],color="black",lab="")
         display(p)
     elseif dim == 2
-        p = plotting2D(X,y,model.Zalg.centers,y_ind,x1_test,x2_test,y_test,minf,maxf,"Constant lim (m=$(model.Zalg.k))")
+        p = plotting2D(X,y,model.Zalg.centers,y_ind,x1_test,x2_test,y_test,minf,maxf,"$(typeof(model.Zalg)) (m=$(model.Zalg.k))")
         scatter!(X[model.inference.MBIndices,1],X[model.inference.MBIndices,2],color="black",lab="")
         display(p)
 
@@ -203,26 +203,54 @@ end
 println("Full GP ($t_full s)\n\tRMSE (train) : $(RMSE(predict_y(fullgp,X),y))\n\tRMSE (test) : $(RMSE(y_full,y_test))")
 
 
+##### DeterminantalPointProcess for selecting points
+
+t_dpp = @elapsed dppgp = OnlineVGP(X,y,kernel,GaussianLikelihood(noise),AnalyticSVI(24),DPPAlg(0.6,kernel),sequential,verbose=3,Autotuning=false)
+t_dpp = @elapsed train!(dppgp,iterations=15,callback=callbackplot)
+# t_dpp = @elapsed train!(dppgp,iterations=100)
+y_dpp,sig_dpp = proba_y(dppgp,X_test)
+y_inddpp = predict_y(dppgp,dppgp.Zalg.centers)
+y_traindpp, sig_traindpp = proba_y(dppgp,X)
+
+if dim == 1
+    pdpp = plotting1D(X,y,dppgp.Zalg.centers,y_inddpp,X_test,y_dpp,sig_dpp,"DPP (m=$(dppgp.Zalg.k))")
+elseif dim == 2
+    pdpp = plotting2D(X,y,dppgp.Zalg.centers,y_inddpp,x1_test,x2_test,y_dpp,minf,maxf,"DPP (m=$(dppgp.Zalg.k))")
+end
+println("DPP ($t_dpp s)\n\tRMSE (train) : $(RMSE(predict_y(dppgp,X),y))\n\tRMSE (test) : $(RMSE(y_dpp,y_test))")
+kl_dpp = KLGP.(y_traindpp,sig_traindpp,y_train,sig_train)
+kl_simple = KLGP.(y_traindpp,sig_traindpp,y_train,noise)
+js_dpp = JSGP.(y_traindpp,sig_traindpp,y_train,sig_train)
+js_simple = JSGP.(y_traindpp,sig_traindpp,y_train,noise)
 
 
-#### Custom K finding method with constant limit
-t_circle = @elapsed circlegp = OnlineVGP(X,y,kernel,GaussianLikelihood(noise),StreamingVI(5),DPPAlg(0.90,kernel),sequential,verbose=3,Autotuning=false)
-t_circle = @elapsed train!(circlegp,iterations=100,callback=callbackplot)
+#### Circle K finding method with constant limit
+
+t_circle = @elapsed circlegp = OnlineVGP(X,y,kernel,GaussianLikelihood(noise),AnalyticSVI(24),CircleKMeans(0.6),sequential,verbose=3,Autotuning=false)
+# t_circle = @elapsed train!(circlegp,iterations=15,callback=callbackplot)
 t_circle = @elapsed train!(circlegp,iterations=100)
 y_circle,sig_circle = proba_y(circlegp,X_test)
 y_indcircle = predict_y(circlegp,circlegp.Zalg.centers)
 y_traincircle, sig_traincircle = proba_y(circlegp,X)
 
 if dim == 1
-    pcircle = plotting1D(X,y,circlegp.Zalg.centers,y_indcircle,X_test,y_circle,sig_circle,"Circle (m=$(circlegp.Zalg.k))")
+    pcircle = plotting1D(X,y,circlegp.Zalg.centers,y_indcircle,X_test,y_circle,sig_circle,"Circle KMeans (m=$(circlegp.Zalg.k))")
 elseif dim == 2
-    pcircle = plotting2D(X,y,circlegp.Zalg.centers,y_indcircle,x1_test,x2_test,y_circle,minf,maxf,"Constant lim (m=$(circlegp.Zalg.k))")
+    pcircle = plotting2D(X,y,circlegp.Zalg.centers,y_indcircle,x1_test,x2_test,y_circle,minf,maxf,"Circle KMeans (m=$(circlegp.Zalg.k))")
 end
-println("Circle GP ($t_circle s)\n\tRMSE (train) : $(RMSE(predict_y(circlegp,X),y))\n\tRMSE (test) : $(RMSE(y_circle,y_test))")
+println("Circle KMeans ($t_circle s)\n\tRMSE (train) : $(RMSE(predict_y(circlegp,X),y))\n\tRMSE (test) : $(RMSE(y_circle,y_test))")
 kl_circle = KLGP.(y_traincircle,sig_traincircle,y_train,sig_train)
 kl_simple = KLGP.(y_traincircle,sig_traincircle,y_train,noise)
 js_circle = JSGP.(y_traincircle,sig_traincircle,y_train,sig_train)
 js_simple = JSGP.(y_traincircle,sig_traincircle,y_train,noise)
+
+
+
+
+
+
+
+
 # plot!(twinx(),X,[kl_const kl_simple js_const js_simple],lab=["KL" "KL_S" "JS" "JS_S"])
 # plot!(twinx(),X,[kl_circle js_circle],lab=["KL" "JS"])
 #plot!(X,y_trainconst+js_const,fill=(y_trainconst-js_const),alpha=0.3,lab="")
@@ -235,9 +263,9 @@ js_simple = JSGP.(y_traincircle,sig_traincircle,y_train,noise)
 
 if dim == 2
     p = contourf(x1_test,x2_test,reshape(y_test,length(x1_test),length(x2_test))')
-    display(plot(p,pcircle,pfull));
+    display(plot(p,pdpp,pcircle,pfull));
 else
-    display(plot(pfull,pcircle)); gui()
+    display(plot(pfull,pdpp,pcircle)); gui()
 end
 
 

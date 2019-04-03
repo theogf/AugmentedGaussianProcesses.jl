@@ -17,11 +17,16 @@ mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}
     Σ::LatentArray{Symmetric{T,Matrix{T}}}
     η₁::LatentArray{V}
     η₂::LatentArray{Symmetric{T,Matrix{T}}}
+    Z::LatentArray{Matrix{T}}
     Kmm::LatentArray{Symmetric{T,Matrix{T}}}
     invKmm::LatentArray{Symmetric{T,Matrix{T}}}
     Knm::LatentArray{Matrix{T}}
     κ::LatentArray{Matrix{T}}
     K̃::LatentArray{V}
+    Zₐ::LatentArray{Matrix{T}}
+    κₐ::LatentArray{Matrix{T}}
+    K̃ₐ::LatentArray{V}
+    invDₐ::LatentArray{Symmetric{T,Matrix{T}}}
     kernel::LatentArray{Kernel{T}}
     likelihood::Likelihood{T}
     inference::Inference{T}
@@ -76,17 +81,21 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
                 end
             else
                 inference.MBIndices = StatsBase.sample(1:nSample,inference.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
-                init!(Zalg,X,y[1],kernel[1])
+                init!(Zalg,X[inference.MBIndices,:],y[1][inference.MBIndices],kernel[1])
             end
             Zupdated = true;
             nFeature = Zalg.k;
-
+            Z = [copy(Zalg.centers) for _ in 1:nPrior]
+            Zₐ = similar.(Z)
             μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = deepcopy(μ);
             Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
             η₂ = -0.5*inv.(Σ);
             κ = LatentArray([zeros(T1,inference.nSamplesUsed, nFeature) for _ in 1:nPrior])
             Knm = deepcopy(κ)
             K̃ = LatentArray([zeros(T1,inference.nSamplesUsed) for _ in 1:nPrior])
+            κₐ = LatentArray([zeros(T1, nFeature, nFeature) for _ in 1:nPrior])
+            K̃ₐ = LatentArray([zeros(T1, nFeature) for _ in 1:nPrior])
+            invDₐ = LatentArray([Symmetric(zeros(T1, nFeature, nFeature)) for _ in 1:nPrior])
             Kmm = LatentArray([similar(Σ[1]) for _ in 1:nPrior]); invKmm = similar.(Kmm)
             nSamplesUsed = nSample
             @assert inference.nSamplesUsed > 0 && inference.nSamplesUsed < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
@@ -100,7 +109,8 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
                     IndependentPriors,nPrior,
                     Zalg,Zupdated,Sequential,dataparsed,lastindex,
                     μ,Σ,η₁,η₂,
-                    Kmm,invKmm,Knm,κ,K̃,
+                    Z,Kmm,invKmm,Knm,κ,K̃,
+                    Zₐ,κₐ,K̃ₐ,invDₐ,
                     kernel,likelihood,inference,
                     verbose,Autotuning,atfrequency,OptimizeInducingPoints,false)
 end
@@ -110,22 +120,25 @@ function Base.show(io::IO,model::OnlineVGP{<:Likelihood,<:Inference,T}) where T
 end
 
 function updateZ!(model::OnlineVGP)
+    model.Zₐ = copy.(model.Z)
+    model.invDₐ = Symmetric.(-2.0.*model.η₂.-model.invKmm)
     update!(model.Zalg,model.X[model.inference.MBIndices,:],model.y[1][model.inference.MBIndices],model.kernel[1]) #TEMP FOR 1 latent
     NCenters = model.Zalg.k
     Nnewpoints = NCenters-model.nFeature
-    computeMatrices!(model)
+    # computeMatrices!(model)
     #Make the latent variables larger #TODO Preallocating them might be a better option
     if Nnewpoints!=0
         # println("Adapting to new number of points")
-        model.μ[1] = vcat(model.μ[1], zeros(Nnewpoints))
-        model.η₁[1] = vcat(model.η₁[1], zeros(Nnewpoints))
-        Σ_temp = Matrix{Float64}(I,NCenters,NCenters)
-        Σ_temp[1:model.nFeature,1:model.nFeature] = model.Σ[1]
-        model.Σ[1] = Symmetric(Σ_temp)
-        η₂temp = Matrix{Float64}(-0.5*I,NCenters,NCenters)
-        η₂temp[1:model.nFeature,1:model.nFeature] = model.η₂[1]
-        model.η₂[1] = Symmetric(η₂temp)
+        # model.μ[1] = vcat(model.μ[1], zeros(Nnewpoints))
+        # model.η₁[1] = vcat(model.η₁[1], zeros(Nnewpoints))
+        # Σ_temp = Matrix{Float64}(I,NCenters,NCenters)
+        # Σ_temp[1:model.nFeature,1:model.nFeature] = model.Σ[1]
+        # model.Σ[1] = Symmetric(Σ_temp)
+        # η₂temp = Matrix{Float64}(-0.5*I,NCenters,NCenters)
+        # η₂temp[1:model.nFeature,1:model.nFeature] = model.η₂[1]
+        # model.η₂[1] = Symmetric(η₂temp)
         model.nFeature = NCenters
     end
     model.Zupdated = true
+    model.Z = [copy(model.Zalg.centers) for _ in 1:model.nPrior]
 end

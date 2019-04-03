@@ -33,9 +33,10 @@ function variational_updates!(model::AbstractGP{LType,StreamingVI{T}}) where {LT
     Kₐ = copy(model.Kmm[1])
     invKₐ = copy(model.invKmm[1])
     Zₐ = copy(model.Zalg.centers)
-    Dₐ = Symmetric(inv(model.Σ[1])-invKₐ)# Replace with η₂
+    invDₐ = Symmetric(-2*model.η₂[1]-invKₐ)
+    Dₐ = inv(invDₐ)
     mₐ = copy(model.nFeature)
-    ŷ = vcat(model.y[1][model.inference.MBIndices],inv(Dₐ)*model.η₁[1]);
+    ŷ = vcat(model.y[1][model.inference.MBIndices],Dₐ*model.η₁[1]);
     updateZ!(model)
     ### DO STUFF WITH HYPERPARAMETERS HERE
     computeMatrices!(model)
@@ -48,12 +49,46 @@ function variational_updates!(model::AbstractGP{LType,StreamingVI{T}}) where {LT
     # sleep(0.1)
     # end
     Kf̂b = vcat(model.Knm[1],Kab)
-    Σŷ = Matrix(Diagonal{T}(model.likelihood.ϵ[1]*I,(model.inference.nSamplesUsed+mₐ)))
-    Σŷ[model.inference.nSamplesUsed+1:end,model.inference.nSamplesUsed+1:end] = inv(Dₐ)
-    invΣŷ = inv(Σŷ)
-    A = model.invKmm[1]*Kf̂b'/Σŷ
-    invD = inv(I + invL*Kf̂b'*invΣŷ*Kf̂b*invL+convert(T,Jittering())*I)
-    model.Σ[1] = inv(Symmetric(model.invKmm[1]+A*Kf̂b*model.invKmm[1]))
+    invΣŷ = Matrix(Diagonal{T}(1.0/model.likelihood.ϵ[1]*I,(model.inference.nSamplesUsed+mₐ)))
+    invΣŷ[model.inference.nSamplesUsed+1:end,model.inference.nSamplesUsed+1:end] = invDₐ
+    # invΣŷ = inv(Σŷ)
+    A = model.invKmm[1]*Kf̂b'*invΣŷ
+    # invD = inv(I + invL*Kf̂b'*invΣŷ*Kf̂b*invL+convert(T,Jittering())*I)
+    model.η₂[1] = -0.5*Symmetric(model.invKmm[1]+A*Kf̂b*model.invKmm[1])
+    model.Σ[1] = -0.5*inv(model.η₂[1])
+    model.η₁[1] = A*ŷ
+    model.μ[1] = model.Σ[1]*model.η₁[1]
+end
+
+"""Generic method for variational updates using analytical formulas"""
+function variational_updates_old!(model::AbstractGP{LType,StreamingVI{T}}) where {LType<:Likelihood,T}
+    #Set as old values
+    println(model.inference.nIter," ",model.nFeature)
+    Kₐ = copy(model.Kmm[1])
+    invKₐ = copy(model.invKmm[1])
+    Zₐ = copy(model.Zalg.centers)
+    invDₐ = Symmetric(-2*model.η₂[1]-invKₐ)
+    mₐ = copy(model.nFeature)
+    ŷ = vcat(model.y[1][model.inference.MBIndices],Dₐ*model.η₁[1]);
+    updateZ!(model)
+    ### DO STUFF WITH HYPERPARAMETERS HERE
+    computeMatrices!(model)
+    L = cholesky(model.Kmm[1])
+    invL = inv(L)
+    Kab = kernelmatrix(Zₐ,model.Zalg.centers,model.kernel[1])
+    Kab[1:mₐ,1:mₐ] = Kab[1:mₐ,1:mₐ] + convert(T,Jittering())*I
+    # if model.m >= 2 && model.oldm >= 2
+    # display(heatmap(Kab))
+    # sleep(0.1)
+    # end
+    Kf̂b = vcat(model.Knm[1],Kab)
+    invΣŷ = Matrix(Diagonal{T}(1.0/model.likelihood.ϵ[1]*I,(model.inference.nSamplesUsed+mₐ)))
+    invΣŷ[model.inference.nSamplesUsed+1:end,model.inference.nSamplesUsed+1:end] = invDₐ
+    # invΣŷ = inv(Σŷ)
+    A = model.invKmm[1]*Kf̂b'*invΣŷ
+    # invD = inv(I + invL*Kf̂b'*invΣŷ*Kf̂b*invL+convert(T,Jittering())*I)
+    model.η₂[1] = -0.5*Symmetric(model.invKmm[1]+A*Kf̂b*model.invKmm[1])
+    model.Σ[1] = -0.5*inv(model.η₂[1])
     model.η₁[1] = A*ŷ
     model.μ[1] = model.Σ[1]*model.η₁[1]
 end
