@@ -173,7 +173,7 @@ var documenterSearchIndex = {"docs": [
     "page": "User Guide",
     "title": "Compatibility table",
     "category": "section",
-    "text": "Likelihood/Inference AnalyticInference GibbsSampling NumericalInference(Quadrature) NumericalInference(MCMCIntegration)\nGaussianLikelihood ✔ ✖ ✖ ✖\nStudentTLikelihood ✔ (dev) (dev) ✖\nLogisticLikelihood ✔ (dev) (dev) ✖\nBayesianSVM ✔ ✖ (dev) ✖\nLogisticSoftMaxLikelihood ✔ (dev) ✖ (dev)\nSoftMaxLikelihood ✖ ✖ ✖ (dev)"
+    "text": "Likelihood/Inference AnalyticVI GibbsSampling QuadratureVI MCMCIntegrationVI\nGaussianLikelihood ✔ ✖ ✖ ✖\nStudentTLikelihood ✔ (dev) (dev) ✖\nLogisticLikelihood ✔ ✔ (dev) ✖\nBayesianSVM ✔ ✖ ✖ ✖\nLogisticSoftMaxLikelihood ✔ ✔ ✖ (dev)\nSoftMaxLikelihood ✖ ✖ ✖ (dev)"
 },
 
 {
@@ -273,11 +273,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api/#Library-1",
+    "location": "api/#API-Library-1",
     "page": "API",
-    "title": "Library",
+    "title": "API Library",
     "category": "section",
-    "text": "CurrentModule = AugmentedGaussianProcesses"
+    "text": "Pages = [\"api.md\"]CurrentModule = AugmentedGaussianProcesses"
 },
 
 {
@@ -297,11 +297,35 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "api/#AugmentedGaussianProcesses.GP",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.GP",
+    "category": "type",
+    "text": "Class for variational Gaussian Processes models (non-sparse)\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.VGP",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.VGP",
+    "category": "type",
+    "text": "Class for variational Gaussian Processes models (non-sparse)\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.SVGP",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.SVGP",
+    "category": "type",
+    "text": "Class for sparse variational Gaussian Processes \n\n\n\n\n\n"
+},
+
+{
     "location": "api/#Model-Types-1",
     "page": "API",
     "title": "Model Types",
     "category": "section",
-    "text": "GP(X,y,kernel)\nVGP(X,y,kernel,likelihood,inference)\nSVGP(X,y,kernel,likelihood,inference,num_ind_points)"
+    "text": "GP\nVGP\nSVGP"
 },
 
 {
@@ -309,7 +333,79 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "Likelihood Types",
     "category": "section",
-    "text": "GaussianLikelihood()\nAugmentedStudentTLikelihood(ν)\nBayesianSVM()\nAugmentedLogisticLikelihood()\nAugmentedLogisticSoftMaxLikelihood()"
+    "text": "GaussianLikelihood\nAugmentedStudentTLikelihood\nBayesianSVM\nAugmentedLogisticLikelihood\nAugmentedLogisticSoftMaxLikelihood"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.AnalyticVI",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.AnalyticVI",
+    "category": "type",
+    "text": "Solve conjugate or conditionally conjugate likelihoods (especially valid for augmented likelihoods) \n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.AnalyticSVI",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.AnalyticSVI",
+    "category": "function",
+    "text": "AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=ALRSVI())\n\nReturn an AnalyticVI{T} object with stochastic updates, corresponding to Stochastic Variational Inference with analytical updates.\n\nPositional argument\n\n- `nMinibatch::Integer` : Number of samples per mini-batches\n\nKeywords arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `ALRSVI()` (Adaptive Learning Rate for Stochastic Variational Inference)\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.NumericalVI",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.NumericalVI",
+    "category": "type",
+    "text": "Solve any non-conjugate likelihood using Variational Inference by making a numerical approximation (quadrature or MC integration) of the expected log-likelihood ad its gradients\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.NumericalSVI",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.NumericalSVI",
+    "category": "function",
+    "text": "NumericalSVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))\n\nGeneral constructor for Stochastic Variational Inference via numerical approximation.\n\nArgument\n\n-`nMinibatch::Integer` : Number of samples per mini-batches\n-`integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mcmc` for MCMC integration see [MCMCIntegrationVI](@ref)\n\nKeyword arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCMCIntegrationVI)\n- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.QuadratureVI",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.QuadratureVI",
+    "category": "type",
+    "text": "QuadratureVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))\n\nConstructor for Variational Inference via quadrature approximation.\n\nKeyword arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.QuadratureSVI",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.QuadratureSVI",
+    "category": "function",
+    "text": "QuadratureSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))\n\nConstructor for Stochastic Variational Inference via quadrature approximation.\n\nArgument\n\n-`nMinibatch::Integer` : Number of samples per mini-batches\n\nKeyword arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.MCMCIntegrationVI",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.MCMCIntegrationVI",
+    "category": "type",
+    "text": "MCMCIntegrationVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))\n\nConstructor for Variational Inference via MCMC Integration approximation.\n\nKeyword arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `nMC::Int` : Number of samples per data point for the integral evaluation\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.MCMCIntegrationSVI",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.MCMCIntegrationSVI",
+    "category": "function",
+    "text": "MCMCIntegrationSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))\n\nConstructor for Stochastic Variational Inference via MCMC integration approximation.\n\nArgument\n\n-`nMinibatch::Integer` : Number of samples per mini-batches\n\nKeyword arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `nMC::Int` : Number of samples per data point for the integral evaluation\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.GibbsSampling",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.GibbsSampling",
+    "category": "type",
+    "text": "GibbsSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=10)\n\nReturn a GibbsSampling{T} object to sample from the exact posterior distribution.\n\nKeywords arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `nBurnin::Int` : Number of samples discarded before starting to save samples\n- `samplefrequency::Int` : Frequency of sampling\n\n\n\n\n\n"
 },
 
 {
@@ -317,7 +413,39 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "Inference Types",
     "category": "section",
-    "text": "AnalyticInference()\nStochasticAnalyticInference(batchsize)\nNumericalInference(optimizer)\nStochasticNumericalInference(batchsize)\nGibbsSampling()"
+    "text": "AnalyticVI\nAnalyticSVI\nNumericalVI\nNumericalSVI\nQuadratureVI\nQuadratureSVI\nMCMCIntegrationVI\nMCMCIntegrationSVI\nGibbsSampling"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.train!",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.train!",
+    "category": "function",
+    "text": "train!(model::AbstractGP;iterations::Integer=100,callback=0,conv_function=0)\n\nFunction to train the given GP model.\n\nKeyword Arguments\n\nthere are options to change the number of max iterations,\n\niterations::Int : Number of iterations (not necessarily epochs!)for training\ncallback::Function : Callback function called at every iteration. Should be of type function(model,iter) ...  end\nconv_function::Function : Convergence function to be called every iteration, should return a scalar and take the same arguments as callback\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.predict_f",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.predict_f",
+    "category": "function",
+    "text": "Compute the mean of the predicted latent distribution of f on X_test for the variational GP model\n\nReturn also the variance if covf=true and the full covariance if fullcov=true\n\n\n\n\n\nCompute the mean of the predicted latent distribution of f on X_test for a sparse GP model Return also the variance if covf=true and the full covariance if fullcov=true\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.predict_y",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.predict_y",
+    "category": "function",
+    "text": "predict_y(model::AbstractGP{<:RegressionLikelihood},X_test::AbstractMatrix)\n\nReturn the predictive mean of X_test\n\n\n\n\n\npredict_y(model::AbstractGP{<:ClassificationLikelihood},X_test::AbstractMatrix)\n\nReturn the predicted most probable sign of X_test\n\n\n\n\n\npredict_y(model::AbstractGP{<:MultiClassLikelihood},X_test::AbstractMatrix)\n\nReturn the predicted most probable class of X_test\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.proba_y",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.proba_y",
+    "category": "function",
+    "text": "proba_y(model::AbstractGP,X_test::AbstractMatrix)\n\nReturn the probability distribution p(ytest|model,Xtest) :\n\n- Tuple of vectors of mean and variance for regression\n- Vector of probabilities of y_test = 1 for binary classification\n- Dataframe with columns and probability per class for multi-class classification\n\n\n\n\n\n"
 },
 
 {
@@ -325,7 +453,23 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "Functions and methods",
     "category": "section",
-    "text": "train!(model)\npredict_f(model,X_test)\npredict_y(model,X_test)\nproba_y(model,X_test)"
+    "text": "train!\npredict_f\npredict_y\nproba_y"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.KernelModule.RBFKernel",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.KernelModule.RBFKernel",
+    "category": "type",
+    "text": "Radial Basis Function Kernel also called RBF or SE(Squared Exponential)\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.KernelModule.MaternKernel",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.KernelModule.MaternKernel",
+    "category": "type",
+    "text": "Matern Kernel\n\n\n\n\n\n"
 },
 
 {
@@ -333,7 +477,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "Kernels",
     "category": "section",
-    "text": "RBFKernel()\nMaternKernel)_"
+    "text": "RBFKernel\nMaternKernel"
 },
 
 {
