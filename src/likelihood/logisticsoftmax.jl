@@ -91,6 +91,19 @@ function local_updates!(model::SVGP{LogisticSoftMaxLikelihood{T},AnalyticVI{T},T
     return nothing
 end
 
+function local_updates!(model::OnlineVGP{LogisticSoftMaxLikelihood{T},AnalyticVI{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
+    model.likelihood.c .= broadcast((μ::V,Σ::Symmetric{T,Matrix{T}},κ::Matrix{T},K̃::V)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
+                                    model.μ,model.Σ,model.κ.*transpose.(model.κₐ),model.K̃)
+    for _ in 1:5
+        model.likelihood.γ .= broadcast((c::V,κμ::V,ψα::V)->(0.5/(model.likelihood.β[1]))*exp.(ψα).*safe_expcosh.(-0.5*κμ,0.5*c),
+                                    model.likelihood.c,model.κ.*transpose.(model.κₐ).*model.μ,[digamma.(model.likelihood.α)])
+        model.likelihood.α .= 1.0.+(model.likelihood.γ...)
+    end
+    model.likelihood.θ .= broadcast((y::BitVector,γ::V,c::V)->0.5.*(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5.*c),
+                                    model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
+    return nothing
+end
+
 function sample_local!(model::VGP{<:LogisticSoftMaxLikelihood,<:GibbsSampling})
     model.likelihood.γ .= broadcast(μ::AbstractVector{<:Real}->rand.(Poisson.(0.5*model.likelihood.α.*safe_expcosh.(-0.5*μ,0.5*μ))), model.μ)
     model.likelihood.α .= rand.(Gamma.(1.0.+(model.likelihood.γ...),1.0./model.likelihood.β))
@@ -110,11 +123,11 @@ function ∇μ(model::VGP{<:LogisticSoftMaxLikelihood})
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::SVGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI},index::Integer)
+function expec_μ(model::SparseGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI},index::Integer)
     0.5.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
 end
 
-function ∇μ(model::SVGP{<:LogisticSoftMaxLikelihood})
+function ∇μ(model::SparseGP{<:LogisticSoftMaxLikelihood})
     0.5.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
 end
 
@@ -139,7 +152,7 @@ function expecLogLikelihood(model::VGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI}
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI})
+function expecLogLikelihood(model::SparseGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI})
     model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
                                     model.μ,model.Σ,model.κ,model.K̃)
     tot = -model.inference.nSamplesUsed*logtwo

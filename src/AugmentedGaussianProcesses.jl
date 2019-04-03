@@ -5,10 +5,10 @@ General Framework for the data augmented Gaussian Processes
 """
 module AugmentedGaussianProcesses
 
-export AbstractGP, GP, VGP, SVGP, OnlineVGP
+export AbstractGP, GP, VGP, SparseGP, SVGP, OnlineVGP
 export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
 export GaussianLikelihood, AugmentedStudentTLikelihood, StudentTLikelihood
-export AugmentedLogisticLikelihood, LogisticLikelihood, BayesianSVM
+export LogisticLikelihood, LogisticLikelihood, BayesianSVM
 export MultiClassLikelihood, SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export AugmentedLogisticSoftMaxLikelihood
 export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCMCIntegrationVI, MCMCIntegrationSVI, QuadratureVI, QuadratureSVI, StreamingVI

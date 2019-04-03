@@ -32,7 +32,7 @@ function Base.show(io::IO,model::SoftMaxLikelihood{T}) where T
 end
 
 
-function init_likelihood(likelihood::SoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T
+function init_likelihood(likelihood::SoftMaxLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer) where T
     return likelihood
 end
 

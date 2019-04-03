@@ -83,7 +83,7 @@ function update_parameters!(model::OnlineVGP)
         model.inference.nSamplesUsed = min(model.inference.nSamplesUsed,model.nSample-model.lastindex+1)
         model.inference.MBIndices = model.lastindex:(model.lastindex+model.inference.nSamplesUsed-1) #Sample the next nSamplesUsed points
         model.lastindex += model.inference.nSamplesUsed-1
-        if model.lastindex >= model.nSample
+        if model.lastindex+model.inference.nSamplesUsed >= model.nSample #WARNING This exclude the last set of points!
             model.dataparsed=true #Indicate all data has been visited
         end
     else
