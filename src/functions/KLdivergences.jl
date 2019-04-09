@@ -8,6 +8,26 @@ function GaussianKL(model::SVGP)
     return 0.5*sum(opt_trace.(model.invKmm,model.Σ+model.μ.*transpose.(model.μ)).-model.nFeature.-logdet.(model.Σ).-logdet.(model.invKmm))
 end
 
+"""Compute the KL Divergence between the Sparse GP Prior and the variational distribution for the sparse variational model"""
+function GaussianKL(model::OnlineVGP)
+    return 0.5*sum(opt_trace.(model.invKmm,model.Σ+model.μ.*transpose.(model.μ)).-model.nFeature.-logdet.(model.Σ).-logdet.(model.invKmm))
+end
+
+function extraKL(model::VGP)
+    return 0
+end
+
+function extraKL(model::SVGP)
+    return 0
+end
+
+"""Return the extra KL term containing the divergence with the GP at time t and t+1"""
+function extraKL(model::OnlineVGP)
+    L = 0.5*sum(broadcast((𝓛ₐ,invDₐ,Zₐ,kernel,Σ,η₁,κₐ,κₐμ)->𝓛ₐ + opt_trace(invDₐ,kernelmatrix(Zₐ,kernel)+κₐ*(Σ-I)*κₐ')- 2*dot(η₁,κₐμ)+dot(κₐμ,invDₐ*κₐμ),model.prev𝓛ₐ,model.invDₐ,model.Zₐ,model.kernel,model.Σ,model.prevη₁,model.κₐ,model.κₐ.*model.μ))
+    model.prev𝓛ₐ .= logdet.(model.Σ) - logdet.(model.Kmm) + dot.(model.μ,model.η₁) #Precompute this part for the next ELBO
+    model.prevη₁ .= copy.(model.η₁)
+    return L
+end
 
 """ Compute the equivalent of KL divergence between an improper prior and a variational Gamma distribution"""
 function GammaImproperKL(model::AbstractGP)

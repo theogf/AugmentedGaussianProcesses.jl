@@ -140,7 +140,7 @@ function ∇Σ(model::AbstractGP{<:LogisticSoftMaxLikelihood})
 end
 
 function ELBO(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI})
-    return expecLogLikelihood(model) - GaussianKL(model) - GammaImproperKL(model) - PoissonKL(model) - PolyaGammaKL(model)
+    return expecLogLikelihood(model) - GaussianKL(model) - GammaImproperKL(model) - PoissonKL(model) - PolyaGammaKL(model) + extraKL(model)
 end
 
 function expecLogLikelihood(model::VGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI})

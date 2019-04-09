@@ -92,7 +92,3 @@ function variational_updates_old!(model::AbstractGP{LType,StreamingVI{T}}) where
     model.η₁[1] = A*ŷ
     model.μ[1] = model.Σ[1]*model.η₁[1]
 end
-
-function ELBO(model::OnlineVGP)
-    return NaN
-end

@@ -124,11 +124,11 @@ function ELBO(model::GP{GaussianLikelihood{T}}) where {T<:Real}
     return -0.5*sum(broadcast((y,invK)->dot(y,invK*y) - logdet(invK)+ model.nFeature*log(twoπ),model.y,model.invKnn))
 end
 
-function ELBO(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
-    return expecLogLikelihood(model) - GaussianKL(model)
+function ELBO(model::SparseGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
+    return expecLogLikelihood(model) - GaussianKL(model) + extraKL(model)
 end
 
-function expecLogLikelihood(model::SVGP{GaussianLikelihood{T}}) where T
+function expecLogLikelihood(model::SparseGP{GaussianLikelihood{T}}) where T
     return -0.5*model.inference.ρ*sum(broadcast((y,ϵ,κ,Σ,μ,K̃)->1.0/ϵ*(sum(abs2.(y[model.inference.MBIndices]-κ*μ))+sum(K̃)+opt_trace(κ*Σ,κ))+model.inference.nSamplesUsed*(log(twoπ)+log(ϵ)),model.y,model.likelihood.ϵ,model.κ,model.Σ,model.μ,model.K̃))
 end
 

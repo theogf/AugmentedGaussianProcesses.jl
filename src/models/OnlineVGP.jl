@@ -27,6 +27,8 @@ mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}
     κₐ::LatentArray{Matrix{T}}
     K̃ₐ::LatentArray{V}
     invDₐ::LatentArray{Symmetric{T,Matrix{T}}}
+    prevη₁::LatentArray{V}
+    prev𝓛ₐ::LatentArray{T}
     kernel::LatentArray{Kernel{T}}
     likelihood::Likelihood{T}
     inference::Inference{T}
@@ -96,6 +98,8 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             κₐ = LatentArray([zeros(T1, nFeature, nFeature) for _ in 1:nPrior])
             K̃ₐ = LatentArray([zeros(T1, nFeature) for _ in 1:nPrior])
             invDₐ = LatentArray([Symmetric(zeros(T1, nFeature, nFeature)) for _ in 1:nPrior])
+            𝓛ₐ  = LatentArray(zeros(nLatent))
+            prevη₁  = copy.(η₁)
             Kmm = LatentArray([similar(Σ[1]) for _ in 1:nPrior]); invKmm = similar.(Kmm)
             nSamplesUsed = nSample
             @assert inference.nSamplesUsed > 0 && inference.nSamplesUsed < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
@@ -110,7 +114,7 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
                     Zalg,Zupdated,Sequential,dataparsed,lastindex,
                     μ,Σ,η₁,η₂,
                     Z,Kmm,invKmm,Knm,κ,K̃,
-                    Zₐ,κₐ,K̃ₐ,invDₐ,
+                    Zₐ,κₐ,K̃ₐ,invDₐ,prevη₁,𝓛ₐ,
                     kernel,likelihood,inference,
                     verbose,Autotuning,atfrequency,OptimizeInducingPoints,false)
 end

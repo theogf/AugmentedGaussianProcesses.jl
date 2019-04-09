@@ -95,7 +95,7 @@ function ∇Σ(model::AbstractGP{BayesianSVM{T}}) where {T<:Real}
 end
 
 function ELBO(model::AbstractGP{<:BayesianSVM})
-    return expecLogLikelihood(model) - GaussianKL(model) - GIGKL(model)
+    return expecLogLikelihood(model) - GaussianKL(model) - GIGKL(model) + extraKL(model)
 end
 
 function expecLogLikelihood(model::VGP{BayesianSVM{T},AnalyticVI{T}}) where {T<:Real}
@@ -105,7 +105,7 @@ function expecLogLikelihood(model::VGP{BayesianSVM{T},AnalyticVI{T}}) where {T<:
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{BayesianSVM{T},AnalyticVI{T}}) where {T<:Real}
+function expecLogLikelihood(model::SparseGP{BayesianSVM{T},AnalyticVI{T}}) where {T<:Real}
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
     tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->(sum(κμ.*y[model.inference.MBIndices])-0.5*dot(θ,K̃+κΣκ+abs2.(one(T).-y[model.inference.MBIndices].*κμ))),
                         model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))

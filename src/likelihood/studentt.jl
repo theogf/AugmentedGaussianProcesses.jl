@@ -113,7 +113,7 @@ function ∇Σ(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI})
 end
 
 function ELBO(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI})
-    return expecLogLikelihood(model) - InverseGammaKL(model) - GaussianKL(model)
+    return expecLogLikelihood(model) - InverseGammaKL(model) - GaussianKL(model) + extraKL(model)
 end
 
 function expecLogLikelihood(model::VGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
@@ -123,7 +123,7 @@ function expecLogLikelihood(model::VGP{StudentTLikelihood{T},AnalyticVI{T}}) whe
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
+function expecLogLikelihood(model::SparseGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.inference.nSamplesUsed*log(twoπ)
     tot -= 0.5.*sum(broadcast(β->sum(log.(β).-model.inference.nSamplesUsed*digamma(model.likelihood.α)),model.likelihood.β))
     tot -= 0.5.*sum(broadcast((β,K̃,κ,Σ,μ,y)->dot(model.likelihood.α./β,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)-2.0*(κ*μ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.β,model.K̃,model.κ,model.Σ,model.μ,model.y))

@@ -31,6 +31,11 @@ function opt_trace(A::AbstractMatrix{<:Real},B::AbstractMatrix{<:Real})
     dot(A,B)
 end
 
+""" Return the trace of A*B' """
+function opt_trace(A::Real,B::Real)
+    A*B
+end
+
 """ Return the diagonal of A*B' """
 function opt_diag(A::AbstractArray{T,N},B::AbstractArray{T,N}) where {T<:Real,N}
     vec(sum(A.*B,dims=2))

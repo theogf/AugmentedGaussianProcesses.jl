@@ -108,7 +108,7 @@ function ∇Σ(model::AbstractGP{<:LogisticLikelihood})
 end
 
 function ELBO(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI})
-    return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
+    return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model) + extraKL(model)
 end
 
 function expecLogLikelihood(model::VGP{<:LogisticLikelihood,<:AnalyticVI})
@@ -118,7 +118,7 @@ function expecLogLikelihood(model::VGP{<:LogisticLikelihood,<:AnalyticVI})
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
+function expecLogLikelihood(model::SparseGP{<:LogisticLikelihood,<:AnalyticVI})
     tot = -model.nLatent*(0.5*model.inference.nSamplesUsed*logtwo)
     tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y[model.inference.MBIndices])-dot(θ,K̃+κΣκ+abs2.(κμ))),
                         model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
