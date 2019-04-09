@@ -39,7 +39,7 @@ end
 
 """Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
 function hyperparameter_gradient_function(model::VGP) where {T<:Real}
-    A = (model.invKnn.*(model.Σ.+model.µ.*transpose.(model.μ)).-[I]).*model.invKnn
+    A = (model.invKnn.*(model.Σ.+model.µ.*transpose.(model.μ)).-[Diagonal{T}(I,model.nFeature)]).*model.invKnn
     if model.IndependentPriors
         return (function(Jnn,index)
                     return hyperparameter_KL_gradient(Jnn,A[index])
@@ -59,7 +59,7 @@ end
 
 """Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
 function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    A = ([I].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
+    A = ([Diagonal{T}(I,model.nFeature)].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
     ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeature) #Empty container to save data allocation
     κΣ = model.κ.*model.Σ
     if model.IndependentPriors
@@ -92,6 +92,9 @@ function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:Inference{T
     dΣ = -dot(expec_Σ(model,index),Jnn+2.0*(opt_diag(ι*model.Σ[index],model.κ[index])))
     if model.inference isa AnalyticVI
         dΣ += -dot(expec_Σ(model,index),2.0*(ι*model.μ[index]).*(model.κ[index]*model.μ[index]))
+    end
+    if model isa OnlineVGP
+
     end
     return model.inference.ρ*(dμ+dΣ)
 end

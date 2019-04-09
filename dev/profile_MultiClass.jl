@@ -1,5 +1,5 @@
-using Pkg
-pkg"add AugmentedGaussianProcesses"
+# using Pkg
+# pkg"add AugmentedGaussianProcesses"
 using AugmentedGaussianProcesses
 using Distributions
 using StatsBase, Distances
@@ -7,11 +7,11 @@ using Random: seed!
 using BenchmarkTools
 using PyCall
 using ProfileView, Profile, Traceur
-
+const AGP = AugmentedGaussianProcesses
 seed!(42)
 
 @pyimport sklearn.model_selection as sp
-N_data = 10000
+N_data = 2000
 N_dim=2
 N_class = 10
 N_test = 50
@@ -40,17 +40,20 @@ l = sqrt(initial_lengthscale(X))
 
 kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim)
 
-model = SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=500,Autotuning=true,AutotuningFrequency=1,Stochastic=false,batchsize=100,IndependentGPs=true)
+model = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticVI(),500,Autotuning=true,atfrequency=1)
 
-model.train(iterations=1)
-#Precompile functions
-    AugmentedGaussianProcesses.computeMatrices!(model)
-    AugmentedGaussianProcesses.updateHyperParameters!(model)
-    AugmentedGaussianProcesses.computeMatrices!(model)
-#Benchmark time estimation
-    @btime AugmentedGaussianProcesses.updateHyperParameters!(model)
-    AugmentedGaussianProcesses.computeMatrices!(model)
-    Profile.clear()
-#Profiling
-    @profile AugmentedGaussianProcesses.updateHyperParameters!(model)
-    ProfileView.view()
+train!(model,iterations=1)
+
+##Precompile functions
+AGP.computeMatrices!(model)
+AGP.update_hyperparameters!(model)
+AGP.computeMatrices!(model)
+
+##Benchmark time estimation
+@btime AGP.update_hyperparameters!(model)
+AGP.computeMatrices!(model)
+Profile.clear()
+
+##Profiling
+
+@profiler AGP.update_hyperparameters!(model)

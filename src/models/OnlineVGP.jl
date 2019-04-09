@@ -24,6 +24,7 @@ mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}
     κ::LatentArray{Matrix{T}}
     K̃::LatentArray{V}
     Zₐ::LatentArray{Matrix{T}}
+    Kab::LatentArray{Matrix{T}}
     κₐ::LatentArray{Matrix{T}}
     K̃ₐ::LatentArray{V}
     invDₐ::LatentArray{Symmetric{T,Matrix{T}}}
@@ -96,6 +97,7 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             Knm = deepcopy(κ)
             K̃ = LatentArray([zeros(T1,inference.nSamplesUsed) for _ in 1:nPrior])
             κₐ = LatentArray([zeros(T1, nFeature, nFeature) for _ in 1:nPrior])
+            Kab = deepcopy(κₐ)
             K̃ₐ = LatentArray([zeros(T1, nFeature) for _ in 1:nPrior])
             invDₐ = LatentArray([Symmetric(zeros(T1, nFeature, nFeature)) for _ in 1:nPrior])
             𝓛ₐ  = LatentArray(zeros(nLatent))
@@ -114,7 +116,7 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
                     Zalg,Zupdated,Sequential,dataparsed,lastindex,
                     μ,Σ,η₁,η₂,
                     Z,Kmm,invKmm,Knm,κ,K̃,
-                    Zₐ,κₐ,K̃ₐ,invDₐ,prevη₁,𝓛ₐ,
+                    Zₐ,Kab,κₐ,K̃ₐ,invDₐ,prevη₁,𝓛ₐ,
                     kernel,likelihood,inference,
                     verbose,Autotuning,atfrequency,OptimizeInducingPoints,false)
 end

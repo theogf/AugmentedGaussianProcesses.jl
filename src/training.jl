@@ -133,7 +133,9 @@ function computeMatrices!(model::OnlineVGP{<:Likelihood,<:Inference,T}) where {T
     # if model.inference.HyperParametersUpdated
         model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
         model.invKmm .= inv.(model.Kmm)
-        model.κₐ .= broadcast((invKmm,Z,Zₐ,kernel)->kernelmatrix(Zₐ,Z,kernel)*invKmm,model.invKmm,[model.Zalg.centers],model.Zₐ,model.kernel)
+        model.Kab .= broadcast((Z,Zₐ,kernel)->kernelmatrix(Zₐ,Z,kernel),model.Z,model.Zₐ,model.kernel)
+        model.κₐ .= model.Kab.*model.invKmm
+        model.K̃ₐ .= kernelmatrix.(model.Zₐ,model.kernel) + model.κₐ.*transpose.(model.Kab)
         model.Knm .= kernelmatrix.([model.X[model.inference.MBIndices,:]],model.Z,model.kernel)
         model.κ .= model.Knm.*model.invKmm
         model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
