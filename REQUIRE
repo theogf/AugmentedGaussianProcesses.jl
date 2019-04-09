@@ -10,7 +10,6 @@ FileIO
 GradDescent
 JLD2
 LaTeXStrings
-Makie
 MLKernels
 SpecialFunctions
 StatsBase
