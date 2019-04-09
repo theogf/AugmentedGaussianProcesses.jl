@@ -8,7 +8,7 @@ makedocs(modules=[AugmentedGaussianProcesses],
          "User Guide"=>"userguide.md",
          "Kernels"=>"kernel.md",
          "Examples"=>"examples.md",
-         "Other Julia GP Packages"=>"comparison.md",
+         "Julia GP Packages"=>"comparison.md",
          "API"=>"api.md"
          ]
          )

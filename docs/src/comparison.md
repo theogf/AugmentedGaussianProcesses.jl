@@ -1,4 +1,6 @@
-# AugmentedGaussianProcesses.jl vs [Stheno.jl](https://github.com/willtebbutt/Stheno.jl) vs [GaussianProcesses.jl](https://github.com/STOR-i/GaussianProcesses.jl)
+# Julia GP Package Comparison
+
+## AugmentedGaussianProcesses.jl vs [Stheno.jl](https://github.com/willtebbutt/Stheno.jl) vs [GaussianProcesses.jl](https://github.com/STOR-i/GaussianProcesses.jl)
 
 There are already two other Gaussian Process packages in Julia, however their feature are quite orthogonal. They are roughly compared here:
 AGP.jl stands for AugmentedGaussianProcesses.jl and GP.jl for GaussianProcesses.jl
@@ -48,4 +50,4 @@ AGP.jl stands for AugmentedGaussianProcesses.jl and GP.jl for GaussianProcesses.
 | Sparse GP | ✓ | ✖ | ✖ |
 | Custom prior Mean | ✖ | ✓ | ✓ |
 | Hyperparam. Opt. | ✓ | ? | ? |
-| MultiOutput | ✖ | ✓ | ✖ | 
+| MultiOutput | ✖ | ✓ | ✖ |
