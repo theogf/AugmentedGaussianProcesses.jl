@@ -45,7 +45,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Related Gaussian Processes packages",
     "category": "section",
-    "text": "GaussianProcesses.jl : General package for Gaussian Processes with many available likelihoods\nStheno.jl : Package for Gaussian Process regressionA general comparison between this package is done on Other Julia GP Packages. Benchmark evaluations may come later."
+    "text": "GaussianProcesses.jl : General package for Gaussian Processes with many available likelihoods\nStheno.jl : Package for Gaussian Process regressionA general comparison between this package is done on Julia GP Package Comparison. Benchmark evaluations may come later."
 },
 
 {
@@ -266,15 +266,23 @@ var documenterSearchIndex = {"docs": [
 
 {
     "location": "comparison/#",
-    "page": "Other Julia GP Packages",
-    "title": "Other Julia GP Packages",
+    "page": "Julia GP Packages",
+    "title": "Julia GP Packages",
     "category": "page",
     "text": ""
 },
 
 {
+    "location": "comparison/#Julia-GP-Package-Comparison-1",
+    "page": "Julia GP Packages",
+    "title": "Julia GP Package Comparison",
+    "category": "section",
+    "text": ""
+},
+
+{
     "location": "comparison/#AugmentedGaussianProcesses.jl-vs-[Stheno.jl](https://github.com/willtebbutt/Stheno.jl)-vs-[GaussianProcesses.jl](https://github.com/STOR-i/GaussianProcesses.jl)-1",
-    "page": "Other Julia GP Packages",
+    "page": "Julia GP Packages",
     "title": "AugmentedGaussianProcesses.jl vs Stheno.jl vs GaussianProcesses.jl",
     "category": "section",
     "text": "There are already two other Gaussian Process packages in Julia, however their feature are quite orthogonal. They are roughly compared here: AGP.jl stands for AugmentedGaussianProcesses.jl and GP.jl for GaussianProcesses.jl"
@@ -282,7 +290,7 @@ var documenterSearchIndex = {"docs": [
 
 {
     "location": "comparison/#Likelihood-1",
-    "page": "Other Julia GP Packages",
+    "page": "Julia GP Packages",
     "title": "Likelihood",
     "category": "section",
     "text": "Likelihood AGP.jl Stheno.jl GP.jl\nGaussian ✓ ✓ (multi-input/multi-output) ✓\nStudent-T ✓ ✖ ✓\nBernoulli ✓ (Logistic) ✖ ✓ (Probit)\nBayesian-SVM ✓ ✖ ✖\nPoisson ✖ ✖ ✓\nExponential ✖ ✖ ✓\nMultiClass ✓ ✖ ✖"
@@ -290,7 +298,7 @@ var documenterSearchIndex = {"docs": [
 
 {
     "location": "comparison/#Inference-1",
-    "page": "Other Julia GP Packages",
+    "page": "Julia GP Packages",
     "title": "Inference",
     "category": "section",
     "text": "Inference AGP.jl Stheno.jl GP.jl\nAnalytic (Gaussian only) ✓ ✓ ✓\nVariational Inference ✓ (Analytic and Num. Appr.) ✖ ✖\nGibbs-Sampling ✓ ✖ ✖\nMCMC ✖ ✖ ✓\nExpec. Propag. ✖ ✖ ✖"
@@ -298,7 +306,7 @@ var documenterSearchIndex = {"docs": [
 
 {
     "location": "comparison/#Kernels-1",
-    "page": "Other Julia GP Packages",
+    "page": "Julia GP Packages",
     "title": "Kernels",
     "category": "section",
     "text": "Kernel AGP.jl Stheno.jl GP.jl\nRBF/Squared Exponential ✓ ✓ ✓\nMatern ✓ ✖ ✓\nConst ✖ ✓ ✓\nLinear ✖ ✓ ✓\nPoly ✖ ✓ ✓\nPeriodic ✖ ✖ ✓\nExponentiated Quadratic ✖ ✓ ✖\nRational Quadratic ✖ ✓ ✓\nWiener ✖ ✓ ✖\nSum of kernel ✖ ✖ ✖\nProduct of kernels ✖ ✖ ✖"
@@ -306,7 +314,7 @@ var documenterSearchIndex = {"docs": [
 
 {
     "location": "comparison/#Other-features-1",
-    "page": "Other Julia GP Packages",
+    "page": "Julia GP Packages",
     "title": "Other features",
     "category": "section",
     "text": "Feature AGP.jl Stheno.jl GP.jl\nSparse GP ✓ ✖ ✖\nCustom prior Mean ✖ ✓ ✓\nHyperparam. Opt. ✓ ? ?\nMultiOutput ✖ ✓ ✖"
