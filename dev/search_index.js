@@ -45,7 +45,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Related Gaussian Processes packages",
     "category": "section",
-    "text": "GaussianProcesses.jl : General package for Gaussian Processes with many available likelihoods\nStheno.jl : Package for Gaussian Process regression"
+    "text": "GaussianProcesses.jl : General package for Gaussian Processes with many available likelihoods\nStheno.jl : Package for Gaussian Process regressionA general comparison between this package is done on Other Julia GP Packages. Benchmark evaluations may come later."
 },
 
 {
@@ -265,6 +265,54 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "comparison/#",
+    "page": "Other Julia GP Packages",
+    "title": "Other Julia GP Packages",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "comparison/#AugmentedGaussianProcesses.jl-vs-[Stheno.jl](https://github.com/willtebbutt/Stheno.jl)-vs-[GaussianProcesses.jl](https://github.com/STOR-i/GaussianProcesses.jl)-1",
+    "page": "Other Julia GP Packages",
+    "title": "AugmentedGaussianProcesses.jl vs Stheno.jl vs GaussianProcesses.jl",
+    "category": "section",
+    "text": "There are already two other Gaussian Process packages in Julia, however their feature are quite orthogonal. They are roughly compared here: AGP.jl stands for AugmentedGaussianProcesses.jl and GP.jl for GaussianProcesses.jl"
+},
+
+{
+    "location": "comparison/#Likelihood-1",
+    "page": "Other Julia GP Packages",
+    "title": "Likelihood",
+    "category": "section",
+    "text": "Likelihood AGP.jl Stheno.jl GP.jl\nGaussian ✓ ✓ (multi-input/multi-output) ✓\nStudent-T ✓ ✖ ✓\nBernoulli ✓ (Logistic) ✖ ✓ (Probit)\nBayesian-SVM ✓ ✖ ✖\nPoisson ✖ ✖ ✓\nExponential ✖ ✖ ✓\nMultiClass ✓ ✖ ✖"
+},
+
+{
+    "location": "comparison/#Inference-1",
+    "page": "Other Julia GP Packages",
+    "title": "Inference",
+    "category": "section",
+    "text": "Inference AGP.jl Stheno.jl GP.jl\nAnalytic (Gaussian only) ✓ ✓ ✓\nVariational Inference ✓ (Analytic and Num. Appr.) ✖ ✖\nGibbs-Sampling ✓ ✖ ✖\nMCMC ✖ ✖ ✓\nExpec. Propag. ✖ ✖ ✖"
+},
+
+{
+    "location": "comparison/#Kernels-1",
+    "page": "Other Julia GP Packages",
+    "title": "Kernels",
+    "category": "section",
+    "text": "Kernel AGP.jl Stheno.jl GP.jl\nRBF/Squared Exponential ✓ ✓ ✓\nMatern ✓ ✖ ✓\nConst ✖ ✓ ✓\nLinear ✖ ✓ ✓\nPoly ✖ ✓ ✓\nPeriodic ✖ ✖ ✓\nExponentiated Quadratic ✖ ✓ ✖\nRational Quadratic ✖ ✓ ✓\nWiener ✖ ✓ ✖\nSum of kernel ✖ ✖ ✖\nProduct of kernels ✖ ✖ ✖"
+},
+
+{
+    "location": "comparison/#Other-features-1",
+    "page": "Other Julia GP Packages",
+    "title": "Other features",
+    "category": "section",
+    "text": "Feature AGP.jl Stheno.jl GP.jl\nSparse GP ✓ ✖ ✖\nCustom prior Mean ✖ ✓ ✓\nHyperparam. Opt. ✓ ? ?\nMultiOutput ✖ ✓ ✖"
+},
+
+{
     "location": "api/#",
     "page": "API",
     "title": "API",
@@ -329,11 +377,51 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "api/#AugmentedGaussianProcesses.GaussianLikelihood",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.GaussianLikelihood",
+    "category": "type",
+    "text": "Gaussian likelihood : p(yf) = mathcalN(yfepsilon)\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.StudentTLikelihood",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.StudentTLikelihood",
+    "category": "type",
+    "text": "Student-T likelihood\n\nStudent-t likelihood for regression: fracGamma((nu+1)2)sqrtnupiGamma(nu2)left(1+t^2nuright)^(-(nu+1)2) see wiki page\n\n\n\nFor the analytical solution, it is augmented via:\n\nTODO\n\nSee paper Robust Gaussian Process Regression with a Student-t Likelihood\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.BayesianSVM",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.BayesianSVM",
+    "category": "type",
+    "text": "The Bayesian SVM is a Bayesian interpretation of the classical SVM. By using an augmentation (Laplace) one gets a conditionally conjugate likelihood (see paper)\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.LogisticLikelihood",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.LogisticLikelihood",
+    "category": "type",
+    "text": "Logistic Likelihood\n\nBernoulli likelihood with a logistic link for the Bernoulli likelihood     p(yf) = sigma(yf) = frac11+exp(-yf), (for more info see : wiki page)\n\n---\n\nFor the analytic versionm the likelihood is augmented to give a conditionally conjugate likelihood :\n```math\np(y|f,\\omega) = \\exp\\left(\\frac{1}{2}\\left(yf - (yf)^2 \\omega\\right)\\right)\n```\nwhere ``\\omega \\sim \\text{PG}(\\omega\\mid 1, 0)``, and PG is the Polya-Gamma distribution\nSee paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383)\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.LogisticSoftMaxLikelihood",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.LogisticSoftMaxLikelihood",
+    "category": "type",
+    "text": "The Logistic-Softmax likelihood\n\nThe multiclass likelihood with a logistic-softmax mapping: : p(y=if_k) = sigma(f_i) sum_k sigma(f_k) where σ is the logistic function has the same properties as softmax.\n\n\n\nFor the analytical version, the likelihood is augmented multiple times to obtain :\n\nTODO\n\nPaper with details under submission\n\n\n\n\n\n"
+},
+
+{
     "location": "api/#Likelihood-Types-1",
     "page": "API",
     "title": "Likelihood Types",
     "category": "section",
-    "text": "GaussianLikelihood\nAugmentedStudentTLikelihood\nBayesianSVM\nAugmentedLogisticLikelihood\nAugmentedLogisticSoftMaxLikelihood"
+    "text": "GaussianLikelihood\nStudentTLikelihood\nBayesianSVM\nLogisticLikelihood\nLogisticSoftMaxLikelihood"
 },
 
 {
