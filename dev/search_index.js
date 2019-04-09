@@ -37,7 +37,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Basic example",
     "category": "section",
-    "text": "Here is a simple example to start right away :using AugmentedGaussianProcesses\nmodel = SVGP(X_train,y_train,kernel=RBFKernel(1.0),AugmentedLogisticLikelihood(),AnalyticInference(),m=50)\ntrain!(model,iterations=100)\ny_pred = predict_y(model,X_test)"
+    "text": "Here is a simple example to start right away :using AugmentedGaussianProcesses\nmodel = SVGP(X_train,y_train,RBFKernel(1.0),LogisticLikelihood(),AnalyticVI(),50)\ntrain!(model,iterations=100)\ny_pred = predict_y(model,X_test)"
 },
 
 {
