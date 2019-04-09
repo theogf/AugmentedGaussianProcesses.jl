@@ -25,7 +25,7 @@ AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development 
   - **Heteroscedastic** : Non stationary noise
   - **Probit** : A Classifier with a Bernoulli likelihood with the probit link
   - **Online** : Allowing for all algorithms to work online as well
-  - **Numerical solving** : Allow for a more general class of likelihoods by applying numerical solving
+  - **Numerical solving** : Allow for a more general class of likelihoods by applying numerical solving (like GPFlow)
 
 ## Install the package
 
@@ -34,7 +34,7 @@ Run in `Julia` press `]` and type `add AugmentedGaussianProcesses`, it will inst
 
 ## Use the package
 
-A complete documentation is currently being written, for now you can use this very basic example where `X_train` is a matrix ``N x D`` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs.
+A complete documentation is currently being written, for now you can use this very basic example where `X_train` is a matrix ``N x D`` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs (or matrix more independent multi-output).
 
 ```julia
 using AugmentedGaussianProcesses
@@ -43,7 +43,8 @@ train!(model,iterations=100)
 Y_predic = predict_y(model,X_test) #For getting the label directly
 Y_predic_prob = proba_y(model,X_test) #For getting the likelihood of predicting class 1
 ```
-The documentation is currently worked on but I invite you to check the self explaining examples in the mean time [here](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/tree/master/examples/)
+
+Both [documentation](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable/) and [examples](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/tree/master/examples/) are available.
 
 ## References :
 

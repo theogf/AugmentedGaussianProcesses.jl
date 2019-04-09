@@ -20,7 +20,7 @@ pkg> add AugmentedGaussianProcesses
 Here is a simple example to start right away :
 ```julia
 using AugmentedGaussianProcesses
-model = SVGP(X_train,y_train,kernel=RBFKernel(1.0),AugmentedLogisticLikelihood(),AnalyticInference(),m=50)
+model = SVGP(X_train,y_train,RBFKernel(1.0),LogisticLikelihood(),AnalyticVI(),50)
 train!(model,iterations=100)
 y_pred = predict_y(model,X_test)
 ```
