@@ -30,6 +30,8 @@ y_pred = predict_y(model,X_test)
 - [GaussianProcesses.jl](https://github.com/STOR-i/GaussianProcesses.jl) : General package for Gaussian Processes with many available likelihoods
 - [Stheno.jl](https://github.com/willtebbutt/Stheno.jl) : Package for Gaussian Process regression
 
+A general comparison between this package is done on [Other Julia GP Packages](@ref). Benchmark evaluations may come later.
+
 ### License
 AugmentedGaussianProcesses.jl is licensed under the MIT "Expat" license; see
 [LICENSE](https://github.com/theogf/AugmentedGaussianProcesses.jl/LICENSE.md) for

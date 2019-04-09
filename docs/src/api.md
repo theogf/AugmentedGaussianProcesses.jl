@@ -26,10 +26,10 @@ SVGP
 
 ```@docs
 GaussianLikelihood
-AugmentedStudentTLikelihood
+StudentTLikelihood
 BayesianSVM
-AugmentedLogisticLikelihood
-AugmentedLogisticSoftMaxLikelihood
+LogisticLikelihood
+LogisticSoftMaxLikelihood
 ```
 
 ## Inference Types
