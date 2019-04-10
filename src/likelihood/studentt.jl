@@ -15,30 +15,31 @@ See paper [Robust Gaussian Process Regression with a Student-t Likelihood](http:
 struct StudentTLikelihood{T<:Real} <: RegressionLikelihood{T}
     ν::T
     α::T
+    σ::T
     β::LatentArray{Vector{T}}
     θ::LatentArray{Vector{T}}
-    function StudentTLikelihood{T}(ν::T) where {T<:Real}
-        new{T}(ν,(ν+one(T))/2.0)
+    function StudentTLikelihood{T}(ν::T,σ::T=one(T)) where {T<:Real}
+        new{T}(ν,(ν+one(T))/2.0,σ)
     end
-    function StudentTLikelihood{T}(ν::T,β::AbstractVector{<:AbstractVector{T}},θ::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
-        new{T}(ν,(ν+one(T))/2.0,β,θ)
+    function StudentTLikelihood{T}(ν::T,σ::T,β::AbstractVector{<:AbstractVector{T}},θ::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
+        new{T}(ν,(ν+one(T))/2.0,σ,β,θ)
     end
 end
 
-function StudentTLikelihood(ν::T) where {T<:Real}
-    StudentTLikelihood{T}(ν)
+function StudentTLikelihood(ν::T,σ::T=one(T)) where {T<:Real}
+    StudentTLikelihood{T}(ν,σ)
 end
 
 function init_likelihood(likelihood::StudentTLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
-        StudentTLikelihood{T}(likelihood.ν,[abs2.(T.(rand(T,nSamplesUsed))) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
+        StudentTLikelihood{T}(likelihood.ν,likelihood.σ,[abs2.(T.(rand(T,nSamplesUsed))) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
     else
-        StudentTLikelihood{T}(likelihood.ν)
+        StudentTLikelihood{T}(likelihood.ν,likelihood.σ)
     end
 end
 
 function pdf(l::StudentTLikelihood,y::Real,f::Real)
-    tdistpdf(l.ν,y-f)
+    tdistpdf(l.ν,(y-f)/l.σ)
 end
 
 function Base.show(io::IO,model::StudentTLikelihood{T}) where T
@@ -58,14 +59,14 @@ function compute_proba(l::StudentTLikelihood{T},μ::AbstractVector{T},σ²::Abst
         #
         # σ²_pred[i] = e(x->pdf(LocationScale(x,1.0,st))^2) - e(x->pdf(LocationScale(x,1.0,st)))^2
         if σ²[i] <= 1e-3
-            pyf =  LocationScale(μ[i],1.0,st)
+            pyf =  LocationScale(μ[i],l.σ,st)
             for j in 1:nSamples
                 temp_array[j] = rand(pyf)
             end
         else
             d = Normal(μ[i],sqrt(σ²[i]))
             for j in 1:nSamples
-                temp_array[j] = rand(LocationScale(rand(d),1.0,st))
+                temp_array[j] = rand(LocationScale(rand(d),l.σ,st))
             end
         end
         μ_pred[i] = μ[i];
@@ -77,31 +78,31 @@ end
 ###############################################################################
 
 function local_updates!(model::VGP{<:StudentTLikelihood,<:AnalyticVI})
-    model.likelihood.β .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y).+model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
+    model.likelihood.β .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y)/model.likelihood.σ.+model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
     model.likelihood.θ .= broadcast(β->0.5*(model.likelihood.ν+1.0)./β,model.likelihood.β)
 end
 
 function local_updates!(model::SVGP{<:StudentTLikelihood,<:AnalyticVI})
-    model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices]) .+model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
+    model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices])/model.likelihood.σ .+model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
     model.likelihood.θ .= broadcast(β->0.5*(model.likelihood.ν+1.0)./β,model.likelihood.β)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::VGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
-    return model.likelihood.θ[index].*model.y[index]
+    return model.likelihood.θ[index].*model.y[index]/model.likelihood.σ
 end
 
 function ∇μ(model::VGP{<:StudentTLikelihood,<:AnalyticVI})
-    return hadamard.(model.likelihood.θ,model.y)
+    return hadamard.(model.likelihood.θ,model.y)/model.likelihood.σ
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::SVGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
-    return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]
+    return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]/model.likelihood.σ
 end
 
 function ∇μ(model::SVGP{<:StudentTLikelihood,<:AnalyticVI})
-    return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))
+    return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))/model.likelihood.σ
 end
 
 function expec_Σ(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
@@ -119,14 +120,14 @@ end
 function expecLogLikelihood(model::VGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.nSample*log(twoπ)
     tot -= 0.5.*sum(broadcast(β->sum(log.(β).-model.nSample*digamma(model.likelihood.α)),model.likelihood.β))
-    tot -= 0.5.*sum(broadcast((β,Σ,μ,y)->dot(model.likelihood.α./β,Σ+abs2.(μ)-2.0*μ.*y-abs2.(y)),model.likelihood.β,diag.(model.Σ),model.μ,model.y))
+    tot -= 0.5.*sum(broadcast((β,Σ,μ,y)->dot(model.likelihood.α./β,Σ+abs2.(μ)/model.likelihood.σ-2.0*μ.*y/model.likelihood.σ-abs2.(y)/model.likelihood.σ),model.likelihood.β,diag.(model.Σ),model.μ,model.y))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.inference.nSamplesUsed*log(twoπ)
     tot -= 0.5.*sum(broadcast(β->sum(log.(β).-model.inference.nSamplesUsed*digamma(model.likelihood.α)),model.likelihood.β))
-    tot -= 0.5.*sum(broadcast((β,K̃,κ,Σ,μ,y)->dot(model.likelihood.α./β,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)-2.0*(κ*μ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.β,model.K̃,model.κ,model.Σ,model.μ,model.y))
+    tot -= 0.5.*sum(broadcast((β,K̃,κ,Σ,μ,y)->dot(model.likelihood.α./β,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)/model.likelihood.σ-2.0*(κ*μ).*y[model.inference.MBIndices]/model.likelihood.σ-abs2.(y[model.inference.MBIndices])/model.likelihood.σ)),model.likelihood.β,model.K̃,model.κ,model.Σ,model.μ,model.y))
     return model.inference.ρ*tot
 end
 

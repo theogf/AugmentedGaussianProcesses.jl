@@ -25,6 +25,12 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
         else
             return false
         end
+    elseif isa(likelihood,LaplaceLikelihood)
+        if isa(inference,AnalyticVI)
+            return true
+        else
+            return false
+        end
     elseif isa(likelihood,LogisticLikelihood)
         if isa(inference,AnalyticVI) || (model == :VGP && isa(inference,GibbsSampling))
             return true
