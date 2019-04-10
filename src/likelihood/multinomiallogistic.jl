@@ -52,6 +52,14 @@ function multinomialheaviside(f::AbstractVector)
     return y
 end
 
+function multinomialprobit(f::AbstractVector)
+    y = zero(f)
+    for (i,x) in enumerate(f)
+        y[i]=prod(cdf.(Normal(0,1),x.-f[1:length(f).!=i]))
+    end
+    return y
+end
+
 function Base.show(io::IO,model::AugmentedMultinomialLogisticLikelihood{T}) where T
     print(io,"Augmented Multinomial Logistic likelihood")
 end

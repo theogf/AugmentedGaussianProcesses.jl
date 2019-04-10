@@ -16,7 +16,7 @@ struct StudentTLikelihood{T<:Real} <: RegressionLikelihood{T}
     ν::T
     α::T
     σ::T
-    β::LatentArray{Vector{T}}
+    ω::LatentArray{Vector{T}}
     θ::LatentArray{Vector{T}}
     function StudentTLikelihood{T}(ν::T,σ::T=one(T)) where {T<:Real}
         new{T}(ν,(ν+one(T))/2.0,σ)
@@ -78,13 +78,18 @@ end
 ###############################################################################
 
 function local_updates!(model::VGP{<:StudentTLikelihood,<:AnalyticVI})
-    model.likelihood.β .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y)/model.likelihood.σ.+model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
+    model.likelihood.ω .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y)/model.likelihood.σ.+model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
     model.likelihood.θ .= broadcast(β->0.5*(model.likelihood.ν+1.0)./β,model.likelihood.β)
 end
 
 function local_updates!(model::SVGP{<:StudentTLikelihood,<:AnalyticVI})
     model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices])/model.likelihood.σ .+model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
     model.likelihood.θ .= broadcast(β->0.5*(model.likelihood.ν+1.0)./β,model.likelihood.β)
+end
+
+function sample_local!(model::VGP{<:StudentTLikelihood,<:GibbsSampling})
+    model.likelihood.λ .= broadcast((μ::AbstractVector{<:Real},y)->rand.(InverseGamma.([0.5],0.5*(abs2.(μ-y).+1.0./model.likelihood.β^2))),model.μ,model.y)
+    return nothing
 end
 
 """ Return the gradient of the expectation for latent GP `index` """

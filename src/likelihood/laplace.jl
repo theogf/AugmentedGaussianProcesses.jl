@@ -83,7 +83,7 @@ function local_updates!(model::SVGP{<:LaplaceLikelihood,<:AnalyticVI})
 end
 
 function sample_local!(model::VGP{<:LaplaceLikelihood,<:GibbsSampling})
-    model.likelihood.λ .= broadcast((μ::AbstractVector{<:Real})->rand.(InverseGamma.([0.5],0.5*(μ.^2.+1.0./model.likelihood.β^2))),model.μ)
+    model.likelihood.λ .= broadcast((μ::AbstractVector{<:Real},y)->rand.(InverseGamma.([0.5],0.5*(abs2.(μ-y).+1.0./model.likelihood.β^2))),model.μ,model.y)
     return nothing
 end
 
