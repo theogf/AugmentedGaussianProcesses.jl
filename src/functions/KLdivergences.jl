@@ -15,10 +15,10 @@ function GammaImproperKL(model::AbstractGP)
 end
 
 """Compute KL divergence for Inverse-Gamma variables"""
-function InverseGammaKL(model::AbstractGP)
-    α_p = β_p = model.likelihood.ν/2;
-    return (α_p-model.likelihood.α)*digamma(α_p).-log(gamma(α_p)).+log(gamma(model.likelihood.α))
-            .+ model.α*(log(β_p).-log.(model.β)).+α_p.*(model.β.-β_p)/β_p
+function InverseGammaKL(model::AbstractGP{<:StudentTLikelihood})
+    α_p = model.likelihood.ν/2; β_p= α_p*model.likelihood.σ
+    return sum(broadcast(β->(α_p-model.likelihood.α)*digamma(α_p).-log(gamma(α_p)).+log(gamma(model.likelihood.α))
+            .+ model.α*(log(β_p).-log.(β)).+α_p.*(β.-β_p)/β_p,model.likelihood.ω))
 end
 
 """Compute KL divergence for Poisson variables"""
@@ -41,7 +41,10 @@ function PolyaGammaKL(model::SVGP{<:LogisticSoftMaxLikelihood})
     return model.inference.ρ*sum(broadcast((y,γ,c,θ)->sum((y[model.inference.MBIndices]+γ).*logcosh.(0.5.*c)-0.5*(c.^2).*θ),model.likelihood.Y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
 end
 
-"""Compute KL divergence for Generalized inverse Gaussian variables"""
-function GIGKL(model::AbstractGP{<:BayesianSVM})
-    return model.inference.ρ*sum(broadcast(α->-0.25*sum(α)-sum(log.(besselk.(0.5,sqrt.(α))))-0.5*sum(sqrt.(α)),model.likelihood.α))
+"""Compute Entropy for Generalized inverse Gaussian latent variables (BayesianSVM)"""
+function GIGEntropy(model::AbstractGP{<:BayesianSVM})
+    return model.inference.ρ*sum(broadcast(ω->0.5*sum(a)+sum(log.(2.0*besselk.(0.5,sqrt.(α))))-0.5*sum(sqrt.(α)),model.likelihood.ω))
+end
+
+function GIGEntropy(model::AbstractGP{<:LaplaceLikelihood})
 end

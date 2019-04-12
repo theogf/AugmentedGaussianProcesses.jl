@@ -59,14 +59,14 @@ function compute_proba(l::StudentTLikelihood{T},μ::AbstractVector{T},σ²::Abst
         #
         # σ²_pred[i] = e(x->pdf(LocationScale(x,1.0,st))^2) - e(x->pdf(LocationScale(x,1.0,st)))^2
         if σ²[i] <= 1e-3
-            pyf =  LocationScale(μ[i],l.σ,st)
+            pyf =  LocationScale(μ[i],sqrt(l.σ),st)
             for j in 1:nSamples
                 temp_array[j] = rand(pyf)
             end
         else
             d = Normal(μ[i],sqrt(σ²[i]))
             for j in 1:nSamples
-                temp_array[j] = rand(LocationScale(rand(d),l.σ,st))
+                temp_array[j] = rand(LocationScale(rand(d),sqrt(l.σ),st))
             end
         end
         μ_pred[i] = μ[i];
@@ -78,44 +78,44 @@ end
 ###############################################################################
 
 function local_updates!(model::VGP{<:StudentTLikelihood,<:AnalyticVI})
-    model.likelihood.ω .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y)/model.likelihood.σ.+model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
-    model.likelihood.θ .= broadcast(β->0.5*(model.likelihood.ν+1.0)./β,model.likelihood.β)
+    model.likelihood.ω .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y).+model.likelihood.σ*model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
+    model.likelihood.θ .= broadcast(ω->model.likelihood.α./ω,model.likelihood.ω)
 end
 
 function local_updates!(model::SVGP{<:StudentTLikelihood,<:AnalyticVI})
-    model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices])/model.likelihood.σ .+model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
-    model.likelihood.θ .= broadcast(β->0.5*(model.likelihood.ν+1.0)./β,model.likelihood.β)
+    model.likelihood.ω .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices]).+model.likelihood.σ*model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
+    model.likelihood.θ .= broadcast(ω->model.likelihood.α./ω,model.likelihood.ω)
 end
 
 function sample_local!(model::VGP{<:StudentTLikelihood,<:GibbsSampling})
-    model.likelihood.λ .= broadcast((μ::AbstractVector{<:Real},y)->rand.(InverseGamma.([0.5],0.5*(abs2.(μ-y).+1.0./model.likelihood.β^2))),model.μ,model.y)
+    model.likelihood.ω .= broadcast((μ::AbstractVector{<:Real},y)->rand.(InverseGamma.(model.likelihood.α,0.5*(abs2.(μ-y).+model.likelihood.σ*model.likelihood.ν))),model.μ,model.y)
     return nothing
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::VGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
-    return model.likelihood.θ[index].*model.y[index]/model.likelihood.σ
+    return model.likelihood.θ[index].*model.y[index]
 end
 
 function ∇μ(model::VGP{<:StudentTLikelihood,<:AnalyticVI})
-    return hadamard.(model.likelihood.θ,model.y)/model.likelihood.σ
+    return hadamard.(model.likelihood.θ,model.y)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::SVGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
-    return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]/model.likelihood.σ
+    return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]
 end
 
 function ∇μ(model::SVGP{<:StudentTLikelihood,<:AnalyticVI})
-    return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))/model.likelihood.σ
+    return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))
 end
 
 function expec_Σ(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
-    return 0.5*model.likelihood.θ[index]
+    return model.likelihood.θ[index]
 end
 
 function ∇Σ(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI})
-    return 0.5*model.likelihood.θ
+    return model.likelihood.θ
 end
 
 function ELBO(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI})
@@ -124,15 +124,15 @@ end
 
 function expecLogLikelihood(model::VGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.nSample*log(twoπ)
-    tot -= 0.5.*sum(broadcast(β->sum(log.(β).-model.nSample*digamma(model.likelihood.α)),model.likelihood.β))
-    tot -= 0.5.*sum(broadcast((β,Σ,μ,y)->dot(model.likelihood.α./β,Σ+abs2.(μ)/model.likelihood.σ-2.0*μ.*y/model.likelihood.σ-abs2.(y)/model.likelihood.σ),model.likelihood.β,diag.(model.Σ),model.μ,model.y))
+    tot -= 0.5.*sum(broadcast(ω->sum(log.(ω).-model.nSample*digamma(model.likelihood.α)),model.likelihood.ω))
+    tot -= 0.5.*sum(broadcast((θ,Σ,μ,y)->dot(θ,Σ+abs2.(μ)-2.0*μ.*y-abs2.(y)),model.likelihood.θ,diag.(model.Σ),model.μ,model.y))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.inference.nSamplesUsed*log(twoπ)
-    tot -= 0.5.*sum(broadcast(β->sum(log.(β).-model.inference.nSamplesUsed*digamma(model.likelihood.α)),model.likelihood.β))
-    tot -= 0.5.*sum(broadcast((β,K̃,κ,Σ,μ,y)->dot(model.likelihood.α./β,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)/model.likelihood.σ-2.0*(κ*μ).*y[model.inference.MBIndices]/model.likelihood.σ-abs2.(y[model.inference.MBIndices])/model.likelihood.σ)),model.likelihood.β,model.K̃,model.κ,model.Σ,model.μ,model.y))
+    tot -= 0.5.*sum(broadcast(ω->sum(log.(ω).-model.inference.nSamplesUsed*digamma(model.likelihood.α)),model.likelihood.ω))
+    tot -= 0.5.*sum(broadcast((θ,K̃,κ,Σ,μ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)-2.0*(κ*μ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.μ,model.y))
     return model.inference.ρ*tot
 end
 

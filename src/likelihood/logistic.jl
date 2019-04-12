@@ -100,11 +100,11 @@ function ∇μ(model::SVGP{<:LogisticLikelihood})
 end
 
 function expec_Σ(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
-    return 0.5*model.likelihood.θ[index]
+    return model.likelihood.θ[index]
 end
 
 function ∇Σ(model::AbstractGP{<:LogisticLikelihood})
-    return 0.5*model.likelihood.θ
+    return model.likelihood.θ
 end
 
 function ELBO(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI})

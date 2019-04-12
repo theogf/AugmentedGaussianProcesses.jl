@@ -3,13 +3,13 @@ The [Bayesian SVM](https://arxiv.org/abs/1707.05532) is a Bayesian interpretatio
 By using an augmentation (Laplace) one gets a conditionally conjugate likelihood (see paper)
 """
 struct BayesianSVM{T<:Real} <: ClassificationLikelihood{T}
-    α::AbstractVector{AbstractVector{T}}
+    ω::AbstractVector{AbstractVector{T}}
     θ::AbstractVector{AbstractVector{T}}
     function BayesianSVM{T}() where {T<:Real}
         new{T}()
     end
-    function BayesianSVM{T}(α::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
-        new{T}(α,θ)
+    function BayesianSVM{T}(ω::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
+        new{T}(ω,θ)
     end
 end
 
@@ -38,7 +38,7 @@ end
 
 """Return the pseudo likelihood of the SVM hinge loss"""
 function svmpseudolikelihood(f::Real)
-    return exp.(-2.0*max.(1.0.-f,0))
+    return exp(-2.0*max.(1.0-f,0))
 end
 
 
@@ -59,7 +59,7 @@ end
 
 
 function local_updates!(model::VGP{BayesianSVM{T},<:AnalyticVI}) where {T<:Real}
-    model.likelihood.α .= broadcast((μ,Σ,y)->abs2.(one(T) .- y.*μ) + Σ ,model.μ,diag.(model.Σ),model.y)
+    model.likelihood.ω .= broadcast((μ,Σ,y)->abs2.(one(T) .- y.*μ) + Σ ,model.μ,diag.(model.Σ),model.y)
     model.likelihood.θ .= broadcast(α->one(T)./sqrt.(α),model.likelihood.α)
 end
 
@@ -91,11 +91,11 @@ function expec_Σ(model::AbstractGP{BayesianSVM{T}},index::Integer) where {T<:Re
 end
 
 function ∇Σ(model::AbstractGP{BayesianSVM{T}}) where {T<:Real}
-    return 0.5*model.likelihood.θ
+    return model.likelihood.θ
 end
 
 function ELBO(model::AbstractGP{<:BayesianSVM})
-    return expecLogLikelihood(model) - GaussianKL(model) - GIGKL(model)
+    return expecLogLikelihood(model) - GaussianKL(model) - GIGEntropy(model)
 end
 
 function expecLogLikelihood(model::VGP{BayesianSVM{T},AnalyticVI{T}}) where {T<:Real}

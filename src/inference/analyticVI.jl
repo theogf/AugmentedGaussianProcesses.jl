@@ -78,13 +78,13 @@ end
 """Coordinate ascent updates on the natural parameters"""
 function natural_gradient!(model::VGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
     model.η₁ .= ∇μ(model)
-    model.η₂ .= -Symmetric.(Diagonal{T}.(∇Σ(model)).+0.5.*model.invKnn)
+    model.η₂ .= Symmetric.(-0.5*(Diagonal{T}.(∇Σ(model)).+model.invKnn))
 end
 
 """Computation of the natural gradient for the natural parameters"""
 function natural_gradient!(model::SVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
     model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*∇μ(model) .- model.η₁
-    model.inference.∇η₂ .= -(model.inference.ρ.*transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+0.5.*model.invKmm) .- model.η₂
+    model.inference.∇η₂ .= -0.5*(model.inference.ρ.*transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+model.invKmm) .- model.η₂
 end
 
 """Conversion from natural to standard distribution parameters"""

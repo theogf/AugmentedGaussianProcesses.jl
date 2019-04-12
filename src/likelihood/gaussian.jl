@@ -64,11 +64,11 @@ function ∇μ(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
 end
 
 function expec_Σ(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}},index::Integer) where {T<:Real}
-    return fill(0.5/model.likelihood.ϵ[index],model.inference.nSamplesUsed)
+    return fill(1.0/model.likelihood.ϵ[index],model.inference.nSamplesUsed)
 end
 
 function ∇Σ(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
-    return [fill(0.5/model.likelihood.ϵ[i],model.inference.nSamplesUsed) for i in 1:model.nLatent]
+    return [fill(1.0/model.likelihood.ϵ[i],model.inference.nSamplesUsed) for i in 1:model.nLatent]
 end
 
 

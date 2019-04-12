@@ -57,7 +57,7 @@ function ELBO(model::AbstractGP{<:Likelihood,<:GibbsSampling})
 end
 
 function sample_global!(model::VGP{<:Likelihood,<:GibbsSampling})
-    model.Σ .= inv.(Symmetric.(2.0*Diagonal.(∇Σ(model)).+model.invKnn))
+    model.Σ .= inv.(Symmetric.(Diagonal.(∇Σ(model)).+model.invKnn))
     model.μ .= rand.(MvNormal.(model.Σ.*∇μ(model),model.Σ))
     return nothing
 end
