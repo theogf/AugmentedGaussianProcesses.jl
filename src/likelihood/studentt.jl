@@ -89,6 +89,7 @@ end
 
 function sample_local!(model::VGP{<:StudentTLikelihood,<:GibbsSampling})
     model.likelihood.ω .= broadcast((μ::AbstractVector{<:Real},y)->rand.(InverseGamma.(model.likelihood.α,0.5*(abs2.(μ-y).+model.likelihood.σ*model.likelihood.ν))),model.μ,model.y)
+    model.likelihood.θ .= broadcast(ω->1.0./ω,model.likelihood.ω)
     return nothing
 end
 
@@ -97,7 +98,7 @@ function expec_μ(model::VGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
     return model.likelihood.θ[index].*model.y[index]
 end
 
-function ∇μ(model::VGP{<:StudentTLikelihood,<:AnalyticVI})
+function ∇μ(model::VGP{<:StudentTLikelihood})
     return hadamard.(model.likelihood.θ,model.y)
 end
 
@@ -114,7 +115,7 @@ function expec_Σ(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI},index::In
     return model.likelihood.θ[index]
 end
 
-function ∇Σ(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI})
+function ∇Σ(model::AbstractGP{<:StudentTLikelihood})
     return model.likelihood.θ
 end
 

@@ -16,13 +16,13 @@ struct LaplaceLikelihood{T<:Real} <: RegressionLikelihood{T}
     β::T
     a::T
     p::T
-    b::LatentArray{Vector{T}}
+    ω::LatentArray{Vector{T}}
     θ::LatentArray{Vector{T}}
     function LaplaceLikelihood{T}(β::T) where {T<:Real}
         new{T}(β,β^-2,0.5)
     end
-    function LaplaceLikelihood{T}(β::T,b::AbstractVector{<:AbstractVector{T}},θ::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
-        new{T}(β,β^-2,0.5,b,θ)
+    function LaplaceLikelihood{T}(β::T,ω::AbstractVector{<:AbstractVector{T}},θ::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
+        new{T}(β,β^-2,0.5,ω,θ)
     end
 end
 
@@ -76,17 +76,17 @@ end
 ###############################################################################
 
 function local_updates!(model::VGP{<:LaplaceLikelihood,<:AnalyticVI})
-    model.likelihood.b .= broadcast((Σ,μ,y)->(Σ+abs2.(μ-y)),diag.(model.Σ),model.μ,model.y)
-    model.likelihood.θ .= broadcast(b->(b.^(-0.5))/model.likelihood.β,model.likelihood.b)
+    model.likelihood.ω .= broadcast((Σ,μ,y)->(Σ+abs2.(μ-y)),diag.(model.Σ),model.μ,model.y)
+    model.likelihood.θ .= broadcast(b->1.0./(sqrt.(b)*model.likelihood.β),model.likelihood.ω)
 end
 
 function local_updates!(model::SVGP{<:LaplaceLikelihood,<:AnalyticVI})
-    model.likelihood.b .= broadcast((K̃,κ,Σ,μ,y)->(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices])),model.K̃,model.κ,model.Σ,model.μ,model.y)
-    model.likelihood.θ .= broadcast(b->(b.^(-0.5))/model.likelihood.β,model.likelihood.b)
+    model.likelihood.ω .= broadcast((K̃,κ,Σ,μ,y)->(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices])),model.K̃,model.κ,model.Σ,model.μ,model.y)
+    model.likelihood.θ .= broadcast(b->1.0./(sqrt.(b)*model.likelihood.β),model.likelihood.ω)
 end
 
 function sample_local!(model::VGP{<:LaplaceLikelihood,<:GibbsSampling})
-    model.likelihood.b .= NaN
+    model.likelihood.ω .= NaN
     return nothing
 end
 
@@ -117,12 +117,12 @@ function ∇Σ(model::AbstractGP{<:LaplaceLikelihood,<:AnalyticVI})
 end
 
 function ELBO(model::AbstractGP{<:LaplaceLikelihood,<:AnalyticVI})
-    return NaN #expecLogLikelihood(model) - InverseGammaKL(model) - GaussianKL(model)
+    return NaN #expecLogLikelihood(model) - InverseGammaKL(model) - GaussianKL(model) #TODO
 end
 
 function expecLogLikelihood(model::VGP{LaplaceLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.nSample*log(twoπ)
-    tot -= 0.5.*sum(broadcast(β->sum(log.(β).-model.nSample*digamma(model.likelihood.α)),model.likelihood.β))
+    #tot -= 0.5.*sum(broadcast(β->sum(log.(β).-model.nSample*digamma(model.likelihood.α)),model.likelihood.β))
     # tot -= 0.5.*sum(broadcast((β,Σ,μ,y)->dot(model.likelihood.α./β,Σ+abs2.(μ)-2.0*μ.*y-abs2.(y)),model.likelihood.β,diag.(model.Σ),model.μ,model.y))
     return tot
 end

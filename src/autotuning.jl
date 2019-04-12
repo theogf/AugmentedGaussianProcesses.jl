@@ -38,28 +38,28 @@ end
 
 
 """Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
-function hyperparameter_gradient_function(model::VGP) where {T<:Real}
-    A = (model.invKnn.*(model.Σ.+model.µ.*transpose.(model.μ)).-[I]).*model.invKnn
+function hyperparameter_gradient_function(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
+    A = ([Diagonal{T}(I,model.nFeature)].-model.invKnn.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKnn
     if model.IndependentPriors
         return (function(Jnn,index)
-                    return hyperparameter_KL_gradient(Jnn,A[index])
+                    return -hyperparameter_KL_gradient(Jnn,A[index])
                 end,
                 function(kernel,index)
-                    return 1.0/getvariance(kernel)*hyperparameter_KL_gradient(model.Knn[index],A[index])
+                    return -1.0/getvariance(kernel)*hyperparameter_KL_gradient(model.Knn[index],A[index])
                 end)
     else
         return (function(Jnn,index)
-            return sum(hyperparameter_KL_gradient.([Jnn],A))
+            return -sum(hyperparameter_KL_gradient.([Jnn],A))
                 end,
                 function(kernel,index)
-                    return 1.0/getvariance(kernel)*sum(hyperparameter_KL_gradient.(model.Knn,A))
+                    return -1.0/getvariance(kernel)*sum(hyperparameter_KL_gradient.(model.Knn,A))
                 end)
     end
 end
 
 """Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
 function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    A = ([I].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
+    A = ([Diagonal{T}(I,model.nFeature)].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
     ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeature) #Empty container to save data allocation
     κΣ = model.κ.*model.Σ
     if model.IndependentPriors
@@ -90,7 +90,7 @@ function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:AnalyticVI{
     Jnn .-= opt_diag(ι,model.Knm[index]) + opt_diag(model.κ[index],Jnm)
     dμ = dot(expec_μ(model,index),ι*model.μ[index])
     dΣ = -0.5*dot(expec_Σ(model,index),Jnn)
-    dΣ += -0.5*dot(expec_Σ(model,index,2.0*(opt_diag(ι*model.Σ[index],model.κ[index]))))
+    dΣ += -0.5*dot(expec_Σ(model,index),2.0*(opt_diag(ι*model.Σ[index],model.κ[index])))
     dΣ += -0.5*dot(expec_Σ(model,index),2.0*(ι*model.μ[index]).*(model.κ[index]*model.μ[index]))
     return model.inference.ρ*(dμ+dΣ)
 end

@@ -31,7 +31,7 @@ function testconv(model::AbstractGP,problem_type::String,X::AbstractArray,y::Abs
     py_pred = proba_y(model,X)
     if problem_type == "Regression"
         err = mean(abs2.(y_pred-y))
-        return err < 0.2
+        return err < 0.3
     elseif problem_type == "Classification"
         err = mean(y_pred.!=y)
         return err < 0.2

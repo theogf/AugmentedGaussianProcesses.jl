@@ -17,8 +17,8 @@ end
 """Compute KL divergence for Inverse-Gamma variables"""
 function InverseGammaKL(model::AbstractGP{<:StudentTLikelihood})
     α_p = model.likelihood.ν/2; β_p= α_p*model.likelihood.σ
-    return sum(broadcast(β->(α_p-model.likelihood.α)*digamma(α_p).-log(gamma(α_p)).+log(gamma(model.likelihood.α))
-            .+ model.α*(log(β_p).-log.(β)).+α_p.*(β.-β_p)/β_p,model.likelihood.ω))
+    return sum(broadcast(β->(α_p-model.likelihood.α)*digamma(α_p)-log(gamma(α_p))+log(gamma(model.likelihood.α))
+            + model.likelihood.α*sum(log(β_p).-log.(β))+α_p*sum(β.-β_p)/β_p,model.likelihood.ω))
 end
 
 """Compute KL divergence for Poisson variables"""
@@ -43,7 +43,7 @@ end
 
 """Compute Entropy for Generalized inverse Gaussian latent variables (BayesianSVM)"""
 function GIGEntropy(model::AbstractGP{<:BayesianSVM})
-    return model.inference.ρ*sum(broadcast(ω->0.5*sum(a)+sum(log.(2.0*besselk.(0.5,sqrt.(α))))-0.5*sum(sqrt.(α)),model.likelihood.ω))
+    return model.inference.ρ*sum(broadcast(b->0.5*sum(b)+sum(log.(2.0*besselk.(0.5,sqrt.(b))))-0.5*sum(sqrt.(b)),model.likelihood.ω))
 end
 
 function GIGEntropy(model::AbstractGP{<:LaplaceLikelihood})
