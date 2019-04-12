@@ -33,8 +33,7 @@ using .HyperParametersModule:
         update!,
         setfixed!,
         setfree!,
-        setparamoptimizer!,
-        getvarianceoptimizer
+        setparamoptimizer!
 
 import Base: *, +, getindex, show
 export Kernel, KernelSum, KernelProduct
@@ -47,7 +46,7 @@ export kernelderivativematrix,kernelderivativediagmatrix
 export InnerProduct, SquaredEuclidean, Identity
 export compute_hyperparameter_gradient
 export compute,plotkernel
-export getvalue,setvalue!,setfixed!,setfree!,setoptimizer!
+export getvalue,setvalue!,setfixed!,setfree!,setoptimizer!, getvarianceoptimizer
 export getlengthscales, getvariance
 export isARD,isIso
 export HyperParameter,HyperParameters,Interval, OpenBound,  NullBound

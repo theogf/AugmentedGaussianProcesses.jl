@@ -49,7 +49,7 @@ end
 
 """Get optimizer for variance of kernel"""
 function getvarianceoptimizer(k::Kernel{T}) where {T<:Real}
-    k.fields.variance,opt
+    k.fields.variance.opt
 end
 
 isARD(::Kernel{T,KT}) where {T<:Real,KT<:ARDKernel} = true
