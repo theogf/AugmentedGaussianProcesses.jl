@@ -14,9 +14,10 @@ AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development 
 
     ![Classification Plot](docs/figures/Classification.png)
 ---
-## Two GP Regression likelihood
+## Three GP Regression likelihood
   - **Gaussian** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here) [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20Gaussian.ipynb)/[Reference][arxivgpbigdata]
   - **StudentT** : The standard Gaussian Process regression with a Student-t likelihood (the degree of freedom ν is not optimizable for the moment) [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20StudentT.ipynb)/[Reference][jmlrstudentt]
+  - **Laplace** : Gaussian Process regression with a Laplace likelihood (https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20Laplace.ipynb)/(No reference at the moment)
 
    ![Regression Plot](docs/figures/Regression.png)
 ---
