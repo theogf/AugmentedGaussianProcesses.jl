@@ -12,7 +12,7 @@ k = AGP.RBFKernel()
 
 X = rand(nData,nDim)
 y = Dict("Regression"=>norm.(eachrow(X)),"Classification"=>sign.(norm.(eachrow(X)).-1.0),"MultiClass"=>floor.(norm.(eachrow(X.*2))))
-reg_likelihood = ["GaussianLikelihood","StudentTLikelihood"]
+reg_likelihood = ["GaussianLikelihood","StudentTLikelihood","LaplaceLikelihood"]
 class_likelihood = ["BayesianSVM","LogisticLikelihood"]
 multiclass_likelihood = ["LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
 likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood]

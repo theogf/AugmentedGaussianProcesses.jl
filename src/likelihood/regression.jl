@@ -2,7 +2,7 @@ abstract type RegressionLikelihood{T<:Real} <: Likelihood{T} end
 
 include("gaussian.jl")
 include("studentt.jl")
-
+include("laplace.jl")
 
 """ Return the labels in a vector of vectors for multiple outputs"""
 function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:RegressionLikelihood}

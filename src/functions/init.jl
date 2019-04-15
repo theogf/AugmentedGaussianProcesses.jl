@@ -12,41 +12,53 @@ end
 """ Verify that the likelihood and inference are compatible (are implemented) """
 function check_implementation(model::Symbol,likelihood::L,inference::I) where {I<:Inference,L<:Likelihood}
     if isa(likelihood,GaussianLikelihood)
-        if model == :GP && isa(inference,Analytic)
+        if model == :GP && inference isa Analytic
             return true
-        elseif model == :SVGP && isa(inference,AnalyticVI)
-            return true
-        else
-            return false
-        end
-    elseif isa(likelihood,StudentTLikelihood)
-        if isa(inference,AnalyticVI)
+        elseif model == :SVGP && inference isa AnalyticVI
             return true
         else
             return false
         end
-    elseif isa(likelihood,LogisticLikelihood)
-        if isa(inference,AnalyticVI) || (model == :VGP && isa(inference,GibbsSampling))
+    elseif likelihood isa StudentTLikelihood
+        if inference isa AnalyticVI
+            return true
+        elseif model == :VGP && inference isa GibbsSampling
             return true
         else
             return false
         end
-    elseif isa(likelihood,BayesianSVM)
-        if isa(inference,AnalyticVI)
+    elseif likelihood isa LaplaceLikelihood
+        if inference isa AnalyticVI
             return true
         else
             return false
         end
-    elseif isa(likelihood,SoftMaxLikelihood)
-        if isa(inference,MCMCIntegrationVI)
+    elseif likelihood isa LogisticLikelihood
+        if inference isa AnalyticVI
+            return true
+        elseif model == :VGP && inference isa GibbsSampling
             return true
         else
             return false
         end
-    elseif isa(likelihood,LogisticSoftMaxLikelihood)
-        if isa(inference,AnalyticVI) || (model == :VGP && isa(inference,GibbsSampling))
+    elseif likelihood isa BayesianSVM
+        if inference isa AnalyticVI
             return true
-        elseif isa(inference,MCMCIntegrationVI)
+        else
+            return false
+        end
+    elseif likelihood isa SoftMaxLikelihood
+        if inference isa MCMCIntegrationVI
+            return true
+        else
+            return false
+        end
+    elseif likelihood isa LogisticSoftMaxLikelihood
+        if inference isa AnalyticVI
+            return true
+        elseif model == :VGP && inference isa GibbsSampling
+            return true
+        elseif inference isa MCMCIntegrationVI
             return true
         else
             return false

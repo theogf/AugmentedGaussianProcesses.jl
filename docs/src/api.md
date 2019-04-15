@@ -27,8 +27,9 @@ SVGP
 ```@docs
 GaussianLikelihood
 StudentTLikelihood
-BayesianSVM
+LaplaceLikelihood
 LogisticLikelihood
+BayesianSVM
 LogisticSoftMaxLikelihood
 ```
 
@@ -37,13 +38,11 @@ LogisticSoftMaxLikelihood
 ```@docs
 AnalyticVI
 AnalyticSVI
-NumericalVI
-NumericalSVI
+GibbsSampling
 QuadratureVI
 QuadratureSVI
 MCMCIntegrationVI
 MCMCIntegrationSVI
-GibbsSampling
 ```
 
 ## Functions and methods

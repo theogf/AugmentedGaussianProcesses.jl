@@ -1,5 +1,9 @@
 """
-Softmax likelihood : ``p(y=i|{fₖ}) = exp(fᵢ)/ ∑ exp(fₖ) ``
+**SoftMax Likelihood**
+
+Multiclass likelihood with Softmax transformation: ``p(y=i|{f_k}) = \\exp(f_i)/ \\sum_{j=1}\\exp(f_j) ``
+
+There is no possible augmentation for this likelihood
 """
 struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
     Y::AbstractVector{BitVector} #Mapping from instances to classes

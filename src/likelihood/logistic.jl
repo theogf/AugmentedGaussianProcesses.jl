@@ -4,41 +4,41 @@
 Bernoulli likelihood with a logistic link for the Bernoulli likelihood
     ``p(y|f) = \\sigma(yf) = \\frac{1}{1+\\exp(-yf)}``, (for more info see : [wiki page](https://en.wikipedia.org/wiki/Logistic_function))
 
-    ---
+```julia
+LogisticLikelihood()
+```
 
-    For the analytic versionm the likelihood is augmented to give a conditionally conjugate likelihood :
-    ```math
-    p(y|f,\\omega) = \\exp\\left(\\frac{1}{2}\\left(yf - (yf)^2 \\omega\\right)\\right)
-    ```
-    where ``\\omega \\sim \\text{PG}(\\omega\\mid 1, 0)``, and PG is the Polya-Gamma distribution
-    See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383)
-    """
-    struct LogisticLikelihood{T<:Real} <: ClassificationLikelihood{T}
-        c::AbstractVector{AbstractVector{T}}
-        θ::AbstractVector{AbstractVector{T}}
-        function LogisticLikelihood{T}() where {T<:Real}
-            new{T}()
-        end
-        function LogisticLikelihood{T}(c::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
-            new{T}(c,θ)
-        end
-    end
+---
 
-    function LogisticLikelihood()
-        LogisticLikelihood{Float64}()
-    end
-
-    function init_likelihood(likelihood::LogisticLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer) where T
-        if inference isa AnalyticVI || inference isa GibbsSampling
-            LogisticLikelihood{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
-        else
-            LogisticLikelihood{T}()
-        end
-    end
+For the analytic version the likelihood, it is augmented via:
+```math
+p(y|f,\\omega) = \\exp\\left(\\frac{1}{2}\\left(yf - (yf)^2 \\omega\\right)\\right)
+```
+where ``\\omega \\sim \\text{PG}(\\omega\\mid 1, 0)``, and PG is the Polya-Gamma distribution
+See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383)
 """
-Logistic likelihood : ``p(y|f) = \\sigma(yf) = (1+\\exp(-yf))\\^{-1} ``
+struct LogisticLikelihood{T<:Real} <: ClassificationLikelihood{T}
+    c::AbstractVector{AbstractVector{T}}
+    θ::AbstractVector{AbstractVector{T}}
+    function LogisticLikelihood{T}() where {T<:Real}
+        new{T}()
+    end
+    function LogisticLikelihood{T}(c::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
+        new{T}(c,θ)
+    end
+end
 
-"""
+function LogisticLikelihood()
+    LogisticLikelihood{Float64}()
+end
+
+function init_likelihood(likelihood::LogisticLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer) where T
+    if inference isa AnalyticVI || inference isa GibbsSampling
+        LogisticLikelihood{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
+    else
+        LogisticLikelihood{T}()
+    end
+end
 
 function pdf(l::LogisticLikelihood,y::Real,f::Real)
     logistic(y*f)
@@ -81,7 +81,6 @@ function sample_local!(model::VGP{<:LogisticLikelihood,<:GibbsSampling})
     return nothing
 end
 
-""" Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::VGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
     return 0.5*model.y[index]
 end
@@ -90,7 +89,6 @@ function ∇μ(model::VGP{<:LogisticLikelihood})
     return 0.5*model.y
 end
 
-""" Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::SVGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
     return 0.5.*model.y[index][model.inference.MBIndices]
 end
@@ -100,11 +98,11 @@ function ∇μ(model::SVGP{<:LogisticLikelihood})
 end
 
 function expec_Σ(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
-    return 0.5*model.likelihood.θ[index]
+    return model.likelihood.θ[index]
 end
 
 function ∇Σ(model::AbstractGP{<:LogisticLikelihood})
-    return 0.5*model.likelihood.θ
+    return model.likelihood.θ
 end
 
 function ELBO(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI})
