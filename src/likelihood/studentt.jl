@@ -4,12 +4,18 @@
 Student-t likelihood for regression: ``\\frac{\\Gamma((\\nu+1)/2)}{\\sqrt{\\nu\\pi}\\Gamma(\\nu/2)}\\left(1+t^2/\\nu\\right)^{(-(\\nu+1)/2)}``
 see [wiki page](https://en.wikipedia.org/wiki/Student%27s_t-distribution)
 
+```julia
+StudentTLikelihood(ν::T,σ::Real=one(T)) #ν is the number of degrees of freedom
+#σ is the variance for local scale of the data.
+```
+
 ---
 
 For the analytical solution, it is augmented via:
 ```math
-#TODO
+p(y|f,\\omega) = \\mathcal{N}(y|f,\\omega)
 ```
+Where ``\\omega \\sim \\mathcal{IG}(\\frac{\\nu}{2},\\frac{\\nu}{2})`` where ``\\mathcal{IG}`` is the inverse gamma distribution
 See paper [Robust Gaussian Process Regression with a Student-t Likelihood](http://www.jmlr.org/papers/volume12/jylanki11a/jylanki11a.pdf)
 """
 struct StudentTLikelihood{T<:Real} <: RegressionLikelihood{T}

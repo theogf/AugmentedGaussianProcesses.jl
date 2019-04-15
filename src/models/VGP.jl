@@ -1,4 +1,33 @@
-""" Class for variational Gaussian Processes models (non-sparse)"""
+"""
+Class for variational Gaussian Processes models (non-sparse)
+
+```julia
+ VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},
+     kernel::Union{Kernel,AbstractVector{<:Kernel}},
+     likelihood::LikelihoodType,inference::InferenceType;
+     verbose::Integer=0,Autotuning::Bool=true,
+     atfrequency::Integer=1,IndependentPriors::Bool=true,
+     ArrayType::UnionAll=Vector)
+```
+
+Argument list :
+
+**Mandatory arguments**
+
+ - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
+ - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
+ - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
+ - `likelihood` : likelihood of the model, currently implemented : Gaussian, Bernoulli (with logistic link), Multiclass (softmax or logistic-softmax) see [`Likelihood Types`](@ref likelihood_user)
+ - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the [`Compatibility Table`](@ref compat_table)
+
+**Keyword arguments**
+
+ - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
+ - `Autotuning` : Flag for optimizing hyperparameters
+ - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
+ - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
+ - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
+"""
 mutable struct VGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: AbstractGP{L,I,T,V}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
@@ -23,22 +52,7 @@ mutable struct VGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: A
     Trained::Bool
 end
 
-"""Create a variational Gaussian Process model
-Argument list :
 
-**Mandatory arguments**
- - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
- - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
- - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
- - `likelihood` : likelihood of the model, currently implemented : Gaussian, Bernoulli (with logistic link), Multiclass (softmax or logistic-softmax) see [`Likelihood`](@ref)
- - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see [`Inference`](@ref)
-**Optional arguments**
- - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `Autotuning` : Flag for optimizing hyperparameters
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
-"""
 function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
             likelihood::LikelihoodType,inference::InferenceType;
             verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,

@@ -1,6 +1,18 @@
 """
+**Bayesian SVM**
+
 The [Bayesian SVM](https://arxiv.org/abs/1707.05532) is a Bayesian interpretation of the classical SVM.
-By using an augmentation (Laplace) one gets a conditionally conjugate likelihood (see paper)
+``p(y|f) \\propto \\exp\\left(2\\max(1-yf,0)\\right)``
+
+```julia
+BayesianSVM()
+```
+---
+For the analytic version of the likelihood, it is augmented via:
+```math
+p(y|f,\\omega) = \\frac{1}{\\sqrt{2\\pi\\omega}}\\exp\\left(-\\frac{1}{2}\\frac{(1+\\omega-yf)^2}{\\omega}\\right)
+```
+where ``\\omega\\sim 1_{[0,\\infty]}`` has an improper prior (his posterior is however has a valid distribution (Generalized Inverse Gaussian)). For reference [see this paper](http://ecmlpkdd2017.ijs.si/papers/paperID502.pdf)
 """
 struct BayesianSVM{T<:Real} <: ClassificationLikelihood{T}
     ω::AbstractVector{AbstractVector{T}}

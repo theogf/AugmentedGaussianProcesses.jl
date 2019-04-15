@@ -1,4 +1,16 @@
-""" Solve conjugate or conditionally conjugate likelihoods (especially valid for augmented likelihoods) """
+"""
+**AnalyticVI**
+
+Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
+All data is used at each iteration (use AnalyticSVI for Stochastic updates)
+
+```julia
+AnalyticVI(;ϵ::T=1e-5)
+```
+**Keywords arguments**
+
+    - `ϵ::T` : convergence criteria
+"""
 mutable struct AnalyticVI{T<:Real} <: Inference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
@@ -21,30 +33,24 @@ mutable struct AnalyticVI{T<:Real} <: Inference{T}
     end
 end
 
-"""`AnalyticVI(;ϵ::T=1e-5)`
 
-Return an `AnalyticVI{T}` object, corresponding to Variational Inference with analytical updates using the whole dataset every iteration.
-
-**Keywords arguments**
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is classical gradient descent with step size 1 (not used in practice)
-"""
 function AnalyticVI(;ϵ::T=1e-5) where {T<:Real}
     AnalyticVI{Float64}(ϵ,0,[VanillaGradDescent(η=1.0)],[VanillaGradDescent(η=1.0)],false,1,1,[1],1.0,true)
 end
 
-"""`AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=ALRSVI())`
+"""
+**AnalyticSVI**
+Stochastic Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
 
-Return an `AnalyticVI{T}` object with stochastic updates, corresponding to Stochastic Variational Inference with analytical updates.
-
-**Positional argument**
-
+```julia
+AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=ALRSVI())
+```
     - `nMinibatch::Integer` : Number of samples per mini-batches
 
 **Keywords arguments**
 
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `ALRSVI()` (Adaptive Learning Rate for Stochastic Variational Inference)
+    - `ϵ::T` : convergence criteria
+    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `ALRSVI()` (Adaptive Learning Rate for Stochastic Variational Inference)
 """
 function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=ALRSVI()) where {T<:Real}
     AnalyticVI{T}(ϵ,0,[optimizer],[optimizer],true,1,nMinibatch,1:nMinibatch,1.0,true)

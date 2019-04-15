@@ -1,3 +1,18 @@
+"""
+**QuadratureVI**
+
+Variational Inference solver by approximating gradients via numerical integration via Quadrature
+
+```julia
+QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))
+```
+
+**Keyword arguments**
+
+    - `ϵ::T` : convergence criteria
+    - `nGaussHermite::Int` : Number of points for the integral estimation
+    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Adam()`
+"""
 mutable struct QuadratureVI{T<:Real} <: NumericalVI{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
@@ -19,34 +34,26 @@ mutable struct QuadratureVI{T<:Real} <: NumericalVI{T}
     end
 end
 
-
-""" `QuadratureVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))`
-
-Constructor for Variational Inference via quadrature approximation.
-
-**Keyword arguments**
-
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
-"""
 function QuadratureVI(;ϵ::T=1e-5,nGaussHermite::Integer=1000,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
     QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false)
 end
 
-""" `QuadratureSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))`
 
-Constructor for Stochastic Variational Inference via quadrature approximation.
+"""
+**QuadratureSVI**
 
-**Argument**
+Stochastic Variational Inference solver by approximating gradients via numerical integration via Quadrature
 
+```julia
+QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))
+```
     -`nMinibatch::Integer` : Number of samples per mini-batches
 
 **Keyword arguments**
 
     - `ϵ::T` : convergence criteria, which can be user defined
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
+    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Adam()`
 """
 function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
     QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false,nMinibatch)

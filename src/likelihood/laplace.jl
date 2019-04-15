@@ -4,13 +4,17 @@
 Laplace likelihood for regression: ``\\frac{1}{2\\beta}\\exp\\left(-\\frac{|y-f|}{\\beta}\\right)``
 see [wiki page](https://en.wikipedia.org/wiki/Laplace_distribution)
 
+```julia
+LaplaceLikelihood(β::T=1.0)  #  Laplace likelihood with scale β
+```
+
 ---
 
 For the analytical solution, it is augmented via:
 ```math
-#TODO
+p(y|f,\\omega) = \\mathcal{N}(y|f,\\omega^{-1})
 ```
-
+where ``\\omega \\sim \\text{Exp}\\left(\\omega \\mid \\frac{1}{2 \\beta^2}\\right)``, and Exp is the [Exponential distribution](https://en.wikipedia.org/wiki/Exponential_distribution)
 """
 struct LaplaceLikelihood{T<:Real} <: RegressionLikelihood{T}
     β::T

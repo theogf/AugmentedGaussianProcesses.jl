@@ -1,4 +1,30 @@
-"Class for variational Gaussian Processes models (non-sparse)"
+"""
+Class for Gaussian Processes models
+
+```julia
+GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},
+   kernel::Union{Kernel,AbstractVector{<:Kernel}};
+   noise::Real=1e-5, verbose::Integer=0,
+   Autotuning::Bool=true,atfrequency::Integer=1,
+   IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
+```
+
+Argument list :
+
+**Mandatory arguments**
+
+ - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
+ - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
+ - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
+
+**Keyword arguments**
+
+ - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
+ - `Autotuning` : Flag for optimizing hyperparameters
+ - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
+ - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
+ - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
+"""
 mutable struct GP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: AbstractGP{L,I,T,V}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
@@ -19,20 +45,7 @@ mutable struct GP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: Ab
     Trained::Bool
 end
 
-"""Create a Gaussian Process model
-Argument list :
 
-**Mandatory arguments**
- - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
- - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
- - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
-**Optional arguments**
- - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `Autotuning` : Flag for optimizing hyperparameters
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
-"""
 function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}};  noise::Real=1e-5,
             verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
             IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2}

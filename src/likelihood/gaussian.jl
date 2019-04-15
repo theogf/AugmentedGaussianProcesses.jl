@@ -1,5 +1,13 @@
 """
-Gaussian likelihood : ``p(y|f) = \\mathcal{N}(y|f,\\epsilon) ``
+**Gaussian Likelihood**
+
+Classical Gaussian noise : ``p(y|f) = \\mathcal{N}(y|f,\\epsilon)``
+
+```julia
+GaussianLikelihood(ϵ::T=1e-3) #ϵ is the variance
+```
+
+There is no augmentation needed for this likelihood
 """
 struct GaussianLikelihood{T<:Real} <: RegressionLikelihood{T}
     ϵ::AbstractVector{T}

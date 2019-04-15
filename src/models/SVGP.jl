@@ -1,4 +1,31 @@
-""" Class for sparse variational Gaussian Processes """
+"""
+Class for sparse variational Gaussian Processes
+
+```julia
+SVGP(X::AbstractArray{T1},y::AbstractArray{T2},
+     kernel::Union{Kernel,AbstractVector{<:Kernel}},
+     likelihood::LikelihoodType,inference::InferenceType,
+     nInducingPoints::Integer;        verbose::Integer=0,Autotuning::Bool=true,
+     atfrequency::Integer=1,IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Vector)
+```
+
+Argument list :
+
+**Mandatory arguments**
+ - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
+ - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
+ - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
+ - `likelihood` : likelihood of the model, currently implemented : Gaussian, Student-T, Laplace, Bernoulli (with logistic link), Bayesian SVM, Multiclass (softmax or logistic-softmax) see [`Likelihood`](@ref likelihood_user)
+ - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the [`Compatibility table`](@ref compat_table)
+ - `nInducingPoints` : number of inducing points
+**Optional arguments**
+ - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
+ - `Autotuning` : Flag for optimizing hyperparameters
+ - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
+ - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
+ - `OptimizeInducingPoints` : Flag for optimizing the inducing points locations
+ - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
+"""
 mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: AbstractGP{L,I,T,V}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
@@ -28,25 +55,7 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: 
     Trained::Bool
 end
 
-"""Create a sparse variational Gaussian Process model
-Argument list :
-
-**Mandatory arguments**
- - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
- - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
- - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
- - `likelihood` : likelihood of the model, currently implemented : Gaussian, Bernoulli (with logistic link), Multiclass (softmax or logistic-softmax) see [`Likelihood`](@ref)
- - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see [`Inference`](@ref)
- - `nInducingPoints` : number of inducing points
-**Optional arguments**
- - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `Autotuning` : Flag for optimizing hyperparameters
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `OptimizeInducingPoints` : Flag for optimizing the inducing points locations
- - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
-"""
-function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
+function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
             likelihood::LikelihoodType,inference::InferenceType,
             nInducingPoints::Integer
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
@@ -76,7 +85,6 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             if inference.Stochastic
                 @assert inference.nSamplesUsed > 0 && inference.nSamplesUsed < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
                 nSamplesUsed = inference.nSamplesUsed
-                @show opt = getvarianceoptimizer(kernel[1])
                 opt.α = opt.α*0.1
                 setoptimizer!.(kernel,[copy(opt) for _ in 1:nLatent])
             end

@@ -26,10 +26,11 @@ SVGP
 
 ```@docs
 GaussianLikelihood
-AugmentedStudentTLikelihood
+StudentTLikelihood
+LaplaceLikelihood
+LogisticLikelihood
 BayesianSVM
-AugmentedLogisticLikelihood
-AugmentedLogisticSoftMaxLikelihood
+LogisticSoftMaxLikelihood
 ```
 
 ## Inference Types
@@ -37,13 +38,11 @@ AugmentedLogisticSoftMaxLikelihood
 ```@docs
 AnalyticVI
 AnalyticSVI
-NumericalVI
-NumericalSVI
+GibbsSampling
 QuadratureVI
 QuadratureSVI
 MCMCIntegrationVI
 MCMCIntegrationSVI
-GibbsSampling
 ```
 
 ## Functions and methods
