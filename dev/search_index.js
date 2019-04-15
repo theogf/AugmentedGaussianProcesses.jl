@@ -125,7 +125,7 @@ var documenterSearchIndex = {"docs": [
     "page": "User Guide",
     "title": "User Guide",
     "category": "section",
-    "text": "There are 3 main stages for the GPs:Initialization\nTraining\nPrediction"
+    "text": "There are 3 main actions needed to train and use the different models:Initialization\nTraining\nPrediction"
 },
 
 {
@@ -141,7 +141,15 @@ var documenterSearchIndex = {"docs": [
     "page": "User Guide",
     "title": "GP vs VGP vs SVGP",
     "category": "section",
-    "text": "GP corresponds to the original GP regression model\nVGP is a variational GP model, a multivariate Gaussian is approximating the true posterior. There is no inducing points augmentation involved. Therefore it is fitted for small datasets (~10^3 samples)\nSVGP is a variational GP model augmented with inducing points. The optimization is done on those points, allowing for stochastic updates and huge scalability. The counterpart can be a slightly lower accuracy and the need to select the number and the location of the inducing points (however this is a problem currently worked on)."
+    "text": "There are currently 3 possible models:GP corresponds to the original GP regression model.    GP(X_train,y_train,kernel)VGP is a variational GP model: a multivariate Gaussian is approximating the true posterior. There is no inducing points augmentation involved. Therefore it is well suited for small datasets (~10^3 samples)    VGP(X_train,y_train,kernel,likelihood,inference)SVGP is a variational GP model augmented with inducing points. The optimization is done on those points, allowing for stochastic updates and large scalability. The counterpart can be a slightly lower accuracy and the need to select the number and the location of the inducing points (however this is a problem currently worked on).    SVGP(X_train,y_train,kernel,likelihood,inference,n_inducingpoints)"
+},
+
+{
+    "location": "userguide/#likelihood_user-1",
+    "page": "User Guide",
+    "title": "Likelihood",
+    "category": "section",
+    "text": "GP can only have a Gaussian likelihood, VGP and SVGP have more choices. Here are the ones currently implemented:"
 },
 
 {
@@ -149,7 +157,7 @@ var documenterSearchIndex = {"docs": [
     "page": "User Guide",
     "title": "Regression",
     "category": "section",
-    "text": "For regression one can use the Gaussian or StudentT likelihood. The first one is the vanilla GP with Gaussian noise while the second is using the Student-T likelihood and is therefore a lot more robust to ouliers."
+    "text": "For regression one can use the GaussianLikelihood, the StudentTLikelihood or the LaplaceLikelihood likelihood. The first one is assuming that the model has Gaussian noise, the second assumes noise from a Student-T distribution (more robust to ouliers) and the last one assumes noise from a Laplace distribution."
 },
 
 {
@@ -157,23 +165,31 @@ var documenterSearchIndex = {"docs": [
     "page": "User Guide",
     "title": "Classification",
     "category": "section",
-    "text": "For classification one can select a Bernoulli likelihood with a logistic link or the BayesianSVM model based on the frequentist SVM."
+    "text": "For classification one can select the LogisticLikelihood : a Bernoulli likelihood with a logistic link or the BayesianSVM likelihood based on the frequentist SVM, equivalent to use a hinge loss."
 },
 
 {
-    "location": "userguide/#Model-creation-1",
+    "location": "userguide/#Multi-class-classification-1",
     "page": "User Guide",
-    "title": "Model creation",
+    "title": "Multi-class classification",
     "category": "section",
-    "text": "Creating a model is as simple as doing VGP(X,y,kernel,likelihood,inference;args...) where args is described in the API. The compatibility of likelihoods and inferences is described in the next section and is regularly updated. For the kernels check out the kernel section"
+    "text": "In development"
 },
 
 {
-    "location": "userguide/#Compatibility-table-1",
+    "location": "userguide/#Inference-1",
+    "page": "User Guide",
+    "title": "Inference",
+    "category": "section",
+    "text": "Inference can be done in various ways.AnalyticVI : Variational Inference with closed-form updates. For non-Gaussian likelihoods, this relies on augmented version of the likelihoods. For using Stochastic Variational Inference, one can use AnalyticSVI with the size of the mini-batch as an argument\nGibbsSampling : Gibbs Sampling of the true posterior, this also rely on an augmented version of the likelihoods, this is only valid for the VGP model at the moment.\nQuadratureVI : Variational Inference with gradients computed by estimating the expected log-likelihood via quadrature.\nMCMCIntegrationVI : Variational Inference with gradients computed by estimating the expected log-likelihood via MCMCIntegration"
+},
+
+{
+    "location": "userguide/#compat_table-1",
     "page": "User Guide",
     "title": "Compatibility table",
     "category": "section",
-    "text": "Likelihood/Inference AnalyticVI GibbsSampling QuadratureVI MCMCIntegrationVI\nGaussianLikelihood ✔ ✖ ✖ ✖\nStudentTLikelihood ✔ (dev) (dev) ✖\nLogisticLikelihood ✔ ✔ (dev) ✖\nBayesianSVM ✔ ✖ ✖ ✖\nLogisticSoftMaxLikelihood ✔ ✔ ✖ (dev)\nSoftMaxLikelihood ✖ ✖ ✖ (dev)"
+    "text": "Not all inference are implemented/valid for all likelihoods, here is the compatibility table between them.Likelihood/Inference AnalyticVI GibbsSampling QuadratureVI MCMCIntegrationVI\nGaussianLikelihood ✔ ✖ ✖ ✖\nStudentTLikelihood ✔ ✔ (dev) ✖\nLaplaceLikelihood ✔ (dev) (dev) ✖\nLogisticLikelihood ✔ ✔ (dev) ✖\nBayesianSVM ✔ (dev) ✖ ✖\nLogisticSoftMaxLikelihood ✔ ✔ ✖ (dev)\nSoftMaxLikelihood ✖ ✖ ✖ (dev)(dev) means that the feature is currently being developped and tested but not available yet."
 },
 
 {
@@ -197,15 +213,7 @@ var documenterSearchIndex = {"docs": [
     "page": "User Guide",
     "title": "Miscellaneous",
     "category": "section",
-    "text": "In construction <!– ### Saving/Loading modelsOnce a model has been trained it is possible to save its state in a file by using  save_trained_model(filename,model), a partial version of the file will be save in filename.It is then possible to reload this file by using load_trained_model(filename). !!!However note that it will not be possible to train the model further!!! This function is only meant to do further predictions."
-},
-
-{
-    "location": "userguide/#Pre-made-callback-functions-1",
-    "page": "User Guide",
-    "title": "Pre-made callback functions",
-    "category": "section",
-    "text": "There is one (for now) premade function to return a a MVHistory object and callback function for the training of binary classification problems. The callback will store the ELBO and the variational parameters at every iterations included in iterpoints If Xtest and y_test are provided it will also store the test accuracy and the mean and median test loglikelihood –>"
+    "text": "In construction – Should be developed in the near futureSaving/Loading modelsOnce a model has been trained it is possible to save its state in a file by using  save_trained_model(filename,model), a partial version of the file will be save in filename.It is then possible to reload this file by using load_trained_model(filename). !!!However note that it will not be possible to train the model further!!! This function is only meant to do further predictions.Pre-made callback functionsThere is one (for now) premade function to return a a MVHistory object and callback function for the training of binary classification problems. The callback will store the ELBO and the variational parameters at every iterations included in iterpoints If Xtest and y_test are provided it will also store the test accuracy and the mean and median test loglikelihood"
 },
 
 {
@@ -357,7 +365,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "AugmentedGaussianProcesses.GP",
     "category": "type",
-    "text": "Class for variational Gaussian Processes models (non-sparse)\n\n\n\n\n\n"
+    "text": "Class for Gaussian Processes models\n\nGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},\n   kernel::Union{Kernel,AbstractVector{<:Kernel}};\n   noise::Real=1e-5, verbose::Integer=0,\n   Autotuning::Bool=true,atfrequency::Integer=1,\n   IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)\n\nArgument list :\n\nMandatory arguments\n\nX : input features, should be a matrix N×D where N is the number of observation and D the number of dimension\ny : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)\nkernel : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models\n\nKeyword arguments\n\nverbose : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)\nAutotuning : Flag for optimizing hyperparameters\natfrequency : Choose how many variational parameters iterations are between hyperparameters optimization\nIndependentPriors : Flag for setting independent or shared parameters among latent GPs\nArrayType : Option for using different type of array for storage (allow for GPU usage)\n\n\n\n\n\n"
 },
 
 {
@@ -365,7 +373,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "AugmentedGaussianProcesses.VGP",
     "category": "type",
-    "text": "Class for variational Gaussian Processes models (non-sparse)\n\n\n\n\n\n"
+    "text": "Class for variational Gaussian Processes models (non-sparse)\n\n VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},\n     kernel::Union{Kernel,AbstractVector{<:Kernel}},\n     likelihood::LikelihoodType,inference::InferenceType;\n     verbose::Integer=0,Autotuning::Bool=true,\n     atfrequency::Integer=1,IndependentPriors::Bool=true,\n     ArrayType::UnionAll=Vector)\n\nArgument list :\n\nMandatory arguments\n\nX : input features, should be a matrix N×D where N is the number of observation and D the number of dimension\ny : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)\nkernel : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models\nlikelihood : likelihood of the model, currently implemented : Gaussian, Bernoulli (with logistic link), Multiclass (softmax or logistic-softmax) see Likelihood Types\ninference : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the Compatibility Table\n\nKeyword arguments\n\nverbose : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)\nAutotuning : Flag for optimizing hyperparameters\natfrequency : Choose how many variational parameters iterations are between hyperparameters optimization\nIndependentPriors : Flag for setting independent or shared parameters among latent GPs\nArrayType : Option for using different type of array for storage (allow for GPU usage)\n\n\n\n\n\n"
 },
 
 {
@@ -373,7 +381,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "AugmentedGaussianProcesses.SVGP",
     "category": "type",
-    "text": "Class for sparse variational Gaussian Processes \n\n\n\n\n\n"
+    "text": "Class for sparse variational Gaussian Processes\n\nSVGP(X::AbstractArray{T1},y::AbstractArray{T2},\n     kernel::Union{Kernel,AbstractVector{<:Kernel}},\n     likelihood::LikelihoodType,inference::InferenceType,\n     nInducingPoints::Integer;        verbose::Integer=0,Autotuning::Bool=true,\n     atfrequency::Integer=1,IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Vector)\n\nArgument list :\n\nMandatory arguments\n\nX : input features, should be a matrix N×D where N is the number of observation and D the number of dimension\ny : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)\nkernel : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models\nlikelihood : likelihood of the model, currently implemented : Gaussian, Student-T, Laplace, Bernoulli (with logistic link), Bayesian SVM, Multiclass (softmax or logistic-softmax) see Likelihood\ninference : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the Compatibility table\nnInducingPoints : number of inducing points\n\nOptional arguments\n\nverbose : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)\nAutotuning : Flag for optimizing hyperparameters\natfrequency : Choose how many variational parameters iterations are between hyperparameters optimization\nIndependentPriors : Flag for setting independent or shared parameters among latent GPs\nOptimizeInducingPoints : Flag for optimizing the inducing points locations\nArrayType : Option for using different type of array for storage (allow for GPU usage)\n\n\n\n\n\n"
 },
 
 {
@@ -389,7 +397,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "AugmentedGaussianProcesses.GaussianLikelihood",
     "category": "type",
-    "text": "Gaussian likelihood : p(yf) = mathcalN(yfepsilon)\n\n\n\n\n\n"
+    "text": "Gaussian Likelihood\n\nClassical Gaussian noise : p(yf) = mathcalN(yfepsilon)\n\nGaussianLikelihood(ϵ::T=1e-3) #ϵ is the variance\n\nThere is no augmentation needed for this likelihood\n\n\n\n\n\n"
 },
 
 {
@@ -397,15 +405,15 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "AugmentedGaussianProcesses.StudentTLikelihood",
     "category": "type",
-    "text": "Student-T likelihood\n\nStudent-t likelihood for regression: fracGamma((nu+1)2)sqrtnupiGamma(nu2)left(1+t^2nuright)^(-(nu+1)2) see wiki page\n\n\n\nFor the analytical solution, it is augmented via:\n\nTODO\n\nSee paper Robust Gaussian Process Regression with a Student-t Likelihood\n\n\n\n\n\n"
+    "text": "Student-T likelihood\n\nStudent-t likelihood for regression: fracGamma((nu+1)2)sqrtnupiGamma(nu2)left(1+t^2nuright)^(-(nu+1)2) see wiki page\n\nStudentTLikelihood(ν::T,σ::Real=one(T)) #ν is the number of degrees of freedom\n#σ is the variance for local scale of the data.\n\n\n\nFor the analytical solution, it is augmented via:\n\np(yfomega) = mathcalN(yfomega)\n\nWhere omega sim mathcalIG(fracnu2fracnu2) where mathcalIG is the inverse gamma distribution See paper Robust Gaussian Process Regression with a Student-t Likelihood\n\n\n\n\n\n"
 },
 
 {
-    "location": "api/#AugmentedGaussianProcesses.BayesianSVM",
+    "location": "api/#AugmentedGaussianProcesses.LaplaceLikelihood",
     "page": "API",
-    "title": "AugmentedGaussianProcesses.BayesianSVM",
+    "title": "AugmentedGaussianProcesses.LaplaceLikelihood",
     "category": "type",
-    "text": "The Bayesian SVM is a Bayesian interpretation of the classical SVM. By using an augmentation (Laplace) one gets a conditionally conjugate likelihood (see paper)\n\n\n\n\n\n"
+    "text": "Laplace likelihood\n\nLaplace likelihood for regression: frac12betaexpleft(-fracy-fbetaright) see wiki page\n\nLaplaceLikelihood(β::T=1.0)  #  Laplace likelihood with scale β\n\n\n\nFor the analytical solution, it is augmented via:\n\np(yfomega) = mathcalN(yfomega^-1)\n\nwhere omega sim textExpleft(omega mid frac12 beta^2right), and Exp is the Exponential distribution\n\n\n\n\n\n"
 },
 
 {
@@ -413,7 +421,15 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "AugmentedGaussianProcesses.LogisticLikelihood",
     "category": "type",
-    "text": "Logistic Likelihood\n\nBernoulli likelihood with a logistic link for the Bernoulli likelihood     p(yf) = sigma(yf) = frac11+exp(-yf), (for more info see : wiki page)\n\n---\n\nFor the analytic versionm the likelihood is augmented to give a conditionally conjugate likelihood :\n```math\np(y|f,\\omega) = \\exp\\left(\\frac{1}{2}\\left(yf - (yf)^2 \\omega\\right)\\right)\n```\nwhere ``\\omega \\sim \\text{PG}(\\omega\\mid 1, 0)``, and PG is the Polya-Gamma distribution\nSee paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383)\n\n\n\n\n\n"
+    "text": "Logistic Likelihood\n\nBernoulli likelihood with a logistic link for the Bernoulli likelihood     p(yf) = sigma(yf) = frac11+exp(-yf), (for more info see : wiki page)\n\nLogisticLikelihood()\n\n\n\nFor the analytic version the likelihood, it is augmented via:\n\np(yfomega) = expleft(frac12left(yf - (yf)^2 omegaright)right)\n\nwhere omega sim textPG(omegamid 1 0), and PG is the Polya-Gamma distribution See paper : Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation\n\n\n\n\n\n"
+},
+
+{
+    "location": "api/#AugmentedGaussianProcesses.BayesianSVM",
+    "page": "API",
+    "title": "AugmentedGaussianProcesses.BayesianSVM",
+    "category": "type",
+    "text": "Bayesian SVM\n\nThe Bayesian SVM is a Bayesian interpretation of the classical SVM. p(yf) propto expleft(2max(1-yf0)right)\n\nBayesianSVM()\n\n\n\nFor the analytic version of the likelihood, it is augmented via:\n\np(yfomega) = frac1sqrt2piomegaexpleft(-frac12frac(1+omega-yf)^2omegaright)\n\nwhere omegasim 1_0infty has an improper prior (his posterior is however has a valid distribution (Generalized Inverse Gaussian)). For reference see this paper\n\n\n\n\n\n"
 },
 
 {
@@ -429,7 +445,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "Likelihood Types",
     "category": "section",
-    "text": "GaussianLikelihood\nStudentTLikelihood\nBayesianSVM\nLogisticLikelihood\nLogisticSoftMaxLikelihood"
+    "text": "GaussianLikelihood\nStudentTLikelihood\nLaplaceLikelihood\nLogisticLikelihood\nBayesianSVM\nLogisticSoftMaxLikelihood"
 },
 
 {
@@ -437,7 +453,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "AugmentedGaussianProcesses.AnalyticVI",
     "category": "type",
-    "text": "Solve conjugate or conditionally conjugate likelihoods (especially valid for augmented likelihoods) \n\n\n\n\n\n"
+    "text": "AnalyticVI\n\nVariational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation) All data is used at each iteration (use AnalyticSVI for Stochastic updates)\n\nAnalyticVI(;ϵ::T=1e-5)\n\nKeywords arguments\n\n- `ϵ::T` : convergence criteria\n\n\n\n\n\n"
 },
 
 {
@@ -445,23 +461,15 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "AugmentedGaussianProcesses.AnalyticSVI",
     "category": "function",
-    "text": "AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=ALRSVI())\n\nReturn an AnalyticVI{T} object with stochastic updates, corresponding to Stochastic Variational Inference with analytical updates.\n\nPositional argument\n\n- `nMinibatch::Integer` : Number of samples per mini-batches\n\nKeywords arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `ALRSVI()` (Adaptive Learning Rate for Stochastic Variational Inference)\n\n\n\n\n\n"
+    "text": "AnalyticSVI Stochastic Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)\n\nAnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=ALRSVI())\n\n- `nMinibatch::Integer` : Number of samples per mini-batches\n\nKeywords arguments\n\n- `ϵ::T` : convergence criteria\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `ALRSVI()` (Adaptive Learning Rate for Stochastic Variational Inference)\n\n\n\n\n\n"
 },
 
 {
-    "location": "api/#AugmentedGaussianProcesses.NumericalVI",
+    "location": "api/#AugmentedGaussianProcesses.GibbsSampling",
     "page": "API",
-    "title": "AugmentedGaussianProcesses.NumericalVI",
+    "title": "AugmentedGaussianProcesses.GibbsSampling",
     "category": "type",
-    "text": "Solve any non-conjugate likelihood using Variational Inference by making a numerical approximation (quadrature or MC integration) of the expected log-likelihood ad its gradients\n\n\n\n\n\n"
-},
-
-{
-    "location": "api/#AugmentedGaussianProcesses.NumericalSVI",
-    "page": "API",
-    "title": "AugmentedGaussianProcesses.NumericalSVI",
-    "category": "function",
-    "text": "NumericalSVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))\n\nGeneral constructor for Stochastic Variational Inference via numerical approximation.\n\nArgument\n\n-`nMinibatch::Integer` : Number of samples per mini-batches\n-`integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mcmc` for MCMC integration see [MCMCIntegrationVI](@ref)\n\nKeyword arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCMCIntegrationVI)\n- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`\n\n\n\n\n\n"
+    "text": "GibbsSampling\n\nDraw samples from the true posterior via Gibbs Sampling.\n\nGibbsSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=10)\n\nKeywords arguments\n\n- `ϵ::T` : convergence criteria\n- `nBurnin::Int` : Number of samples discarded before starting to save samples\n- `samplefrequency::Int` : Frequency of sampling\n\n\n\n\n\n"
 },
 
 {
@@ -469,7 +477,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "AugmentedGaussianProcesses.QuadratureVI",
     "category": "type",
-    "text": "QuadratureVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))\n\nConstructor for Variational Inference via quadrature approximation.\n\nKeyword arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`\n\n\n\n\n\n"
+    "text": "QuadratureVI\n\nVariational Inference solver by approximating gradients via numerical integration via Quadrature\n\nQuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))\n\nKeyword arguments\n\n- `ϵ::T` : convergence criteria\n- `nGaussHermite::Int` : Number of points for the integral estimation\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Adam()`\n\n\n\n\n\n"
 },
 
 {
@@ -477,7 +485,7 @@ var documenterSearchIndex = {"docs": [
     "page": "API",
     "title": "AugmentedGaussianProcesses.QuadratureSVI",
     "category": "function",
-    "text": "QuadratureSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))\n\nConstructor for Stochastic Variational Inference via quadrature approximation.\n\nArgument\n\n-`nMinibatch::Integer` : Number of samples per mini-batches\n\nKeyword arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`\n\n\n\n\n\n"
+    "text": "QuadratureSVI\n\nStochastic Variational Inference solver by approximating gradients via numerical integration via Quadrature\n\nQuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))\n\n-`nMinibatch::Integer` : Number of samples per mini-batches\n\nKeyword arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)\n- `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Adam()`\n\n\n\n\n\n"
 },
 
 {
@@ -497,19 +505,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "api/#AugmentedGaussianProcesses.GibbsSampling",
-    "page": "API",
-    "title": "AugmentedGaussianProcesses.GibbsSampling",
-    "category": "type",
-    "text": "GibbsSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=10)\n\nReturn a GibbsSampling{T} object to sample from the exact posterior distribution.\n\nKeywords arguments\n\n- `ϵ::T` : convergence criteria, which can be user defined\n- `nBurnin::Int` : Number of samples discarded before starting to save samples\n- `samplefrequency::Int` : Frequency of sampling\n\n\n\n\n\n"
-},
-
-{
     "location": "api/#Inference-Types-1",
     "page": "API",
     "title": "Inference Types",
     "category": "section",
-    "text": "AnalyticVI\nAnalyticSVI\nNumericalVI\nNumericalSVI\nQuadratureVI\nQuadratureSVI\nMCMCIntegrationVI\nMCMCIntegrationSVI\nGibbsSampling"
+    "text": "AnalyticVI\nAnalyticSVI\nGibbsSampling\nQuadratureVI\nQuadratureSVI\nMCMCIntegrationVI\nMCMCIntegrationSVI"
 },
 
 {
