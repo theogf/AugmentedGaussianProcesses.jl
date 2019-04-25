@@ -64,7 +64,7 @@ function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},inference::Inf
         γ = [abs.(rand(T,nSamplesUsed)) for i in 1:nLatent]
         LogisticSoftMaxLikelihood{T}(likelihood.Y,likelihood.class_mapping,likelihood.ind_mapping,likelihood.y_class,c,α,β,θ,γ)
     else
-        LogisticSoftMaxLikelihood{T}(likelihood.Y,likelihood.class_mapping,likelihood.ind_mapping,likelihood.y_class)
+        return likelihood
     end
 end
 

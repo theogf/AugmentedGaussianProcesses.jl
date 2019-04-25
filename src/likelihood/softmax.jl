@@ -10,6 +10,7 @@ struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
     class_mapping::AbstractVector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     y_class::AbstractVector{Int64} #GP Index for each sample
+    θ::AbstractVector{AbstractVector{T}} # Variational parameter of Polya-Gamma distribution
     function SoftMaxLikelihood{T}() where {T<:Real}
         new{T}()
     end
@@ -37,9 +38,19 @@ end
 
 
 function init_likelihood(likelihood::SoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T
-    return likelihood
+    if inference isa GibbsSampling
+        θ = [abs.(rand(T,nSamplesUsed))*2 for i in 1:nLatent]
+        LogisticSoftMaxLikelihood{T}(likelihood.Y,likelihood.class_mapping,likelihood.ind_mapping,likelihood.y_class,θ)
+    else
+        return likelihood
+    end
 end
 
+function sample_local!(model::VGP{<:SoftMaxLikelihood,<:GibbsSampling})
+    pg = PolyaGammaDist()
+    model.likelihood.θ .= broadcast((y::BitVector,γ::AbstractVector{<:Real},μ::AbstractVector{<:Real},i::Int64)->draw.([pg],1.0,μ-logsumexp()),model.likelihood.Y,model.likelihood.γ,model.μ,1:model.nLatent)
+    return nothing
+end
 
 function grad_samples(model::AbstractGP{<:SoftMaxLikelihood},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
     class = model.likelihood.y_class[index]
