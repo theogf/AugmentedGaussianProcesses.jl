@@ -4,19 +4,51 @@ using LightGraphs
 using RandomMatrices
 using Random
 using DeterminantalPointProcesses
+using DelimitedFiles
+using StatsBase, Distances
+
 
 N = 1000
 noise = 0.001
 fy(x1,x2) = x1.*sin.(x2)+x2.*cos.(x1)
 elbo(Q,Kff,y) = -0.5*dot(y,inv(Q+noise*I)*y) - 0.5*logdet(Q+noise*I) - 0.5*tr(Kff-Q)/noise-0.5*N*log(2.0*π)
-k = RBFKernel(2.0,variance=5.0)
-σ = sqrt(5)
-X = rand(Normal(0,σ),N,2)
-y = fy(eachcol(X)...)
-Kff = kernelmatrix(X,k)+1e-5I
-ms = [10,20,30,40,50,60,70,80,90,100]#,120,140,160,180,200]
-ρs = [0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95]
+function elbo_ind(C)
+    Kuu = kernelmatrix(C,k)+1e-5I
+    Kfu = kernelmatrix(X,C,k)
+    Q = Kfu*inv(Kuu)*Kfu'
+    elbo(Q,Kff,y)
+end
 
+function initial_lengthscale(X)
+    if size(X,1) > 10000
+        D = pairwise(SqEuclidean(),X[sample(1:size(X,1),10000,replace=false),:],dims=1)
+    else
+        D = pairwise(SqEuclidean(),X,dims=1)
+    end
+    return median([D[i,j] for i in 2:size(D,1) for j in 1:(i-1)])
+end
+
+σ = sqrt(5)
+X = (rand(N,2).-0.5)*5
+# X = rand(Normal(0,σ),N,2)
+y = fy(eachcol(X)...)
+
+data = Float64.(readdlm("/home/theo/Downloads/abalone.data",',')[:,2:end])
+X = data[:,1:end-1]; X = hcat(zscore.(eachcol(X))...)
+y=data[:,end]; y .-=mean(y); y /= sqrt(var(y))
+N = size(X,1)
+
+l = sqrt(initial_lengthscale(X))
+k = RBFKernel(l)
+Kff = kernelmatrix(X,k)+1e-5I
+pers = [0.01,0.02,0.05,0.1,0.2]#,0.3,0.4,0.5]#,120,140,160,180,200]
+ms = floor.(Int64,pers.*N)#,120,140,160,180,200]
+ρs = [0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95,0.98,0.99]
+# ρs = [0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95]
+
+
+unitr_μ,unitr_σ = Vector(undef,length(ms)),Vector(undef,length(ms))
+unielbo_μ,unielbo_σ = Vector(undef,length(ms)),Vector(undef,length(ms))
 offtr_μ,offtr_σ = Vector(undef,length(ms)),Vector(undef,length(ms))
 offelbo_μ,offelbo_σ = Vector(undef,length(ms)),Vector(undef,length(ms))
 randtr_μ,randtr_σ = Vector(undef,length(ms)),Vector(undef,length(ms))
@@ -26,6 +58,8 @@ kdppelbo_μ,kdppelbo_σ = Vector(undef,length(ms)),Vector(undef,length(ms))
 nSamples = 10
 kdppalg = DeterminantalPointProcess(Symmetric(Kff))
 @progress name="Loop over m" for (j,m) in enumerate(ms)
+    unitr = Vector(undef,nSamples)
+    unielbo = Vector(undef,nSamples)
     offtr = Vector(undef,nSamples)
     offelbo = Vector(undef,nSamples)
     randtr = Vector(undef,nSamples)
@@ -33,9 +67,16 @@ kdppalg = DeterminantalPointProcess(Symmetric(Kff))
     kdpptr = Vector(undef,nSamples)
     kdppelbo = Vector(undef,nSamples)
     @progress name="iterating m=$m" for i in 1:nSamples
+        unicenters = copy(X[sample(1:N,m,replace=false),:])
+        Kuuuni = kernelmatrix(unicenters,k)+1e-5I
+        Kfuuni = kernelmatrix(X,unicenters,k)
+        Quni = Kfuuni*inv(Kuuuni)*Kfuuni'
+        unitr[i] = tr(Kff-Quni)
+        unielbo[i] = -elbo(Quni,Kff,y)
+
+
         offalg = OfflineKmeans(m)
         init!(offalg,X,0,k)
-        offalg.centers
         Kuuoff = kernelmatrix(offalg.centers,k)+1e-5I
         Kfuoff = kernelmatrix(X,offalg.centers,k)
         Qoff = Kfuoff*inv(Kuuoff)*Kfuoff'
@@ -58,6 +99,8 @@ kdppalg = DeterminantalPointProcess(Symmetric(Kff))
         kdpptr[i] = tr(Kff-Qkdpp)
         kdppelbo[i] = -elbo(Qkdpp,Kff,y)
     end
+    unitr_μ[j] = mean(unitr); unitr_σ[j] = sqrt(var(unitr))
+    unielbo_μ[j] = mean(unielbo); unielbo_σ[j] = sqrt(var(unielbo))
     offtr_μ[j] = mean(offtr); offtr_σ[j] = sqrt(var(offtr))
     offelbo_μ[j] = mean(offelbo); offelbo_σ[j] = sqrt(var(offelbo))
     randtr_μ[j] = mean(randtr); randtr_σ[j] = sqrt(var(randtr))
@@ -112,30 +155,30 @@ graphm_μ = Vector(undef,length(ρs))
 end
 ## TRACE
 plot(title="Trace")
-plot!(ρs,circtr_μ,lab="Circle",color=:blue)
-plot!(ρs,circtr_μ+2*circtr_σ,fill=circtr_μ-2*circtr_σ,lab="",alpha=0.3,color=:blue)
-plot!(ρs,graphtr_μ,lab="Graph",color=:red)
-plot!(ρs,graphtr_μ+2*graphtr_σ,fill=graphtr_μ-2*graphtr_σ,lab="",alpha=0.3,color=:red)
+plot!(ρs,circtr_μ,lab="Circle",color=1)
+plot!(ρs,circtr_μ+2*circtr_σ,fill=circtr_μ-2*circtr_σ,lab="",alpha=0.3,color=1)
+plot!(ρs,graphtr_μ,lab="Graph",color=2)
+plot!(ρs,graphtr_μ+2*graphtr_σ,fill=graphtr_μ-2*graphtr_σ,lab="",alpha=0.3,color=2)
 ## ELBO
 plot(title="ELBO")
-plot!(ρs,circelbo_μ,lab="Circle",color=:blue)
-plot!(ρs,circelbo_μ+2*circelbo_σ,fill=circelbo_μ-2*circelbo_σ,lab="",alpha=0.3,color=:blue)
-plot!(ρs,graphelbo_μ,lab="Graph",color=:red)
-plot!(ρs,graphelbo_μ+2*graphelbo_σ,fill=graphelbo_μ-2*graphelbo_σ,lab="",alpha=0.3,color=:red)
+plot!(ρs,circelbo_μ,lab="Circle",color=1,xaxis=:log)
+plot!(ρs,circelbo_μ+2*circelbo_σ,fill=circelbo_μ-2*circelbo_σ,lab="",alpha=0.3,color=1)
+plot!(ρs,graphelbo_μ,lab="Graph",color=2)
+plot!(ρs,graphelbo_μ+2*graphelbo_σ,fill=graphelbo_μ-2*graphelbo_σ,lab="",alpha=0.3,color=2)
 ## #Ind points
 plot(title="# Inducing points")
 plot!(ρs,circm_μ,lab="Circle",color=1)
 plot!(ρs,graphm_μ,lab="Graph",color=2)
 
 ##
-ondpptr = Vector(undef,nSamples*10)
-ondppelbo = Vector(undef,nSamples*10)
-ondppm = Vector(undef,nSamples*10)
-dpptr = Vector(undef,nSamples*10)
-dppelbo = Vector(undef,nSamples*10)
-dppm = Vector(undef,nSamples*10)
+ondpptr = Vector(undef,nSamples)
+ondppelbo = Vector(undef,nSamples)
+ondppm = Vector(undef,nSamples)
+dpptr = Vector(undef,nSamples)
+dppelbo = Vector(undef,nSamples)
+dppm = Vector(undef,nSamples)
 dppalg = DeterminantalPointProcess(Symmetric(Kff))
-@progress name="Looping for DPP" for i in 1:nSamples*10
+@progress name="Looping for DPP" for i in 1:nSamples
     ondppalg = DPPAlg(0.85,k)
     init!(ondppalg,X,0,k)
     update!(ondppalg,X[shuffle(1:N),:],0,k)
@@ -158,7 +201,9 @@ end
 alpha_v=0.2
 nσ = 1
 ## TRACE
-ptrace = plot(title="Trace",xlims=(5,100),xlabel="#Inducing points",ylabel="Trace(K_ff-Q_ff)")
+ptrace = plot(title="Trace",xlabel="#Inducing points",ylabel="Trace(K_ff-Q_ff)")
+plot!(ms,unitr_μ,lab="Uniform",color=6)
+plot!(ms,unitr_μ+nσ*unitr_σ,fill=unitr_μ-nσ*unitr_σ,lab="",alpha=alpha_v,color=6)
 plot!(ms,offtr_μ,lab="KMeans",color=1)
 plot!(ms,offtr_μ+nσ*offtr_σ,fill=offtr_μ-nσ*offtr_σ,lab="",alpha=alpha_v,color=1)
 plot!(ms,randtr_μ,lab="Rand",color=2)
@@ -169,12 +214,14 @@ plot!(circm_μ,circtr_μ,lab="Circle",color=3)
 plot!(circm_μ,circtr_μ+nσ*circtr_σ,fill=circtr_μ-nσ*circtr_σ,lab="",alpha=alpha_v,color=3)
 plot!(graphm_μ,graphtr_μ,lab="Graph",color=4)
 plot!(graphm_μ,graphtr_μ+nσ*graphtr_σ,fill=graphtr_μ-nσ*graphtr_σ,lab="",alpha=alpha_v,color=4)
-scatter!(ondppm,ondpptr,lab="Sequential DPP",color=:black,markersize=1.0)
-scatter!(dppm,dpptr,lab="DPP",color=:red,markersize=1.0)
+scatter!(ondppm,ondpptr,lab="Sequential DPP",color=:black,markersize=1.0,markerstrokewidth=0)
+scatter!(dppm,dpptr,lab="DPP",color=:red,markersize=1.0,markerstrokewidth=0)
 
 
 ## ELBO
-pelbo = plot(title="Neg. ELBO",xlims=(5,100),xlabel="#Inducing points",ylabel="-ELBO")
+pelbo = plot(title="Neg. ELBO",xlabel="#Inducing points",ylabel="-ELBO")
+plot!(ms,unielbo_μ,lab="Uniform",color=6)
+plot!(ms,unielbo_μ+nσ*unielbo_σ,fill=unielbo_μ-nσ*unielbo_σ,lab="",alpha=alpha_v,color=6)
 plot!(ms,offelbo_μ,lab="KMeans",color=1)
 plot!(ms,offelbo_μ+nσ*offelbo_σ,fill=offelbo_μ-nσ*offelbo_σ,lab="",alpha=alpha_v,color=1)
 plot!(ms,randelbo_μ,lab="Rand",color=2)
@@ -185,12 +232,13 @@ plot!(circm_μ,circelbo_μ,lab="Circle",color=3)
 plot!(circm_μ,circelbo_μ+nσ*circelbo_σ,fill=circelbo_μ-nσ*circelbo_σ,lab="",alpha=alpha_v,color=3)
 plot!(graphm_μ,graphelbo_μ,lab="Graph",color=4)
 plot!(graphm_μ,graphelbo_μ+nσ*graphelbo_σ,fill=graphelbo_μ-nσ*graphelbo_σ,lab="",alpha=alpha_v,color=4)
-scatter!(ondppm,dppelbo,lab="Sequential DPP",color=:black,markersize=1.0)
-scatter!(dppm,dppelbo,lab="DPP",color=:red,markersize=1.0)
-
-scatter(eachcol(X)...,zcolor=y,lab="")
-contour!(minimum(X[:,1]):0.01:maximum(X[:,1]),minimum(X[:,2]):0.01:maximum(X[:,2]),fy,fill=true,fillalpha=0.2,alpha=0.2,colorbar=false)
-scatter!(eachcol(X)...,markersize=2.0,color=:black,lab="")
-
+scatter!(ondppm,dppelbo,lab="Sequential DPP",color=:black,markersize=1.0,markerstrokewidth=0)
+scatter!(dppm,dppelbo,lab="DPP",color=:red,markersize=1.0,markerstrokewidth=0)
+##
+if size(X,2) == 2
+    scatter(eachcol(X)...,zcolor=y,lab="")
+    contour!(minimum(X[:,1]):0.01:maximum(X[:,1]),minimum(X[:,2]):0.01:maximum(X[:,2]),fy,fill=true,fillalpha=0.2,alpha=0.2,colorbar=false)
+    display(scatter!(eachcol(X)...,markersize=2.0,color=:black,lab=""))
+end
 display(ptrace)
 display(pelbo)
