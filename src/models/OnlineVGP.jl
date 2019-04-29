@@ -1,11 +1,11 @@
 """ Class for sparse variational Gaussian Processes """
 mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: SparseGP{L,I,T,V}
-    X::Matrix{T} #Feature vectors
-    y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSample::Int64 # Number of data points
-    nDim::Int64 # Number of covariates per data point
-    nFeature::Int64 # Number of features of the GP (equal to number of points)
-    nLatent::Int64 # Number pf latent GPs
+    # X::Matrix{T} #Feature vectors
+    # y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
+    # nSample::Int64 # Number of data points
+    # nDim::Int64 # Number of covariates per data point
+    # nFeature::Int64 # Number of features of the GP (equal to number of points)
+    nLatent::Int64 # Number of latent GPs
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
     Zalg::ZAlg
@@ -59,17 +59,18 @@ Argument list :
  - `OptimizeInducingPoints` : Flag for optimizing the inducing points locations
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
+function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
+            kernel::Kernel,
             likelihood::LikelihoodType,inference::InferenceType,
             Zalg::ZAlg=CircleKMeans(),Sequential::Bool=false
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
             IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
-            X,y,nLatent,likelihood = check_data!(X,y,likelihood)
+            # X,y,nLatent,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(:OnlineVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
-
+            nLatent = 1
             nPrior = IndependentPriors ? nLatent : 1
-            nSample = size(X,1); nDim = size(X,2);
+            # nSample = size(X,1); nDim = size(X,2);
             kernel = [deepcopy(kernel) for _ in 1:nPrior];
 
             dataparsed = false;
@@ -110,7 +111,7 @@ function OnlineVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed)
             inference = init_inference(inference,nLatent,nFeature,nSample,nSamplesUsed)
             return OnlineVGP{LikelihoodType,InferenceType,T1,ArrayType{T1}}(
-                    X,y,
+                    #X,y,
                     nSample, nDim, nFeature, nLatent,
                     IndependentPriors,nPrior,
                     Zalg,Zupdated,Sequential,dataparsed,lastindex,

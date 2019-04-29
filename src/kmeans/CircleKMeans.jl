@@ -20,8 +20,9 @@ end
 function update!(alg::CircleKMeans,X,y,kernel)
     b = size(X,1)
     for i in 1:b
-        d = find_nearest_center(X[i,:],alg.centers,kernel)[2]
-        if d>alg.ρ
+        k = kernelmatrix(X[i,:],alg.centers,kernel)
+        # d = find_nearest_center(X[i,:],alg.centers,kernel)[2]
+        if maximum(k)<alg.lim
             alg.centers = vcat(alg.centers,X[i,:]')
             alg.k += 1
         end
