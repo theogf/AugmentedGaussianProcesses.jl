@@ -1,5 +1,5 @@
-using Colors
-using AbstractPlotting
+# using Colors
+# using AbstractPlotting
 
 function AbstractPlotting.plot(model::AbstractGP;nGrid::Int=100,nsigma::Int=2)
     scene = Makie.Scene()

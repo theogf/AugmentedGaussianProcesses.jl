@@ -15,9 +15,10 @@ end
 
 function init!(alg::DPPAlg,X,y,kernel)
     @assert alg.lim < 1.0 && alg.lim > 0 "lim should be between 0 and 1"
+    @assert size(X,1) >= 1 "First batch should contain at least 2 elements"
     alg.K = Symmetric(kernelmatrix(X,alg.kernel)+1e-7I)
     alg.dpp = DPP(Symmetric(kernelmatrix(X,alg.kernel)+1e-7I))
-    samp = rand(alg.dpp,1)[1]
+    samp = rand(alg.dpp,1,2)[1]
     alg.centers = X[samp,:]
     # alg.centers = copy(X[samp,:])
     # alg.k = length(samp)

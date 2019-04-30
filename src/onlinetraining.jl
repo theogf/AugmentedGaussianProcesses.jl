@@ -92,11 +92,38 @@ function updateZ!(model::OnlineVGP)
     model.prevη₁ = deepcopy(model.η₁)
     model.prev𝓛ₐ .= -logdet.(model.Σ) + logdet.(model.Kmm) - dot.(model.μ,model.η₁)
     update!(model.Zalg,model.X,model.y[1],model.kernel[1]) #TEMP FOR 1 latent
+    remove!(model.Zalg,model.Kmm[1],model.kernel[1])
     model.nFeature = model.Zalg.k
     model.Zupdated = true
     model.Z = fill(model.Zalg.centers,model.nPrior) #TEMP for 1 latent
 end
 
+function remove!(alg,Kmm,kernel)
+    # overlaps = findall((x->count(x.>alg.lim*getvariance(kernel))).(eachcol(Kmm)).>1)
+    # lowerKmm = Kmm - UpperTriangular(Kmm)
+    ρ = alg.lim*getvariance(kernel)
+    overlapcount = (x->count(x.>ρ)).(eachrow(Kmm))
+    removable = SortedSet(findall(x->x>1,overlapcount))
+    toremove = []
+    c = 0
+    while !isempty(removable)
+        i = sample(collect(removable),Weights(overlapcount[collect(removable)]))
+        connected = findall(x->x>ρ,Kmm[i,:])
+        overlapcount[connected] .-= 1
+        outofloop = filter(x->overlapcount[x]<=1,connected)
+        for j in outofloop
+            if issubset(j,removable)
+                delete!(removable,j)
+            end
+        end
+        push!(toremove,i)
+        if issubset(i,removable)
+            delete!(removable,i)
+        end
+    end
+    alg.centers = alg.centers[setdiff(1:alg.k,toremove),:]
+    alg.k = size(alg.centers,1)
+end
 
 function init_onlinemodel(model::OnlineVGP{<:Likelihood,<:Inference,T},X,y) where {T<:Real}
     init!(model.Zalg,X,y[1],model.kernel[1])

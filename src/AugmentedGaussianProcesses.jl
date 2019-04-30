@@ -43,6 +43,7 @@ using LinearAlgebra
 using StatsBase
 using StatsFuns
 using SpecialFunctions
+using DataStructures
 using Dates
 using Expectations
 using Random

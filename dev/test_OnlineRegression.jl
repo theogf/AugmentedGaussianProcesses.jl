@@ -68,9 +68,9 @@ end
 function plotting2D(X,f,ind_points,pred_ind,x1_test,x2_test,pred,minf,maxf,title;full=false)
     N_test = size(x1_test,1)
     p = plot(x1_test,x2_test,reshape(pred,length(x1_test),length(x2_test))',t=:contour,clim=(minf,maxf),fill=true,lab="",title=title)
-    p = plot!(X[:,1],X[:,2],zcolor=f,t=:scatter,lab="",alpha=0.8,markerstrokewidth=0)
+    # p = plot!(X[:,1],X[:,2],zcolor=f,t=:scatter,lab="",alpha=0.8,markerstrokewidth=0)
     if !full
-        p = plot!(ind_points[:,1],ind_points[:,2],zcolor=pred_ind,t=:scatter,lab="",color=:red)
+        p = plot!(ind_points[:,1],ind_points[:,2],t=:scatter,lab="",color=1)
     end
     return p
 end
@@ -150,7 +150,7 @@ function callbacksave(metrics)
     end
 end
 
-kernel = AugmentedGaussianProcesses.RBFKernel(0.1)
+kernel = AugmentedGaussianProcesses.RBFKernel(0.5)
 dim = 2
 monotone = true
 sequential = true
@@ -218,8 +218,8 @@ end
 
 
 ### Sparse Offline GP
-t_sparse = @elapsed sparsegp = SVGP(X,y,kernel,GaussianLikelihood(noise),AnalyticVI(),30,Autotuning=true)
-train!(sparsegp,iterations=100)
+t_sparse = @elapsed sparsegp = SVGP(X,y,kernel,GaussianLikelihood(noise),AnalyticSVI(10),18,Autotuning=true)
+train!(sparsegp,iterations=1000)
 y_sparse,sig_sparse = proba_y(sparsegp,X_test)
 y_train,sig_train = proba_y(sparsegp,X)
 println("Sparse GP ($t_sparse s)\n\tRMSE (train) : $(RMSE(predict_y(sparsegp,X),y))\n\tRMSE (test) : $(RMSE(y_sparse,y_test))")
@@ -268,10 +268,10 @@ newkernel = RBFKernel(0.01)
 
 t_circle = @elapsed circlegp = OnlineVGP(newkernel,GaussianLikelihood(noise),AnalyticVI(),CircleKMeans(0.8),verbose=3,Autotuning=!false)
 # t_circle = @elapsed train!(circlegp,iterations=15,callback=callbackplot)
-for (X_batch,y_batch) in eachbatch((X,y),size=10,obsdim=1)
-# for (X_batch,y_batch) in RandomBatches((X,y),size=10,count=30,obsdim=1)
-# t_dpp = @elapsed train!(circlegp,X_batch,y_batch,iterations=10,callback=callbackplot)
-    t_dpp = @elapsed train!(circlegp,X_batch,y_batch,iterations=10,callback=callbacksave(metcircle))
+# for (X_batch,y_batch) in eachbatch((X,y),size=10,obsdim=1)
+for (X_batch,y_batch) in RandomBatches((X,y),size=10,count=100,obsdim=1)
+    # t_dpp = @elapsed train!(circlegp,X_batch,y_batch,iterations=1,callback=callbackplot)
+    t_dpp = @elapsed train!(circlegp,X_batch,y_batch,iterations=1,callback=callbacksave(metcircle))
 end
 y_circle,sig_circle = proba_y(circlegp,X_test)
 y_indcircle = predict_y(circlegp,circlegp.Zalg.centers)
