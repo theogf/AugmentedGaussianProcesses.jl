@@ -27,6 +27,7 @@ function init!(alg::DPPAlg,X,y,kernel)
 end
 
 function update!(alg::DPPAlg,X,y,kernel)
+    alg.K = Symmetric(kernelmatrix(alg.centers,kernel)+1e-7I)
     for i in 1:size(X,1)
         k = kernelmatrix(reshape(X[i,:],1,size(X,2)),alg.centers,kernel)
         kk = kerneldiagmatrix(reshape(X[i,:],1,size(X,2)),kernel)[1]

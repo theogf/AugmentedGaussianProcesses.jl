@@ -86,6 +86,7 @@ include("deprecated.jl")
 
 #Training Functions
 include("training.jl")
+include("onlinetraining.jl")
 include("autotuning.jl")
 include("predictions.jl")
 end #End Module

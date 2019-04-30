@@ -23,9 +23,13 @@ end
 
 """Return the extra KL term containing the divergence with the GP at time t and t+1"""
 function extraKL(model::OnlineVGP)
-    L = 0.5*sum(broadcast((𝓛ₐ,invDₐ,K̃ₐ,Σ,Kab,η₁,κₐ,κₐμ)->𝓛ₐ + opt_trace(invDₐ,kernelmatrix(Zₐ,kernel)+κₐ*(Σ*κₐ'-Kab'))- 2*dot(η₁,κₐμ)+dot(κₐμ,invDₐ*κₐμ),model.prev𝓛ₐ,model.invDₐ,model.K̃ₐ,model.Σ,model.Kab,model.prevη₁,model.κₐ,model.κₐ.*model.μ))
-    model.prev𝓛ₐ .= logdet.(model.Σ) - logdet.(model.Kmm) + dot.(model.μ,model.η₁) #Precompute this part for the next ELBO
-    model.prevη₁ .= copy.(model.η₁)
+    Kₐₐ = kernelmatrix.(model.Zₐ,model.kernel)
+    L = 0.5*sum(broadcast((𝓛ₐ,Kₐₐ,invDₐ,K̃ₐ,Σ,Kab,η₁,κₐ,κₐμ)->
+    - 𝓛ₐ
+    - opt_trace(invDₐ,Kₐₐ)
+    - opt_trace(invDₐ,κₐ*(Σ*κₐ'-Kab'))
+    + 2*dot(η₁,κₐμ) - dot(κₐμ,invDₐ*κₐμ), model.prev𝓛ₐ,Kₐₐ,model.invDₐ,model.K̃ₐ,model.Σ,model.Kab,model.prevη₁,model.κₐ,model.κₐ.*model.μ))
+     #Precompute this part for the next ELBO
     return L
 end
 

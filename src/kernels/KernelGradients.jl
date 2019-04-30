@@ -31,6 +31,10 @@ function compute_hyperparameter_gradient(k::Kernel{T,ARDKernel},gradient_functio
     return map(gradient_function,Jmm,Jnm,Jnn,fill(index,k.fields.Ndim))
 end
 
+function compute_hyperparameter_gradient(k::Kernel{T,ARDKernel},gradient_function::Function,Jmm::Vector{Symmetric{T,Matrix{T}}},Jnm::Vector{Matrix{T}}, Jnn::Vector{Vector{T}},Jab::Vector{Matrix{T}},Jaa::Vector{Symmetric{T,Matrix{T}}},index::Int64) where T
+    return map(gradient_function,Jmm,Jnm,Jnn,Jab,Jaa,fill(index,k.fields.Ndim))
+end
+
 """Gradient computations for full multiclass model with Iso Kernel"""
 function compute_hyperparameter_gradient(k::Kernel{T,IsoKernel},gradient_function::Function,J::Symmetric{T,Matrix{T}},index::Int64) where T
     return gradient_function(J,index)
@@ -39,4 +43,9 @@ end
 """Gradient computations for sparse multiclass model with Iso Kernel"""
 function compute_hyperparameter_gradient(k::Kernel{T,IsoKernel},gradient_function::Function,Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Int64) where T
     return gradient_function(Jmm,Jnm,Jnn,index)
+end
+
+
+function compute_hyperparameter_gradient(k::Kernel{T,IsoKernel},gradient_function::Function,Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},Jab::Matrix{T},Jaa::Symmetric{T,Matrix{T}},index::Int64) where T
+    return gradient_function(Jmm,Jnm,Jnn,Jab,Jaa,index)
 end

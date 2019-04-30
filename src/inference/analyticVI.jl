@@ -89,8 +89,8 @@ end
 
 """Computation of the natural gradient for the natural parameters"""
 function natural_gradient!(model::OnlineVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
-    model.η₁ = transpose.(model.κ).*∇μ(model) .+ transpose.(model.κₐ).*model.η₁
-    model.η₂ = -Symmetric.(transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+0.5*transpose.(model.κₐ).*model.invDₐ.*model.κₐ.+0.5.*model.invKmm)
+    model.η₁ .= transpose.(model.κ).*∇μ(model) .+ transpose.(model.κₐ).*model.prevη₁
+    model.η₂ .= -Symmetric.(transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+0.5*transpose.(model.κₐ).*model.invDₐ.*model.κₐ.+0.5.*model.invKmm)
 end
 
 """Conversion from natural to standard distribution parameters"""
