@@ -11,7 +11,7 @@ using AugmentedGaussianProcesses.KernelModule
 export KMeansInducingPoints
 export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, DPPAlg
 export total_cost
-export init!, update!
+export init!, update!, remove!
 
 "Abstract type for kmeans algorithm"
 abstract type ZAlg end;

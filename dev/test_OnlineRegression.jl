@@ -218,7 +218,7 @@ end
 
 
 ### Sparse Offline GP
-t_sparse = @elapsed sparsegp = SVGP(X,y,kernel,GaussianLikelihood(noise),AnalyticSVI(10),18,Autotuning=true)
+t_sparse = @elapsed sparsegp = SVGP(X,y,kernel,GaussianLikelihood(noise),AnalyticVI(),20,Autotuning=true)
 train!(sparsegp,iterations=1000)
 y_sparse,sig_sparse = proba_y(sparsegp,X_test)
 y_train,sig_train = proba_y(sparsegp,X)
@@ -306,3 +306,5 @@ if dim == 2
 else
     display(plot(pfull,psparse,pdpp,pcircle)); gui()
 end
+
+display(bar(["Full","Sparse","DPP","Circle"],RMSE.([y_full,y_sparse,y_dpp,y_circle],[y_test]),title="RMS_test",lab=""))

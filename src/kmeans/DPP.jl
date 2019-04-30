@@ -43,3 +43,30 @@ function update!(alg::DPPAlg,X,y,kernel)
         end
     end
 end
+
+function remove!(alg::DPPAlg,Kmm,kernel)
+    # # overlaps = findall((x->count(x.>alg.lim*getvariance(kernel))).(eachcol(Kmm)).>1)
+    # # lowerKmm = Kmm - UpperTriangular(Kmm)
+    # ρ = alg.lim*getvariance(kernel)
+    # overlapcount = (x->count(x.>ρ)).(eachrow(Kmm))
+    # removable = SortedSet(findall(x->x>1,overlapcount))
+    # toremove = []
+    # c = 0
+    # while !isempty(removable)
+    #     i = sample(collect(removable),Weights(overlapcount[collect(removable)]))
+    #     connected = findall(x->x>ρ,Kmm[i,:])
+    #     overlapcount[connected] .-= 1
+    #     outofloop = filter(x->overlapcount[x]<=1,connected)
+    #     for j in outofloop
+    #         if issubset(j,removable)
+    #             delete!(removable,j)
+    #         end
+    #     end
+    #     push!(toremove,i)
+    #     if issubset(i,removable)
+    #         delete!(removable,i)
+    #     end
+    # end
+    # alg.centers = alg.centers[setdiff(1:alg.k,toremove),:]
+    # alg.k = size(alg.centers,1)
+end
