@@ -65,11 +65,15 @@ function plotting1D(X,f,ind_points,pred_ind,X_test,pred,sig_pred,title;full=fals
     return p
 end
 
-function plotting2D(X,f,ind_points,pred_ind,x1_test,x2_test,pred,minf,maxf,title;full=false)
+function plotting2D(X,f,ind_points,pred_ind,x1_test,x2_test,pred,minf,maxf,title;full=false,ρ=0.0)
     N_test = size(x1_test,1)
-    p = plot(x1_test,x2_test,reshape(pred,length(x1_test),length(x2_test))',t=:contour,clim=(minf,maxf),fill=true,lab="",title=title)
+    p = plot(x1_test,x2_test,reshape(pred,length(x1_test),length(x2_test))',t=:contour,clim=(minf,maxf),fill=true,lab="",title=title,xlims=(0,1),ylims=(0,1))
     # p = plot!(X[:,1],X[:,2],zcolor=f,t=:scatter,lab="",alpha=0.8,markerstrokewidth=0)
     if !full
+        θ = range(0.0,2π,length=100)
+        for j in 1:size(ind_points,1)
+            p = plot!(ind_points[j,1].+ρ*cos.(θ),ind_points[j,2].+ρ*sin.(θ),lab="",color=:black)
+        end
         p = plot!(ind_points[:,1],ind_points[:,2],t=:scatter,lab="",color=1)
     end
     return p
@@ -84,6 +88,10 @@ end
 
 function RMSE(y_pred,y_test)
     return norm(y_pred-y_test)/sqrt(length(y_test))
+end
+
+function LogLikelihood(y_pred,y_test)
+    return -0.5*norm(y_pred-y_test)/noise^2-0.5*length(y_test)*log(2*π*noise^2)
 end
 
 function KLGP(mu,sig,f,sig_f)
@@ -122,19 +130,36 @@ function sample_gaussian_process(X,noise)
     K = AugmentedGaussianProcesses.kernelmatrix(X,kernel)+noise*Diagonal{Float64}(I,N)
     return rand(MvNormal(zeros(N),K))
 end
-
+rmse_list = []
+m_list = []
+ll_list = []
 function callbackplot(model,iter)
+    global rmse_list, m_list,ll_list
     y_ind = predict_y(model,model.Zalg.centers)
-    y_test,sig_test = proba_y(model,X_test)
+    y_pred,sig_test = proba_y(model,X_test)
+    if iter == 1
+        rmse_list = []
+        m_list = []
+        ll_list = []
+    end
     if dim == 1
-        p = plotting1D(X,y,model.Zalg.centers,y_ind,X_test,y_test,sig_test,"$(typeof(model.Zalg)) (m=$(model.Zalg.k))")
+        p = plotting1D(X,y,model.Zalg.centers,y_ind,X_test,y_pred,sig_test,"$(typeof(model.Zalg)) (m=$(model.Zalg.k))")
         scatter!(model.X,model.y[1],color="black",lab="")
         display(p)
     elseif dim == 2
-        p = plotting2D(X,y,model.Zalg.centers,y_ind,x1_test,x2_test,y_test,minf,maxf,"$(typeof(model.Zalg)) (m=$(model.Zalg.k))")
-        scatter!(model.X[:,1],model.X[:,2],color="black",lab="")
+        # p = plotting2D(X,y,model.Zalg.centers,y_ind,x1_test,x2_test,y_pred,minf,maxf,"$(typeof(model.Zalg)) (m=$(model.Zalg.k))",ρ=getlengthscales(model.kernel[1])*sqrt(-2*log(model.Zalg.lim)))
+        # p = scatter!(model.X[:,1],model.X[:,2],color="black",lab="")
+        push!(rmse_list,RMSE(y_pred,y_test))
+        push!(m_list,model.nFeature)
+        push!(ll_list,-LogLikelihood(y_pred,y_test))
+        # prmse = plot(1:iter,rmse_list,title="RMSE",lab="")
+        # pm = plot(1:iter,m_list,title="M",lab="")
+        # pll = plot(1:iter,ll_list,title="Log Likelihood",lab="")
+        # lay = @layout [ a [a;b;c ]]
+        # fullp = plot(p,prmse,pm,pll,layout=lay)
+        # display(fullp)
         # display(p)
-        frame(anim)
+        # frame(anim)
     end
 end
 
@@ -150,7 +175,7 @@ function callbacksave(metrics)
     end
 end
 
-kernel = AugmentedGaussianProcesses.RBFKernel(0.5)
+kernel = AugmentedGaussianProcesses.RBFKernel(0.1)
 dim = 2
 monotone = true
 sequential = true
@@ -226,7 +251,7 @@ println("Sparse GP ($t_sparse s)\n\tRMSE (train) : $(RMSE(predict_y(sparsegp,X),
 if dim == 1
     psparse = plotting1D(X,y,[0],[0],X_test,y_sparse,sig_sparse,"Full batch GP",full=false)
 elseif dim == 2
-    psparse = plotting2D(X,y,sparsegp.Z[1],0,x1_test,x2_test,y_sparse,minf,maxf,"Sparse GP",full=false)
+    psparse = plotting2D(X,y,sparsegp.Z[1],0,x1_test,x2_test,y_sparse,minf,maxf,"Sparse GP (m=$(sparsegp.nFeature))",full=false)
 end
 
 
@@ -238,7 +263,7 @@ metdpp = MVHistory()
 t_dpp = @elapsed dppgp = OnlineVGP(kernel,GaussianLikelihood(noise),AnalyticSVI(24),DPPAlg(0.8,kernel),verbose=3,Autotuning=true,IndependentPriors=false)
 # for (X_batch,y_batch) in eachbatch((X,y),size=10,obsdim=1)
 for (X_batch,y_batch) in RandomBatches((X,y),size=10,count=30,obsdim=1)
-    train!(dppgp,X_batch,y_batch,iterations=100,callback=callbacksave(metdpp))
+    train!(dppgp,X_batch,y_batch,iterations=1,callback=callbacksave(metdpp))
     # train!(dppgp,X_batch,y_batch,iterations=10,callback=callbackplot)
 end
 # t_dpp = @elapsed train!(dppgp,iterations=100)
@@ -264,14 +289,14 @@ metcircle = MVHistory()
 # setfixed!(kernel.fields.variance)
 # setfree!(kernel.fields.variance)
 newkernel = kernel
-newkernel = RBFKernel(0.01)
+newkernel = RBFKernel(0.06)
 
-t_circle = @elapsed circlegp = OnlineVGP(newkernel,GaussianLikelihood(noise),AnalyticVI(),CircleKMeans(0.8),verbose=3,Autotuning=!false)
+t_circle = @elapsed circlegp = OnlineVGP(newkernel,GaussianLikelihood(noise),AnalyticVI(),CircleKMeans(0.8),verbose=3,Autotuning=true)
 # t_circle = @elapsed train!(circlegp,iterations=15,callback=callbackplot)
 # for (X_batch,y_batch) in eachbatch((X,y),size=10,obsdim=1)
-for (X_batch,y_batch) in RandomBatches((X,y),size=10,count=100,obsdim=1)
-    # t_dpp = @elapsed train!(circlegp,X_batch,y_batch,iterations=1,callback=callbackplot)
-    t_dpp = @elapsed train!(circlegp,X_batch,y_batch,iterations=1,callback=callbacksave(metcircle))
+for (X_batch,y_batch) in RandomBatches((X,y),size=10,count=200,obsdim=1)
+    t_dpp = @elapsed train!(circlegp,X_batch,y_batch,iterations=1,callback=callbackplot)
+    # t_dpp = @elapsed train!(circlegp,X_batch,y_batch,iterations=1,callback=callbacksave(metcircle))
 end
 y_circle,sig_circle = proba_y(circlegp,X_test)
 y_indcircle = predict_y(circlegp,circlegp.Zalg.centers)

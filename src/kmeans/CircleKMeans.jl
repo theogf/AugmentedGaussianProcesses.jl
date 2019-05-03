@@ -14,13 +14,10 @@ end
 function init!(alg::CircleKMeans,X,y,kernel)
     @assert alg.lim < 1.0 && alg.lim > 0 "lim should be between 0 and 1"
     @assert size(X,1) > 1 "First batch should have at least 2 samples"
-    dpp = DeterminantalPointProcess(Symmetric(kernelmatrix(X,kernel)+1e-5I))
-    samples = rand(dpp,1)[1]
-    if length(samples) == 1
-        samples = sample(1:size(X,1),2,replace=false)
-    end
+    samples = sample(1:size(X,1),2,replace=false)
     alg.centers = copy(X[samples,:])
     alg.k = size(alg.centers,1)
+    update!(alg,X,y,kernel)
 end
 
 function update!(alg::CircleKMeans,X,y,kernel)
