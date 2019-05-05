@@ -237,7 +237,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Kernels",
     "title": "Kernels available",
     "category": "section",
-    "text": "To get a short introduction of some covariance functions available one can look at these Slides from RasmussenWe define theta_i as the lengthscale (in case of IsoKernel theta_i=thetaforall i) and sigma is the variance In this package covariance functions are progressively added for now the available kernels are :RBF Kernel or Squared Exponential Kernelk(xx) = sigma expleft(-frac12sum_i=1^Dfrac(x_i-x_i)^2theta_i^2right)Matern 3/2 Kernelk(xx)= sigmaleft(1+sqrt3sum frac(x_i - x_i)^2theta_i^2right)expleft(-sqrt3sum frac(x_i - x_i)^2theta_i^2right)More are coming, check the github projects for updates ."
+    "text": "To get a short introduction of some covariance functions available one can look at these Slides from RasmussenWe define theta_i as the lengthscale (in case of IsoKernel theta_i=thetaforall i) and sigma is the variance In this package covariance functions are progressively added for now the available kernels are :RBF Kernel or Squared Exponential Kernelk(xx) = sigma expleft(-frac12sum_i=1^Dfrac(x_i-x_i)^2theta_i^2right)Matern Kernelk(xx) = sigmafrac2^1-nuGamma(nu)(sqrt2nufracdrhoright)^nu K_nuleft(sqrt2nufracdrhoright)More are coming, check the github projects for updates .However the module for kernels should be replaced soon by MLKernels.jl"
 },
 
 {
