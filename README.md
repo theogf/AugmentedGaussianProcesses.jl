@@ -23,6 +23,7 @@ AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development 
 ---
 ## More models in development
   - **MultiClass** : A multiclass classifier model, relying on a modified version of softmax
+  - **Poisson** : For point process estimation
   - **Heteroscedastic** : Non stationary noise
   - **Probit** : A Classifier with a Bernoulli likelihood with the probit link
   - **Online** : Allowing for all algorithms to work online as well
@@ -35,7 +36,7 @@ Run in `Julia` press `]` and type `add AugmentedGaussianProcesses`, it will inst
 
 ## Use the package
 
-A complete documentation is currently being written, for now you can use this very basic example where `X_train` is a matrix ``N x D`` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs (or matrix more independent multi-output).
+A complete documentation is currently being written, for now you can use this very basic example where `X_train` is a matrix ``N x D`` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs (or matrix independent multi-output).
 
 ```julia
 using AugmentedGaussianProcesses
@@ -55,7 +56,7 @@ Check out [my website for more news](https://theogf.github.io)
 
 ECML 17' "Bayesian Nonlinear Support Vector Machines for Big Data" by Florian Wenzel, Théo Galy-Fajou, Matthäus Deutsch and Marius Kloft. [https://arxiv.org/abs/1707.05532][arxivbsvm]
 
-Arxiv "Efficient Gaussian Process Classification using Polya-Gamma Variables" by Florian Wenzel, Théo Galy-Fajou, Christian Donner, Marius Kloft and Manfred Opper. [https://arxiv.org/abs/1802.06383][arxivxgpc]
+AAAI 19' "Efficient Gaussian Process Classification using Polya-Gamma Variables" by Florian Wenzel, Théo Galy-Fajou, Christian Donner, Marius Kloft and Manfred Opper. [https://arxiv.org/abs/1802.06383][arxivxgpc]
 
 UAI 13' "Gaussian Process for Big Data" by James Hensman, Nicolo Fusi and Neil D. Lawrence [https://arxiv.org/abs/1309.6835][arxivgpbigdata]
 

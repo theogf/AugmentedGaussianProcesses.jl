@@ -29,8 +29,8 @@ include("functions/GPAnalysisTools.jl")
 using .KernelModule
 using .KMeansModule
 using .PGSampler
-using .PerturbativeCorrection
-using .GPAnalysisTools
+# using .PerturbativeCorrection
+# using .GPAnalysisTools
 # using .IO_model
 #General modules
 # using MLKernels

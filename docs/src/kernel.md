@@ -14,13 +14,13 @@ In this package covariance functions are progressively added for now the availab
 
 $k(x,x') = \sigma \exp\left(-\frac{1}{2}\sum_{i=1}^D\frac{(x_i-x_i')^2}{\theta_i^2}\right)$
 
-- Matern 3/2 Kernel
+- Matern Kernel
 
-
-$k(x,x')= \sigma\left(1+\sqrt{3\sum \frac{(x_i - x_i')^2}{\theta_i^2}}\right)\exp\left(-\sqrt{3\sum \frac{(x_i - x_i')^2}{\theta_i^2}}\right)$
+$k(x,x') = \sigma\frac{2^{1-\nu}}{\Gamma(\nu)}\(\sqrt{2\nu}\frac{d}{\rho}\right)^\nu K_\nu\left(\sqrt{2\nu}\frac{d}{\rho}\right)$
 
 More are coming, check the [github projects](https://github.com/theogf/AugmentedGaussianProcesses.jl/projects/1) for updates .
 
+However the module for kernels should be replaced soon by [MLKernels.jl](https://github.com/trthatcher/MLKernels.jl)
 ## Hyperparameter optimization
 
 The advantage of Gaussian Processes is that it is possible to optimize all the hyperparameters of the model by optimizing the lower bound on the loglikelihood. One can compute the gradient of it and apply a classical gradient descent algorithm.
