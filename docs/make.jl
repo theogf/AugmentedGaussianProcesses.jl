@@ -1,7 +1,11 @@
 using Documenter, AugmentedGaussianProcesses
 
 makedocs(modules=[AugmentedGaussianProcesses],
-         sitename= "AugmentedGaussianProcesses.jl",
+         format = Documenter.HTML(
+         assets = ["assets/icon.ico"]),
+         sitename= "AugmentedGaussianProcesses",
+         authors="Theo Galy-Fajou",
+         analytics="UA-129106538-2",
          pages = [
          "Home"=>"index.md",
          "Background"=>"background.md",

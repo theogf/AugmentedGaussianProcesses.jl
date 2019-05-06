@@ -1,12 +1,18 @@
-# AugmentedGaussianProcesses.jl
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable)
+[![AugmentedGaussianProcesses.jl](assets/banner.png)](https://github.com/theogf/AugmentedGaussianProcesses.jl)
+
+[![Docs Latest](https://img.shields.io/badge/docs-dev-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/dev)
+[![Docs Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable)
+[![Build Status](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl.svg?branch=master)](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl)
+[![Coverage Status](https://coveralls.io/repos/github/theogf/AugmentedGaussianProcesses.jl/badge.svg?branch=master)](https://coveralls.io/github/theogf/AugmentedGaussianProcesses.jl?branch=master)
+
+
 A [Julia](http://julialang.org) package for Augmented and Normal Gaussian Processes.
 
----
+***
 
 ### Authors
 - [Théo Galy-Fajou](https://theogf.github.io) PhD Student at Technical University of Berlin.
-- [Florian Wenzel](http://www.florian-wenzel.de) PhD Student at Technical University of Kaiserslautern and Humboldt University of Berlin
+- [Florian Wenzel](http://www.florian-wenzel.de) PhD Student at Technical University of Kaiserslautern & Humboldt University of Berlin
 
 ### Installation
 
@@ -20,7 +26,7 @@ pkg> add AugmentedGaussianProcesses
 Here is a simple example to start right away :
 ```julia
 using AugmentedGaussianProcesses
-model = SVGP(X_train,y_train,kernel=RBFKernel(1.0),AugmentedLogisticLikelihood(),AnalyticInference(),m=50)
+model = SVGP(X_train,y_train,kernel=RBFKernel(1.0),AugmentedLogisticLikelihood(),AnalyticVI(),50)
 train!(model,iterations=100)
 y_pred = predict_y(model,X_test)
 ```

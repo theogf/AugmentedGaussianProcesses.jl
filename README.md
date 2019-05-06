@@ -12,13 +12,13 @@ AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development 
   - **BayesianSVM** : A Classifier with a likelihood equivalent to the classic SVM [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20BSVM.ipynb)/[Reference][arxivbsvm]
   - **Logistic** : A Classifier with a Bernoulli likelihood with the logistic link [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20XGPC.ipynb)/[Reference][arxivxgpc]
 
-    ![Classification Plot](docs/figures/Classification.png)
+    ![Classification Plot](docs/src/assets/Classification.png)
 ---
 ## Two GP Regression likelihood
   - **Gaussian** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)/[Reference][arxivgpbigdata]
   - **StudentT** : The standard Gaussian Process regression with a Student-t likelihood (the degree of freedom ν is not optimizable for the moment) [IJulia example](https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Gaussian.ipynb)/[Reference][jmlrstudentt]
 
-   ![Regression Plot](docs/figures/Regression.png)
+   ![Regression Plot](docs/src/assets/Regression.png)
 ---
 ## More models in development
   - **MultiClass** : A multiclass classifier model, relying on a modified version of softmax

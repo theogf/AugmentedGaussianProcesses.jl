@@ -1,7 +1,9 @@
 """Poisson Likelihood"""
 struct PoissonLikelihood{T<:Real} <: EventLikelihood{T}
     λ::LatentArray{T}
-    n::LatentArray{Vector{T}}
+    opt_λ::LatentArray{Optimizer}
+    c::LatentArray{Vector{T}}
+    γ::LatentArray{Vector{T}}
     θ::LatentArray{Vector{T}}
 end
 
@@ -27,7 +29,7 @@ function compute_proba(l::PoissonLikelihood{T},μ::Vector{T},σ²::Vector{T}) wh
         if σ²[i] <= 0.0
             pred[i] = l.λ*logistic(μ[i])
         else
-            pred[i] =  expectation(svmlikelihood,Normal(μ[i],sqrt(σ²[i])))
+            pred[i] =  expectation(x->l.λ*logistic(x),Normal(μ[i],sqrt(σ²[i])))
         end
     end
     return pred
@@ -37,8 +39,9 @@ end
 
 
 function local_updates!(model::VGP{PoissonLikelihood{T},<:AnalyticVI}) where {T<:Real}
-    model.likelihood.ω .= broadcast((μ,Σ,y)->abs2.(one(T) .- y.*μ) + Σ ,model.μ,diag.(model.Σ),model.y)
-    model.likelihood.θ .= broadcast(b->one(T)./sqrt.(b),model.likelihood.ω)
+    model.likelihood.c .= broadcast((μ,Σ)->sqrt.(abs2.(μ) + Σ) ,model.μ,diag.(model.Σ))
+    model.γ .= broadcast((c,μ,λ)->0.5*λ*exp.(-0.5*μ)./cosh.(0.5*c),model.likelihood.c,model.μ,model.likelihood.λ)
+    model.likelihood.θ .= broadcast((y,γ,c)->(y+γ)./c.*tanh.(0.5*c),model.y,model.likelihood.γ,model.likelihood.c)
 end
 
 function local_updates!(model::SVGP{PoissonLikelihood{T},<:AnalyticVI}) where {T<:Real}
@@ -48,11 +51,11 @@ end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::VGP{PoissonLikelihood{T}},index::Integer) where {T<:Real}
-    return model.y[index].*(model.likelihood.θ[index] .+ one(T))
+    return 0.5*(model.y[index]-model.likelihood.γ[index])
 end
 
 function ∇μ(model::VGP{PoissonLikelihood{T}}) where {T<:Real}
-    return broadcast((y,θ)->y.*(θ.+one(T)),model.y,model.likelihood.θ)
+    return 0.5*(model.y.-model.likelihood.γ)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
@@ -73,14 +76,16 @@ function ∇Σ(model::AbstractGP{PoissonLikelihood{T}}) where {T<:Real}
 end
 
 function ELBO(model::AbstractGP{<:PoissonLikelihood})
-    return expecLogLikelihood(model) - GaussianKL(model) - GIGEntropy(model)
+    return expecLogLikelihood(model) - GaussianKL(model) - PoissonKL(model) - PolyaGammaKL(model)
 end
 
 function expecLogLikelihood(model::VGP{PoissonLikelihood{T},AnalyticVI{T}}) where {T<:Real}
-    tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((μ,y,θ,Σ)->(sum(μ.*y)-0.5*dot(θ,Σ+abs2.(one(T).-y.*μ))),
-                        model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
-    return tot
+    model.likelihood.c .= broadcast((μ,Σ)->sqrt.(abs2.(μ) + Σ) ,model.μ,diag.(model.Σ))
+    tot = sum(broadcast((y,λ,γ)->sum(y*log(λ)-lfactorial.(y)-(y+γ)*log2),model.y,model.likelihood.λ,model.likelihood.γ))
+    tot += sum(broadcast((μ,)))
+    # tot += sum(broadcast((μ,y,θ,Σ)->(sum(μ.*y)-0.5*dot(θ,Σ+abs2.(one(T).-y.*μ))),
+                        # model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
+    # return tot
 end
 
 function expecLogLikelihood(model::SVGP{PoissonLikelihood{T},AnalyticVI{T}}) where {T<:Real}
