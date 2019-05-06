@@ -22,23 +22,34 @@ function InverseGammaKL(model::AbstractGP{<:StudentTLikelihood})
 end
 
 """KL(q(ω)||p(ω)), where q(ω) = Po(γ) and p(ω) = Po(λ)"""
-function PoissonKL(γ,λ)
-    sum(λ)-sum(γ)+dot(γ,log.(γ))-dot(γ,log.(λ))
+function PoissonKL(γ,λ;ρ::Real=1.0)
+    ρ = sum(broadcast((γ,λ)->sum(λ)-sum(γ)+dot(γ,log.(γ))-dot(γ,log.(λ)),γ,λ))
+end
+
+function PoissonKL(model::AbstractGP{<:PoissonLikelihood})
+    PoissonKL(model.likelihood.γ,fill.(model.likelihood.λ,size(model.likelihood.γ[1])),ρ=model.inference.ρ)
 end
 
 """Compute KL divergence for Poisson variables in the multi-class setting"""
 function PoissonKL(model::AbstractGP{<:LogisticSoftMaxLikelihood})
     return model.inference.ρ*sum(γ->sum(xlogx.(γ).+γ.*(-1.0.-digamma.(model.likelihood.α).+log.(model.likelihood.β))+model.likelihood.α./model.likelihood.β),model.likelihood.γ)
 end
+
+
+
 """KL(q(ω)||p(ω)), where q(ω) = PG(b,c) and p(ω) = PG(b,0). θ = 𝑬[ω]"""
 function PolyaGammaKL(b,c,θ;ρ::Real=1.0)
     return ρ*sum(broadcast((b,c,θ)->-0.5*dot(c.^2,θ)-0.5*dot(b,logcosh.(0.5*c)),b,c,θ))
 end
 
-
 """Compute KL divergence for Polya-Gamma variables in the binary setting"""
 function PolyaGammaKL(model::AbstractGP{<:LogisticLikelihood})
     return PolyaGammaKL([ones(length(model.likelihood.c[1]))],model.likelihood.c,model.likelihood.θ,ρ=model.inference.ρ)
+end
+
+"""Compute KL divergence for Polya-Gamma variables in the binary setting"""
+function PolyaGammaKL(model::AbstractGP{<:PoissonLikelihood})
+    return PolyaGammaKL(model.y.+model.likelihood.γ,model.likelihood.c,model.likelihood.θ,ρ=model.inference.ρ)
 end
 
 """Compute KL divergence for Polya-Gamma variables in the multi-class setting"""

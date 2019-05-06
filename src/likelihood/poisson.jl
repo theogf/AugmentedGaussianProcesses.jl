@@ -5,6 +5,12 @@ struct PoissonLikelihood{T<:Real} <: EventLikelihood{T}
     c::LatentArray{Vector{T}}
     γ::LatentArray{Vector{T}}
     θ::LatentArray{Vector{T}}
+    function PoissonLikelihood{T}() where {T<:Real}
+        new{T}()
+    end
+    function PoissonLikelihood{T}(λ,opt_λ,c,γ,θ) where {T<:Real}
+        new{T}(λ,opt_λ,c,γ,θ)
+    end
 end
 
 function PoissonLikelihood()
@@ -12,8 +18,13 @@ function PoissonLikelihood()
 end
 
 function init_likelihood(likelihood::PoissonLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed) where T
-    PoissonLikelihood{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
+    PoissonLikelihood{T}(ones(T,nLatent),
+    [Adam(α=0.1) for _ in 1:nLatent],
+    [zeros(T,nSamplesUsed) for _ in 1:nLatent],
+    [zeros(T,nSamplesUsed) for _ in 1:nLatent],
+    [zeros(T,nSamplesUsed) for _ in 1:nLatent])
 end
+
 function pdf(l::PoissonLikelihood,y::Real,f::Real)
     pdf(Poisson(l.λ*logistic(f)),y)
 end
@@ -40,8 +51,9 @@ end
 
 function local_updates!(model::VGP{PoissonLikelihood{T},<:AnalyticVI}) where {T<:Real}
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(abs2.(μ) + Σ) ,model.μ,diag.(model.Σ))
-    model.γ .= broadcast((c,μ,λ)->0.5*λ*exp.(-0.5*μ)./cosh.(0.5*c),model.likelihood.c,model.μ,model.likelihood.λ)
+    model.likelihood.γ .= broadcast((c,μ,λ)->0.5*λ*exp.(-0.5*μ)./cosh.(0.5*c),model.likelihood.c,model.μ,model.likelihood.λ)
     model.likelihood.θ .= broadcast((y,γ,c)->(y+γ)./c.*tanh.(0.5*c),model.y,model.likelihood.γ,model.likelihood.c)
+    model.likelihood.λ .= broadcast((y,μ)->sum(y)./sum(logistic.(μ)),model.y,model.μ)
 end
 
 function local_updates!(model::SVGP{PoissonLikelihood{T},<:AnalyticVI}) where {T<:Real}
@@ -82,10 +94,8 @@ end
 function expecLogLikelihood(model::VGP{PoissonLikelihood{T},AnalyticVI{T}}) where {T<:Real}
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(abs2.(μ) + Σ) ,model.μ,diag.(model.Σ))
     tot = sum(broadcast((y,λ,γ)->sum(y*log(λ)-lfactorial.(y)-(y+γ)*log2),model.y,model.likelihood.λ,model.likelihood.γ))
-    tot += sum(broadcast((μ,)))
-    # tot += sum(broadcast((μ,y,θ,Σ)->(sum(μ.*y)-0.5*dot(θ,Σ+abs2.(one(T).-y.*μ))),
-                        # model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
-    # return tot
+    tot += sum(broadcast((μ,y,γ,c,θ)->0.5*dot(μ,(y-γ))-0.5*dot(c.^2,θ),model.μ,model.y,model.γ,model.c,model.θ))
+    return tot
 end
 
 function expecLogLikelihood(model::SVGP{PoissonLikelihood{T},AnalyticVI{T}}) where {T<:Real}
