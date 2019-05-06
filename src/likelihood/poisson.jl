@@ -1,10 +1,9 @@
 """Poisson Likelihood"""
 struct PoissonLikelihood{T<:Real} <: EventLikelihood{T}
     λ::LatentArray{T}
-
+    n::LatentArray{Vector{T}}
+    θ::LatentArray{Vector{T}}
 end
-
-
 
 function PoissonLikelihood()
     PoissonLikelihood{Float64}()
@@ -14,7 +13,7 @@ function init_likelihood(likelihood::PoissonLikelihood{T},inference::Inference{T
     PoissonLikelihood{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
 end
 function pdf(l::PoissonLikelihood,y::Real,f::Real)
-    pdf(Poisson(l.λ*logistic(f),y)
+    pdf(Poisson(l.λ*logistic(f)),y)
 end
 
 function Base.show(io::IO,model::PoissonLikelihood{T}) where T
