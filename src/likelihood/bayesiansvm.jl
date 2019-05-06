@@ -29,8 +29,6 @@ function BayesianSVM()
     BayesianSVM{Float64}()
 end
 
-isaugmented(::BayesianSVM{T}) where T = true
-
 function init_likelihood(likelihood::BayesianSVM{T},inference::Inference{T},nLatent::Integer,nSamplesUsed) where T
     BayesianSVM{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
 end
