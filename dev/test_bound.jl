@@ -83,3 +83,24 @@ scatter!(eachcol(dppalg.centers)...,lab="DPP")
 scatter!(eachcol(X[gcenters,:])...,lab="Graph")
 display(scatter!(eachcol(alg.centers)...,lab="Circle"))
 display(plot(b1,b2,b3,b4))
+
+
+
+
+## Work on #points vs expected #
+
+α = 0.01
+N = 1000
+Adiag = [min(i*α,1.0) for i in 1:N]
+Aoffdiag = [max(0.0,1.0-i*α) for i in 1:(N-1)]
+A = Bidiagonal(Adiag,Aoffdiag,:L)
+P0 = zeros(N); P0[1] = 1.0
+Aplus = A
+v = zeros(N)
+@progress for n in 1:1000
+    global Aplus
+    v[n] = findmax(Aplus*P0)[2]
+    Aplus *= A
+end
+plot(1:1000,v,lab="")
+vals,vectors = eigen(A)
