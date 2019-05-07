@@ -103,7 +103,7 @@ end
 
 ## Global Gradient Section ##
 
-function expec_μ(model::VGP{<:LogisticSoftMaxLikelihood},index::Int)
+function cond_mean(model::VGP{<:LogisticSoftMaxLikelihood},index::Int)
     0.5.*(model.likelihood.Y[index]-model.likelihood.γ[index])
 end
 
@@ -111,16 +111,12 @@ function ∇μ(model::VGP{<:LogisticSoftMaxLikelihood})
     0.5.*(model.likelihood.Y.-model.likelihood.γ)
 end
 
-function expec_μ(model::SVGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::SVGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI},index::Integer)
     0.5.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
 end
 
 function ∇μ(model::SVGP{<:LogisticSoftMaxLikelihood})
     0.5.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
-end
-
-function expec_Σ(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI},index::Integer)
-    model.likelihood.θ[index]
 end
 
 function ∇Σ(model::AbstractGP{<:LogisticSoftMaxLikelihood})

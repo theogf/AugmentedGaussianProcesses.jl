@@ -84,7 +84,7 @@ end
 """Coordinate ascent updates on the natural parameters"""
 function natural_gradient!(model::VGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
     model.η₁ .= ∇μ(model) .+ model.invKnn.*model.μ₀
-    model.η₂ .= Symmetric.(-0.5*(Diagonal{T}.(∇Σ(model)).+model.invKnn))
+    model.η₂ .= -0.5*Symmetric.(Diagonal{T}.(∇Σ(model)).+model.invKnn)
 end
 
 """Computation of the natural gradient for the natural parameters"""

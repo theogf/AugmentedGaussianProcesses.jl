@@ -9,7 +9,7 @@ include("testingtools.jl")
 nData = 100; nDim = 2
 k = AGP.RBFKernel()
 ν = 5.0
-
+K = 4
 X = rand(nData,nDim)
 f = ones(nData)
 while !(maximum(f) > 0 && minimum(f) < 0)

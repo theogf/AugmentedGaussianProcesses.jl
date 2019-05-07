@@ -63,7 +63,7 @@ end
 
 ## Global Updates ##
 
-function expec_μ(model::VGP{PoissonLikelihood{T}},index::Integer) where {T<:Real}
+function cond_mean(model::VGP{PoissonLikelihood{T}},index::Integer) where {T<:Real}
     return 0.5*(model.y[index]-model.likelihood.γ[index])
 end
 
@@ -71,16 +71,12 @@ function ∇μ(model::VGP{PoissonLikelihood{T}}) where {T<:Real}
     return 0.5*(model.y.-model.likelihood.γ)
 end
 
-function expec_μ(model::SVGP{PoissonLikelihood{T}},index::Integer) where {T<:Real}
+function cond_mean(model::SVGP{PoissonLikelihood{T}},index::Integer) where {T<:Real}
     return 0.5*(model.y[index][model.inference.MBIndices]-model.likelihood.γ[index])
 end
 
 function ∇μ(model::SVGP{PoissonLikelihood{T}}) where {T<:Real}
     return broadcast((y,γ)->0.5*(y[model.inference.MBIndices]-γ),model.y,model.likelihood.γ)
-end
-
-function expec_Σ(model::AbstractGP{PoissonLikelihood{T}},index::Integer) where {T<:Real}
-    return 0.5*model.likelihood.θ[index]
 end
 
 function ∇Σ(model::AbstractGP{PoissonLikelihood{T}}) where {T<:Real}

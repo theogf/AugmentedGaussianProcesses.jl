@@ -99,7 +99,7 @@ function sample_local!(model::VGP{<:LaplaceLikelihood,<:GibbsSampling})
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::VGP{<:LaplaceLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::VGP{<:LaplaceLikelihood,<:AnalyticVI},index::Integer)
     return model.likelihood.θ[index].*model.y[index]
 end
 
@@ -108,16 +108,12 @@ function ∇μ(model::VGP{<:LaplaceLikelihood,<:AnalyticVI})
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::SVGP{<:LaplaceLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::SVGP{<:LaplaceLikelihood,<:AnalyticVI},index::Integer)
     return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]
 end
 
 function ∇μ(model::SVGP{<:LaplaceLikelihood,<:AnalyticVI})
     return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))
-end
-
-function expec_Σ(model::AbstractGP{<:LaplaceLikelihood,<:AnalyticVI},index::Integer)
-    return model.likelihood.θ[index]
 end
 
 function ∇Σ(model::AbstractGP{<:LaplaceLikelihood,<:AnalyticVI})

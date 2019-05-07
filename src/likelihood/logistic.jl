@@ -82,7 +82,7 @@ end
 
 ### Natural Gradient Section ###
 
-function expec_μ(model::VGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::VGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
     return 0.5*model.y[index]
 end
 
@@ -90,16 +90,12 @@ function ∇μ(model::VGP{<:LogisticLikelihood})
     return 0.5*model.y
 end
 
-function expec_μ(model::SVGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::SVGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
     return 0.5.*model.y[index][model.inference.MBIndices]
 end
 
 function ∇μ(model::SVGP{<:LogisticLikelihood})
     return 0.5.*getindex.(model.y,[model.inference.MBIndices])
-end
-
-function expec_Σ(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
-    return model.likelihood.θ[index]
 end
 
 function ∇Σ(model::AbstractGP{<:LogisticLikelihood})

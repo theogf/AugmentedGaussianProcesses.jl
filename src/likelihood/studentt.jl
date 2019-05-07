@@ -104,7 +104,7 @@ end
 
 ## Global Gradients ##
 
-function expec_μ(model::VGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::VGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
     return model.likelihood.θ[index].*model.y[index]
 end
 
@@ -112,16 +112,12 @@ function ∇μ(model::VGP{<:StudentTLikelihood})
     return hadamard.(model.likelihood.θ,model.y)
 end
 
-function expec_μ(model::SVGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::SVGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
     return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]
 end
 
 function ∇μ(model::SVGP{<:StudentTLikelihood,<:AnalyticVI})
     return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))
-end
-
-function expec_Σ(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
-    return model.likelihood.θ[index]
 end
 
 function ∇Σ(model::AbstractGP{<:StudentTLikelihood})

@@ -79,7 +79,7 @@ function local_updates!(model::SVGP{BayesianSVM{T},<:AnalyticVI}) where {T<:Real
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::VGP{BayesianSVM{T}},index::Integer) where {T<:Real}
+function cond_mean(model::VGP{BayesianSVM{T}},index::Integer) where {T<:Real}
     return model.y[index].*(model.likelihood.θ[index] .+ one(T))
 end
 
@@ -88,16 +88,12 @@ function ∇μ(model::VGP{BayesianSVM{T}}) where {T<:Real}
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::SVGP{BayesianSVM{T}},index::Integer) where {T<:Real}
+function cond_mean(model::SVGP{BayesianSVM{T}},index::Integer) where {T<:Real}
     return model.y[index][model.inference.MBIndices].*(model.likelihood.θ[index].+one(T))
 end
 
 function ∇μ(model::SVGP{BayesianSVM{T}}) where {T<:Real}
     return broadcast((y,θ)->y[model.inference.MBIndices].*(θ.+one(T)),model.y,model.likelihood.θ)
-end
-
-function expec_Σ(model::AbstractGP{BayesianSVM{T}},index::Integer) where {T<:Real}
-    return 0.5*model.likelihood.θ[index]
 end
 
 function ∇Σ(model::AbstractGP{BayesianSVM{T}}) where {T<:Real}
