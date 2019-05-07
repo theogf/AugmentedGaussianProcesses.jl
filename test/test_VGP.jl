@@ -13,7 +13,7 @@ K = 4
 X = rand(nData,nDim)
 f = ones(nData)
 while !(maximum(f) > 0 && minimum(f) < 0)
-    global f = rand(MvNormal(zeros(nData),kernelmatrix(X,k)+1e-3I))
+    global f = rand(MvNormal(zeros(nData),AGP.kernelmatrix(X,k)+1e-3I))
 end
 width = maximum(f)-minimum(f)
 normf = (f.-minimum(f))/width*K

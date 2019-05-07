@@ -10,7 +10,7 @@ m = 50; b= 10
 k = AGP.RBFKernel(0.1)
 
 X = rand(nData,nDim)
-y = rand(MvNormal(zeros(nData),kernelmatrix(X,k)+1e-3I))
+y = rand(MvNormal(zeros(nData),AGP.kernelmatrix(X,k)+1e-3I))
 
 floattypes = [Float64]
 @testset "GP" begin
