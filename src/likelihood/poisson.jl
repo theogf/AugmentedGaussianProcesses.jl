@@ -57,8 +57,10 @@ function local_updates!(model::VGP{PoissonLikelihood{T},<:AnalyticVI}) where {T<
 end
 
 function local_updates!(model::SVGP{PoissonLikelihood{T},<:AnalyticVI}) where {T<:Real}
-    model.likelihood.ω .= broadcast((κ,μ,Σ,y,K̃)->abs2.(one(T) .- y[model.inference.MBIndices].*(κ*μ)) + opt_diag(κ*Σ,κ) + K̃,model.κ,model.μ,model.Σ,model.y,model.K̃)
-    model.likelihood.θ .= broadcast(b->one(T)./sqrt.(b),model.likelihood.ω)
+    model.likelihood.c .= broadcast((κ,μ,Σ,K̃)->sqrt.(abs2.(κ*μ) + opt_diag(κ*Σ,κ) + K̃),model.κ,model.μ,model.Σ,model.K̃)
+    model.likelihood.γ .= broadcast((c,κμ,λ)->0.5*λ*exp.(-0.5*κμ)./cosh.(0.5*c),model.likelihood.c,model.κ.*model.μ,model.likelihood.λ)
+    model.likelihood.θ .= broadcast((y,γ,c)->(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5*c),model.y,model.likelihood.γ,model.likelihood.c)
+    model.likelihood.λ .= broadcast((y,κμ)->sum(y[model.inference.MBIndices])./sum(logistic.(κμ)),model.y,model.κ.*model.μ)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
@@ -72,11 +74,11 @@ end
 
 """ Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::SVGP{PoissonLikelihood{T}},index::Integer) where {T<:Real}
-    return model.y[index][model.inference.MBIndices].*(model.likelihood.θ[index].+one(T))
+    return 0.5*(model.y[index][model.inference.MBIndices]-model.likelihood.γ[index])
 end
 
 function ∇μ(model::SVGP{PoissonLikelihood{T}}) where {T<:Real}
-    return broadcast((y,θ)->y[model.inference.MBIndices].*(θ.+one(T)),model.y,model.likelihood.θ)
+    return broadcast((y,γ)->0.5*(y[model.inference.MBIndices]-γ),model.y,model.likelihood.γ)
 end
 
 function expec_Σ(model::AbstractGP{PoissonLikelihood{T}},index::Integer) where {T<:Real}
@@ -99,8 +101,8 @@ function expecLogLikelihood(model::VGP{PoissonLikelihood{T},AnalyticVI{T}}) wher
 end
 
 function expecLogLikelihood(model::SVGP{PoissonLikelihood{T},AnalyticVI{T}}) where {T<:Real}
-    tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->(sum(κμ.*y[model.inference.MBIndices])-0.5*dot(θ,K̃+κΣκ+abs2.(one(T).-y[model.inference.MBIndices].*κμ))),
-                        model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
+    model.likelihood.c .= broadcast((κ,μ,Σ,K̃)->sqrt.(abs2.(κ*μ) + opt_trace(κ*Σ,κ) + K̃),model.κ,model.μ,model.Σ,model.K̃)
+    tot = sum(broadcast((y,λ,γ)->sum(y[model.inference.MBIndices]*log(λ)-lfactorial.(y[model.inference.MBIndices])-(y[model.inference.MBIndices]+γ)*log2),model.y,model.likelihood.λ,model.likelihood.γ))
+    tot += sum(broadcast((κμ,y,γ,c,θ)->0.5*dot(κμ,(y[model.inference.MBIndices]-γ))-0.5*dot(c.^2,θ),model.κ.*model.μ,model.y,model.γ,model.c,model.θ))
     return model.inference.ρ*tot
 end
