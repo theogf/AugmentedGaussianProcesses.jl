@@ -95,14 +95,14 @@ end
 
 function expecLogLikelihood(model::VGP{PoissonLikelihood{T},AnalyticVI{T}}) where {T<:Real}
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(abs2.(μ) + Σ) ,model.μ,diag.(model.Σ))
-    tot = sum(broadcast((y,λ,γ)->sum(y*log(λ)-lfactorial.(y)-(y+γ)*log2),model.y,model.likelihood.λ,model.likelihood.γ))
-    tot += sum(broadcast((μ,y,γ,c,θ)->0.5*dot(μ,(y-γ))-0.5*dot(c.^2,θ),model.μ,model.y,model.γ,model.c,model.θ))
+    tot = sum(broadcast((y,λ,γ)->sum(y*log(λ))-sum(lfactorial.(y))-log(2.0)*sum((y+γ)),model.y,model.likelihood.λ,model.likelihood.γ))
+    tot += sum(broadcast((μ,y,γ,c,θ)->0.5*dot(μ,(y-γ))-0.5*dot(c.^2,θ),model.μ,model.y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{PoissonLikelihood{T},AnalyticVI{T}}) where {T<:Real}
-    model.likelihood.c .= broadcast((κ,μ,Σ,K̃)->sqrt.(abs2.(κ*μ) + opt_trace(κ*Σ,κ) + K̃),model.κ,model.μ,model.Σ,model.K̃)
-    tot = sum(broadcast((y,λ,γ)->sum(y[model.inference.MBIndices]*log(λ)-lfactorial.(y[model.inference.MBIndices])-(y[model.inference.MBIndices]+γ)*log2),model.y,model.likelihood.λ,model.likelihood.γ))
-    tot += sum(broadcast((κμ,y,γ,c,θ)->0.5*dot(κμ,(y[model.inference.MBIndices]-γ))-0.5*dot(c.^2,θ),model.κ.*model.μ,model.y,model.γ,model.c,model.θ))
+    model.likelihood.c .= broadcast((κ,μ,Σ,K̃)->sqrt.(abs2.(κ*μ) + opt_diag(κ*Σ,κ) + K̃),model.κ,model.μ,model.Σ,model.K̃)
+    tot = sum(broadcast((y,λ,γ)->sum(y[model.inference.MBIndices]*log(λ))-sum(lfactorial.(y[model.inference.MBIndices]))-log(2.0)*sum(y[model.inference.MBIndices]+γ),model.y,model.likelihood.λ,model.likelihood.γ))
+    tot += sum(broadcast((κμ,y,γ,c,θ)->0.5*dot(κμ,(y[model.inference.MBIndices]-γ))-0.5*dot(c.^2,θ),model.κ.*model.μ,model.y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
     return model.inference.ρ*tot
 end

@@ -13,7 +13,7 @@ y = rand(MvNormal(zeros(N+size(Xrange,1)),K+1e-2I))
 n = rand.(Poisson.(λ.*AugmentedGaussianProcesses.logistic.(y)))
 n_train = n[1:N]
 ptrue = contourf(xrange,xrange,reshape(n[N+1:end],100,100))
-model = SVGP(X,n_train,RBFKernel(0.1),PoissonLikelihood(),AnalyticVI(),100)
+model = SVGP(X,n_train,RBFKernel(0.1),PoissonLikelihood(),AnalyticVI(),100,verbose=3)
 train!(model,iterations=100)
 norm(proba_y(model,X)-n_train)
 pred_f = predict_y(model,Xrange)

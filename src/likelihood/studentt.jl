@@ -131,15 +131,15 @@ end
 
 function expecLogLikelihood(model::VGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.nSample*log(twoπ)
-    tot -= 0.5.*sum(broadcast(ω->sum(log.(ω).-model.nSample*digamma(model.likelihood.α)),model.likelihood.ω))
-    tot -= 0.5.*sum(broadcast((θ,Σ,μ,y)->dot(θ,Σ+abs2.(μ)-2.0*μ.*y-abs2.(y)),model.likelihood.θ,diag.(model.Σ),model.μ,model.y))
+    tot += -0.5.*sum(broadcast(ω->sum(model.nSample*digamma(model.likelihood.α).-log.(ω)),model.likelihood.ω))
+    tot += -0.5.*sum(broadcast((θ,Σ,μ,y)->dot(θ,Σ+abs2.(μ)-2.0*μ.*y-abs2.(y)),model.likelihood.θ,diag.(model.Σ),model.μ,model.y))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.inference.nSamplesUsed*log(twoπ)
-    tot -= 0.5.*sum(broadcast(ω->sum(log.(ω).-model.inference.nSamplesUsed*digamma(model.likelihood.α)),model.likelihood.ω))
-    tot -= 0.5.*sum(broadcast((θ,K̃,κ,Σ,μ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)-2.0*(κ*μ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.μ,model.y))
+    tot += -0.5.*sum(broadcast(ω->sum(model.inference.nSamplesUsed*digamma(model.likelihood.α).-log.(ω)),model.likelihood.ω))
+    tot += -0.5.*sum(broadcast((θ,K̃,κ,Σ,κμ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κμ)-2.0*(κμ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.κ.*model.μ,model.y))
     return model.inference.ρ*tot
 end
 

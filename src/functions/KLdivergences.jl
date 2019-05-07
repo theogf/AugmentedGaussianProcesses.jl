@@ -48,8 +48,13 @@ function PolyaGammaKL(model::AbstractGP{<:LogisticLikelihood})
 end
 
 """Compute KL divergence for Polya-Gamma variables in the binary setting"""
-function PolyaGammaKL(model::AbstractGP{<:PoissonLikelihood})
+function PolyaGammaKL(model::VGP{<:PoissonLikelihood})
     return PolyaGammaKL(model.y.+model.likelihood.γ,model.likelihood.c,model.likelihood.θ,ρ=model.inference.ρ)
+end
+
+"""Compute KL divergence for Polya-Gamma variables in the binary setting"""
+function PolyaGammaKL(model::SVGP{<:PoissonLikelihood})
+    return PolyaGammaKL(getindex.(model.y,[model.inference.MBIndices]).+model.likelihood.γ,model.likelihood.c,model.likelihood.θ,ρ=model.inference.ρ)
 end
 
 """Compute KL divergence for Polya-Gamma variables in the multi-class setting"""
