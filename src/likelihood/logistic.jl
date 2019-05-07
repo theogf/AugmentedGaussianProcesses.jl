@@ -62,8 +62,7 @@ function compute_proba(l::LogisticLikelihood{T},μ::AbstractVector{T},σ²::Abst
     return pred
 end
 
-###############################################################################
-
+### Local Updates Section ###
 
 function local_updates!(model::VGP{<:LogisticLikelihood,<:AnalyticVI})
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(Σ+abs2.(μ)),model.μ,diag.(model.Σ))
@@ -80,6 +79,8 @@ function sample_local!(model::VGP{<:LogisticLikelihood,<:GibbsSampling})
     model.likelihood.θ .= broadcast((μ::AbstractVector{<:Real})->draw.([pg],[1.0],μ),model.μ)
     return nothing
 end
+
+### Natural Gradient Section ###
 
 function expec_μ(model::VGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
     return 0.5*model.y[index]
@@ -105,6 +106,8 @@ function ∇Σ(model::AbstractGP{<:LogisticLikelihood})
     return model.likelihood.θ
 end
 
+### ELBO Section ###
+
 function ELBO(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI})
     return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
 end
@@ -123,7 +126,11 @@ function expecLogLikelihood(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
     return model.inference.ρ*tot
 end
 
-###############################################################################
+function PolyaGammaKL(model::AbstractGP{<:LogisticLikelihood})
+    model.inference.ρ*sum(broadcast(PolyaGammaKL,[ones(length(model.likelihood.c[1]))],model.likelihood.c,model.likelihood.θ))
+end
+
+### Gradient Section ###
 
 function gradpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
     σ=y*f

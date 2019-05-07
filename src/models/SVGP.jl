@@ -97,6 +97,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
                 opt = kernel[1].fields.variance.opt
                 opt.α = opt.α*0.1
                 setoptimizer!.(kernel,[copy(opt) for _ in 1:nLatent])
+                broadcast(opt->opt.α=opt.α*0.1,opt_μ₀)
             end
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed)

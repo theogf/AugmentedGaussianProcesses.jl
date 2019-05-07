@@ -15,30 +15,34 @@ For the analytical solution, it is augmented via:
 p(y|f,\\omega) = \\mathcal{N}(y|f,\\omega^{-1})
 ```
 where ``\\omega \\sim \\text{Exp}\\left(\\omega \\mid \\frac{1}{2 \\beta^2}\\right)``, and Exp is the [Exponential distribution](https://en.wikipedia.org/wiki/Exponential_distribution)
+We approximate ``q(\\omega) = \\mathcal{GIG}\\left(\\omega \\mid a,b,p\\right)
 """
 struct LaplaceLikelihood{T<:Real} <: RegressionLikelihood{T}
     β::T
-    a::T
-    p::T
-    ω::LatentArray{Vector{T}}
-    θ::LatentArray{Vector{T}}
-    function LaplaceLikelihood{T}(β::T) where {T<:Real}
-        new{T}(β,β^-2,0.5)
+    a::LatentArray{T}
+    p::LatentArray{T}
+    b::LatentArray{Vector{T}}
+    θ::LatentArray{Vector{T}} #Expected value of ω
+    function LaplaceLikelihood{T}(β::AbstractVector{T}) where {T<:Real}
+        new{T}(β[1],β^-2,0.5*ones(size(β)))
     end
-    function LaplaceLikelihood{T}(β::T,ω::AbstractVector{<:AbstractVector{T}},θ::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
-        new{T}(β,β^-2,0.5,ω,θ)
+    function LaplaceLikelihood{T}(β::AbstractVector{T},b::AbstractVector{<:AbstractVector{T}},θ::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
+        new{T}(β,β.^(-2),0.5*ones(size(β)),b,θ)
     end
 end
 
 function LaplaceLikelihood(β::T=1.0) where {T<:Real}
-    LaplaceLikelihood{T}(β)
+    LaplaceLikelihood{T}([β])
 end
 
 function init_likelihood(likelihood::LaplaceLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
-        LaplaceLikelihood{T}(likelihood.β,[abs2.(T.(rand(T,nSamplesUsed))) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
+        LaplaceLikelihood{T}(
+        [likelihood.β for _ in 1:nLatent],
+        [abs2.(T.(rand(T,nSamplesUsed))) for _ in 1:nLatent],
+        [zeros(T,nSamplesUsed) for _ in 1:nLatent])
     else
-        LaplaceLikelihood{T}(likelihood.β)
+        LaplaceLikelihood{T}([likelihood.β for _ in 1:nLatent])
     end
 end
 
@@ -80,13 +84,13 @@ end
 ###############################################################################
 
 function local_updates!(model::VGP{<:LaplaceLikelihood,<:AnalyticVI})
-    model.likelihood.ω .= broadcast((Σ,μ,y)->(Σ+abs2.(μ-y)),diag.(model.Σ),model.μ,model.y)
-    model.likelihood.θ .= broadcast(b->1.0./(sqrt.(b)*model.likelihood.β),model.likelihood.ω)
+    model.likelihood.b .= broadcast((Σ,μ,y)->(Σ+abs2.(μ-y)),diag.(model.Σ),model.μ,model.y)
+    model.likelihood.θ .= broadcast((a,b)->sqrt(a)/sqrt.(b),model.likelihood.a,model.likelihood.b)
 end
 
 function local_updates!(model::SVGP{<:LaplaceLikelihood,<:AnalyticVI})
-    model.likelihood.ω .= broadcast((K̃,κ,Σ,μ,y)->(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices])),model.K̃,model.κ,model.Σ,model.μ,model.y)
-    model.likelihood.θ .= broadcast(b->1.0./(sqrt.(b)*model.likelihood.β),model.likelihood.ω)
+    model.likelihood.b .= broadcast((K̃,κ,Σ,μ,y)->(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices])),model.K̃,model.κ,model.Σ,model.μ,model.y)
+    model.likelihood.θ .= broadcast((a,b)->sqrt(a)/sqrt.(b),model.likelihood.a,model.likelihood.b)
 end
 
 function sample_local!(model::VGP{<:LaplaceLikelihood,<:GibbsSampling})
@@ -121,21 +125,33 @@ function ∇Σ(model::AbstractGP{<:LaplaceLikelihood,<:AnalyticVI})
 end
 
 function ELBO(model::AbstractGP{<:LaplaceLikelihood,<:AnalyticVI})
-    return NaN #expecLogLikelihood(model) - InverseGammaKL(model) - GaussianKL(model) #TODO
+    return expecLogLikelihood(model) - GIGExpKL(model) - GaussianKL(model)
 end
 
 function expecLogLikelihood(model::VGP{LaplaceLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.nSample*log(twoπ)
-    #tot -= 0.5.*sum(broadcast(β->sum(log.(β).-model.nSample*digamma(model.likelihood.α)),model.likelihood.β))
-    # tot -= 0.5.*sum(broadcast((β,Σ,μ,y)->dot(model.likelihood.α./β,Σ+abs2.(μ)-2.0*μ.*y-abs2.(y)),model.likelihood.β,diag.(model.Σ),model.μ,model.y))
+    tot += 0.5.*sum(broadcast(θ->sum(log.(θ)),model.likelihood.θ))
+    tot += -0.5.*sum(broadcast((θ,Σ,μ,y)->dot(θ,(Σ+abs2.(μ)-2.0*μ.*y-abs2.(y))),model.likelihood.θ,diag.(model.Σ),model.μ,model.y))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{LaplaceLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.inference.nSamplesUsed*log(twoπ)
-    tot -= 0.5.*sum(broadcast(β->sum(log.(β).-model.inference.nSamplesUsed*digamma(model.likelihood.α)),model.likelihood.β))
-    # tot -= 0.5.*sum(broadcast((β,K̃,κ,Σ,μ,y)->dot(model.likelihood.α./β,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)-2.0*(κ*μ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.β,model.K̃,model.κ,model.Σ,model.μ,model.y))
+    tot += 0.5.*sum(broadcast(θ->sum(log.(θ)),model.likelihood.θ))
+    tot += -0.5.*sum(broadcast((θ,K̃,κ,Σ,μ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)-2.0*(κ*μ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.μ,model.y))
     return model.inference.ρ*tot
+end
+
+function GIGExpKL(model::AbstractGP{<:LaplaceLikelihood})
+    GIGEntropy(model)-expecExponentialGIG(model)
+end
+
+function GIGEntropy(model::AbstractGP{<:LaplaceLikelihood})
+    model.inference.ρ*sum(broadcast(GIGEntropy,model.likelihood.a,model.likelihood.b,model.likelihood.p))
+end
+
+function expecExponentialGIG(model::AbstractGP{<:LaplaceLikelihood})
+    sum(broadcast((β,a,b)->-log(2*β^2).-0.5*(a.*sqrt.(b)+b.*sqrt(a))./(a.*b*β^2),[model.likelihood.β],model.likelihood.a,model.likelihood.b))
 end
 
 function gradpdf(::LaplaceLikelihood,y::Int,f::T) where {T<:Real}

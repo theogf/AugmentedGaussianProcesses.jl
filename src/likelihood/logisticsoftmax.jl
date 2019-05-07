@@ -68,6 +68,8 @@ function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},inference::Inf
     end
 end
 
+## Local Updates Section ##
+
 function local_updates!(model::VGP{LogisticSoftMaxLikelihood{T},AnalyticVI{T},T,V}) where {T<:Real,V<:AbstractVector{T}}
     model.likelihood.c .= broadcast((Σ::V,μ::V)->sqrt.(Σ.+abs2.(μ)),diag.(model.Σ),model.μ)
     for _ in 1:2
@@ -99,8 +101,8 @@ function sample_local!(model::VGP{<:LogisticSoftMaxLikelihood,<:GibbsSampling})
     return nothing
 end
 
+## Global Gradient Section ##
 
-""" Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::VGP{<:LogisticSoftMaxLikelihood},index::Int)
     0.5.*(model.likelihood.Y[index]-model.likelihood.γ[index])
 end
@@ -109,7 +111,6 @@ function ∇μ(model::VGP{<:LogisticSoftMaxLikelihood})
     0.5.*(model.likelihood.Y.-model.likelihood.γ)
 end
 
-""" Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::SVGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI},index::Integer)
     0.5.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
 end
@@ -125,6 +126,8 @@ end
 function ∇Σ(model::AbstractGP{<:LogisticSoftMaxLikelihood})
     model.likelihood.θ
 end
+
+## ELBO Section ##
 
 function ELBO(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI})
     return expecLogLikelihood(model) - GaussianKL(model) - GammaImproperKL(model) - PoissonKL(model) - PolyaGammaKL(model)
@@ -148,6 +151,20 @@ function expecLogLikelihood(model::SVGP{<:LogisticSoftMaxLikelihood,<:AnalyticVI
                     model.likelihood.Y,model.κ.*model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
     return model.inference.ρ*tot
 end
+
+function PolyaGammaKL(model::VGP{<:LogisticSoftMaxLikelihood})
+    model.inference.ρ*sum(broadcast(PolyaGammaKL,model.likelihood.Y.+model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
+end
+
+function PolyaGammaKL(model::SVGP{<:LogisticSoftMaxLikelihood})
+    model.inference.ρ*sum(broadcast(PolyaGammaKL,getindex.(model.likelihood.Y,[model.inference.MBIndices]).+model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
+end
+
+function PoissonKL(model::AbstractGP{<:LogisticSoftMaxLikelihood})
+    return model.inference.ρ*sum(γ->sum(xlogx.(γ).+γ.*(-1.0.-digamma.(model.likelihood.α).+log.(model.likelihood.β))+model.likelihood.α./model.likelihood.β),model.likelihood.γ)
+end
+
+## Numerical Gradient Section ##
 
 function grad_samples(model::AbstractGP{<:LogisticSoftMaxLikelihood,<:NumericalVI,T},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
     class = model.likelihood.y_class[index]::Int64

@@ -81,7 +81,7 @@ function compute_proba(l::StudentTLikelihood{T},μ::AbstractVector{T},σ²::Abst
     return μ_pred,σ²_pred
 end
 
-###############################################################################
+## Local Updates ##
 
 function local_updates!(model::VGP{<:StudentTLikelihood,<:AnalyticVI})
     model.likelihood.ω .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y).+model.likelihood.σ*model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
@@ -99,7 +99,8 @@ function sample_local!(model::VGP{<:StudentTLikelihood,<:GibbsSampling})
     return nothing
 end
 
-""" Return the gradient of the expectation for latent GP `index` """
+## Global Gradients ##
+
 function expec_μ(model::VGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
     return model.likelihood.θ[index].*model.y[index]
 end
@@ -108,7 +109,6 @@ function ∇μ(model::VGP{<:StudentTLikelihood})
     return hadamard.(model.likelihood.θ,model.y)
 end
 
-""" Return the gradient of the expectation for latent GP `index` """
 function expec_μ(model::SVGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
     return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]
 end
@@ -129,6 +129,8 @@ function ELBO(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI})
     return expecLogLikelihood(model) - InverseGammaKL(model) - GaussianKL(model)
 end
 
+## ELBO Section ##
+
 function expecLogLikelihood(model::VGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.nSample*log(twoπ)
     tot += -0.5.*sum(broadcast(ω->sum(model.nSample*digamma(model.likelihood.α).-log.(ω)),model.likelihood.ω))
@@ -142,6 +144,13 @@ function expecLogLikelihood(model::SVGP{StudentTLikelihood{T},AnalyticVI{T}}) wh
     tot += -0.5.*sum(broadcast((θ,K̃,κ,Σ,κμ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κμ)-2.0*(κμ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.κ.*model.μ,model.y))
     return model.inference.ρ*tot
 end
+
+function InverseGammaKL(model::AbstractGP{<:StudentTLikelihood})
+    α_p = model.likelihood.ν/2; β_p= α_p*model.likelihood.σ
+    model.inference.ρ*sum(broadcast(InverseGammaKL,model.likelihood.α,model.likelihood.β,α_p,β_p))
+end
+
+## Numerical Gradients ##
 
 function gradpdf(::StudentTLikelihood,y::Int,f::T) where {T<:Real}
     @error "Not implemented yet"
