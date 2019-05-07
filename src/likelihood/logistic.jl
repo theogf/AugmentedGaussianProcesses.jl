@@ -62,8 +62,7 @@ function compute_proba(l::LogisticLikelihood{T},μ::AbstractVector{T},σ²::Abst
     return pred
 end
 
-###############################################################################
-
+### Local Updates Section ###
 
 function local_updates!(model::VGP{<:LogisticLikelihood,<:AnalyticVI})
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(Σ+abs2.(μ)),model.μ,diag.(model.Σ))
@@ -81,7 +80,9 @@ function sample_local!(model::VGP{<:LogisticLikelihood,<:GibbsSampling})
     return nothing
 end
 
-function expec_μ(model::VGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
+### Natural Gradient Section ###
+
+function cond_mean(model::VGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
     return 0.5*model.y[index]
 end
 
@@ -89,7 +90,7 @@ function ∇μ(model::VGP{<:LogisticLikelihood})
     return 0.5*model.y
 end
 
-function expec_μ(model::SVGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::SVGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
     return 0.5.*model.y[index][model.inference.MBIndices]
 end
 
@@ -97,13 +98,11 @@ function ∇μ(model::SVGP{<:LogisticLikelihood})
     return 0.5.*getindex.(model.y,[model.inference.MBIndices])
 end
 
-function expec_Σ(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
-    return model.likelihood.θ[index]
-end
-
 function ∇Σ(model::AbstractGP{<:LogisticLikelihood})
     return model.likelihood.θ
 end
+
+### ELBO Section ###
 
 function ELBO(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI})
     return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
@@ -123,7 +122,11 @@ function expecLogLikelihood(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
     return model.inference.ρ*tot
 end
 
-###############################################################################
+function PolyaGammaKL(model::AbstractGP{<:LogisticLikelihood})
+    model.inference.ρ*sum(broadcast(PolyaGammaKL,[ones(length(model.likelihood.c[1]))],model.likelihood.c,model.likelihood.θ))
+end
+
+### Gradient Section ###
 
 function gradpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
     σ=y*f

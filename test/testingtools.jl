@@ -6,6 +6,7 @@ methods_implemented["LogisticLikelihood"] = ["AnalyticVI","AnalyticSVI"]# ["Nume
 methods_implemented["BayesianSVM"] = ["AnalyticVI","AnalyticSVI"]
 methods_implemented["LogisticSoftMaxLikelihood"] = ["AnalyticVI","AnalyticSVI"]# "NumericalVI","NumericalSVI"]
 methods_implemented["SoftMaxLikelihood"] = ["QuadratureVI","QuadratureSVI"]
+methods_implemented["PoissonLikelihood"] = ["AnalyticVI","AnalyticSVI"]
 
 methods_implemented_VGP = deepcopy(methods_implemented)
 push!(methods_implemented_VGP["StudentTLikelihood"],"GibbsSampling")
@@ -30,13 +31,16 @@ function testconv(model::AbstractGP,problem_type::String,X::AbstractArray,y::Abs
     y_pred = predict_y(model,X)
     py_pred = proba_y(model,X)
     if problem_type == "Regression"
-        err = mean(abs2.(y_pred-y))
-        return err < 0.3
-    elseif problem_type == "Classification"
-        err = mean(y_pred.!=y)
-        return err < 0.2
-    elseif problem_type == "MultiClass"
-        err = mean(y_pred.!=y)
+        @show err = mean(abs.(y_pred-y))
         return err < 0.5
+    elseif problem_type == "Classification"
+        @show err = mean(y_pred.!=y)
+        return err < 0.5
+    elseif problem_type == "MultiClass"
+        @show err = mean(y_pred.!=y)
+        return err < 0.5
+    elseif problem_type == "Event"
+        @show err = mean(abs.(y_pred-y))
+        return err < 1.0
     end
 end

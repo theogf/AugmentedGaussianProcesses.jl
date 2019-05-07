@@ -76,3 +76,8 @@ end
 function logisticsoftmax(f::AbstractVector{<:Real},i::Integer)
     return logisticsoftmax(f)[i]
 end
+
+export make_grid
+function make_grid(range1,range2)
+    return hcat([i for i in range1, j in range2][:],[j for i in range1, j in range2][:])
+end

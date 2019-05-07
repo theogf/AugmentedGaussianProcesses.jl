@@ -61,8 +61,9 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 | BayesianSVM   | ✔  | (dev) | ✖ | ✖  |
 | LogisticSoftMaxLikelihood   | ✔  | ✔  | ✖ | (dev)  |
 | SoftMaxLikelihood   | ✖  |  ✖  | ✖  | (dev)  |
+| Poisson   | ✔ | (dev) | ✖  |  ✖ |
 
-(dev) means that the feature is currently being developped and tested but not available yet.
+(dev) means that the feature is possible and may be developped and tested but is not available yet, all contributions are very welcome!
 
 ## [Training](@id train)
 

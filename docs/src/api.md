@@ -31,6 +31,7 @@ LaplaceLikelihood
 LogisticLikelihood
 BayesianSVM
 LogisticSoftMaxLikelihood
+PoissonLikelihood
 ```
 
 ## Inference Types

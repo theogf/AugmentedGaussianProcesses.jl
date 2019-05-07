@@ -2,20 +2,29 @@ using Test
 using AugmentedGaussianProcesses
 using LinearAlgebra
 using Statistics
+using Distributions
 const AGP = AugmentedGaussianProcesses
 include("testingtools.jl")
 
 nData = 100; nDim = 2
-k = AGP.RBFKernel()
+k = AGP.RBFKernel(0.1)
 ν = 5.0
-
+K = 4
 X = rand(nData,nDim)
-y = Dict("Regression"=>norm.(eachrow(X)),"Classification"=>Int64.(sign.(norm.(eachrow(X)).-0.5)),"MultiClass"=>floor.(Int64,norm.(eachrow(X.*2))))
+f = ones(nData)
+while !(maximum(f) > 0 && minimum(f) < 0)
+    global f = rand(MvNormal(zeros(nData),AGP.kernelmatrix(X,k)+1e-3I))
+end
+width = maximum(f)-minimum(f)
+normf = (f.-minimum(f))/width*K
+
+y = Dict("Regression"=>f,"Classification"=>sign.(f),"MultiClass"=>floor.(Int64,normf),"Event"=>rand.(Poisson.(2.0*AGP.logistic.(f))))
 reg_likelihood = ["GaussianLikelihood","StudentTLikelihood","LaplaceLikelihood"]
 class_likelihood = ["BayesianSVM","LogisticLikelihood"]
 multiclass_likelihood = ["LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
-likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood]
-likelihood_names = ["Regression","Classification","MultiClass"]
+event_likelihood = ["PoissonLikelihood"]
+likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood,event_likelihood]
+likelihood_names = ["Regression","Classification","MultiClass","Event"]
 # likelihood_names = ["Regression"]
 # inferences = ["GibbsSampling"]#,"NumericalInference"]#,"GibbsSampling"]
 inferences = ["AnalyticVI","GibbsSampling"]#,"NumericalInference"]#,"GibbsSampling"]
@@ -30,7 +39,7 @@ floattypes = [Float64]
                             if in(inference,methods_implemented_VGP[l])
                                 for floattype in floattypes
                                     @test typeof(VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"("*addiargument(false,inference)*")")))) <: VGP{eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*"}")),floattype,Vector{floattype}}
-                                    model = VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"("*addiargument(false,inference)*")")),Autotuning=true,verbose=3)
+                                    model = VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"("*addiargument(false,inference)*")")),Autotuning=true,verbose=2)
                                     @test train!(model,iterations=50)
                                     @test testconv(model,l_names,X,y[l_names])
                                 end

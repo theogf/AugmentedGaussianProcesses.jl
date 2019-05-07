@@ -63,6 +63,12 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
         else
             return false
         end
+    elseif likelihood isa PoissonLikelihood
+        if inference isa AnalyticVI
+            return true
+        else
+            return false
+        end
     else
         return false
     end

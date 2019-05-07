@@ -22,7 +22,7 @@ struct StudentTLikelihood{T<:Real} <: RegressionLikelihood{T}
     ν::T
     α::T
     σ::T
-    ω::LatentArray{Vector{T}}
+    β::LatentArray{Vector{T}}
     θ::LatentArray{Vector{T}}
     function StudentTLikelihood{T}(ν::T,σ::T=one(T)) where {T<:Real}
         new{T}(ν,(ν+one(T))/2.0,σ)
@@ -38,7 +38,10 @@ end
 
 function init_likelihood(likelihood::StudentTLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
-        StudentTLikelihood{T}(likelihood.ν,likelihood.σ,[abs2.(T.(rand(T,nSamplesUsed))) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
+        StudentTLikelihood{T}(
+        likelihood.ν,likelihood.σ,
+        [abs2.(T.(rand(T,nSamplesUsed))) for _ in 1:nLatent],
+        [zeros(T,nSamplesUsed) for _ in 1:nLatent])
     else
         StudentTLikelihood{T}(likelihood.ν,likelihood.σ)
     end
@@ -81,26 +84,27 @@ function compute_proba(l::StudentTLikelihood{T},μ::AbstractVector{T},σ²::Abst
     return μ_pred,σ²_pred
 end
 
-###############################################################################
+## Local Updates ##
 
 function local_updates!(model::VGP{<:StudentTLikelihood,<:AnalyticVI})
-    model.likelihood.ω .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y).+model.likelihood.σ*model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
-    model.likelihood.θ .= broadcast(ω->model.likelihood.α./ω,model.likelihood.ω)
+    model.likelihood.β .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y).+model.likelihood.σ*model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
+    model.likelihood.θ .= broadcast(β->model.likelihood.α./β,model.likelihood.β)
 end
 
 function local_updates!(model::SVGP{<:StudentTLikelihood,<:AnalyticVI})
-    model.likelihood.ω .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices]).+model.likelihood.σ*model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
-    model.likelihood.θ .= broadcast(ω->model.likelihood.α./ω,model.likelihood.ω)
+    model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices]).+model.likelihood.σ*model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
+    model.likelihood.θ .= broadcast(β->model.likelihood.α./β,model.likelihood.β)
 end
 
 function sample_local!(model::VGP{<:StudentTLikelihood,<:GibbsSampling})
-    model.likelihood.ω .= broadcast((μ::AbstractVector{<:Real},y)->rand.(InverseGamma.(model.likelihood.α,0.5*(abs2.(μ-y).+model.likelihood.σ*model.likelihood.ν))),model.μ,model.y)
-    model.likelihood.θ .= broadcast(ω->1.0./ω,model.likelihood.ω)
+    model.likelihood.β .= broadcast((μ::AbstractVector{<:Real},y)->rand.(InverseGamma.(model.likelihood.α,0.5*(abs2.(μ-y).+model.likelihood.σ*model.likelihood.ν))),model.μ,model.y)
+    model.likelihood.θ .= broadcast(β->1.0./β,model.likelihood.β)
     return nothing
 end
 
-""" Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::VGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
+## Global Gradients ##
+
+function cond_mean(model::VGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
     return model.likelihood.θ[index].*model.y[index]
 end
 
@@ -108,17 +112,12 @@ function ∇μ(model::VGP{<:StudentTLikelihood})
     return hadamard.(model.likelihood.θ,model.y)
 end
 
-""" Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::SVGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::SVGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
     return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]
 end
 
 function ∇μ(model::SVGP{<:StudentTLikelihood,<:AnalyticVI})
     return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))
-end
-
-function expec_Σ(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
-    return model.likelihood.θ[index]
 end
 
 function ∇Σ(model::AbstractGP{<:StudentTLikelihood})
@@ -129,19 +128,28 @@ function ELBO(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI})
     return expecLogLikelihood(model) - InverseGammaKL(model) - GaussianKL(model)
 end
 
+## ELBO Section ##
+
 function expecLogLikelihood(model::VGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.nSample*log(twoπ)
-    tot -= 0.5.*sum(broadcast(ω->sum(log.(ω).-model.nSample*digamma(model.likelihood.α)),model.likelihood.ω))
-    tot -= 0.5.*sum(broadcast((θ,Σ,μ,y)->dot(θ,Σ+abs2.(μ)-2.0*μ.*y-abs2.(y)),model.likelihood.θ,diag.(model.Σ),model.μ,model.y))
+    tot += -0.5.*sum(broadcast(β->sum(model.nSample*digamma(model.likelihood.α).-log.(β)),model.likelihood.β))
+    tot += -0.5.*sum(broadcast((θ,Σ,μ,y)->dot(θ,Σ+abs2.(μ)-2.0*μ.*y-abs2.(y)),model.likelihood.θ,diag.(model.Σ),model.μ,model.y))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
     tot = -0.5*model.nLatent*model.inference.nSamplesUsed*log(twoπ)
-    tot -= 0.5.*sum(broadcast(ω->sum(log.(ω).-model.inference.nSamplesUsed*digamma(model.likelihood.α)),model.likelihood.ω))
-    tot -= 0.5.*sum(broadcast((θ,K̃,κ,Σ,μ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)-2.0*(κ*μ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.μ,model.y))
+    tot += -0.5.*sum(broadcast(β->sum(model.inference.nSamplesUsed*digamma(model.likelihood.α).-log.(β)),model.likelihood.β))
+    tot += -0.5.*sum(broadcast((θ,K̃,κ,Σ,κμ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κμ)-2.0*(κμ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.κ.*model.μ,model.y))
     return model.inference.ρ*tot
 end
+
+function InverseGammaKL(model::AbstractGP{<:StudentTLikelihood})
+    α_p = model.likelihood.ν/2; β_p= α_p*model.likelihood.σ
+    model.inference.ρ*sum(broadcast(InverseGammaKL,model.likelihood.α,model.likelihood.β,α_p,β_p))
+end
+
+## Numerical Gradients ##
 
 function gradpdf(::StudentTLikelihood,y::Int,f::T) where {T<:Real}
     @error "Not implemented yet"

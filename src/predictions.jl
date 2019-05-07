@@ -99,6 +99,17 @@ function predict_y(model::AbstractGP{<:MultiClassLikelihood},X_test::AbstractMat
     return [model.likelihood.class_mapping[argmax([μ[i] for μ in μ_f])] for i in 1:n]
 end
 
+"""
+`predict_y(model::AbstractGP{<:EventLikelihood},X_test::AbstractMatrix)`
+
+Return the expected number of events for the locations `X_test`
+"""
+function predict_y(model::AbstractGP{<:EventLikelihood},X_test::AbstractMatrix)
+    n = size(X_test,1)
+    μ_f = predict_f(model,X_test,covf=false)
+    return model.likelihood.λ.*((x->logistic.(x)).(μ_f))
+end
+
 
 function proba_y(model::AbstractGP,X_test::AbstractVector{T}) where {T<:Real}
     return proba_y(model,reshape(X_test,length(X_test),1))

@@ -40,6 +40,8 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: 
     Σ::LatentArray{Symmetric{T,Matrix{T}}}
     η₁::LatentArray{V}
     η₂::LatentArray{Symmetric{T,Matrix{T}}}
+    μ₀::LatentArray{V}
+    opt_μ₀::LatentArray{Optimizer}
     Kmm::LatentArray{Symmetric{T,Matrix{T}}}
     invKmm::LatentArray{Symmetric{T,Matrix{T}}}
     Knm::LatentArray{Matrix{T}}
@@ -58,7 +60,7 @@ end
 function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
             likelihood::LikelihoodType,inference::InferenceType,
             nInducingPoints::Integer
-            ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
+            ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,μ₀::AbstractVector{T1}=Vector{T1}(),
             IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
@@ -81,6 +83,13 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
             Knm = deepcopy(κ)
             K̃ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample) for _ in 1:nPrior])
             Kmm = LatentArray([similar(Σ[1]) for _ in 1:nPrior]); invKmm = similar.(Kmm)
+            if !isempty(μ₀) && length(μ₀) == nFeature
+                μ₀ = [μ₀ for _ in 1:nPrior]
+            else
+                μ₀ = [zeros(T1,nFeature) for _ in 1:nPrior]
+            end
+            opt_μ₀ = [Adam(α=1.0) for _ in 1:nPrior]
+
             nSamplesUsed = nSample
             if inference.Stochastic
                 @assert inference.nSamplesUsed > 0 && inference.nSamplesUsed < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
@@ -88,6 +97,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
                 opt = kernel[1].fields.variance.opt
                 opt.α = opt.α*0.1
                 setoptimizer!.(kernel,[copy(opt) for _ in 1:nLatent])
+                broadcast(opt->opt.α=opt.α*0.1,opt_μ₀)
             end
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed)
@@ -96,7 +106,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
                     nSample, nDim, nFeature, nLatent,
                     IndependentPriors,nPrior,
                     Z,μ,Σ,η₁,η₂,
-                    Kmm,invKmm,Knm,κ,K̃,
+                    μ₀,opt_μ₀,Kmm,invKmm,Knm,κ,K̃,
                     kernel,likelihood,inference,
                     verbose,Autotuning,atfrequency,OptimizeInducingPoints,false)
             if isa(inference.optimizer_η₁[1],ALRSVI)
