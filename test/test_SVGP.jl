@@ -2,16 +2,25 @@ using Test
 using AugmentedGaussianProcesses
 using LinearAlgebra
 using Statistics
+using Distributions
 const AGP = AugmentedGaussianProcesses
 include("testingtools.jl")
 
 nData = 100; nDim = 2
 m = 50; b = 50
-k = AGP.RBFKernel()
+k = AGP.RBFKernel(0.1)
+K = 4
 ν = 5.0
 
 X = rand(nData,nDim)
-y = Dict("Regression"=>norm.(eachrow(X)),"Classification"=>sign.(norm.(eachrow(X)).-1.0),"MultiClass"=>floor.(norm.(eachrow(X.*2))),"Event"=>rand.(Poisson.(norm.(eachrow(X)))))
+f = ones(nData)
+while !(maximum(f) > 0 && minimum(f) < 0)
+    global f = rand(MvNormal(zeros(nData),kernelmatrix(X,k)+1e-3I))
+end
+width = maximum(f)-minimum(f)
+normf = (f.-minimum(f))/width*K
+
+y = Dict("Regression"=>f,"Classification"=>sign.(f),"MultiClass"=>floor.(Int64,normf),"Event"=>rand.(Poisson.(2.0*AGP.logistic.(f))))
 reg_likelihood = ["GaussianLikelihood","StudentTLikelihood","LaplaceLikelihood"]
 class_likelihood = ["BayesianSVM","LogisticLikelihood"]
 multiclass_likelihood = ["LogisticSoftMaxLikelihood","SoftMaxLikelihood"]

@@ -11,7 +11,14 @@ k = AGP.RBFKernel()
 ν = 5.0
 
 X = rand(nData,nDim)
-y = Dict("Regression"=>norm.(eachrow(X)),"Classification"=>Int64.(sign.(norm.(eachrow(X)).-0.5)),"MultiClass"=>floor.(Int64,norm.(eachrow(X.*2))),"Event"=>rand.(Poisson.(norm.(eachrow(X)))))
+f = ones(nData)
+while !(maximum(f) > 0 && minimum(f) < 0)
+    global f = rand(MvNormal(zeros(nData),kernelmatrix(X,k)+1e-3I))
+end
+width = maximum(f)-minimum(f)
+normf = (f.-minimum(f))/width*K
+
+y = Dict("Regression"=>f,"Classification"=>sign.(f),"MultiClass"=>floor.(Int64,normf),"Event"=>rand.(Poisson.(2.0*AGP.logistic.(f))))
 reg_likelihood = ["GaussianLikelihood","StudentTLikelihood","LaplaceLikelihood"]
 class_likelihood = ["BayesianSVM","LogisticLikelihood"]
 multiclass_likelihood = ["LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
