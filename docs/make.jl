@@ -1,11 +1,11 @@
 using Documenter, AugmentedGaussianProcesses
 
 makedocs(modules=[AugmentedGaussianProcesses],
-         format = Documenter.HTML(
-         assets = ["assets/icon.ico"]),
+         format = Documenter.Writers.HTMLWriter.HTML(
+         assets = ["assets/icon.ico"],
+         analytics="UA-129106538-2"),
          sitename= "AugmentedGaussianProcesses",
          authors="Theo Galy-Fajou",
-         analytics="UA-129106538-2",
          pages = [
          "Home"=>"index.md",
          "Background"=>"background.md",
