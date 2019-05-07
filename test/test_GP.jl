@@ -2,6 +2,7 @@ using Test
 using AugmentedGaussianProcesses
 using LinearAlgebra
 using Statistics
+using Distributions
 const AGP = AugmentedGaussianProcesses
 include("testingtools.jl")
 
