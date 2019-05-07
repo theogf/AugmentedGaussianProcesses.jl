@@ -66,14 +66,14 @@ function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel
             else
                 μ₀ = [zeros(T1,nFeature) for _ in 1:nPrior]
             end
-
+            opt_μ₀ = [Adam(α=0.1) for _ in 1:nPrior]
             likelihood = init_likelihood(likelihood,inference,nLatent,nSample)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
 
             model = GP{GaussianLikelihood{T1},Analytic{T1},T1,ArrayType{T1}}(X,y,
                     nFeature, nDim, nFeature, nLatent,
                     IndependentPriors,nPrior,
-                    μ₀,Knn,invKnn,kernel,likelihood,inference,
+                    μ₀,opt_μ₀,Knn,invKnn,kernel,likelihood,inference,
                     verbose,Autotuning,atfrequency,false)
             computeMatrices!(model)
             model.Trained = true

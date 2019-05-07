@@ -138,7 +138,7 @@ function hyperparameter_gradient_function(model::GP{GaussianLikelihood{T}}) wher
                     return -0.5/getvariance(kernel)*opt_trace(model.Knn[index],A[index])
                 end,
                 function(index)
-                    return -model.invKnn[index]*(model.μ₀[index]-model.μ[index])
+                    return -model.invKnn[index]*(model.μ₀[index]-model.y[index])
                 end)
     else
         return (function(Jnn,index)

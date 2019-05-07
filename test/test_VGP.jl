@@ -7,7 +7,7 @@ const AGP = AugmentedGaussianProcesses
 include("testingtools.jl")
 
 nData = 100; nDim = 2
-k = AGP.RBFKernel()
+k = AGP.RBFKernel(0.1)
 ν = 5.0
 K = 4
 X = rand(nData,nDim)
