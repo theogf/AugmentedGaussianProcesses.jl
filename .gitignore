@@ -8,7 +8,7 @@
 examples/.ipynb_checkpoints/*
 examples/DataAccess.jl
 test/main_testing.jl
-
+dev/*
 
 #Docs
 docs/build/

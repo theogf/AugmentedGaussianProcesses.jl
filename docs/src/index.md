@@ -26,7 +26,7 @@ pkg> add AugmentedGaussianProcesses
 Here is a simple example to start right away :
 ```julia
 using AugmentedGaussianProcesses
-model = SVGP(X_train,y_train,kernel=RBFKernel(1.0),AugmentedLogisticLikelihood(),AnalyticVI(),50)
+model = SVGP(X_train,y_train,RBFKernel(1.0),LogisticLikelihood(),AnalyticVI(),50)
 train!(model,iterations=100)
 y_pred = predict_y(model,X_test)
 ```
@@ -35,6 +35,8 @@ y_pred = predict_y(model,X_test)
 
 - [GaussianProcesses.jl](https://github.com/STOR-i/GaussianProcesses.jl) : General package for Gaussian Processes with many available likelihoods
 - [Stheno.jl](https://github.com/willtebbutt/Stheno.jl) : Package for Gaussian Process regression
+
+A general comparison between this package is done on [Julia GP Package Comparison](@ref). Benchmark evaluations may come later.
 
 ### License
 AugmentedGaussianProcesses.jl is licensed under the MIT "Expat" license; see

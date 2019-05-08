@@ -8,7 +8,7 @@ function  update_hyperparameters!(model::Union{VGP,GP})
 
     apply_gradients_lengthscale!.(model.kernel,grads_l) #Send the derivative of the matrix to the specific gradient of the model
     apply_gradients_variance!.(model.kernel,grads_v) #Send the derivative of the matrix to the specific gradient of the model
-    apply_gradients_mean_prior!.(model.μ₀,grads_μ₀,model.opt_μ₀)
+    update!.(model.μ₀,grads_μ₀)
 
     model.inference.HyperParametersUpdated = true
 end
@@ -33,7 +33,7 @@ function update_hyperparameters!(model::SVGP{<:Likelihood,<:Inference,T}) where 
     grads_μ₀ = map(f_μ₀,1:model.nPrior)
     apply_gradients_lengthscale!.(model.kernel,grads_l)
     apply_gradients_variance!.(model.kernel,grads_v)
-    apply_gradients_mean_prior!.(model.μ₀,grads_μ₀,model.opt_μ₀)
+    update!.(model.μ₀,grads_μ₀)
     model.inference.HyperParametersUpdated = true
 end
 
