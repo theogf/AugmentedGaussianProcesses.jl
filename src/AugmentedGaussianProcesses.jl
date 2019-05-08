@@ -24,7 +24,7 @@ include("kernels/KernelModule.jl")
 include("kmeans/KMeansModule.jl")
 include("functions/PGSampler.jl")
 #include("functions/PerturbativeCorrection.jl")
-include("functions/GPAnalysisTools.jl")
+# include("functions/GPAnalysisTools.jl")
 # include("functions/IO_model.jl")
 #Custom modules
 using .KernelModule
@@ -66,6 +66,7 @@ abstract type Inference{T<:Real} end
 abstract type Likelihood{T<:Real}  end
 
 const LatentArray = Vector #For future optimization : How collection of latent GPs are stored
+include("prior/meanprior.jl")
 
 include("models/AbstractGP.jl")
 include("models/GP.jl")
