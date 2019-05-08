@@ -28,11 +28,11 @@ end
 
 """Update all hyperparameters for the full batch GP models"""
 function update_hyperparameters!(model::OnlineVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    global Jmm = kernelderivativematrix.(model.Z,model.kernel)
+    Jmm = kernelderivativematrix.(model.Z,model.kernel)
     Jnm = kernelderivativematrix.([model.X],model.Z,model.kernel)
     Jnn = kernelderivativediagmatrix.([model.X],model.kernel)
-    global Jab = kernelderivativematrix.(model.Zₐ,model.Z,model.kernel)
-    global Jaa = kernelderivativematrix.(model.Zₐ,model.kernel)
+    Jab = kernelderivativematrix.(model.Zₐ,model.Z,model.kernel)
+    Jaa = kernelderivativematrix.(model.Zₐ,model.kernel)
     f_l,f_v = hyperparameter_gradient_function(model)
     grads_l = map(compute_hyperparameter_gradient,model.kernel,fill(f_l,model.nPrior),Jmm,Jnm,Jnn,Jab,Jaa,collect(1:model.nPrior))
     grads_v = map(f_v,model.kernel,1:model.nPrior)
