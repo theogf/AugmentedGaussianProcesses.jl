@@ -4,9 +4,13 @@ mutable struct ConstantMean{T<:Real} <: MeanPrior{T}
 end
 
 """
-ConstantMean(c)
-Construct a constant mean with constant `c`
-Optionally give an optimizer `opt` (`Adam(α=0.01)` by default)
+**ConstantMean**
+```julia
+ConstantMean(c::T=1.0;opt::Optimizer=Adam(α=0.01))
+```
+
+Construct a prior mean with constant `c`
+Optionally set an optimizer `opt` (`Adam(α=0.01)` by default)
 """
 function ConstantMean(c::T=1.0;opt::Optimizer=Adam(α=0.01)) where {T<:Real}
     ConstantMean{T}(c,opt)

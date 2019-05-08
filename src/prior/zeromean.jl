@@ -2,8 +2,11 @@ mutable struct ZeroMean{T<:Real} <: MeanPrior{T}
 end
 
 """
-ZeroMean(c)
-Construct a constant mean with constant 0
+ZeroMean
+```julia
+ZeroMean()
+```
+Construct a mean prior set to 0 and cannot be changed.
 """
 function ZeroMean()
     ZeroMean{Float64}()

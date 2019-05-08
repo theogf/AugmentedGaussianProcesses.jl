@@ -4,7 +4,10 @@ mutable struct EmpiricalMean{T<:Real,V<:AbstractVector{<:Real}} <: MeanPrior{T}
 end
 
 """
-EmpiricalMean(c)
+**EmpiricalMean**
+```julia`
+function EmpiricalMean(c::V=1.0;opt::Optimizer=Adam(α=0.01)) where {V<:AbstractVector{<:Real}}
+```
 Construct a constant mean with values `c`
 Optionally give an optimizer `opt` (`Adam(α=0.01)` by default)
 """

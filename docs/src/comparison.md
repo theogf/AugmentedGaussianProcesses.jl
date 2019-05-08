@@ -43,11 +43,13 @@ AGP.jl stands for AugmentedGaussianProcesses.jl and GP.jl for GaussianProcesses.
 | Sum of kernel | ✖ | ✖ | ✖ |
 | Product of kernels | ✖ | ✖ | ✖ |
 
+Note that the kernels will be defered to `MLKernels.jl` in the future.
+
 # Other features
 
 | Feature | AGP.jl | Stheno.jl | GP.jl |
 | --- | :-: | :-: | :-: |
 | Sparse GP | ✓ | ✖ | ✖ |
-| Custom prior Mean | ✖ | ✓ | ✓ |
+| Custom prior Mean | ✓ | ✓ | ✓ |
 | Hyperparam. Opt. | ✓ | ? | ? |
 | MultiOutput | ✖ | ✓ | ✖ |
