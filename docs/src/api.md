@@ -42,8 +42,8 @@ AnalyticSVI
 GibbsSampling
 QuadratureVI
 QuadratureSVI
-MCMCIntegrationVI
-MCMCIntegrationSVI
+MCIntegrationVI
+MCIntegrationSVI
 ```
 
 ## Functions and methods

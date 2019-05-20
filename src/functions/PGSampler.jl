@@ -22,9 +22,8 @@ end
 function PolyaGammaDist(;trunc::Int=200)
 	PolyaGammaDist{Float64}(trunc)
 end
-# ////////////////////////////////////////////////////////////////////////////////
-# 				 // Utility //
-# ////////////////////////////////////////////////////////////////////////////////
+
+## Utility
 
 function set_trunc(pg::PolyaGammaDist{T},trunc::Int64) where {T<:Real}
 
@@ -118,9 +117,9 @@ end
 
 
 function draw(pg::PolyaGammaDist{T},n::Real, z::Real) where {T<:Real}
-  if n < 1
-    @warn "draw(PolyaGamma): n < 1.  Set n = 1." maxlog=1
-    n = 1;
+  if n == 0
+    # @warn "draw(PolyaGamma): n < 1.  Set n = 1." maxlog=1
+    return 0.0
   end
   sum = 0.0;
   for i in 1:n

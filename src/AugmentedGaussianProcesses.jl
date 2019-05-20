@@ -11,9 +11,8 @@ export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood
 export LogisticLikelihood, BayesianSVM
 export SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export PoissonLikelihood
-export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCMCIntegrationVI, MCMCIntegrationSVI, QuadratureVI, QuadratureSVI
+export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI
 export NumericalVI, NumericalSVI
-export ALRSVI, InverseDecay
 
 #Deprecated
 export BatchGPRegression, SparseGPRegression, MultiClass, SparseMultiClass, BatchBSVM, SparseBSVM, BatchXGPC, SparseXGPC, BatchStudentT, SparseStudentT
@@ -36,18 +35,17 @@ using .PGSampler
 #General modules
 # using MLKernels
 using GradDescent
-import GradDescent: update
+export Optimizer, Adam, VanillaGradDescent, ALRSVI, InverseDecay
 using DataFrames
 using Distributions
 using LinearAlgebra
 using StatsBase
 using StatsFuns
 using SpecialFunctions
-using Dates
 using Expectations
 using Random
 import Base: convert, show, copy
-#Exported models
+#Exported modules
 export KMeansModule
 #Useful functions
 export train!
@@ -65,7 +63,7 @@ export KMeansInducingPoints
 abstract type Inference{T<:Real} end
 abstract type Likelihood{T<:Real}  end
 
-const LatentArray = Vector #For future optimization : How collection of latent GPs are stored
+const LatentArray = Vector #For future optimization : How collection of latent GP parameters and local variables are stored
 include("prior/meanprior.jl")
 
 include("models/AbstractGP.jl")

@@ -138,7 +138,7 @@ function proba_y(model::VGP{<:MultiClassLikelihood,<:GibbsSampling},X_test::Abst
     proba = zeros(size(X_test,1),model.nLatent)
     labels = Array{Symbol}(undef,model.nLatent)
     for i in 1:nf
-        res = compute_proba(model.likelihood,getindex.(f,[i]),K̃)
+        res = compute_proba(model.likelihood,getindex.(f,[i]),K̃,nSamples)
         if i ==  1
             labels = names(res)
         end
@@ -168,7 +168,7 @@ function compute_proba(l::Likelihood{T},μ::AbstractVector{<:AbstractVector{T}},
     compute_proba.([l],μ,σ²)
 end
 
-### I Have to think about this solution
+### TODO I Have to think about this solution
 
 
 function compute_proba(l::Likelihood{T},μ::AbstractVector{T},σ²::AbstractVector{}) where {T<:Real}
