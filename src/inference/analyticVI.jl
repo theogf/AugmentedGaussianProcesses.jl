@@ -89,8 +89,16 @@ end
 
 """Computation of the natural gradient for the natural parameters"""
 function natural_gradient!(model::SVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
-    model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*∇μ(model) .+ model.invKmm.*model.μ₀ .- model.η₁
-    model.inference.∇η₂ .= -0.5*(model.inference.ρ.*transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+model.invKmm) .- model.η₂
+    map!(∇η₁,model.inference.∇η₁,∇μ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.μ₀,model.η₁)
+    map!(∇η₂,model.inference.∇η₂,model.likelihood.θ,fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂)
+end
+
+function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},invKmm::Symmetric{T,Matrix{T}},μ₀::MeanPrior,η₁::AbstractVector{T}) where {T <: Real}
+    ρ*transpose(κ)*∇μ + invKmm*μ₀ - η₁
+end
+
+function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},invKmm::Symmetric{T,Matrix{T}},η₂::Symmetric{T,Matrix{T}}) where {T<:Real}
+    -0.5*(ρ*κdiagθκ(κ,θ)+invKmm) - η₂
 end
 
 """Conversion from natural to standard distribution parameters"""

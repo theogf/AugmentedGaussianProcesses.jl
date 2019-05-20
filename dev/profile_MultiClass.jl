@@ -1,6 +1,7 @@
 using Pkg
 pkg"add AugmentedGaussianProcesses"
 using AugmentedGaussianProcesses
+const AGP = AugmentedGaussianProcesses
 using Distributions
 using StatsBase, Distances
 using Random: seed!
@@ -40,17 +41,24 @@ l = sqrt(initial_lengthscale(X))
 
 kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim)
 
-model = SparseMultiClass(X,y,KStochastic=false,verbose=3,kernel=kernel,m=500,Autotuning=true,AutotuningFrequency=1,Stochastic=false,batchsize=100,IndependentGPs=true)
+model = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticSVI(100),500)
 
-model.train(iterations=1)
-#Precompile functions
-    AugmentedGaussianProcesses.computeMatrices!(model)
-    AugmentedGaussianProcesses.updateHyperParameters!(model)
-    AugmentedGaussianProcesses.computeMatrices!(model)
-#Benchmark time estimation
-    @btime AugmentedGaussianProcesses.updateHyperParameters!(model)
-    AugmentedGaussianProcesses.computeMatrices!(model)
-    Profile.clear()
-#Profiling
-    @profile AugmentedGaussianProcesses.updateHyperParameters!(model)
-    ProfileView.view()
+train!(model,iterations=1)
+
+##Precompile functions
+AGP.computeMatrices!(model)
+AGP.update_hyperparameters!(model)
+AGP.update_parameters!(model)
+AGP.computeMatrices!(model)
+
+##Benchmark time estimation
+@btime AGP.update_parameters!($model);
+@btime AGP.update_hyperparameters!($model);
+@btime AGP.natural_gradient!($model);
+@btime AGP.natural_gradient_old!($model);
+AGP.computeMatrices!(model)
+
+##Profiling
+@profiler AGP.update_parameters!(model);
+@profiler repeat(AGP.natural_gradient!(model),1000);
+@profiler AugmentedGaussianProcesses.updateHyperParameters!(model)

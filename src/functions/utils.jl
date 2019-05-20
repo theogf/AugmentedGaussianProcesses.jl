@@ -41,6 +41,10 @@ function opt_diag_mul_mat(v::AbstractVector{T},B::AbstractMatrix{T}) where {T<:R
     v.*B
 end
 
+function κdiagθκ(κ::AbstractMatrix{T},θ::AbstractVector{T}) where {T<:Real}
+    transpose(θ.*κ)*κ
+end
+
 """ Return the addition of a diagonal to a symmetric matrix """
 function opt_add_diag_mat(v::AbstractVector{T},B::AbstractMatrix{T}) where {T<:Real}
     A = copy(B)
