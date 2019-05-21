@@ -6,13 +6,11 @@ using Distributions
 using StatsBase, Distances
 using Random: seed!
 using BenchmarkTools
-using PyCall
 using ProfileView, Profile, Traceur
-
+using MLDataUtils
 seed!(42)
 
-@pyimport sklearn.model_selection as sp
-N_data = 10000
+N_data = 100
 N_dim=2
 N_class = 10
 N_test = 50
@@ -30,10 +28,10 @@ y = sample(1:N_class,N_data)
 for i in 1:N_data
     X[i,:] = rand(MvNormal(centers[y[i],:],variance[y[i]]))
 end
-X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
+(X,y),(X_test,y_test) = splitobs((X,y),at=0.66,obsdim=1)
 
 function initial_lengthscale(X)
-    D = pairwise(SqEuclidean(),X')
+    D = pairwise(SqEuclidean(),X,dims=1)
     return median([D[i,j] for i in 2:size(D,1) for j in 1:(i-1)])
 end
 l = sqrt(initial_lengthscale(X))
@@ -41,7 +39,7 @@ l = sqrt(initial_lengthscale(X))
 
 kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim)
 
-model = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticSVI(100),500)
+model = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticSVI(10),10)
 
 train!(model,iterations=1)
 
@@ -55,10 +53,13 @@ AGP.computeMatrices!(model)
 @btime AGP.update_parameters!($model);
 @btime AGP.update_hyperparameters!($model);
 @btime AGP.natural_gradient!($model);
-@btime AGP.natural_gradient_old!($model);
+# @btime AGP.natural_gradient_old!($model);
 AGP.computeMatrices!(model)
 
 ##Profiling
+@code_warntype map!(AGP.∇η₂,model.inference.∇η₂,model.likelihood.θ,fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂)
+
 @profiler AGP.update_parameters!(model);
 @profiler repeat(AGP.natural_gradient!(model),1000);
-@profiler AugmentedGaussianProcesses.updateHyperParameters!(model)
+@profiler repeat(AGP.∇η₂.(model.likelihood.θ,fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂),1000);
+@profiler AGP.update_hyperparameters!(model)

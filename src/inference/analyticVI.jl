@@ -94,11 +94,11 @@ function natural_gradient!(model::SVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likel
 end
 
 function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},invKmm::Symmetric{T,Matrix{T}},μ₀::MeanPrior,η₁::AbstractVector{T}) where {T <: Real}
-    ρ*transpose(κ)*∇μ + invKmm*μ₀ - η₁
+    transpose(κ)*(ρ*∇μ) + invKmm*μ₀ - η₁
 end
 
 function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},invKmm::Symmetric{T,Matrix{T}},η₂::Symmetric{T,Matrix{T}}) where {T<:Real}
-    -0.5*(ρ*κdiagθκ(κ,θ)+invKmm) - η₂
+    -0.5*(ρκdiagθκ(ρ,κ,θ)+invKmm) - η₂
 end
 
 """Conversion from natural to standard distribution parameters"""
