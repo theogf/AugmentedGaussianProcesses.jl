@@ -1,17 +1,21 @@
 """Compute the KL Divergence between the GP Prior and the variational distribution for the variational full batch model"""
 function GaussianKL(model::VGP)
-    return 0.5*sum(opt_trace.(model.invKnn,model.Σ+(model.μ.-model.μ₀).*transpose.(model.μ.-model.μ₀)).-model.nFeature.-logdet.(model.Σ).-logdet.(model.invKnn))
+    return sum(broadcast(GaussianKL,model.μ,model.μ₀,model.Σ,model.invKnn))
 end
 
 """Compute the KL Divergence between the Sparse GP Prior and the variational distribution for the sparse variational model"""
 function GaussianKL(model::SVGP)
-    return 0.5*sum(opt_trace.(model.invKmm,model.Σ+(model.μ.-model.μ₀).*transpose.(model.μ.-model.μ₀)).-model.nFeature.-logdet.(model.Σ).-logdet.(model.invKmm))
+    return sum(broadcast(GaussianKL,model.μ,model.μ₀,model.Σ,model.invKmm))
 end
 
 
-""" Compute the equivalent of KL divergence between an improper prior and a variational Gamma distribution"""
-function GammaImproperKL(model::AbstractGP)
-    return model.inference.ρ*sum(-model.likelihood.α.+log(model.likelihood.β[1]).-lgamma.(model.likelihood.α).-(1.0.-model.likelihood.α).*digamma.(model.likelihood.α))
+function GaussianKL(μ::AbstractVector{T},μ₀::MeanPrior,Σ::Symmetric{T,Matrix{T}},invK::Symmetric{T,Matrix{T}}) where {T<:Real}
+    0.5*(-logdet(Σ)-logdet(invK)+opt_trace(invK,Σ)+dot(μ-μ₀,invK*(μ-μ₀))-length(μ))
+end
+
+""" Compute the equivalent of KL divergence between an improper prior p(λ) (``1_{[0,\\infty]}``) and a variational Gamma distribution"""
+function GammaEntropy(model::AbstractGP)
+    return model.inference.ρ*(-sum(model.likelihood.α)+sum(log,model.likelihood.β[1])-sum(lgamma,model.likelihood.α)-dot(1.0.-model.likelihood.α,digamma.(model.likelihood.α)))
 end
 
 """KL(q(ω)||p(ω)), where q(ω) = IG(α,β) and p(ω) = IG(α_p,β_p)"""
@@ -19,19 +23,20 @@ function InverseGammaKL(α,β,α_p,β_p)
     sum((α_p-α).*digamma(α_p) .- log.(gamma.(α_p)).+log.(gamma.(α)) .+  α.*(log.(β_p).-log.(β)).+α_p.*(β.-β_p)./β_p)
 end
 
-"""KL(q(ω)||p(ω)), where q(ω) = Po(γ) and p(ω) = Po(λ)"""
+"""KL(q(ω)||p(ω)), where q(ω) = Po(ω|γ) and p(ω) = Po(ω|λ) with ν = E[λ] and ψ = E[log(λ)]"""
 function PoissonKL(γ::AbstractVector{<:Real},λ::Real)
-    λ*length(γ)-(1.0+log(λ))*sum(γ)+dot(γ,log.(γ))
+    λ*length(γ)-(1.0+log(λ))*sum(γ)+sum(xlogx,γ)
 end
 
-"""KL(q(ω)||p(ω)), where q(ω) = Po(γ) and p(ω) = Po(λ)"""
-function PoissonKL(γ::AbstractVector{<:Real},λ::AbstractVector{<:Real})
-    sum(λ)-sum(γ)+dot(γ,log.(γ))-dot(γ,log.(λ))
+"""KL(q(ω)||p(ω)), where q(ω) = Po(ω|γ) and p(ω) = Po(ω|λ) with ν = E[λ] and ψ = E[log(λ)]"""
+function PoissonKL(γ::AbstractVector{<:Real},ν::AbstractVector{<:Real},ψ::AbstractVector{<:Real})
+    sum(ν)-sum(γ)+sum(xlogx,γ)-dot(γ,ψ)
 end
+
 
 """KL(q(ω)||p(ω)), where q(ω) = PG(b,c) and p(ω) = PG(b,0). θ = 𝑬[ω]"""
 function PolyaGammaKL(b,c,θ)
-    -0.5*dot(c.^2,θ)-0.5*dot(b,logcosh.(0.5*c))
+    dot(b,logcosh.(0.5*c))-0.5*dot(abs2.(c),θ)
 end
 
 """Compute Entropy for Generalized inverse Gaussian latent variables (BayesianSVM)"""

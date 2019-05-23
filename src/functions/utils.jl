@@ -69,8 +69,7 @@ end
 
 
 function logisticsoftmax(f::AbstractVector{<:Real})
-    s = logistic.(f)
-    return s/sum(s)
+    return normalize!(logistic.(f),1)
 end
 
 function logisticsoftmax(f::AbstractVector{<:Real},i::Integer)
