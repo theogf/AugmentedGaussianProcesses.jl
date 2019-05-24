@@ -38,11 +38,11 @@ function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractV
     σ² = [σ²[i,:] for i in 1:n]
     pred = zeros(T,n,K)
     for i in 1:n
-        p = MvNormal(μ[i],sqrt.(σ²[i]))
-        # p = MvNormal(μ[i],sqrt.(max.(eps(T),σ²[i])))
-        for _ in 1:nSamples
-            pred[i,:] += pdf(l,rand(p))/nSamples
-        end
+            p = MvNormal(μ[i],sqrt.(abs.(σ²[i])))
+            # p = MvNormal(μ[i],sqrt.(max.(eps(T),σ²[i])))
+            for _ in 1:nSamples
+                pred[i,:] += pdf(l,rand(p))/nSamples
+            end
     end
     return DataFrame(pred,Symbol.(l.class_mapping))
 end
