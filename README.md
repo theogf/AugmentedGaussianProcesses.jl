@@ -21,6 +21,9 @@ AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development 
 
    ![Regression Plot](docs/src/assets/Regression.png)
 ---
+## One Multi-Class Classification Likelihood
+  - **Logistic-SoftMax** : A modified version of the softmax where the exponential is replaced by the logistic function [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/MultiClass%20-%20LogisticSoftMax.ipynb)/[Reference][uaimulticlass]
+  ![MultiClass Plot](docs/src/assets/final3D.png)
 ## More models in development
   - **MultiClass** : A multiclass classifier model, relying on a modified version of softmax
   - **Poisson** : For point process estimation
@@ -54,6 +57,8 @@ Check out [my website for more news](https://theogf.github.io)
 
 ["Gaussian Processes for Machine Learning"](http://www.gaussianprocess.org/gpml/) by Carl Edward Rasmussen and Christopher K.I. Williams
 
+UAI 19' "Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation" by Théo Galy-Fajou, Florian Wenzel, Christian Donner and Manfred Opper [https://arxiv.org/abs/1905.09670][uaimulticlass]
+
 ECML 17' "Bayesian Nonlinear Support Vector Machines for Big Data" by Florian Wenzel, Théo Galy-Fajou, Matthäus Deutsch and Marius Kloft. [https://arxiv.org/abs/1707.05532][arxivbsvm]
 
 AAAI 19' "Efficient Gaussian Process Classification using Polya-Gamma Variables" by Florian Wenzel, Théo Galy-Fajou, Christian Donner, Marius Kloft and Manfred Opper. [https://arxiv.org/abs/1802.06383][arxivxgpc]
@@ -62,8 +67,9 @@ UAI 13' "Gaussian Process for Big Data" by James Hensman, Nicolo Fusi and Neil D
 
 JMLR 11' "Robust Gaussian process regression with a Student-t likelihood." by Jylänki Pasi, Jarno Vanhatalo, and Aki Vehtari.  [http://www.jmlr.org/papers/v12/jylanki11a.html][jmlrstudentt]
 
+[uaimulticlass]:https://arxiv.org/abs/1905.09670
 [arxivgpbigdata]:https://arxiv.org/abs/1309.6835
-  [31b06e91]: https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20SXGPC.ipynb "Classification with Sparse XGPC"
+[31b06e91]:https://github.com/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20SXGPC.ipynb "Classification with Sparse XGPC"
 [arxivbsvm]:https://arxiv.org/abs/1707.05532
 [arxivxgpc]:https://arxiv.org/abs/1802.06383
 [jmlrstudentt]:http://www.jmlr.org/papers/volume12/jylanki11a/jylanki11a.pdf
