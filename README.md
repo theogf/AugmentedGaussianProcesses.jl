@@ -25,7 +25,6 @@ AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development 
   - **Logistic-SoftMax** : A modified version of the softmax where the exponential is replaced by the logistic function [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/MultiClass%20-%20LogisticSoftMax.ipynb)/[Reference][uaimulticlass]
   ![MultiClass Plot](docs/src/assets/final3D.png)
 ## More models in development
-  - **MultiClass** : A multiclass classifier model, relying on a modified version of softmax
   - **Poisson** : For point process estimation
   - **Heteroscedastic** : Non stationary noise
   - **Probit** : A Classifier with a Bernoulli likelihood with the probit link
@@ -34,7 +33,7 @@ AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development 
 
 ## Install the package
 
-The package requires Julia 1.0
+The package requires Julia 1.1
 Run in `Julia` press `]` and type `add AugmentedGaussianProcesses`, it will install the package and all its requirements
 
 ## Use the package
