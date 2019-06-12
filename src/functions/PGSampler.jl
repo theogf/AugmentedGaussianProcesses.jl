@@ -108,7 +108,7 @@ end
 # ////////////////////////////////////////////////////////////////////////////////
 
 
-function draw(pg::PolyaGammaDist{T},n::Integer, z::Real) where {T<:Real}
+function draw(pg::PolyaGammaDist{T},n::Real, z::Real) where {T<:Real}
   if n == 0
     # @warn "draw(PolyaGamma): n < 1.  Set n = 1." maxlog=1
     return 0.0

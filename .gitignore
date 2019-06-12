@@ -3,10 +3,10 @@
 *.jld2
 *.cov
 *.info
+Manifest.toml
 
 #Do not save checkpoints and testpoints
 examples/.ipynb_checkpoints/*
-examples/DataAccess.jl
 test/main_testing.jl
 dev/*
 
