@@ -28,7 +28,7 @@ event_likelihood = ["PoissonLikelihood"]
 likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood,event_likelihood]
 likelihood_names = ["Regression","Classification","MultiClass","Event"]
 stochastic = [true,false]
-inferences = ["AnalyticVI","GibbsSampling"]#,"QuadratureVI","MCMCIntegrationVI"]
+inferences = ["AnalyticVI","GibbsSampling"]#,"QuadratureVI","MCIntegrationVI"]
 floattypes = [Float64]
 @testset "SVGP" begin
     for (likelihoods,l_names) in zip(likelihood_types,likelihood_names)

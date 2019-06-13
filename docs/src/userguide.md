@@ -46,13 +46,13 @@ Inference can be done in various ways.
 - [`AnalyticVI`](@ref) : Variational Inference with closed-form updates. For non-Gaussian likelihoods, this relies on augmented version of the likelihoods. For using Stochastic Variational Inference, one can use [`AnalyticSVI`](@ref) with the size of the mini-batch as an argument
 - [`GibbsSampling`](@ref) : Gibbs Sampling of the true posterior, this also rely on an augmented version of the likelihoods, this is only valid for the `VGP` model at the moment.
 - [`QuadratureVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via quadrature.
-- [`MCMCIntegrationVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via MCMCIntegration
+- [`MCIntegrationVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via Monte Carlo Integration
 
 ### [Compatibility table](@id compat_table)
 
 Not all inference are implemented/valid for all likelihoods, here is the compatibility table between them.
 
-| Likelihood/Inference | AnalyticVI | GibbsSampling | QuadratureVI | MCMCIntegrationVI |
+| Likelihood/Inference | AnalyticVI | GibbsSampling | QuadratureVI | MCIntegrationVI |
 | --- | :-: | :-: | :-: | :-: |
 | GaussianLikelihood   | ✔  | ✖  | ✖ | ✖  |
 | StudentTLikelihood   | ✔  | ✔ | (dev) | ✖  |

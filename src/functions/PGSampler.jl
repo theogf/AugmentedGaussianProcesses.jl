@@ -22,9 +22,8 @@ end
 function PolyaGammaDist(;trunc::Int=200)
 	PolyaGammaDist{Float64}(trunc)
 end
-# ////////////////////////////////////////////////////////////////////////////////
-# 				 // Utility //
-# ////////////////////////////////////////////////////////////////////////////////
+
+## Utility
 
 function set_trunc(pg::PolyaGammaDist{T},trunc::Int64) where {T<:Real}
 
@@ -51,14 +50,6 @@ function a(n::Int64, x::T) where {T<:Real}
     expnt = -1.5 * (log(0.5 * pi)  + log(x)) + log(K) - 2.0 * (n+0.5)*(n+0.5) / x;
     y = exp(expnt);
   end
-  return y;
-end
-
-function pigauss(x::T, Z::T) where {T<:Real}
-  #Z = 1/μ, λ= 1.0
-  b = sqrt(1.0 / x) * (x * Z - 1);
-  a = -sqrt(1.0 / x) * (x * Z + 1);
-  y = cdf(Distributions.Normal(),b) + exp(2 * Z) * cdf(Distributions.Normal,a);
   return y;
 end
 
@@ -118,9 +109,9 @@ end
 
 
 function draw(pg::PolyaGammaDist{T},n::Real, z::Real) where {T<:Real}
-  if n < 1
-    @warn "draw(PolyaGamma): n < 1.  Set n = 1." maxlog=1
-    n = 1;
+  if n == 0
+    # @warn "draw(PolyaGamma): n < 1.  Set n = 1." maxlog=1
+    return 0.0
   end
   sum = 0.0;
   for i in 1:n
@@ -128,16 +119,6 @@ function draw(pg::PolyaGammaDist{T},n::Real, z::Real) where {T<:Real}
   end
   return sum;
 end # draw
-
-function draw_sum_of_gammas(pg::PolyaGammaDist{T},n::T, z::T) where {T<:Real}
-  x = 0.0;
-  kappa = z * z;
-  Gam = Gamma(n,1.0);
-  for k in 1:pg.trunc
-    x += rand(Gam) / (bvec[k] + kappa);
-  end
-  return 2.0 * x;
-end
 
 function draw_like_devroye(Z::T) where {T<:Real}
   # Change the parameter.
@@ -183,40 +164,5 @@ function draw_like_devroye(Z::T) where {T<:Real}
 
   end
 end # draw_like_devroye
-
-# ////////////////////////////////////////////////////////////////////////////////
-# 			      // Static Members //
-# ////////////////////////////////////////////////////////////////////////////////
-
-function jj_m1(b::T, z::T) where T<:Real
-    z = abs(z);
-    m1 = 0.0;
-    if z > 1e-12
-	     m1 = b * tanh(z) / z;
-    else
-	     m1 = b * (1 - (1.0/3) * pow(z,2) + (2.0/15) * pow(z,4) - (17.0/315) * pow(z,6));
-    end
-    return m1;
-end
-
-function jj_m2(b::T, z::T) where {T<:Real}
-    z = abs(z);
-    m2 = 0.0;
-    if (z > 1e-12)
-	     m2 = (b+1) * b * pow(tanh(z)/z,2) + b * ((tanh(z)-z)/pow(z,3));
-    else
-       m2 = (b+1) * b * pow(1 - (1.0/3) * pow(z,2) + (2.0/15) * pow(z,4) - (17.0/315) * pow(z,6), 2) +
-	          b * ((-1.0/3) + (2.0/15) * pow(z,2) - (17.0/315) * pow(z,4));
-    end
-    return m2;
-end
-
-function pg_m1(b::T, z::T) where {T<:Real}
-    return jj_m1(b, 0.5 * z) * 0.25;
-end
-
-function pg_m2(b::T, z::T) where {T<:Real}
-    return jj_m2(b, 0.5 * z) * 0.0625;
-end
 
 end #module PGSampler

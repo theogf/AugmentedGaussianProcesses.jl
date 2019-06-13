@@ -17,7 +17,7 @@ function ConstantMean(c::T=1.0;opt::Optimizer=Adam(α=0.01)) where {T<:Real}
 end
 
 function update!(μ::ConstantMean{T},grad::AbstractVector{T}) where {T<:Real}
-    μ.C += update!(μ.opt,sum(grad))
+    μ.C += update(μ.opt,sum(grad))
 end
 
 Base.:+(x::Real,y::ConstantMean{<:Real}) = x+y.C

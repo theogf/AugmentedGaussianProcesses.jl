@@ -29,7 +29,7 @@ function one_of_K_mapping(y)
     return Y,y_values,ind_values,y_class
 end
 
-function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractVector{T}},σ²::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
+function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractVector{T}},σ²::AbstractVector{<:AbstractVector{T}},nSamples::Integer=200) where {T<:Real}
     K = length(μ)
     n = length(μ[1])
     μ = hcat(μ...)
@@ -37,13 +37,12 @@ function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractV
     σ² = hcat(σ²...)
     σ² = [σ²[i,:] for i in 1:n]
     pred = zeros(T,n,K)
-    nSamples = 200
     for i in 1:n
-        p = MvNormal(μ[i],sqrt.(σ²[i]))
-        # p = MvNormal(μ[i],sqrt.(max.(eps(T),σ²[i])))
-        for _ in 1:nSamples
-            pred[i,:] += pdf(l,rand(p))/nSamples
-        end
+            p = MvNormal(μ[i],sqrt.(abs.(σ²[i])))
+            # p = MvNormal(μ[i],sqrt.(max.(eps(T),σ²[i])))
+            for _ in 1:nSamples
+                pred[i,:] += pdf(l,rand(p))/nSamples
+            end
     end
     return DataFrame(pred,Symbol.(l.class_mapping))
 end

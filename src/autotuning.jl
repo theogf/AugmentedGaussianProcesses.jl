@@ -97,7 +97,7 @@ function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T
                             - sum(hyperparameter_KL_gradient.(model.Kmm,A)))
                 end,
                 function(index)
-                    return -sum(model.invKnn.*(model.μ₀.-model.μ))
+                    return -sum(model.invKmm.*(model.μ₀.-model.μ))
                 end)
     end
 end
@@ -127,8 +127,8 @@ function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:AnalyticVI{
     mul!(ι,(Jnm-model.κ[1]*Jmm),model.invKmm[1])
     Jnn .-= opt_diag(ι,model.Knm[1]) + opt_diag(model.κ[1],Jnm)
     dμ = sum(dot(cond_mean(model,i),ι*model.μ[i]) for i in 1:model.nLatent)
-    dΣ = -0.5*sum(dot(model.likelihood.θ[index],Jnn+2.0*opt_diag(ι,κΣ[i])) for i in 1:model.nLatent)
-    dΣ += -0.5*sum(dot(model.likelihood.θ[index],2.0*(ι*model.μ[i]).*(model.κ[1]*model.μ[i])) for i in 1:model.nLatent)
+    dΣ = -0.5*sum(dot(model.likelihood.θ[i],Jnn+2.0*opt_diag(ι,κΣ[i])) for i in 1:model.nLatent)
+    dΣ += -0.5*sum(dot(model.likelihood.θ[i],2.0*(ι*model.μ[i]).*(model.κ[1]*model.μ[i])) for i in 1:model.nLatent)
     return model.inference.ρ*(dμ+dΣ)
 end
 

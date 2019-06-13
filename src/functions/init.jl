@@ -48,7 +48,7 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
             return false
         end
     elseif likelihood isa SoftMaxLikelihood
-        if inference isa MCMCIntegrationVI
+        if inference isa MCIntegrationVI
             return true
         else
             return false
@@ -58,7 +58,7 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
             return true
         elseif model == :VGP && inference isa GibbsSampling
             return true
-        elseif inference isa MCMCIntegrationVI
+        elseif inference isa MCIntegrationVI
             return true
         else
             return false

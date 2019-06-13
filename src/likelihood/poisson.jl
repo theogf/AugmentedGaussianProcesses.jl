@@ -104,6 +104,8 @@ function expecLogLikelihood(model::SVGP{PoissonLikelihood{T},AnalyticVI{T}}) whe
 end
 
 function PoissonKL(model::AbstractGP{<:PoissonLikelihood})
+    return NaN
+    #TODO replace with correct expectations
     model.inference.ρ*sum(broadcast(PoissonKL,model.likelihood.γ,model.likelihood.λ))
 end
 
