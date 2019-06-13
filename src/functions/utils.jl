@@ -1,11 +1,7 @@
 """File containing different utility functions"""
 
 """ Jittering object adapting to the type of the GP """
-struct Jittering
-function Jittering()
-    new()
-end
-end;
+struct Jittering end;
 
 Base.convert(::Type{Float64},::Jittering) = Float64(1e-5)
 Base.convert(::Type{Float32},::Jittering) = Float32(1e-4)
