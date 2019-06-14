@@ -40,7 +40,7 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: 
     Σ::LatentArray{Symmetric{T,Matrix{T}}}
     η₁::LatentArray{V}
     η₂::LatentArray{Symmetric{T,Matrix{T}}}
-    μ₀::LatentArray{MeanPrior{T}}
+    μ₀::LatentArray{PriorMean{T}}
     Kmm::LatentArray{Symmetric{T,Matrix{T}}}
     invKmm::LatentArray{Symmetric{T,Matrix{T}}}
     Knm::LatentArray{Matrix{T}}
@@ -60,7 +60,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
             likelihood::LikelihoodType,inference::InferenceType,
             nInducingPoints::Integer
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
-            mean::Union{<:Real,AbstractVector{<:Real},MeanPrior}=ZeroMean(),
+            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)

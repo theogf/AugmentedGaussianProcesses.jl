@@ -41,7 +41,7 @@ mutable struct VGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: A
     Σ::LatentArray{Symmetric{T,Matrix{T}}}
     η₁::LatentArray{V}
     η₂::LatentArray{Symmetric{T,Matrix{T}}}
-    μ₀::LatentArray{MeanPrior{T}}
+    μ₀::LatentArray{PriorMean{T}}
     Knn::LatentArray{Symmetric{T,Matrix{T}}}
     invKnn::LatentArray{Symmetric{T,Matrix{T}}}
     kernel::LatentArray{Kernel{T}}
@@ -56,7 +56,7 @@ end
 
 function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
             likelihood::LikelihoodType,inference::InferenceType;
-            verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,mean::Union{<:Real,AbstractVector{<:Real},MeanPrior}=ZeroMean(),
+            verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)

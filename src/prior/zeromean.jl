@@ -1,4 +1,4 @@
-mutable struct ZeroMean{T<:Real} <: MeanPrior{T}
+mutable struct ZeroMean{T<:Real} <: PriorMean{T}
 end
 
 """

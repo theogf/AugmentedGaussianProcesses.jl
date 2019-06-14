@@ -9,7 +9,7 @@ function GaussianKL(model::SVGP)
 end
 
 
-function GaussianKL(μ::AbstractVector{T},μ₀::MeanPrior,Σ::Symmetric{T,Matrix{T}},invK::Symmetric{T,Matrix{T}}) where {T<:Real}
+function GaussianKL(μ::AbstractVector{T},μ₀::PriorMean,Σ::Symmetric{T,Matrix{T}},invK::Symmetric{T,Matrix{T}}) where {T<:Real}
     0.5*(-logdet(Σ)-logdet(invK)+opt_trace(invK,Σ)+dot(μ-μ₀,invK*(μ-μ₀))-length(μ))
 end
 

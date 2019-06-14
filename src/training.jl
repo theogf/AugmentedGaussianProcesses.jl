@@ -75,14 +75,14 @@ end
 function computeMatrices!(model::GP{<:Likelihood,<:Inference,T}) where {T<:Real}
     if model.inference.HyperParametersUpdated
         model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ model.likelihood.ϵ.*[I])
-        model.invKnn .= inv.(cholesky.(model.Knn))
+        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
     end
 end
 
 function computeMatrices!(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
     if model.inference.HyperParametersUpdated
         model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
-        model.invKnn .= inv.(cholesky.(model.Knn))
+        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
     end
 end
 

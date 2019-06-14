@@ -1,4 +1,4 @@
-abstract type MeanPrior{T} end
+abstract type PriorMean{T} end
 
 import Base: +, -, *, convert
 
