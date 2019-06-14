@@ -76,7 +76,7 @@ function local_updates!(model::VGP{HeteroscedasticLikelihood{T}}) where {T<:Real
     model.likelihood.K .= broadcast(kernel->Symmetric(kernelmatrix(model.X,kernel)+getvariance(kernel)*T(jitter)*I),model.likelihood.kernel)
     model.likelihood.invK .= inv.(model.likelihood.K)
     model.likelihood.Σ .= broadcast((θ,invK)->Symmetric(inv(Diagonal(θ)+invK)),model.likelihood.θ,model.likelihood.invK)
-    @show model.likelihood.μ .= broadcast((Σ,invK,μ₀,γ)->Σ*(invK*μ₀+0.5*(one(T).-γ)),model.likelihood.Σ,model.likelihood.invK,model.likelihood.μ₀,model.likelihood.γ)
+    model.likelihood.μ .= broadcast((Σ,invK,μ₀,γ)->Σ*(invK*μ₀+0.5*(one(T).-γ)),model.likelihood.Σ,model.likelihood.invK,model.likelihood.μ₀,model.likelihood.γ)
     model.likelihood.λσg .=  broadcast((λ,μ,Σ)->expectation.(logistic,Normal.(μ,sqrt.(diag(Σ)))),model.likelihood.λ,model.likelihood.μ,model.likelihood.Σ)
 end
 
@@ -113,14 +113,14 @@ end
 
 function proba_y(model::VGP{HeteroscedasticLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T<:Real}
     μf, σ²f = predict_f(model,X_test,covf=true)
-    @show μg, σ²g = _predict_f.(model.likelihood.μ,model.likelihood.Σ,model.likelihood.invK,model.likelihood.kernel,[X_test],[model.X],covf=true)[1]#WARNING Only valid for 1D output
+    μg, σ²g = _predict_f.(model.likelihood.μ,model.likelihood.Σ,model.likelihood.invK,model.likelihood.kernel,[X_test],[model.X],covf=true)[1]#WARNING Only valid for 1D output
     return μf,σ²f.+broadcast((λ,μ,σ)->expectation.(x->inv(logistic(x)),Normal.(μ,sqrt.(σ))),model.likelihood.λ,μg,σ²g)
 end
 
 function proba_y(model::SVGP{HeteroscedasticLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T<:Real}
     μf, σ²f = predict_f(model,X_test,covf=true)
     μg, σ²g = _predict_f.(model.likelihood.μ,model.likelihood.Σ,model.likelihood.invK,model.likelihood.kernel,[X_test],model.Z,covf=true)
-    return μf,σ²f.+broadcast((λ,μ,σ)->expectation.(logistic,Normal.(μ,sqrt.(σ))),model.likelihood.λ,μg,σ²g)
+    return μf,σ²f.+broadcast((λ,μ,σ)->expectation.(x->inv(logistic(x)),Normal.(μ,sqrt.(σ))),model.likelihood.λ,μg,σ²g)
 end
 
 ### Special case where the ELBO is equal to the marginal likelihood

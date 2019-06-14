@@ -4,19 +4,19 @@ using LinearAlgebra
 using Random: seed!
 using ValueHistories
 const AGP = AugmentedGaussianProcesses
-seed!(42)
+seed!(30)
 doPlots=  true
 verbose = 3
 using Plots
 pyplot()
-N_data = 100
+N_data = 200
 N_test = 100
 N_dim = 1
 noise = 1e-16
 minx=-1.0
 maxx=1.0
-μ_0 = -3
-l= sqrt(0.1); vf = 2.0;vg=10.0; α = 1.0;n_sig = 2
+μ_0 = -1
+l= sqrt(0.1); vf = 2.0;vg=1.0; α = 1.0;n_sig = 2
 kernel = RBFKernel(0.5,variance = vf); m = 40
 kernel_g = RBFKernel(0.3,variance = vg)
 autotuning = false
