@@ -1,7 +1,7 @@
 #File treating all the prediction functions
 
 function _predict_f(μ::Vector{T},Σ::Symmetric{T,Matrix{T}},invK::Symmetric{T,Matrix{T}},kernel::Kernel,X_test::AbstractMatrix{T₁},X::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T,T₁<:Real}
-    k_star = kernelmatrix(X_test,model.X,model.kernel)
+    k_star = kernelmatrix(X_test,X,kernel)
     μf = k_star*invK*μ
     if !covf
         return μf
