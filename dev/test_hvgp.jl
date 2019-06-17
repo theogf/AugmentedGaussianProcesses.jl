@@ -4,12 +4,12 @@ using LinearAlgebra
 using Random: seed!
 using ValueHistories
 const AGP = AugmentedGaussianProcesses
-seed!(30)
+seed!(42)
 doPlots=  true
 verbose = 3
 using Plots
 pyplot()
-N_data = 200
+N_data = 10
 N_test = 100
 N_dim = 1
 noise = 1e-16
@@ -17,7 +17,7 @@ minx=-1.0
 maxx=1.0
 μ_0 = -1
 l= sqrt(0.1); vf = 2.0;vg=1.0; α = 1.0;n_sig = 2
-kernel = RBFKernel(0.5,variance = vf); m = 40
+kernel = RBFKernel(0.1,variance = vf); m = 40
 kernel_g = RBFKernel(0.3,variance = vg)
 autotuning = false
 
@@ -147,5 +147,5 @@ end
 plot(X[s],y_noise[1:N_data][s],lab="true g")
 plot!(X[s],h.(y_noise[1:N_data][s]),lab="sig(true_g)")
 plot!(X[s],model.likelihood.μ[1][s],lab="μ_g")
-plot!(X[s],h.(model.likelihood.μ[1][s]),lab="sig(μ_g)")
+plot!(X[s],model.likelihood.λ[1]*model.likelihood.σg[1][s]),lab="sig(μ_g)")
 # return true

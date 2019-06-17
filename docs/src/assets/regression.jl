@@ -5,11 +5,14 @@ using Plots; pyplot()
 
 N = 200; noise = 5e-1
 N_test = 10000
-X = sort(rand(N))
-X_test = collect(range(0,length=N_test,stop=1))
+X = sort(randn(N))
+expand = 1.1
+X_test = collect(range(expand*minimum(X),length=N_test,stop=expand*maximum(X)))
 k = RBFKernel(0.1)
 K = Symmetric(kernelmatrix(reshape(X,:,1),k)+1e-9*Diagonal(I,N))
+K_noise = Symmetric(kernelmatrix(reshape(X,:,1),k)+1e-9*Diagonal(I,N))
 f = rand(MvNormal(zeros(N),K))
+# g = rand(MvNormal(zeros))
 y = f .+ rand(Normal(0,noise),N)
 function intplot(model,iter)
     p=plot()
@@ -72,5 +75,6 @@ plot!(X_test,hetpred.+ nsig  .* sqrt.(hetpred_cov),linewidth=0.0,
     label="")
 ylims!(ylims(p2))
 default(legendfontsize=10.0,xtickfontsize=10.0,ytickfontsize=10.0)
-display(p=plot(p1,p2,p3,p4))
-savefig(p,jointpath(@__DIR__)*"/Regression.png")
+p=plot(p1,p2,p3,p4)
+display(p)
+savefig(p,joinpath(@__DIR__,"Regression.png"))

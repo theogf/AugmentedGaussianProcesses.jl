@@ -107,6 +107,8 @@ end
 
 function proba_y(model::GP{GaussianLikelihood{T},Analytic{T}},X_test::AbstractMatrix{T}) where {T<:Real}
     μf, σ²f = predict_f(model,X_test,covf=true)
+    σ²f .+= model.likelihood.ϵ
+    return μf,σ²f
 end
 
 function proba_y(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T<:Real}
