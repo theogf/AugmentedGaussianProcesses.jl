@@ -6,10 +6,10 @@ using ValueHistories
 const AGP = AugmentedGaussianProcesses
 seed!(42)
 doPlots=  true
-verbose = 3
+verbose = 2
 using Plots
 pyplot()
-N_data = 10
+N_data = 200
 N_test = 100
 N_dim = 1
 noise = 1e-16
@@ -17,7 +17,7 @@ minx=-1.0
 maxx=1.0
 μ_0 = -1
 l= sqrt(0.1); vf = 2.0;vg=1.0; α = 1.0;n_sig = 2
-kernel = RBFKernel(0.1,variance = vf); m = 40
+kernel = RBFKernel(0.3,variance = vf); m = 40
 kernel_g = RBFKernel(0.3,variance = vg)
 autotuning = false
 
@@ -75,7 +75,7 @@ t_full = @elapsed global model = VGP(X,y,kernel,AGP.HeteroscedasticLikelihood(ke
 # model.μ = copy(y_m[1:model.nSamples])
 t_full += @elapsed train!(model,iterations=10)#,callback=callback)
 global y_full,sig_full = proba_y(model,X_test); rmse_full = rmse(y_full,y_test);
-# global y_fullg, sig_fullg = proba_y(model,X_test)
+
 if doPlots
     # p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="StudentT")
     p1=plot(x_test,y_full,lab="",title="Heteroscedastic",ylim=(miny,maxy))
@@ -84,8 +84,24 @@ if doPlots
 
     push!(ps,p1)
 end
-# end
+##
+println("Testing the alternative model")
+t_alt = @elapsed global altmodel = VGP(X,y,kernel,AGP.AltHeteroscedasticLikelihood(kernel_g,AGP.ConstantMean(float(μ_0))),AnalyticVI(),verbose=verbose,Autotuning=false)
+# model.μ = copy(y_m[1:model.nSamples])
+t_alt += @elapsed train!(altmodel,iterations=100)#,callback=callback)
+global y_alt,sig_alt = proba_y(altmodel,X_test); rmse_alt = rmse(y_alt,y_test);
+# global y_fullg, sig_fullg = proba_y(model,X_test)
 
+if doPlots
+    # p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="StudentT")
+    p2=plot(x_test,y_full,lab="",title="Alt-Heteroscedastic",ylim=(miny,maxy))
+    plot!(p2,X_test,y_alt+n_sig*sqrt.(sig_alt),fill=(y_alt-n_sig*sqrt.(sig_alt)),alpha=0.3,lab="Alt-Heteroscedastic GP")
+    # plot!(twinx(),X_test,y_fullg,lab="Latent g")
+
+    push!(ps,p2)
+end
+# end
+##
 if sparsem
     println("Testing the sparse model")
     t_sparse = @elapsed global sparsemodel = AugmentedGaussianProcesses.SparseStudentT(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=m,noise=noise,kernel=kernel,ν=ν)
@@ -114,7 +130,7 @@ end
 
 println("Basic GP")
 gpmodel = GP(X,y,kernel,noise=1.0)
-t_gp = @time train!(gpmodel,iterations=10)
+t_gp = @elapsed train!(gpmodel,iterations=10)
 y_gp,sig_gp = proba_y(gpmodel,X_test); rmse_gp = rmse(y_gp,y_test)
 if doPlots
     p4=plot(x_test,y_gp,lab="",title="Non-Heteroscedastic",ylim=(miny,maxy))
@@ -124,6 +140,7 @@ end
 
 
 t_full != 0 ? println("Full model : RMSE=$(rmse_full), time=$t_full") : nothing
+t_alt != 0 ? println("Alt model : RMSE=$(rmse_alt), time=$t_alt") : nothing
 t_sparse != 0 ? println("Sparse model : RMSE=$(rmse_sparse), time=$t_sparse") : nothing
 t_stoch != 0 ? println("Stoch. Sparse model : RMSE=$(rmse_stoch), time=$t_stoch") : nothing
 t_gp != 0 ? println("GP model : RMSE=$(rmse_gp),time=$t_gp") : nothing
@@ -142,10 +159,13 @@ if doPlots
     # plot!(ptrue,X[:,1],X[:,2],t=:scatter,lab="training points",title="Truth")
     display(plot(ptrue,ps...))
 end
+##
 
-
-plot(X[s],y_noise[1:N_data][s],lab="true g")
-plot!(X[s],h.(y_noise[1:N_data][s]),lab="sig(true_g)")
+p_mu = plot(X[s],y_noise[1:N_data][s],lab="true g")
 plot!(X[s],model.likelihood.μ[1][s],lab="μ_g")
-plot!(X[s],model.likelihood.λ[1]*model.likelihood.σg[1][s]),lab="sig(μ_g)")
+plot!(X[s],altmodel.likelihood.μ[1][s],lab="alt_μ_g")
+p_sig = plot(X[s],h.(y_noise[1:N_data][s]),lab="sig(true_g)")
+plot!(X[s],model.likelihood.λ[1]*model.likelihood.σg[1][s],lab="sig(μ_g)")
+plot!(X[s],altmodel.likelihood.λ[1]*altmodel.likelihood.σg[1][s],lab="sig(alt_μ_g)")
+plot(p_mu,p_sig)
 # return true

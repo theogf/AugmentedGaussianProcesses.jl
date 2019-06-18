@@ -7,7 +7,7 @@ module AugmentedGaussianProcesses
 
 export AbstractGP, GP, VGP, SVGP
 export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
-export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood
+export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood, ALtHeteroscedasticLikelihood
 export LogisticLikelihood, BayesianSVM
 export SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export PoissonLikelihood
