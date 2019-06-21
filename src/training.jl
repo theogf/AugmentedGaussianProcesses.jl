@@ -56,6 +56,7 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
 end
 
 function update_parameters!(model::GP)
+    local_updates!(model)
     computeMatrices!(model); #Recompute the matrices if necessary (when hyperparameters have been updated)
 end
 
@@ -74,8 +75,8 @@ end
 
 function computeMatrices!(model::GP{<:Likelihood,<:Inference,T}) where {T<:Real}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ model.likelihood.ϵ.*[I])
-        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) )
+        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn.+ model.likelihood.ϵ.*[I])))
     end
 end
 

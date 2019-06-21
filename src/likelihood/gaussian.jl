@@ -52,11 +52,14 @@ function init_likelihood(likelihood::GaussianLikelihood{T},inference::Inference{
 end
 
 function local_updates!(model::GP{GaussianLikelihood{T}}) where {T<:Real}
+    if model.opt_noise
+        model.likelihood.ϵ .= inv(model.nFeature)*broadcast((y,μ,Σ)->sum(abs2,y)-2*dot(y,μ)+sum(abs2,μ)+tr(Σ),model.y,model.Knn.*model.invKnn.*model.y,model.Knn.*([I].-model.invKnn.*model.Knn))
+    end
 end
 
 function local_updates!(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
     if model.inference.Stochastic
-        #TODO
+        #TODO make it a moving average
         # model.likelihood.ϵ .= model.likelihood.ϵ + 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y[model.inference.MBIndices]-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
     else
         model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)

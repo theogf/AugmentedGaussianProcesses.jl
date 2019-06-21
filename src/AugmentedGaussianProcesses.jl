@@ -13,7 +13,7 @@ export SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export PoissonLikelihood
 export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI
 export NumericalVI, NumericalSVI
-
+export PriorMean, ZeroMean, ConstantMean, EmpiricalMean
 #Deprecated
 export BatchGPRegression, SparseGPRegression, MultiClass, SparseMultiClass, BatchBSVM, SparseBSVM, BatchXGPC, SparseXGPC, BatchStudentT, SparseStudentT
 
@@ -64,7 +64,7 @@ abstract type Inference{T<:Real} end
 abstract type Likelihood{T<:Real}  end
 
 const LatentArray = Vector #For future optimization : How collection of latent GP parameters and local variables are stored
-include("prior/meanprior.jl")
+include("prior/priormean.jl")
 
 include("models/AbstractGP.jl")
 include("models/GP.jl")

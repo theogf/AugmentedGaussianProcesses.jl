@@ -4,7 +4,7 @@
 Gaussian with heteroscedastic noise given by another gp: ``p(y|f,g) = \\mathcal{N}(y|f,(\\lambda\\sigma(g))^{-1})``
 
 ```julia
-HeteroscedasticLikelihood() # is the variance
+HeteroscedasticLikelihood([kernel=RBFKernel(),[priormean=0.0]])
 ```
 Augmentation is described here (#TODO)
 """
