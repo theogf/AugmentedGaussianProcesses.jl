@@ -33,7 +33,7 @@ mutable struct VGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: A
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
-    nFeature::Int64 # Number of features of the GP (equal to number of points)
+    nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
@@ -63,11 +63,11 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
             @assert check_implementation(:VGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
 
             nPrior = IndependentPriors ? nLatent : 1
-            nFeature = nSample = size(X,1); nDim = size(X,2);
+            nFeatures = nSample = size(X,1); nDim = size(X,2);
             kernel = ArrayType([deepcopy(kernel) for _ in 1:nPrior])
 
-            μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = deepcopy(μ)
-            Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
+            μ = LatentArray([zeros(T1,nFeatures) for _ in 1:nLatent]); η₁ = deepcopy(μ)
+            Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeatures))) for _ in 1:nLatent]);
             η₂ = -0.5*inv.(Σ);
             μ₀ = []
             if typeof(mean) <: Real
@@ -80,11 +80,11 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
             Knn = LatentArray([deepcopy(Σ[1]) for _ in 1:nPrior]);
             invKnn = copy(Knn)
 
-            likelihood = init_likelihood(likelihood,inference,nLatent,nSample)
+            likelihood = init_likelihood(likelihood,inference,nLatent,nSample,nFeatures)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
 
             VGP{LikelihoodType,InferenceType,T1,ArrayType{T1}}(X,y,
-                    nFeature, nDim, nFeature, nLatent,
+                    nFeatures, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,μ,Σ,η₁,η₂,
                     μ₀,Knn,invKnn,kernel,likelihood,inference,
                     verbose,Autotuning,atfrequency,false)

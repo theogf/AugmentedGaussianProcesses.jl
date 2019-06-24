@@ -33,7 +33,7 @@ mutable struct GP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: Ab
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
-    nFeature::Int64 # Number of features of the GP (equal to number of points)
+    nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
@@ -59,10 +59,10 @@ function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
 
             nPrior = IndependentPriors ? nLatent : 1
-            nFeature = nSample = size(X,1); nDim = size(X,2);
+            nFeatures = nSample = size(X,1); nDim = size(X,2);
             kernel = ArrayType([deepcopy(kernel) for _ in 1:nPrior])
 
-            Knn = LatentArray([Symmetric(Matrix{T1}(I,nFeature,nFeature)) for _ in 1:nPrior]);
+            Knn = LatentArray([Symmetric(Matrix{T1}(I,nFeatures,nFeatures)) for _ in 1:nPrior]);
             invKnn = copy(Knn)
             μ₀ = []
             if typeof(mean) <: Real
@@ -72,11 +72,11 @@ function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel
             else
                 μ₀ = [mean for _ in 1:nPrior]
             end
-            likelihood = init_likelihood(likelihood,inference,nLatent,nSample)
+            likelihood = init_likelihood(likelihood,inference,nLatent,nSample,nFeatures)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
 
             model = GP{GaussianLikelihood{T1},Analytic{T1},T1,ArrayType{T1}}(X,y,
-                    nFeature, nDim, nFeature, nLatent,
+                    nFeatures, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,
                     μ₀,Knn,invKnn,kernel,likelihood,inference,
                     verbose,Autotuning,atfrequency,opt_noise,false)

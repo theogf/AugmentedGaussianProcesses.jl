@@ -48,7 +48,7 @@ end
     Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model
 """
 function hyperparameter_gradient_function(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    A = ([Diagonal{T}(I,model.nFeature)].-model.invKnn.*(model.Σ.+(model.µ.-model.μ₀).*transpose.(model.μ.-model.μ₀))).*model.invKnn
+    A = ([Diagonal{T}(I,model.nFeatures)].-model.invKnn.*(model.Σ.+(model.µ.-model.μ₀).*transpose.(model.μ.-model.μ₀))).*model.invKnn
     if model.IndependentPriors
         return (function(Jnn,index)
                     return -hyperparameter_KL_gradient(Jnn,A[index])
@@ -73,7 +73,7 @@ function hyperparameter_gradient_function(model::VGP{<:Likelihood,<:Inference,T}
 end
 
 function hyperparameter_local_gradient_function(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    A = ([Diagonal{T}(I,model.nFeature)].-model.likelihood.invK.*(model.likelihood.Σ.+(model.likelihood.µ.-model.likelihood.μ₀).*transpose.(model.likelihood.μ.-model.likelihood.μ₀))).*model.likelihood.invK
+    A = ([Diagonal{T}(I,model.nFeatures)].-model.likelihood.invK.*(model.likelihood.Σ.+(model.likelihood.µ.-model.likelihood.μ₀).*transpose.(model.likelihood.μ.-model.likelihood.μ₀))).*model.likelihood.invK
     return (function(Jnn,index)
                 return -hyperparameter_KL_gradient(Jnn,A[index])
             end,
@@ -87,8 +87,8 @@ end
 
 """Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
 function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    A = ([Diagonal{T}(I,model.nFeature)].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
-    ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeature) #Empty container to save data allocation
+    A = ([Diagonal{T}(I,model.nFeatures)].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
+    ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeatures) #Empty container to save data allocation
     κΣ = model.κ.*model.Σ
     if model.IndependentPriors
         return (function(Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Int)

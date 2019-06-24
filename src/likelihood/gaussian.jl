@@ -53,7 +53,7 @@ end
 
 function local_updates!(model::GP{GaussianLikelihood{T}}) where {T<:Real}
     if model.opt_noise
-        model.likelihood.ϵ .= inv(model.nFeature)*broadcast((y,μ,Σ)->sum(abs2,y)-2*dot(y,μ)+sum(abs2,μ)+tr(Σ),model.y,model.Knn.*model.invKnn.*model.y,model.Knn.*([I].-model.invKnn.*model.Knn))
+        model.likelihood.ϵ .= inv(model.nFeatures)*broadcast((y,μ,Σ)->sum(abs2,y)-2*dot(y,μ)+sum(abs2,μ)+tr(Σ),model.y,model.Knn.*model.invKnn.*model.y,model.Knn.*([I].-model.invKnn.*model.Knn))
     end
 end
 
@@ -124,7 +124,7 @@ end
 
 ### Special case where the ELBO is equal to the marginal likelihood
 function ELBO(model::GP{GaussianLikelihood{T}}) where {T<:Real}
-    return -0.5*sum(broadcast((y,invK)->dot(y,invK*y) - logdet(invK)+ model.nFeature*log(twoπ),model.y,model.invKnn))
+    return -0.5*sum(broadcast((y,invK)->dot(y,invK*y) - logdet(invK)+ model.nFeatures*log(twoπ),model.y,model.invKnn))
 end
 
 function ELBO(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
