@@ -90,7 +90,7 @@ end
 function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
     if model.inference.HyperParametersUpdated
         model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*T(jitter)*I),model.Z,model.kernel)
-        model.invKmm .= inv.(cholesky.(model.Kmm))
+        model.invKmm .= Symmetric.(inv.(cholesky.(model.Kmm)))
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
