@@ -9,7 +9,7 @@ using LinearAlgebra, Clustering, Distances
 using AugmentedGaussianProcesses.KernelModule
 
 export KMeansInducingPoints
-export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, DPPAlg
+export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, DPPAlg, MEC
 export total_cost
 export init!, update!, remove!
 
@@ -99,6 +99,7 @@ include("Webscale.jl")
 include("CircleKMeans.jl")
 include("DataSelection.jl")
 include("OfflineKMeans.jl")
+include("MEC.jl")
 ####
 function KLGP(mu,sig,f,sig_f)
     tot = -0.5*length(f)
