@@ -14,12 +14,12 @@ function update_hyperparameters!(model::SVGP{<:Likelihood,<:Inference,T}) where 
     Jmm = kernelderivativematrix.(model.Z,model.kernel)
     Jnm = kernelderivativematrix.([model.X[model.inference.MBIndices,:]],model.Z,model.kernel)
     Jnn = kernelderivativediagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel)
-    f_l,f_v = hyperparameter_gradient_function(model)
+    f_l,f_v,f_Z = hyperparameter_gradient_function(model)
     grads_l = map(compute_hyperparameter_gradient,model.kernel,fill(f_l,model.nPrior),Jmm,Jnm,Jnn,collect(1:model.nPrior))
     grads_v = map(f_v,model.kernel,1:model.nPrior)
-    if model.OptimizeInducingPoints
-        Z_gradients = inducingpoints_gradient(model) #Compute the gradient given the inducing points location
-        model.Z += GradDescent.update(model.optimizer,Z_gradients) #Apply the gradients on the location
+    if !isnothing(model.Zoptimizer)
+        Z_gradients = f_Z(model) #Compute the gradient given the inducing points location
+        model.Z .+= GradDescent.update.(model.Zoptimizer,Z_gradients) #Apply the gradients on the location
     end
     apply_gradients_lengthscale!.(model.kernel,grads_l)
     apply_gradients_variance!.(model.kernel,grads_v)
@@ -33,12 +33,12 @@ function update_hyperparameters!(model::OnlineVGP{<:Likelihood,<:Inference,T}) w
     Jnn = kernelderivativediagmatrix.([model.X],model.kernel)
     Jab = kernelderivativematrix.(model.Zₐ,model.Z,model.kernel)
     Jaa = kernelderivativematrix.(model.Zₐ,model.kernel)
-    f_l,f_v = hyperparameter_gradient_function(model)
+    f_l,f_v,f_Z = hyperparameter_gradient_function(model)
     grads_l = map(compute_hyperparameter_gradient,model.kernel,fill(f_l,model.nPrior),Jmm,Jnm,Jnn,Jab,Jaa,collect(1:model.nPrior))
     grads_v = map(f_v,model.kernel,1:model.nPrior)
-    if model.OptimizeInducingPoints
-        Z_gradients = inducingpoints_gradient(model) #Compute the gradient given the inducing points location
-        model.Z += GradDescent.update(model.optimizer,Z_gradients) #Apply the gradients on the location
+    if !isnothing(model.Zoptimizer)
+        Z_gradients = f_Z(model) #Compute the gradient given the inducing points location
+        model.Z .+= GradDescent.update.(model.Zoptimizer,Z_gradients) #Apply the gradients on the location
     end
     apply_gradients_lengthscale!.(model.kernel,grads_l)
     apply_gradients_variance!.(model.kernel,grads_v)
@@ -86,7 +86,11 @@ function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T
                     return 1.0/getvariance(kernel)*(
                             - model.inference.ρ*dot(expec_Σ(model,index),model.K̃[index])
                             - hyperparameter_KL_gradient(model.Kmm[index],A[index]))
-                end)
+                end,
+                function(model)
+                        inducingpoints_gradient(model,A,ι,κΣ)
+                end
+                )
     else
         return (function(Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Int)
                     return  (hyperparameter_expec_gradient(model,ι,κΣ,Jmm,Jnm,Jnn)
@@ -116,6 +120,9 @@ function hyperparameter_gradient_function(model::OnlineVGP{<:Likelihood,<:Infere
                             - dot(expec_Σ(model,index),model.K̃[index])
                             - 0.5*opt_trace(model.invDₐ[index],model.K̃ₐ[index])
                             - hyperparameter_KL_gradient(model.Kmm[index],A[index]))
+                end,
+                function(model)
+                        inducingpoints_gradient(model,A,ι,ιₐ,κΣ,κₐΣ)
                 end)
     else
         return (function(Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},Jab::Matrix{T},Jaa::Symmetric{T,Matrix{T}},index::Int)
@@ -173,19 +180,41 @@ function hyperparameter_online_gradient(model::OnlineVGP{<:Likelihood{T},<:Infer
 end
 
 
-"""Return a function computing the gradient of the ELBO given the inducing point locations"""
-function inducingpoints_gradient(model::SVGP{<:Likelihood{T},<:Inference{T},T}) where {T<:Real}
+"""
+    Return a function computing the gradient of the ELBO given the inducing point locations
+"""
+function inducingpoints_gradient(model::SVGP{<:Likelihood{T},<:Inference{T},T},A,ι,κΣ) where {T<:Real}
     if model.IndependentPriors
-        gradients_inducing_points = zero(model.Z[1])
-        A = ([I].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
-        #preallocation
-        ι = Matrix{T}(undef,model.nSamplesUsed,model.nInducingPoints)
+        gradients_inducing_points = [zeros(T,model.nFeature,model.nDim) for _ in 1:model.nPrior]
         for k in 1:model.nPrior
-            for i in 1:model.nInducingPoints #Iterate over the points
-                Jnm,Jmm = computeIndPointsJ(model,i) #TODO
+            for i in 1:model.nFeature #Iterate over the points
+                global Jnm,Jmm = computeIndPointsJ(model,i,k) #TODO
                 for j in 1:model.nDim #iterate over the dimensions
-                    @views mul!(ι,(Jnm[j,:,:]-model.κ[k]*Jmm[j,:,:]),model.invKmm[k])
-                    @views gradients_inducing_points[c][i,j] =  hyperparameter_expec_gradient(model,ι,κΣ,Jmm[j,:,:],Jnm[j,:,:],zeros(T,model.nSamplesUsed))-hyperparameter_KL_gradient(Jmm[j,:,:],A[k])
+                    mul!(ι,(Jnm[j,:,:]-model.κ[k]*Jmm[j,:,:]),model.invKmm[k])
+                    gradients_inducing_points[k][i,j] =  hyperparameter_expec_gradient(model,ι,κΣ[k],Symmetric(Jmm[j,:,:]),Jnm[j,:,:],zeros(T,model.inference.nSamplesUsed),k)-hyperparameter_KL_gradient(Jmm[j,:,:],A[k])
+                end
+            end
+        end
+        return gradients_inducing_points
+    else
+        @warn "Inducing points for shared prior not implemented yet"
+        return gradients_inducing_points
+    end
+end
+
+
+"""Return a function computing the gradient of the ELBO given the inducing point locations"""
+function inducingpoints_gradient(model::OnlineVGP{<:Likelihood{T},<:Inference{T},T},A,ι,ιₐ,κΣ,κₐΣ) where {T<:Real}
+    if model.IndependentPriors
+        gradients_inducing_points = [zeros(T,model.nFeature,model.nFeature) for _ in 1:model.nLatent]
+        for k in 1:model.nPrior
+            for i in 1:model.nFeature #Iterate over the points
+                Jnm,Jab,Jmm = computeIndPointsJ(model,i,k) #TODO
+                for j in 1:model.nDim #iterate over the dimensions
+                    mul!(ι,(Jnm[j,:,:]-model.κ[k]*Jmm[j,:,:]),model.invKmm[k])
+                    gradients_inducing_points[k][i,j] =  (hyperparameter_expec_gradient(model,ι,κΣ[k],Symmetric(Jmm[j,:,:]),Jnm[j,:,:],zeros(T,model.inference.nSamplesUsed),k)
+                    + hyperparameter_online_gradient(model,ιₐ,κₐΣ[k],Symmetric(Jmm[j,:,:]),Jab[j,:,:],Symmetric(zeros(T,size(model.Zₐ[k],1),size(model.Zₐ[k],1))),k)
+                    - hyperparameter_KL_gradient(Jmm[j,:,:],A[k]))
                 end
             end
         end
@@ -194,4 +223,36 @@ function inducingpoints_gradient(model::SVGP{<:Likelihood{T},<:Inference{T},T}) 
         @warn "Inducing points for shared prior not implemented yet"
         gradients_inducing_points = zero(model.inducingPoints[1]) #TODO
     end
+end
+
+
+"Compute the gradients given the inducing point locations, (general gradients are computed to be then remapped correctly)"
+function computeIndPointsJ(model::SVGP,iter::Int,k::Int)
+    Dnm = KernelModule.computeIndPointsJnm(model.kernel[k],model.X[model.inference.MBIndices,:],model.Z[k][iter,:],iter,model.Knm[k])
+    Dmm = KernelModule.computeIndPointsJmm(model.kernel[k],model.Z[k],iter,model.Kmm[k])
+    Jnm = zeros(model.nDim,model.inference.nSamplesUsed,model.nFeature)
+    Jmm = zeros(model.nDim,model.nFeature,model.nFeature)
+    @inbounds for i in 1:model.nDim
+        Jnm[i,:,:] .= KernelModule.CreateColumnMatrix(model.inference.nSamplesUsed,model.nFeature,iter,Dnm[:,i])
+        Jmm[i,:,:] .= KernelModule.CreateColumnRowMatrix(model.nFeature,iter,Dmm[:,i])
+    end
+    return Jnm,Jmm
+    #Return dim*K*K tensors for computing the gradient
+end
+
+"Compute the gradients given the inducing point locations, (general gradients are computed to be then remapped correctly)"
+function computeIndPointsJ(model::OnlineVGP,iter::Int,k::Int)
+    Dnm = KernelModule.computeIndPointsJnm(model.kernel[k],model.X[model.inference.MBIndices,:],model.Z[k][iter,:],iter,model.Knm[k])
+    Dab = KernelModule.computeIndPointsJnm(model.kernel[k],model.Zₐ[k],model.Z[k][iter,:],iter,model.Kab[k])
+    Dmm = KernelModule.computeIndPointsJmm(model.kernel[k],model.Z[k],iter,model.Kmm[k])
+    Jnm = zeros(model.nDim,model.inference.nSamplesUsed,model.nFeature)
+    Jab = zeros(model.nDim,size(model.Zₐ[k],1),model.nFeature)
+    Jmm = zeros(model.nDim,model.nFeature,model.nFeature)
+    @inbounds for i in 1:model.nDim
+        Jnm[i,:,:] .= KernelModule.CreateColumnMatrix(model.inference.nSamplesUsed,model.nFeature,iter,Dnm[:,i])
+        Jab[i,:,:] .= KernelModule.CreateColumnMatrix(size(model.Zₐ[k],1),model.nFeature,iter,Dab[:,i])
+        Jmm[i,:,:] .= KernelModule.CreateColumnRowMatrix(model.nFeature,iter,Dmm[:,i])
+    end
+    return Jnm,Jab,Jmm
+    #Return dim*K*K tensors for computing the gradient
 end

@@ -50,11 +50,12 @@ function local_updates!(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
     if model.inference.Stochastic
         # model.likelihood.ϵ .= model.likelihood.ϵ + 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y[model.inference.MBIndices]-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
     else
-        model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y[model.inference.MBIndices]-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
+        model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2,y[model.inference.MBIndices]-κ*μ)+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
     end
 end
 
 function local_updates!(model::OnlineVGP{GaussianLikelihood{T}}) where {T<:Real}
+    model.likelihood.ϵ .= model.likelihood.ϵ .+ 0.1*(1.0/model.inference.nSamplesUsed*broadcast((y,κ,μ,Σ,K̃)->sum(abs2,y-κ*μ)+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κold,model.μ,model.Σ,model.K̃)-model.likelihood.ϵ)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
@@ -107,13 +108,7 @@ function proba_y(model::GP{GaussianLikelihood{T},Analytic{T}},X_test::AbstractMa
     μf, σ²f = predict_f(model,X_test,covf=true)
 end
 
-function proba_y(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T<:Real}
-    μf, σ²f = predict_f(model,X_test,covf=true)
-    σ²f .+= model.likelihood.ϵ
-    return μf,σ²f
-end
-
-function proba_y(model::OnlineVGP{GaussianLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T<:Real}
+function proba_y(model::AbstractGP{GaussianLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T<:Real}
     μf, σ²f = predict_f(model,X_test,covf=true)
     σ²f .+= model.likelihood.ϵ
     return μf,σ²f

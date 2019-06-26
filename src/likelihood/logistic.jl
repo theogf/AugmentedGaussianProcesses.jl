@@ -75,6 +75,11 @@ function local_updates!(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end
 
+function local_updates!(model::OnlineVGP{<:LogisticLikelihood,<:AnalyticVI})
+    model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),model.μ,model.Σ,model.K̃,model.κold)
+    model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
+end
+
 function sample_local!(model::VGP{<:LogisticLikelihood,<:GibbsSampling})
     pg = PolyaGammaDist()
     model.likelihood.θ .= broadcast((μ::AbstractVector{<:Real})->draw.([pg],[1.0],μ),model.μ)
@@ -91,11 +96,11 @@ function ∇μ(model::VGP{<:LogisticLikelihood})
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::SVGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
+function expec_μ(model::SparseGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
     return 0.5.*model.y[index][model.inference.MBIndices]
 end
 
-function ∇μ(model::SVGP{<:LogisticLikelihood})
+function ∇μ(model::SparseGP{<:LogisticLikelihood})
     return 0.5.*getindex.(model.y,[model.inference.MBIndices])
 end
 

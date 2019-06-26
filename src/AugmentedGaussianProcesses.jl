@@ -49,7 +49,7 @@ using Expectations
 using Random
 import Base: convert, show, copy
 #Exported models
-export KMeansModule
+export KMeansModule, GradDescent
 #Useful functions
 export train!
 export predict_f, predict_y, proba_y

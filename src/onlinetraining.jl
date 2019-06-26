@@ -77,9 +77,11 @@ function computeMatrices!(model::OnlineVGP{<:Likelihood,<:Inference,T}) where {T
     model.invKmm .= inv.(model.Kmm)
     model.Kab .= broadcast((Z,Zₐ,kernel)->kernelmatrix(Zₐ,Z,kernel),model.Z,model.Zₐ,model.kernel)
     model.κₐ .= model.Kab.*model.invKmm
-    model.K̃ₐ .= kernelmatrix.(model.Zₐ,model.kernel) + model.κₐ.*transpose.(model.Kab)
+    Kₐ = kernelmatrix.(model.Zₐ,model.kernel)
+    model.K̃ₐ .= Kₐ .+ model.κₐ.*transpose.(model.Kab)
     model.Knm .= kernelmatrix.([model.X],model.Z,model.kernel)
     model.κ .= model.Knm.*model.invKmm
+    model.κold .= kernelmatrix.([model.X],model.Zₐ,model.kernel).*inv.(Kₐ)
     model.K̃ .= kerneldiagmatrix.([model.X],model.kernel) .+ [convert(T,Jittering())*ones(T,size(model.X,1))] - opt_diag.(model.κ,model.Knm)
     @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     model.inference.HyperParametersUpdated=false
@@ -109,6 +111,7 @@ function init_onlinemodel(model::OnlineVGP{<:Likelihood,<:Inference,T},X,y) wher
     model.Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T)*I,model.nFeature))) for _ in 1:model.nLatent]);
     model.η₂ = -0.5*inv.(model.Σ);
     model.κ = LatentArray([zeros(T,nSamples, model.nFeature) for _ in 1:model.nPrior])
+    model.κold = LatentArray([zeros(T,nSamples, model.nFeature) for _ in 1:model.nPrior])
     model.Knm = deepcopy(model.κ)
     model.K̃ = LatentArray([zeros(T,nSamples) for _ in 1:model.nPrior])
     model.κₐ = LatentArray([zeros(T, model.nFeature, model.nFeature) for _ in 1:model.nPrior])

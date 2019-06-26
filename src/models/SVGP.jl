@@ -24,7 +24,7 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: 
     verbose::Int64
     Autotuning::Bool
     atfrequency::Int64
-    OptimizeInducingPoints::Bool
+    Zoptimizer::Union{LatentArray{Optimizer},Nothing}
     Trained::Bool
 end
 
@@ -43,14 +43,14 @@ Argument list :
  - `Autotuning` : Flag for optimizing hyperparameters
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `OptimizeInducingPoints` : Flag for optimizing the inducing points locations
+ - `Zoptimizer` : Optimizer for the inducing points locations (nothing by default)
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
 function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             likelihood::LikelihoodType,inference::InferenceType,
             nInducingPoints::Integer
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
-            IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
+            IndependentPriors::Bool=true, Zoptimizer::Union{Optimizer,Nothing}=Nothing(),ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(:SVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
@@ -63,7 +63,9 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             @assert nInducingPoints > 0 && nInducingPoints < nSample "The number of inducing points is incorrect (negative or bigger than number of samples)"
             Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10); Z=[deepcopy(Z) for _ in 1:nPrior]
             nFeature = nInducingPoints
-
+            if !isnothing(Zoptimizer)
+                Zoptimizer = [deepcopy(Zoptimizer) for _ in 1:nPrior]
+            end
 
             μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = deepcopy(μ);
             Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
@@ -86,7 +88,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
                     Z,μ,Σ,η₁,η₂,
                     Kmm,invKmm,Knm,κ,K̃,
                     kernel,likelihood,inference,
-                    verbose,Autotuning,atfrequency,OptimizeInducingPoints,false)
+                    verbose,Autotuning,atfrequency,Zoptimizer,false)
             if isa(inference.optimizer_η₁[1],ALRSVI)
                 init!(model.inference,model)
             end

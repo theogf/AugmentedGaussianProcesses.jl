@@ -21,6 +21,7 @@ mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}
     invKmm::LatentArray{Symmetric{T,Matrix{T}}}
     Knm::LatentArray{Matrix{T}}
     κ::LatentArray{Matrix{T}}
+    κold::LatentArray{Matrix{T}}
     K̃::LatentArray{V}
     Zₐ::LatentArray{Matrix{T}}
     Kab::LatentArray{Matrix{T}}
@@ -32,7 +33,7 @@ mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}
     verbose::Int64
     Autotuning::Bool
     atfrequency::Int64
-    OptimizeInducingPoints::Bool
+    Zoptimizer::Union{LatentArray{Optimizer},Nothing}
     Trained::Bool
 end
 
@@ -52,7 +53,7 @@ Argument list :
  - `Autotuning` : Flag for optimizing hyperparameters
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `OptimizeInducingPoints` : Flag for optimizing the inducing points locations
+ - `Zoptimizer` : Optimizer for the inducing points locations
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
 function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
@@ -60,7 +61,7 @@ function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
             likelihood::Likelihood{T1},inference::Inference,
             Zalg::ZAlg=CircleKMeans()#,Sequential::Bool=false
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
-            IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Vector) where {T1<:Real,T2}
+            IndependentPriors::Bool=true, Zoptimizer::Union{Optimizer,Nothing}=Nothing(),ArrayType::UnionAll=Vector) where {T1<:Real,T2}
 
             @assert check_implementation(:OnlineVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
             nLatent = 1
@@ -72,10 +73,14 @@ function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
             η₁ = LatentArray{ArrayType{T1}}()
             η₂ = LatentArray{Symmetric{T1,Matrix{T1}}}()
             Z = LatentArray{Matrix{T1}}()
+            if !isnothing(Zoptimizer)
+                Zoptimizer = [deepcopy(Zoptimizer) for _ in 1:nPrior]
+            end
             Kmm = LatentArray{Symmetric{T1,Matrix{T1}}}()
             invKmm = LatentArray{Symmetric{T1,Matrix{T1}}}()
             Knm = LatentArray{Matrix{T1}}()
             κ = LatentArray{Matrix{T1}}()
+            κold = LatentArray{Matrix{T1}}()
             K̃ = LatentArray{ArrayType{T1}}()
             Zₐ = LatentArray{Matrix{T1}}()
             Kab = LatentArray{Matrix{T1}}()
@@ -94,9 +99,9 @@ function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
                     Zalg,Zupdated,
                     # Sequential,dataparsed,lastindex,
                     μ,Σ,η₁,η₂,
-                    Z,Kmm,invKmm,Knm,κ,K̃,
+                    Z,Kmm,invKmm,Knm,κ,κold,K̃,
                     Zₐ,Kab,κₐ,K̃ₐ,invDₐ,prevη₁,𝓛ₐ,
-                    verbose,Autotuning,atfrequency,OptimizeInducingPoints,false
+                    verbose,Autotuning,atfrequency,Zoptimizer,false
                     )
             # model.verbose = verbose;
             # model.Autotuning = Autotuning;
