@@ -36,7 +36,6 @@ using .GPAnalysisTools
 #General modules
 # using MLKernels
 using GradDescent
-import GradDescent: update
 using DataFrames
 using Distributions
 using LinearAlgebra
@@ -49,7 +48,7 @@ using Expectations
 using Random
 import Base: convert, show, copy
 #Exported models
-export KMeansModule, GradDescent
+export KMeansModule
 #Useful functions
 export train!
 export predict_f, predict_y, proba_y

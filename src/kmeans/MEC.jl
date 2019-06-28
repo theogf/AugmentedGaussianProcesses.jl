@@ -21,7 +21,7 @@ function init!(alg::MEC,X,y,kernel)
     # end
 end
 
-function update!(alg::MEC,X,y,kernel)
+function add_point!(alg::MEC,X,y,kernel)
     b = size(X,1)
     K = kernelmatrix(alg.centers,kernel)
     Knm = kernelmatrix(X,alg.centers,kernel)
@@ -32,6 +32,6 @@ function update!(alg::MEC,X,y,kernel)
     alg.k += 1
 end
 
-function remove!(alg::MEC,Kmm,kernel)
+function remove_point!(alg::MEC,Kmm,kernel)
 
 end

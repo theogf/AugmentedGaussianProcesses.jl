@@ -55,7 +55,7 @@ function local_updates!(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
 end
 
 function local_updates!(model::OnlineVGP{GaussianLikelihood{T}}) where {T<:Real}
-    model.likelihood.ϵ .= model.likelihood.ϵ .+ 0.1*(1.0/model.inference.nSamplesUsed*broadcast((y,κ,μ,Σ,K̃)->sum(abs2,y-κ*μ)+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κold,model.μ,model.Σ,model.K̃)-model.likelihood.ϵ)
+    model.likelihood.ϵ .= model.likelihood.ϵ .+ 0.1*(1.0/model.inference.nSamplesUsed*broadcast((y,κ,μ,Σ,K̃)->sum(abs2,y-κ*μ)+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)-model.likelihood.ϵ)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """

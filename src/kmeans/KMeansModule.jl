@@ -7,11 +7,12 @@ using Distributions
 using StatsBase
 using LinearAlgebra, Clustering, Distances
 using AugmentedGaussianProcesses.KernelModule
+using GradDescent
 
 export KMeansInducingPoints
 export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, DPPAlg, MEC
 export total_cost
-export init!, update!, remove!
+export init!, add_point!, remove_point!, update_centers!
 
 "Abstract type for kmeans algorithm"
 abstract type ZAlg end;

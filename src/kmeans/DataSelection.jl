@@ -19,7 +19,7 @@ function init!(alg::DataSelection,X,y,kernel)
     alg.k = init_k
 end
 
-function update!(alg::DataSelection,X,y,model)
+function add_point!(alg::DataSelection,X,y,model)
     b = size(X,1)
     new_centers = []
     new_k = 0

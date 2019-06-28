@@ -28,7 +28,8 @@ function extraKL(model::OnlineVGP)
     - 𝓛ₐ
     - opt_trace(invDₐ,Kₐₐ)
     - opt_trace(invDₐ,κₐ*(Σ*κₐ'-Kab'))
-    + 2*dot(η₁,κₐμ) - dot(κₐμ,invDₐ*κₐμ), model.prev𝓛ₐ,Kₐₐ,model.invDₐ,model.K̃ₐ,model.Σ,model.Kab,model.prevη₁,model.κₐ,model.κₐ.*model.μ))
+    + 2*dot(η₁,κₐμ) - dot(κₐμ,invDₐ*κₐμ)
+    ,model.prev𝓛ₐ,Kₐₐ,model.invDₐ,model.K̃ₐ,model.Σ,model.Kab,model.prevη₁,model.κₐ,model.κₐ.*model.μ))
      #Precompute this part for the next ELBO
     return L
 end

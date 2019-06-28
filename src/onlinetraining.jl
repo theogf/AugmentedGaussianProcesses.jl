@@ -14,9 +14,12 @@ function train!(model::OnlineVGP,X::AbstractArray,y::AbstractArray;iterations::I
     model.X,model.y,nLatent,model.likelihood = check_data!(X,y,model.likelihood)
     @assert nLatent == model.nLatent "Data should always contains the same number of outputs"
     @assert iterations > 0  "Number of iterations should be positive"
+
     if model.inference.nIter == 1
         init_onlinemodel(model,X,y)
+        save_old_parameters!(model)
     else
+        save_old_parameters!(model)
         updateZ!(model);
     end
     model.likelihood = init_likelihood(model.likelihood,model.inference,model.nLatent,size(X,1))
@@ -28,7 +31,14 @@ function train!(model::OnlineVGP,X::AbstractArray,y::AbstractArray;iterations::I
 
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
-            update_parameters!(model) #Update all the variational parameters
+            setZ!(model)
+            if local_iter == 1
+                computeMatrices!(model)
+                natural_gradient!(model)
+                global_update!(model)
+            else
+                update_parameters!(model) #Update all the variational parameters
+            end
             model.Trained = true
             if callback != 0
                 callback(model,model.inference.nIter) #Use a callback method if put by user
@@ -36,13 +46,13 @@ function train!(model::OnlineVGP,X::AbstractArray,y::AbstractArray;iterations::I
             if model.Autotuning && (model.inference.nIter%model.atfrequency == 0)
                 update_hyperparameters!(model) #Update the hyperparameters
             end
-            ### Print out informations about the convergence
             if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
                 print("Iteration : $(model.inference.nIter) ")
-                 print("ELBO is : $(ELBO(model))")
-                 print("\n")
-                 println("kernel lengthscale : $(getlengthscales(model.kernel[1]))")
-             end
+                print("ELBO is : $(ELBO(model))")
+                print("\n")
+                println("kernel lengthscale : $(getlengthscales(model.kernel[1]))")
+            end
+            ### Print out informations about the convergence
             local_iter += 1; model.inference.nIter += 1
             (local_iter <= iterations) || break; #Verify if the number of maximum iterations has been reached
             # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
@@ -77,7 +87,7 @@ function computeMatrices!(model::OnlineVGP{<:Likelihood,<:Inference,T}) where {T
     model.invKmm .= inv.(model.Kmm)
     model.Kab .= broadcast((Z,Zₐ,kernel)->kernelmatrix(Zₐ,Z,kernel),model.Z,model.Zₐ,model.kernel)
     model.κₐ .= model.Kab.*model.invKmm
-    Kₐ = kernelmatrix.(model.Zₐ,model.kernel)
+    Kₐ = Symmetric.(kernelmatrix.(model.Zₐ,model.kernel)+convert(T,Jittering())*getvariance.(model.kernel).*[I])
     model.K̃ₐ .= Kₐ .+ model.κₐ.*transpose.(model.Kab)
     model.Knm .= kernelmatrix.([model.X],model.Z,model.kernel)
     model.κ .= model.Knm.*model.invKmm
@@ -89,19 +99,45 @@ end
 
 
 function updateZ!(model::OnlineVGP)
-    model.Zₐ .= copy.(model.Z)
-    model.invDₐ .= Symmetric.(-2.0.*model.η₂.-model.invKmm)
-    model.prevη₁ = deepcopy(model.η₁)
-    model.prev𝓛ₐ .= -logdet.(model.Σ) + logdet.(model.Kmm) - dot.(model.μ,model.η₁)
-    update!(model.Zalg,model.X,model.y[1],model.kernel[1]) #TEMP FOR 1 latent
-    remove!(model.Zalg,model.Kmm[1],model.kernel[1])
+    # model.Zₐ .= copy.(model.Z)
+    # model.invDₐ .= Symmetric.(-2.0.*model.η₂.-model.invKmm)
+    # model.prevη₁ = deepcopy(model.η₁)
+    # model.prev𝓛ₐ .= -logdet.(model.Σ) + logdet.(model.Kmm) - dot.(model.μ,model.η₁)
+    if !isnothing(model.Zoptimizer)
+        add_point!(model.Zalg,model.X,model.y[1],model.kernel[1],optimizer=model.Zoptimizer[1]) #TEMP FOR 1 latent
+    else
+        add_point!(model.Zalg,model.X,model.y[1],model.kernel[1]) #TEMP FOR 1 latent
+    end
+end
+
+function compute_local_from_prev(model::OnlineVGP)
+    setZ!(model)
+    model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
+    model.Knm .= kernelmatrix.([model.X],model.Z,model.kernel)
+    model.κ .= model.Knm.*model.invKmm
+    local_updates!(model)
+end
+
+function setZ!(model::OnlineVGP)
     model.nFeature = model.Zalg.k
     model.Zupdated = true
     model.Z = fill(model.Zalg.centers,model.nPrior) #TEMP for 1 latent
 end
 
+function save_old_parameters!(model::OnlineVGP)
+    remove_point!(model.Zalg,kernelmatrix(model.Zalg.centers,model.kernel[1]),model.kernel[1])
+    model.Zₐ .= copy.(model.Z)
+    model.invDₐ .= Symmetric.(-2.0.*model.η₂.-model.invKmm)
+    model.prevη₁ = deepcopy(model.η₁)
+    model.prev𝓛ₐ .= -logdet.(model.Σ) + logdet.(model.Kmm) - dot.(model.μ,model.η₁)
+end
+
 function init_onlinemodel(model::OnlineVGP{<:Likelihood,<:Inference,T},X,y) where {T<:Real}
-    init!(model.Zalg,X,y[1],model.kernel[1])
+    if !isnothing(model.Zoptimizer)
+        init!(model.Zalg,X,y[1],model.kernel[1],optimizer=model.Zoptimizer[1])
+    else
+        init!(model.Zalg,X,y[1],model.kernel[1])
+    end
     nSamples = size(X,1)
     model.nDim = size(X,2)
     model.nFeature = model.Zalg.k

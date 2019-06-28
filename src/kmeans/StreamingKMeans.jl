@@ -32,7 +32,7 @@ function init!(alg::StreamOnline,X,y,kernel)
     alg.q = 0
 end
 
-function update!(alg::StreamOnline,X,y,model)
+function add_point!(alg::StreamOnline,X,y,model)
     b = size(X,1)
     # new_centers = Matrix(undef,0,size(X,2))
     for i in 1:b
@@ -49,4 +49,8 @@ function update!(alg::StreamOnline,X,y,model)
         end
     end
     # alg.centers = vcat(alg.centers,new_centers)
+end
+
+function remove_point!(alg::StreamOnline,X,y,model)
+
 end

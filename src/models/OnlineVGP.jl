@@ -61,7 +61,7 @@ function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
             likelihood::Likelihood{T1},inference::Inference,
             Zalg::ZAlg=CircleKMeans()#,Sequential::Bool=false
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
-            IndependentPriors::Bool=true, Zoptimizer::Union{Optimizer,Nothing}=Nothing(),ArrayType::UnionAll=Vector) where {T1<:Real,T2}
+            IndependentPriors::Bool=true, Zoptimizer::Union{Any,Nothing}=Nothing(),ArrayType::UnionAll=Vector) where {T1<:Real,T2}
 
             @assert check_implementation(:OnlineVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
             nLatent = 1

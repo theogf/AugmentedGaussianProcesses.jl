@@ -38,7 +38,13 @@ function update_hyperparameters!(model::OnlineVGP{<:Likelihood,<:Inference,T}) w
     grads_v = map(f_v,model.kernel,1:model.nPrior)
     if !isnothing(model.Zoptimizer)
         Z_gradients = f_Z(model) #Compute the gradient given the inducing points location
-        model.Z .+= GradDescent.update.(model.Zoptimizer,Z_gradients) #Apply the gradients on the location
+        update_centers!(model.Zalg,Z_gradients[1])
+        # model.Zₐ .= copy.(model.Z)
+        # model.invDₐ .= Symmetric.(-2.0.*model.η₂.-model.invKmm)
+        # model.prevη₁ = deepcopy(model.η₁)
+        # model.prev𝓛ₐ .= -logdet.(model.Σ) + logdet.(model.Kmm) - dot.(model.μ,model.η₁)
+        # model.Z = fill(model.Zalg.centers,model.nPrior)
+        # model.Z .= model.Z .+ GradDescent.update.(model.Zoptimizer,Z_gradients) #Apply the gradients on the location
     end
     apply_gradients_lengthscale!.(model.kernel,grads_l)
     apply_gradients_variance!.(model.kernel,grads_v)
@@ -206,7 +212,7 @@ end
 """Return a function computing the gradient of the ELBO given the inducing point locations"""
 function inducingpoints_gradient(model::OnlineVGP{<:Likelihood{T},<:Inference{T},T},A,ι,ιₐ,κΣ,κₐΣ) where {T<:Real}
     if model.IndependentPriors
-        gradients_inducing_points = [zeros(T,model.nFeature,model.nFeature) for _ in 1:model.nLatent]
+        gradients_inducing_points = [zeros(T,model.nFeature,model.nDim) for _ in 1:model.nLatent]
         for k in 1:model.nPrior
             for i in 1:model.nFeature #Iterate over the points
                 Jnm,Jab,Jmm = computeIndPointsJ(model,i,k) #TODO

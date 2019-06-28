@@ -64,7 +64,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10); Z=[deepcopy(Z) for _ in 1:nPrior]
             nFeature = nInducingPoints
             if !isnothing(Zoptimizer)
-                Zoptimizer = [deepcopy(Zoptimizer) for _ in 1:nPrior]
+                Zoptimizer = [GradDescent.deepcopy(Zoptimizer) for _ in 1:nPrior]
             end
 
             μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = deepcopy(μ);

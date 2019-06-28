@@ -162,7 +162,7 @@ uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 deps = ["Distributions", "ForwardDiff", "LinearAlgebra", "Random"]
 path = "/home/theo/.julia/dev/GradDescent/"
 uuid = "76767984-a792-11e8-2bb2-77d388f79a09"
-version = "0.1.0"
+version = "0.3.1"
 
 [[InteractiveUtils]]
 deps = ["Markdown"]

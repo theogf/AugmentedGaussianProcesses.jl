@@ -14,7 +14,7 @@ function init!(alg::Webscale,X,y,kernel)
     alg.centers = X[sample(1:size(X,1),alg.k),:];
 end
 
-function update!(alg::Webscale,X,y,model)
+function add_point!(alg::Webscale,X,y,model)
     b = size(X,1)
     d = zeros(Int64,b)
     for i in 1:b

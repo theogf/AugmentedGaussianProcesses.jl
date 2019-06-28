@@ -12,5 +12,8 @@ function init!(alg::OfflineKmeans,X,y,kernel)
     alg.centers = KMeansInducingPoints(X,alg.k)
 end
 
-function update!(alg::OfflineKmeans,X,y,model)
+function add_point!(alg::OfflineKmeans,X,y,model)
+end
+
+function remove_point!(alg::OfflineKmeans,X,y,model)
 end
