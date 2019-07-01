@@ -1,5 +1,22 @@
 #File treating all the prediction functions
 
+function _predict_f(μ::Vector{T},Σ::Symmetric{T,Matrix{T}},invK::Symmetric{T,Matrix{T}},kernel::Kernel,X_test::AbstractMatrix{T₁},X::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T,T₁<:Real}
+    k_star = kernelmatrix(X_test,X,kernel)
+    μf = k_star*invK*μ
+    if !covf
+        return μf
+    end
+    A = invK*(I-Σ*invK)
+    σ²f = []
+    if fullcov
+        k_starstar = kernelmatrix(X_test,kernel)
+        σ²f = Symmetric(k_starstar - k_star*A*transpose(k_star))
+    else
+        k_starstar = kerneldiagmatrix(X_test,kernel)
+        σ²f = k_starstar - opt_diag(k_star*A,k_star)
+    end
+    return μf,σ²f
+end
 """
 Compute the mean of the predicted latent distribution of `f` on `X_test` for the variational GP `model`
 
@@ -99,6 +116,17 @@ function predict_y(model::AbstractGP{<:MultiClassLikelihood},X_test::AbstractMat
     return [model.likelihood.class_mapping[argmax([μ[i] for μ in μ_f])] for i in 1:n]
 end
 
+"""
+`predict_y(model::AbstractGP{<:EventLikelihood},X_test::AbstractMatrix)`
+
+Return the expected number of events for the locations `X_test`
+"""
+function predict_y(model::AbstractGP{<:EventLikelihood},X_test::AbstractMatrix)
+    n = size(X_test,1)
+    μ_f = predict_f(model,X_test,covf=false)
+    return model.likelihood.λ.*((x->logistic.(x)).(μ_f))
+end
+
 
 function proba_y(model::AbstractGP,X_test::AbstractVector{T}) where {T<:Real}
     return proba_y(model,reshape(X_test,length(X_test),1))
@@ -127,7 +155,7 @@ function proba_y(model::VGP{<:MultiClassLikelihood,<:GibbsSampling},X_test::Abst
     proba = zeros(size(X_test,1),model.nLatent)
     labels = Array{Symbol}(undef,model.nLatent)
     for i in 1:nf
-        res = compute_proba(model.likelihood,getindex.(f,[i]),K̃)
+        res = compute_proba(model.likelihood,getindex.(f,[i]),K̃,nSamples)
         if i ==  1
             labels = names(res)
         end
@@ -157,7 +185,7 @@ function compute_proba(l::Likelihood{T},μ::AbstractVector{<:AbstractVector{T}},
     compute_proba.([l],μ,σ²)
 end
 
-### I Have to think about this solution
+### TODO I Have to think about this solution
 
 
 function compute_proba(l::Likelihood{T},μ::AbstractVector{T},σ²::AbstractVector{}) where {T<:Real}

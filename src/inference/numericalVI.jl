@@ -6,7 +6,7 @@ of the expected log-likelihood ad its gradients
 abstract type NumericalVI{T<:Real} <: Inference{T} end
 
 include("quadratureVI.jl")
-include("MCMCVI.jl")
+include("MCVI.jl")
 
 
 """ `NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))`
@@ -15,20 +15,20 @@ General constructor for Variational Inference via numerical approximation.
 
 **Argument**
 
-    -`integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mcmc` for MCMC integration see [MCMCIntegrationVI](@ref)
+    -`integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mc` for MC integration see [MCIntegrationVI](@ref)
 
 **Keyword arguments**
 
     - `ϵ::T` : convergence criteria, which can be user defined
-    - `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCMCIntegrationVI)
+    - `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
 function NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
     if integration_technique == :quad
         QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false)
-    elseif integration_technique == :mcmc
-        MCMCIntegrationVI{T}(ϵ,nMC,0,optimizer,false)
+    elseif integration_technique == :mc
+        MCIntegrationVI{T}(ϵ,nMC,0,optimizer,false)
     else
         @error "Only possible integration techniques are quadrature : :quad or mcmc integration :mcmc"
     end
@@ -41,27 +41,27 @@ General constructor for Stochastic Variational Inference via numerical approxima
 **Argument**
 
     -`nMinibatch::Integer` : Number of samples per mini-batches
-    -`integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mcmc` for MCMC integration see [MCMCIntegrationVI](@ref)
+    -`integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mc` for MC integration see [MCIntegrationVI](@ref)
 
 **Keyword arguments**
 
     - `ϵ::T` : convergence criteria, which can be user defined
-    - `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCMCIntegrationVI)
+    - `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
 function NumericalSVI(nMinibatch::Integer,integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
     if integration_technique == :quad
-        QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false,nMinibatch)
-    elseif integration_technique == :mcmc
-        MCMCIntegrationVI{T}(ϵ,nMC,0,optimizer,false,nMinibatch)
+        QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,true,nMinibatch)
+    elseif integration_technique == :mc
+        MCIntegrationVI{T}(ϵ,nMC,0,optimizer,true,nMinibatch)
     else
-        @error "Only possible integration techniques are quadrature : :quad or mcmc integration :mcmc"
+        @error "Only possible integration techniques are quadrature : :quad or mcmc integration :mc"
     end
 end
 
 function Base.show(io::IO,inference::NumericalVI{T}) where T
-    print(io,"$(inference.Stochastic ? "Stochastic numerical" : "Numerical") inference with $(isa(inference,MCMCIntegrationVI) ? "MCMC Integration" : "Quadrature")")
+    print(io,"$(inference.Stochastic ? "Stochastic numerical" : "Numerical") inference by $(isa(inference,MCIntegrationVI) ? "Monte Carlo Integration" : "Quadrature")")
 end
 
 function init_inference(inference::NumericalVI{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {T<:Real}
@@ -172,8 +172,8 @@ function global_update!(model::SVGP{L,NumericalVI{T}}) where {L<:Likelihood,T}
 end
 
 function convert(::Type{T1},x::T2) where {T1<:VGP{<:Likelihood,T3} where {T3<:NumericalVI},T2<:VGP{<:Likelihood,<:AnalyticVI}}
-    #TODO Check likelihood is compatibl
+    #TODO Check if likelihood is compatible
     inference = T3(x.inference.ϵ,x.inference.nIter,x.inference.optimizer,defaultn(T3),x.inference.Stochastic,x.inference.nSamples,x.inference.nSamplesUsed,x.inference.MBIndices,x.inference.ρ,x.inference.HyperParametersUpdated,x.inference.∇η₁,x.inference.∇η₂,copy(expec_μ(x)),copy(expec_Σ(x)))
     likelihood =isaugmented(x.likelihood) ? remove_augmentation(x.likelihood) : likelihood
-    return T1(x.X,x.y,x.nSample,x.nDim,x.nFeature,x.nLatent,x.IndependentPriors,x.nPrior,x.μ,x.Σ,x.η₁,x.η₂,x.Knn,x.invKnn,x.kernel,likelihood,inference,x.verbose,x.Autotuning,x.atfrequency,x.Trained)
+    return T1(x.X,x.y,x.nSample,x.nDim,x.nFeatures,x.nLatent,x.IndependentPriors,x.nPrior,x.μ,x.Σ,x.η₁,x.η₂,x.Knn,x.invKnn,x.kernel,likelihood,inference,x.verbose,x.optimizer,x.atfrequency,x.Trained)
 end

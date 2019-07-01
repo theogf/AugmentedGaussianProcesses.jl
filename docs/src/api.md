@@ -26,10 +26,14 @@ SVGP
 
 ```@docs
 GaussianLikelihood
-AugmentedStudentTLikelihood
+StudentTLikelihood
+LaplaceLikelihood
+LogisticLikelihood
+HeteroscedasticLikelihood
 BayesianSVM
-AugmentedLogisticLikelihood
-AugmentedLogisticSoftMaxLikelihood
+SoftMaxLikelihood
+LogisticSoftMaxLikelihood
+PoissonLikelihood
 ```
 
 ## Inference Types
@@ -37,13 +41,11 @@ AugmentedLogisticSoftMaxLikelihood
 ```@docs
 AnalyticVI
 AnalyticSVI
-NumericalVI
-NumericalSVI
+GibbsSampling
 QuadratureVI
 QuadratureSVI
-MCMCIntegrationVI
-MCMCIntegrationSVI
-GibbsSampling
+MCIntegrationVI
+MCIntegrationSVI
 ```
 
 ## Functions and methods
@@ -71,6 +73,13 @@ getvariance
 getlengthscales
 ```
 
+## Prior Means
+
+```@docs
+ZeroMean
+ConstantMean
+EmpiricalMean
+```
 
 ## Index
 

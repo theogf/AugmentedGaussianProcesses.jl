@@ -7,14 +7,13 @@ module AugmentedGaussianProcesses
 
 export AbstractGP, GP, VGP, SparseGP, SVGP, OnlineVGP
 export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
-export GaussianLikelihood, AugmentedStudentTLikelihood, StudentTLikelihood
-export LogisticLikelihood, LogisticLikelihood, BayesianSVM
-export MultiClassLikelihood, SoftMaxLikelihood, LogisticSoftMaxLikelihood
-export AugmentedLogisticSoftMaxLikelihood
-export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCMCIntegrationVI, MCMCIntegrationSVI, QuadratureVI, QuadratureSVI, StreamingVI
+export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood
+export LogisticLikelihood, BayesianSVM
+export SoftMaxLikelihood, LogisticSoftMaxLikelihood
+export PoissonLikelihood
+export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI
 export NumericalVI, NumericalSVI
-export ALRSVI, InverseDecay
-
+export PriorMean, ZeroMean, ConstantMean, EmpiricalMean
 #Deprecated
 export BatchGPRegression, SparseGPRegression, MultiClass, SparseMultiClass, BatchBSVM, SparseBSVM, BatchXGPC, SparseXGPC, BatchStudentT, SparseStudentT
 
@@ -23,31 +22,25 @@ export BatchGPRegression, SparseGPRegression, MultiClass, SparseMultiClass, Batc
 include("kernels/KernelModule.jl")
 include("kmeans/KMeansModule.jl")
 include("functions/PGSampler.jl")
-include("functions/PerturbativeCorrection.jl")
-include("functions/GPAnalysisTools.jl")
+#include("functions/PerturbativeCorrection.jl")
+# include("functions/GPAnalysisTools.jl")
 # include("functions/IO_model.jl")
 #Custom modules
 using .KernelModule
 # using .OnlineModule
 using .PGSampler
-using .PerturbativeCorrection
-using .GPAnalysisTools
+# using .PerturbativeCorrection
+# using .GPAnalysisTools
 # using .IO_model
 #General modules
 # using MLKernels
 using GradDescent
-using DataFrames
-using Distributions
-using LinearAlgebra
-using StatsBase
-using StatsFuns
-using SpecialFunctions
-using DataStructures
-using Dates
-using Expectations
-using Random
+export Optimizer, Adam, VanillaGradDescent, ALRSVI, InverseDecay
+using DataFrames, LinearAlgebra
+using StatsBase, StatsFuns, SpecialFunctions, Expectations, Random, Distributions
+using ProgressMeter
 import Base: convert, show, copy
-#Exported models
+#Exported modules
 export KMeansModule
 #Useful functions
 export train!
@@ -66,7 +59,8 @@ export KMeansInducingPoints
 abstract type Inference{T<:Real} end
 abstract type Likelihood{T<:Real}  end
 
-const LatentArray = Vector #For future optimization : How collection of latent GPs are stored
+const LatentArray = Vector #For future optimization : How collection of latent GP parameters and local variables are stored
+include("prior/priormean.jl")
 
 include("models/AbstractGP.jl")
 include("models/GP.jl")

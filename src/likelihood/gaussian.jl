@@ -1,18 +1,27 @@
 """
-Gaussian likelihood : ``p(y|f) = \\mathcal{N}(y|f,\\epsilon) ``
+**Gaussian Likelihood**
+
+Classical Gaussian noise : ``p(y|f) = \\mathcal{N}(y|f,\\epsilon)``
+
+```julia
+GaussianLikelihood(ϵ::T=1e-3) #ϵ is the variance
+```
+
+There is no augmentation needed for this likelihood which is already conjugate
 """
 struct GaussianLikelihood{T<:Real} <: RegressionLikelihood{T}
-    ϵ::AbstractVector{T}
-    function GaussianLikelihood{T}(ϵ::Real) where {T<:Real}
-        new{T}([ϵ])
-    end
-    function GaussianLikelihood{T}(ϵ::AbstractVector) where {T<:Real}
+    ϵ::LatentArray{T}
+    θ::LatentArray{Vector{T}}
+    function GaussianLikelihood{T}(ϵ::AbstractVector{T}) where {T<:Real}
         new{T}(ϵ)
+    end
+    function GaussianLikelihood{T}(ϵ::AbstractVector{T},θ::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
+        new{T}(ϵ,θ)
     end
 end
 
 function GaussianLikelihood(ϵ::T=1e-3) where {T<:Real}
-    GaussianLikelihood{T}(ϵ)
+    GaussianLikelihood{T}([ϵ])
 end
 
 function GaussianLikelihood(ϵ::AbstractVector{T}) where {T<:Real}
@@ -20,38 +29,44 @@ function GaussianLikelihood(ϵ::AbstractVector{T}) where {T<:Real}
 end
 
 function pdf(l::GaussianLikelihood,y::Real,f::Real)
-    pdf(Normal(y,l.ϵ[1]),f)
+    pdf(Normal(y,l.ϵ[1]),f) #WARNING multioutput invalid
 end
 
 function logpdf(l::GaussianLikelihood,y::Real,f::Real)
-    logpdf(Normal(y,l.ϵ[1]),f)
+    logpdf(Normal(y,l.ϵ[1]),f) #WARNING multioutput invalid
 end
 
 function Base.show(io::IO,model::GaussianLikelihood{T}) where T
     print(io,"Gaussian likelihood")
 end
 
-
-function init_likelihood(likelihood::GaussianLikelihood{T},inference::Inference{T},nLatent::Integer,nSamples::Integer) where {T<:Real}
+function init_likelihood(likelihood::GaussianLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where {T<:Real}
     if length(likelihood.ϵ) ==1 && length(likelihood.ϵ) != nLatent
-        return GaussianLikelihood{T}([likelihood.ϵ[1] for _ in 1:nLatent])
+        return GaussianLikelihood{T}([likelihood.ϵ[1] for _ in 1:nLatent],[fill(inv(likelihood.ϵ[1]),nSamplesUsed) for _ in 1:nLatent])
     elseif length(likelihood.ϵ) != nLatent
         @warn "Wrong dimension of ϵ : $(length(likelihood.ϵ)), using first value only"
         return GaussianLikelihood{T}([likelihood.ϵ[1] for _ in 1:nLatent])
     else
-        return likelihood
+        return GaussianLikelihood{T}(likelihood.ϵ,[fill(likelihood.ϵ[i],nSamplesUsed) for i in 1:nLatent])
     end
 end
 
 function local_updates!(model::GP{GaussianLikelihood{T}}) where {T<:Real}
+    if model.opt_noise
+        model.likelihood.ϵ .= inv(model.nFeatures)*broadcast((y,μ,Σ)->sum(abs2,y)-2*dot(y,μ)+sum(abs2,μ)+tr(Σ),model.y,model.Knn.*model.invKnn.*model.y,model.Knn.*([I].-model.invKnn.*model.Knn))
+    end
 end
 
 function local_updates!(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
     if model.inference.Stochastic
-        # model.likelihood.ϵ .= model.likelihood.ϵ + 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y[model.inference.MBIndices]-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
+        #TODO make it a moving average
+        ρ = inv(sqrt(1+model.inference.nIter))
+        model.likelihood.ϵ .= (1-ρ)*model.likelihood.ϵ + ρ/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y[model.inference.MBIndices]-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
+        model.likelihood.ϵ
     else
-        model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2,y[model.inference.MBIndices]-κ*μ)+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
+        model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
     end
+    model.likelihood.θ .= broadcast(ϵ->fill(inv(ϵ),model.inference.nSamplesUsed),model.likelihood.ϵ)
 end
 
 function local_updates!(model::OnlineVGP{GaussianLikelihood{T}}) where {T<:Real}
@@ -59,22 +74,17 @@ function local_updates!(model::OnlineVGP{GaussianLikelihood{T}}) where {T<:Real}
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function expec_μ(model::AbstractGP{GaussianLikelihood{T},AnalyticVI{T}},index::Integer) where {T<:Real}
-    return model.y[index][model.inference.MBIndices]./model.likelihood.ϵ[index]
+function cond_mean(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}},index::Integer) where {T<:Real}
+    return model.y[index][model.inference.MBIndices].*model.likelihood.θ[index]
 end
 
 function ∇μ(model::AbstractGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
     return getindex.(model.y,[model.inference.MBIndices])./model.likelihood.ϵ
 end
 
-function expec_Σ(model::AbstractGP{GaussianLikelihood{T},AnalyticVI{T}},index::Integer) where {T<:Real}
-    return fill(0.5/model.likelihood.ϵ[index],model.inference.nSamplesUsed)
+function ∇Σ(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
+    return model.likelihood.θ
 end
-
-function ∇Σ(model::AbstractGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
-    return [fill(0.5/model.likelihood.ϵ[i],model.inference.nSamplesUsed) for i in 1:model.nLatent]
-end
-
 
 function predict_f(model::GP{GaussianLikelihood{T},Analytic{T}},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T<:Real}
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
@@ -106,6 +116,8 @@ end
 
 function proba_y(model::GP{GaussianLikelihood{T},Analytic{T}},X_test::AbstractMatrix{T}) where {T<:Real}
     μf, σ²f = predict_f(model,X_test,covf=true)
+    σ²f .+= model.likelihood.ϵ
+    return μf,σ²f
 end
 
 function proba_y(model::AbstractGP{GaussianLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T<:Real}
@@ -116,7 +128,7 @@ end
 
 ### Special case where the ELBO is equal to the marginal likelihood
 function ELBO(model::GP{GaussianLikelihood{T}}) where {T<:Real}
-    return -0.5*sum(broadcast((y,invK)->dot(y,invK*y) - logdet(invK)+ model.nFeature*log(twoπ),model.y,model.invKnn))
+    return -0.5*sum(broadcast((y,invK)->dot(y,invK*y) - logdet(invK)+ model.nFeatures*log(twoπ),model.y,model.invKnn))
 end
 
 function ELBO(model::SparseGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
@@ -135,6 +147,9 @@ function hyperparameter_gradient_function(model::GP{GaussianLikelihood{T}}) wher
                 end,
                 function(kernel,index)
                     return -0.5/getvariance(kernel)*opt_trace(model.Knn[index],A[index])
+                end,
+                function(index)
+                    return -model.invKnn[index]*(model.μ₀[index]-model.y[index])
                 end)
     else
         return (function(Jnn,index)
@@ -142,6 +157,9 @@ function hyperparameter_gradient_function(model::GP{GaussianLikelihood{T}}) wher
                 end,
                 function(kernel,index)
                     return -0.5/getvariance(kernel)*sum(opt_trace(model.Knn[1],A[i]) for i in 1:model.nLatent)
+                end,
+                function(index)
+                    return -sum(model.invKnn.*(model.μ₀.-model.μ))
                 end)
     end
 end

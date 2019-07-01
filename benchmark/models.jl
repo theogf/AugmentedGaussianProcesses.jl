@@ -1,38 +1,50 @@
 using BenchmarkTools
 using AugmentedGaussianProcesses
-using Distances, LinearAlgebra, DelimitedFiles
-using MLDataUtils: splitobs
+using Distances, LinearAlgebra, CSV
 using Random
 const AGP = AugmentedGaussianProcesses
 
+## Benchmark variational parameters update
+
+## Benchmark hyperparameter optimization
+
+## Benchmark full update
+
+## Benchmark fit performance
+
+## Benchmark
+
+
+
 compat = Dict{String,Dict{String,Vector{String}}}()
-likelihoodnames = ["Gaussian","AugmentedStudentT","AugmentedLogistic","BayesianSVM","AugmentedLogisticSoftMax"]
-inferencenames = ["AnalyticInference","StochasticAnalyticInference"]
+likelihoodnames = ["Gaussian","StudentT","Logistic","BayesianSVM","LogisticSoftMax"]
+inferencenames = ["AnalyticVI","AnalyticSVI"]
 modelnames = ["GP","VGP","SVGP"]
 funcs = ["init","elbo","computematrices","updatevariational","updatehyperparam","predic","predicproba"]
-compat["GP"] = Dict{String,Vector{String}}("Gaussian"=>["AnalyticInference"])
+compat["GP"] = Dict{String,Vector{String}}("Gaussian"=>["AnalyticVI"])
 compat["VGP"] = Dict{String,Vector{String}}()
-compat["VGP"]["AugmentedStudentT"] = ["AnalyticInference"]
-compat["VGP"]["AugmentedLogistic"] = ["AnalyticInference"]
-compat["VGP"]["BayesianSVM"] = ["AnalyticInference"]
-compat["VGP"]["AugmentedLogisticSoftMax"] = ["AnalyticInference"]
+compat["VGP"]["StudentT"] = ["AnalyticVI"]
+compat["VGP"]["Logistic"] = ["AnalyticVI"]
+compat["VGP"]["BayesianSVM"] = ["AnalyticVI"]
+compat["VGP"]["LogisticSoftMax"] = ["AnalyticVI"]
 compat["SVGP"] = Dict{String,Vector{String}}()
-compat["SVGP"]["Gaussian"] = ["AnalyticInference","StochasticAnalyticInference"]
-compat["SVGP"]["AugmentedStudentT"] = ["AnalyticInference","StochasticAnalyticInference"]
-compat["SVGP"]["AugmentedLogistic"] = ["AnalyticInference","StochasticAnalyticInference"]
-compat["SVGP"]["BayesianSVM"] = ["AnalyticInference","StochasticAnalyticInference"]
-compat["SVGP"]["AugmentedLogisticSoftMax"] = ["AnalyticInference","StochasticAnalyticInference"]
+compat["SVGP"]["Gaussian"] = ["AnalyticVI","AnalyticSVI"]
+compat["SVGP"]["StudentT"] = ["AnalyticVI","AnalyticSVI"]
+compat["SVGP"]["Logistic"] = ["AnalyticVI","AnalyticSVI"]
+compat["SVGP"]["BayesianSVM"] = ["AnalyticVI","AnalyticSVI"]
+compat["SVGP"]["LogisticSoftMax"] = ["AnalyticVI","AnalyticSVI"]
 
-# const SUITE = BenchmarkGroup(["Models"])
+const SUITE = BenchmarkGroup(["Models"])
 Random.seed!(1234)
-nData = 200; nDim = 3;
-X = rand(nData,nDim)
-y = Dict("Gaussian"=>norm.(eachrow(X)),"AugmentedStudentT"=>norm.(eachrow(X)),"BayesianSVM"=>sign.(norm.(eachrow(X)).-1.0),"AugmentedLogistic"=>sign.(norm.(eachrow(X)).-1.0),"AugmentedLogisticSoftMax"=>floor.(norm.(eachrow(X.*2))))
-n_ind = 50; batchsize = 50; ν = 10.0
-convertl(lname::String) = lname*(lname != "BayesianSVM" ? "Likelihood" : "")*"("*(lname == "AugmentedStudentT" ? "ν" : "")*")"
-converti(iname::String) = iname*"("*(iname[1:10] == "Stochastic" ? "batchsize" : "")*")"
+D = 20; N = 3000
+data = CSV.read("benchmarkdata.csv")
+X = Matrix(data[:,1:D])
+y_key = Dict("Gaussian"=>:y_reg,"StudentT"=>:y_reg,"BayesianSVM"=>:y_class,"Logistic"=>:y_class,"LogisticSoftMax"=>:y_multi)
+n_ind = 50; batchsize = 50; ν = 5.0
+convertl(lname::String) = lname*(lname != "BayesianSVM" ? "Likelihood" : "")*"("*(lname == "StudentT" ? "ν" : "")*")"
+converti(iname::String) = iname*"("*(iname == "AnalyticSVI" ? "batchsize" : "")*")"
 add_ind(mname::String) = mname == "SVGP" ? ",n_ind" : ""
-kernel = RBFKernel([2.0],variance=1.0,dim=nDim)
+kernel = RBFKernel([2.0],variance=1.0,dim=D)
 models = Dict{String,Dict{String,Dict{String,AbstractGP}}}()
 SUITE["Models"] = BenchmarkGroup(modelnames)
 for model in String.(keys(compat))
@@ -44,13 +56,12 @@ for model in String.(keys(compat))
         for i in compat[model][likelihood]
             SUITE["Models"][model][likelihood][i] = BenchmarkGroup(funcs)
             if model == "GP"
-                # println(Meta.parse(model*"(\$X,\$y[\"$likelihood\"],\$kernel,Autotuning=true,atfrequency=1)"))
-                models[model][likelihood][i] = eval(Meta.parse(model*"(X,y[\"$likelihood\"],kernel,Autotuning=true,atfrequency=1)"))
-                SUITE["Models"][model][likelihood][i]["init"] = eval(Meta.parse("@benchmarkable $model(\$X,y_train,\$kernel,Autotuning=true,atfrequency=1) setup=(y_train = \$y[\"$likelihood\"])"))
+                models[model][likelihood][i] = eval(Meta.parse(model*"(X,Vector(data[:$((y_key[likelihood]))]),kernel,atfrequency=1)"))
+                SUITE["Models"][model][likelihood][i]["init"] = eval(Meta.parse("@benchmarkable $model(\$X,y_train,\$kernel,atfrequency=1) setup=(y_train = Vector(\$D[:\$((y_key[likelihood]))])"))
             else
-                # println(Meta.parse(model*"(X,y[\"$likelihood\"],kernel,$(convertl(likelihood)) ,$(converti(i))$(add_ind(model)),Autotuning=true,atfrequency=1)"))
-                models[model][likelihood][i] = eval(Meta.parse(model*"(X,y[\"$likelihood\"],kernel,$(convertl(likelihood)) ,$(converti(i))$(add_ind(model)),Autotuning=true,atfrequency=1)"))
-                SUITE["Models"][model][likelihood][i]["init"] = eval(Meta.parse("@benchmarkable $model(\$X,y_train,\$kernel,$(convertl(likelihood)),$(converti(i)) $(add_ind(model)),Autotuning=true,atfrequency=1) setup=(y_train = \$y[\"$likelihood\"])"))
+                # println(Meta.parse(model*"(X,y[\"$likelihood\"],kernel,$(convertl(likelihood)) ,$(converti(i))$(add_ind(model)),atfrequency=1)"))
+                models[model][likelihood][i] = eval(Meta.parse(model*"(X,Vector(data[:$((y_key[likelihood]))]),kernel,$(convertl(likelihood)) ,$(converti(i))$(add_ind(model)),atfrequency=1)"))
+                SUITE["Models"][model][likelihood][i]["init"] = eval(Meta.parse("@benchmarkable $model(\$X,y_train,\$kernel,$(convertl(likelihood)),$(converti(i)) $(add_ind(model)),atfrequency=1) setup=(y_train = Vector(\$data[:\$((y_key[likelihood]))]))"))
             end
             SUITE["Models"][model][likelihood][i]["elbo"] = @benchmarkable ELBO(gpmodel) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))
             SUITE["Models"][model][likelihood][i]["computematrices"] = @benchmarkable AGP.computeMatrices!(gpmodel) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))
@@ -61,19 +72,3 @@ for model in String.(keys(compat))
         end
     end
 end
-#
-# if isfile(paramfile)
-#     loadparams!(suite,BenchmarkTools.load(paramfile))
-# else
-#     println("Tuning parameters")
-#     tune!(suite,verbose=true)
-#     BenchmarkTools.save(paramfile,params(suite))
-# end
-# println("Running benchmarks")
-# results = run(suite,verbose=true,seconds=30)
-# save_target = "results/multiclass_"*("$(now())"[1:10])
-# i = 1
-# while isfile(save_target*"_$(i).json")
-#     global i += 1
-# end
-# BenchmarkTools.save(save_target*"_$(i).json",results)

@@ -3,40 +3,61 @@
 
 Multiclass likelihood with Multinomial logistic link : ``p(y=i|{fₖ}) = \\prod_{i\\neq k} \\Theta(f_i-f_k) ``
 """
-struct MultinomialLogisticLikelihood{T<:Real} <: AbstractMultinomialLogisticLikelihood{T}
+struct MultinomialLogisticLikelihood{T<:Real} <: MultinomialLogisticLikelihood{T}
     Y::AbstractVector{BitVector} #Mapping from instances to classes
     class_mapping::AbstractVector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     y_class::AbstractVector{Int64} # GP Index for each sample
     c::AbstractVector{AbstractVector{T}} # Second moment of fₖ
     θ::AbstractVector{AbstractVector{T}} # Variational parameter of Polya-Gamma distribution
-    function AugmentedMultinomialLogisticLikelihood{T}() where {T<:Real}
+    function MultinomialLogisticLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function AugmentedMultinomialLogisticLikelihood{T}(Y::AbstractVector{<:BitVector},
+    function MultinomialLogisticLikelihood{T}(Y::AbstractVector{<:BitVector},
     class_mapping::AbstractVector, ind_mapping::Dict{<:Any,<:Int},y_class::AbstractVector{<:Int}) where {T<:Real}
         new{T}(Y,class_mapping,ind_mapping,y_class)
     end
-    function AugmentedMultinomialLogisticLikelihood{T}(Y::AbstractVector{<:BitVector},
+    function MultinomialLogisticLikelihood{T}(Y::AbstractVector{<:BitVector},
     class_mapping::AbstractVector, ind_mapping::Dict{<:Any,<:Int},y_class::AbstractVector{<:Int},
     c::AbstractVector{<:AbstractVector{<:Real}}, θ::AbstractVector{<:AbstractVector}) where {T<:Real}
         new{T}(Y,class_mapping,ind_mapping,y_class,c,θ)
     end
 end
 
-function AugmentedMultinomialLogisticLikelihood()
-    AugmentedMultinomialLogisticLikelihood{Float64}()
+function MultinomialLogisticLikelihood()
+    MultinomialLogisticLikelihood{Float64}()
 end
 
-isaugmented(::AugmentedMultinomialLogisticLikelihood{T}) where T = true
-
-function pdf(l::AbstractMultinomialLogisticLikelihood,f::AbstractVector)
+function pdf(l::MultinomialLogisticLikelihood,f::AbstractVector)
     multinomiallogistic(f)
 end
 
-
-function pdf(l::AbstractMultinomialLogisticLikelihood,y::Integer,f::AbstractVector)
+function pdf(l::MultinomialLogisticLikelihood,y::Integer,f::AbstractVector)
     multinomiallogistic(f)[y]
+end
+
+function multinomiallogistic(f::AbstractVector)
+    y = zero(f)
+    for (i,x) in enumerate(f)
+        y[i]=prod(logistic.(x.-f[1:length(f).!=i]))
+    end
+    return y
+end
+
+function multinomialheaviside(f::AbstractVector)
+    y = zero(f)
+    for (i,x) in enumerate(f)
+        y[i]=prod(x.>f[1:length(f).!=i])
+    end
+    return y
+end
+
+function multinomialprobit(f::AbstractVector)
+    y = zero(f)
+    for (i,x) in enumerate(f)
+        y[i]=prod(cdf.(Normal(0,1),x.-f[1:length(f).!=i]))
+    end
+    return y
 end
 
 function Base.show(io::IO,model::AugmentedMultinomialLogisticLikelihood{T}) where T

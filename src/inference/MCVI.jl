@@ -1,4 +1,4 @@
-mutable struct MCMCIntegrationVI{T<:Real} <: NumericalVI{T}
+mutable struct MCIntegrationVI{T<:Real} <: NumericalVI{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
     optimizer_η₁::AbstractVector{Optimizer} #Learning rate for stochastic updates
@@ -14,14 +14,14 @@ mutable struct MCMCIntegrationVI{T<:Real} <: NumericalVI{T}
     ∇η₂::AbstractVector{AbstractArray}
     ∇μE::AbstractVector{AbstractVector}
     ∇ΣE::AbstractVector{AbstractVector}
-    function MCMCIntegrationVI{T}(ϵ::T,nMC::Integer,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,nSamplesUsed::Integer=1) where T
+    function MCIntegrationVI{T}(ϵ::T,nMC::Integer,nIter::Integer,optimizer::Opt,Stochastic::Bool,nSamplesUsed::Integer=1) where {T<:Real,Opt<:Optimizer}
         return new{T}(ϵ,nIter,[optimizer],[optimizer],nMC,Stochastic,1,nSamplesUsed)
     end
 end
 
-""" `MCMCIntegrationVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))`
+""" `MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))`
 
-Constructor for Variational Inference via MCMC Integration approximation.
+Constructor for Variational Inference via MC Integration approximation.
 
 **Keyword arguments**
 
@@ -29,13 +29,13 @@ Constructor for Variational Inference via MCMC Integration approximation.
     - `nMC::Int` : Number of samples per data point for the integral evaluation
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
-function MCMCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
-    MCMCIntegrationVI{T}(ϵ,nMC,0,optimizer,false)
+function MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
+    MCIntegrationVI{T}(ϵ,nMC,0,optimizer,false,1)
 end
 
-""" `MCMCIntegrationSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))`
+""" `MCIntegrationSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))`
 
-Constructor for Stochastic Variational Inference via MCMC integration approximation.
+Constructor for Stochastic Variational Inference via MC integration approximation.
 
 **Argument**
 
@@ -47,11 +47,11 @@ Constructor for Stochastic Variational Inference via MCMC integration approximat
     - `nMC::Int` : Number of samples per data point for the integral evaluation
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
-function MCMCIntegrationSVI(nMinibatch::Integer;ϵ::T=1e-5,nMC::Integer=200,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
-    MCMCIntegrationVI{T}(ϵ,nMC,0,optimizer,false,nMinibatch)
+function MCIntegrationSVI(nMinibatch::Integer;ϵ::T=1e-5,nMC::Integer=200,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
+    MCIntegrationVI{T}(ϵ,nMC,0,optimizer,true,nMinibatch)
 end
 
-function compute_grad_expectations!(model::VGP{<:Likelihood,<:MCMCIntegrationVI})
+function compute_grad_expectations!(model::VGP{<:Likelihood,<:MCIntegrationVI})
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     for i in 1:model.nSample
@@ -60,7 +60,7 @@ function compute_grad_expectations!(model::VGP{<:Likelihood,<:MCMCIntegrationVI}
     end
 end
 
-function compute_grad_expectations!(model::SVGP{<:Likelihood,<:MCMCIntegrationVI})
+function compute_grad_expectations!(model::SVGP{<:Likelihood,<:MCIntegrationVI})
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     Σ = opt_diag.(model.κ.*model.Σ,model.κ)
@@ -71,7 +71,7 @@ function compute_grad_expectations!(model::SVGP{<:Likelihood,<:MCMCIntegrationVI
     end
 end
 
-function compute_log_expectations(model::VGP{<:Likelihood,<:MCMCIntegrationVI})
+function compute_log_expectations(model::VGP{<:Likelihood,<:MCIntegrationVI})
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     loglike = 0.0
@@ -83,7 +83,7 @@ function compute_log_expectations(model::VGP{<:Likelihood,<:MCMCIntegrationVI})
 end
 
 
-function compute_log_expectations(model::SVGP{<:Likelihood,<:MCMCIntegrationVI})
+function compute_log_expectations(model::SVGP{<:Likelihood,<:MCIntegrationVI})
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     loglike = 0.0

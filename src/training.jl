@@ -18,7 +18,7 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
     @assert iterations > 0  "Number of iterations should be positive"
     # model.evol_conv = [] #Array to check on the evolution of convergence
     local_iter::Int64 = 1; conv = Inf;
-
+    p = Progress(iterations,dt=0.2,desc="Training Progress: ")
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             update_parameters!(model) #Update all the variational parameters
@@ -26,14 +26,16 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
             if callback != 0
                 callback(model,model.inference.nIter) #Use a callback method if put by user
             end
-            if model.Autotuning && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
+            if !isnothing(model.optimizer) && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
             ### Print out informations about the convergence
             if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
-                print("Iteration : $local_iter ")
-                 print("ELBO is : $(ELBO(model))")
-                 print("\n")
+                # print("Iteration : $local_iter ")
+                 # print("ELBO is : $(ELBO(model))")
+                 # print("\n")
+            elbo=ELBO(model)
+             next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
              end
             local_iter += 1; model.inference.nIter += 1
             (local_iter <= iterations) || break; #Verify if the number of maximum iterations has been reached
@@ -56,15 +58,11 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
     model.Trained = true
 end
 
-
-
-"""Recompute the kernel matrices of the GP Model if necessary"""
 function update_parameters!(model::GP)
+    local_updates!(model)
     computeMatrices!(model); #Recompute the matrices if necessary (when hyperparameters have been updated)
 end
 
-
-"""Update all variational parameters of the variational GP Model"""
 function update_parameters!(model::VGP)
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
@@ -79,33 +77,30 @@ function update_parameters!(model::SVGP)
     variational_updates!(model);
 end
 
-"""Compute kernel matrices for GP models"""
 function computeMatrices!(model::GP{<:Likelihood,<:Inference,T}) where {T<:Real}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ model.likelihood.ϵ.*[I])
-        model.invKnn .= inv.(model.Knn)
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) )
+        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn.+ model.likelihood.ϵ.*[I])))
     end
 end
 
-"""Compute kernel matrices for variational GPs"""
 function computeMatrices!(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ convert(T,Jittering()).*[I])
-        model.invKnn .= inv.(model.Knn)
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
+        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
     end
 end
 
-"""Compute kernel matrices sparse variational GPs"""
 function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
     if model.inference.HyperParametersUpdated
-        model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
-        model.invKmm .= inv.(model.Kmm)
+        model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*T(jitter)*I),model.Z,model.kernel)
+        model.invKmm .= Symmetric.(inv.(cholesky.(model.Kmm)))
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
         KernelModule.kernelmatrix!.(model.Knm,[model.X[model.inference.MBIndices,:]],model.Z,model.kernel)
         model.κ .= model.Knm.*model.invKmm
-        model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [convert(T,Jittering())*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
+        model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [T(jitter)*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     end
     model.inference.HyperParametersUpdated=false
