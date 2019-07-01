@@ -1,4 +1,4 @@
-mutable struct EmpiricalMean{T<:Real,V<:AbstractVector{<:Real}} <: MeanPrior{T}
+mutable struct EmpiricalMean{T<:Real,V<:AbstractVector{<:Real}} <: PriorMean{T}
     C::V
     opt::Optimizer
 end

@@ -1,5 +1,22 @@
 #File treating all the prediction functions
 
+function _predict_f(μ::Vector{T},Σ::Symmetric{T,Matrix{T}},invK::Symmetric{T,Matrix{T}},kernel::Kernel,X_test::AbstractMatrix{T₁},X::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T,T₁<:Real}
+    k_star = kernelmatrix(X_test,X,kernel)
+    μf = k_star*invK*μ
+    if !covf
+        return μf
+    end
+    A = invK*(I-Σ*invK)
+    σ²f = []
+    if fullcov
+        k_starstar = kernelmatrix(X_test,kernel)
+        σ²f = Symmetric(k_starstar - k_star*A*transpose(k_star))
+    else
+        k_starstar = kerneldiagmatrix(X_test,kernel)
+        σ²f = k_starstar - opt_diag(k_star*A,k_star)
+    end
+    return μf,σ²f
+end
 """
 Compute the mean of the predicted latent distribution of `f` on `X_test` for the variational GP `model`
 

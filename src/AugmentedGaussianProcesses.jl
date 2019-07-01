@@ -7,13 +7,13 @@ module AugmentedGaussianProcesses
 
 export AbstractGP, GP, VGP, SVGP
 export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
-export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood
+export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood
 export LogisticLikelihood, BayesianSVM
 export SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export PoissonLikelihood
 export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI
 export NumericalVI, NumericalSVI
-
+export PriorMean, ZeroMean, ConstantMean, EmpiricalMean
 #Deprecated
 export BatchGPRegression, SparseGPRegression, MultiClass, SparseMultiClass, BatchBSVM, SparseBSVM, BatchXGPC, SparseXGPC, BatchStudentT, SparseStudentT
 
@@ -36,14 +36,9 @@ using .PGSampler
 # using MLKernels
 using GradDescent
 export Optimizer, Adam, VanillaGradDescent, ALRSVI, InverseDecay
-using DataFrames
-using Distributions
-using LinearAlgebra
-using StatsBase
-using StatsFuns
-using SpecialFunctions
-using Expectations
-using Random
+using DataFrames, LinearAlgebra
+using StatsBase, StatsFuns, SpecialFunctions, Expectations, Random, Distributions
+using ProgressMeter
 import Base: convert, show, copy
 #Exported modules
 export KMeansModule
@@ -64,7 +59,7 @@ abstract type Inference{T<:Real} end
 abstract type Likelihood{T<:Real}  end
 
 const LatentArray = Vector #For future optimization : How collection of latent GP parameters and local variables are stored
-include("prior/meanprior.jl")
+include("prior/priormean.jl")
 
 include("models/AbstractGP.jl")
 include("models/GP.jl")

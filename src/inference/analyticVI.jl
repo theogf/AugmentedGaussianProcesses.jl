@@ -43,16 +43,16 @@ end
 Stochastic Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
 
 ```julia
-AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=ALRSVI())
+AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay())
 ```
     - `nMinibatch::Integer` : Number of samples per mini-batches
 
 **Keywords arguments**
 
     - `ϵ::T` : convergence criteria
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `ALRSVI()` (Adaptive Learning Rate for Stochastic Variational Inference)
+    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `InverseDecay()` (ρ=(τ+iter)^-κ)
 """
-function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=ALRSVI()) where {T<:Real}
+function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay()) where {T<:Real}
     AnalyticVI{T}(ϵ,0,[optimizer],[optimizer],true,1,nMinibatch,1:nMinibatch,1.0,true)
 end
 
@@ -89,8 +89,16 @@ end
 
 """Computation of the natural gradient for the natural parameters"""
 function natural_gradient!(model::SVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
-    model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*∇μ(model) .+ model.invKmm.*model.μ₀ .- model.η₁
-    model.inference.∇η₂ .= -0.5*(model.inference.ρ.*transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+model.invKmm) .- model.η₂
+    map!(∇η₁,model.inference.∇η₁,∇μ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.μ₀,model.η₁)
+    map!(∇η₂,model.inference.∇η₂,∇Σ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂)
+end
+
+function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},invKmm::Symmetric{T,Matrix{T}},μ₀::PriorMean,η₁::AbstractVector{T}) where {T <: Real}
+    transpose(κ)*(ρ*∇μ) + invKmm*μ₀ - η₁
+end
+
+function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},invKmm::Symmetric{T,Matrix{T}},η₂::Symmetric{T,Matrix{T}}) where {T<:Real}
+    -0.5*(ρκdiagθκ(ρ,κ,θ)+invKmm) - η₂
 end
 
 """Conversion from natural to standard distribution parameters"""

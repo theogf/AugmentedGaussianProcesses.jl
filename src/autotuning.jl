@@ -1,4 +1,6 @@
-"""Update all hyperparameters for the full batch GP models"""
+"""
+    Update all hyperparameters for the full batch GP models
+"""
 function  update_hyperparameters!(model::Union{VGP,GP})
     Jnn = kernelderivativematrix.([model.X],model.kernel)
     f_l,f_v,f_μ₀ = hyperparameter_gradient_function(model)
@@ -13,16 +15,13 @@ function  update_hyperparameters!(model::Union{VGP,GP})
     model.inference.HyperParametersUpdated = true
 end
 
-"""Update all hyperparameters for the full batch GP models"""
+"""
+    Update all hyperparameters for the sparse variational GP models
+"""
 function update_hyperparameters!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
     Jmm = kernelderivativematrix.(model.Z,model.kernel)
     Jnm = kernelderivativematrix.([model.X[model.inference.MBIndices,:]],model.Z,model.kernel)
     Jnn = kernelderivativediagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel)
-    # broadcast((kernel::Kernel{T},Z::Matrix{T})->
-                    # [kernelderivativematrix(Z,kernel), #Jmm
-                     # kernelderivativematrix(model.X[model.inference.MBIndices,:],Z,kernel), #Jnm
-                     # kernelderivativediagmatrix(model.X[model.inference.MBIndices,:],kernel)],#Jnn
-                     # model.kernel,model.Z)
     f_l,f_v,f_μ₀ = hyperparameter_gradient_function(model)
     grads_l = map(compute_hyperparameter_gradient,model.kernel,fill(f_l,model.nPrior),Jmm,Jnm,Jnn,collect(1:model.nPrior))
     grads_v = map(f_v,model.kernel,1:model.nPrior)
@@ -37,15 +36,19 @@ function update_hyperparameters!(model::SVGP{<:Likelihood,<:Inference,T}) where 
     model.inference.HyperParametersUpdated = true
 end
 
-"""Return the derivative of the KL divergence between the posterior and the GP prior"""
+"""
+    Return the derivative of the KL divergence between the posterior and the GP prior
+"""
 function hyperparameter_KL_gradient(J::AbstractMatrix{T},A::AbstractMatrix{T}) where {T<:Real}
     return 0.5*opt_trace(J,A)
 end
 
 
-"""Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
+"""
+    Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model
+"""
 function hyperparameter_gradient_function(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    A = ([Diagonal{T}(I,model.nFeature)].-model.invKnn.*(model.Σ.+(model.µ.-model.μ₀).*transpose.(model.μ.-model.μ₀))).*model.invKnn
+    A = ([Diagonal{T}(I,model.nFeatures)].-model.invKnn.*(model.Σ.+(model.µ.-model.μ₀).*transpose.(model.μ.-model.μ₀))).*model.invKnn
     if model.IndependentPriors
         return (function(Jnn,index)
                     return -hyperparameter_KL_gradient(Jnn,A[index])
@@ -69,10 +72,23 @@ function hyperparameter_gradient_function(model::VGP{<:Likelihood,<:Inference,T}
     end
 end
 
+function hyperparameter_local_gradient_function(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
+    A = ([Diagonal{T}(I,model.nFeatures)].-model.likelihood.invK.*(model.likelihood.Σ.+(model.likelihood.µ.-model.likelihood.μ₀).*transpose.(model.likelihood.μ.-model.likelihood.μ₀))).*model.likelihood.invK
+    return (function(Jnn,index)
+                return -hyperparameter_KL_gradient(Jnn,A[index])
+            end,
+            function(kernel,index)
+                return -1.0/getvariance(kernel)*hyperparameter_KL_gradient(model.Knn[index],A[index])
+            end,
+            function(index)
+                return -model.likelihood.invK[index]*(model.likelihood.μ₀[index]-model.likelihood.μ[index])
+            end)
+end
+
 """Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
 function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    A = ([Diagonal{T}(I,model.nFeature)].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
-    ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeature) #Empty container to save data allocation
+    A = ([Diagonal{T}(I,model.nFeatures)].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
+    ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeatures) #Empty container to save data allocation
     κΣ = model.κ.*model.Σ
     if model.IndependentPriors
         return (function(Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Int)

@@ -19,7 +19,7 @@ width = maximum(f)-minimum(f)
 normf = (f.-minimum(f))/width*K
 
 y = Dict("Regression"=>f,"Classification"=>sign.(f),"MultiClass"=>floor.(Int64,normf),"Event"=>rand.(Poisson.(2.0*AGP.logistic.(f))))
-reg_likelihood = ["GaussianLikelihood","StudentTLikelihood","LaplaceLikelihood"]
+reg_likelihood = ["GaussianLikelihood","StudentTLikelihood","LaplaceLikelihood","HeteroscedasticLikelihood"]
 class_likelihood = ["BayesianSVM","LogisticLikelihood"]
 multiclass_likelihood = ["LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
 event_likelihood = ["PoissonLikelihood"]

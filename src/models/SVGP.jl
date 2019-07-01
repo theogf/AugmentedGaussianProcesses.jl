@@ -31,7 +31,7 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: 
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
-    nFeature::Int64 # Number of features of the GP (equal to number of points)
+    nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
@@ -40,7 +40,7 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: 
     Σ::LatentArray{Symmetric{T,Matrix{T}}}
     η₁::LatentArray{V}
     η₂::LatentArray{Symmetric{T,Matrix{T}}}
-    μ₀::LatentArray{MeanPrior{T}}
+    μ₀::LatentArray{PriorMean{T}}
     Kmm::LatentArray{Symmetric{T,Matrix{T}}}
     invKmm::LatentArray{Symmetric{T,Matrix{T}}}
     Knm::LatentArray{Matrix{T}}
@@ -60,7 +60,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
             likelihood::LikelihoodType,inference::InferenceType,
             nInducingPoints::Integer
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
-            mean::Union{<:Real,AbstractVector{<:Real},MeanPrior}=ZeroMean(),
+            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true, OptimizeInducingPoints::Bool=false,ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
@@ -73,13 +73,13 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
 
             @assert nInducingPoints > 0 && nInducingPoints < nSample "The number of inducing points is incorrect (negative or bigger than number of samples)"
             Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10); Z=[deepcopy(Z) for _ in 1:nPrior]
-            nFeature = nInducingPoints
+            nFeatures = nInducingPoints
 
 
-            μ = LatentArray([zeros(T1,nFeature) for _ in 1:nLatent]); η₁ = deepcopy(μ);
-            Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeature))) for _ in 1:nLatent]);
+            μ = LatentArray([zeros(T1,nFeatures) for _ in 1:nLatent]); η₁ = deepcopy(μ);
+            Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeatures))) for _ in 1:nLatent]);
             η₂ = -0.5*inv.(Σ);
-            κ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample, nFeature) for _ in 1:nPrior])
+            κ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample, nFeatures) for _ in 1:nPrior])
             Knm = deepcopy(κ)
             K̃ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample) for _ in 1:nPrior])
             Kmm = LatentArray([similar(Σ[1]) for _ in 1:nPrior]); invKmm = similar.(Kmm)
@@ -101,10 +101,10 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
                 setoptimizer!.(kernel,[copy(opt) for _ in 1:nLatent])
             end
 
-            likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed)
-            inference = init_inference(inference,nLatent,nFeature,nSample,nSamplesUsed)
+            likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed,nFeatures)
+            inference = init_inference(inference,nLatent,nFeatures,nSample,nSamplesUsed)
             model = SVGP{LikelihoodType,InferenceType,T1,ArrayType{T1}}(X,y,
-                    nSample, nDim, nFeature, nLatent,
+                    nSample, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,
                     Z,μ,Σ,η₁,η₂,
                     μ₀,Kmm,invKmm,Knm,κ,K̃,

@@ -2,7 +2,8 @@ methods_implemented = Dict{String,Vector{String}}()
 methods_implemented["GaussianLikelihood"] = []
 methods_implemented["StudentTLikelihood"] = ["AnalyticVI","AnalyticSVI"] # ["QuadratureVI","QuadratureSVI"]
 methods_implemented["LaplaceLikelihood"] = ["AnalyticVI","AnalyticSVI"]
-methods_implemented["LogisticLikelihood"] = ["AnalyticVI","AnalyticSVI"]# ["NumericalVI","NumericalSVI"]
+methods_implemented["HeteroscedasticLikelihood"] = []
+methods_implemented["LogisticLikelihood"] = ["AnalyticVI","AnalyticSVI"]
 methods_implemented["BayesianSVM"] = ["AnalyticVI","AnalyticSVI"]
 methods_implemented["LogisticSoftMaxLikelihood"] = ["AnalyticVI","AnalyticSVI"]# "NumericalVI","NumericalSVI"]
 methods_implemented["SoftMaxLikelihood"] = ["QuadratureVI","QuadratureSVI"]
@@ -12,6 +13,7 @@ methods_implemented_VGP = deepcopy(methods_implemented)
 push!(methods_implemented_VGP["StudentTLikelihood"],"GibbsSampling")
 push!(methods_implemented_VGP["LogisticLikelihood"],"GibbsSampling")
 push!(methods_implemented_VGP["LogisticSoftMaxLikelihood"],"GibbsSampling")
+push!(methods_implemented_VGP["HeteroscedasticLikelihood"],"AnalyticVI")
 methods_implemented_SVGP = deepcopy(methods_implemented)
 methods_implemented_SVGP["GaussianLikelihood"] = ["AnalyticVI","AnalyticSVI"]
 
@@ -32,7 +34,7 @@ function testconv(model::AbstractGP,problem_type::String,X::AbstractArray,y::Abs
     py_pred = proba_y(model,X)
     if problem_type == "Regression"
         @show err = mean(abs.(y_pred-y))
-        return err < 0.5
+        return err < 0.8
     elseif problem_type == "Classification"
         @show err = mean(y_pred.!=y)
         return err < 0.5

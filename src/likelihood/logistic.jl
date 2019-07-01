@@ -32,7 +32,7 @@ function LogisticLikelihood()
     LogisticLikelihood{Float64}()
 end
 
-function init_likelihood(likelihood::LogisticLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer) where T
+function init_likelihood(likelihood::LogisticLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
         LogisticLikelihood{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
     else

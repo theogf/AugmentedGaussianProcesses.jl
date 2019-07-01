@@ -56,8 +56,8 @@ function GradDescent.update(opt::ALRSVI, g_t::AbstractArray{T,N}) where {T<:Real
         @error "Optimizer has not been initialized externally, it needs a special initialization"
     end
     opt.t += 1
-    opt.g .= (1.0-1.0/opt.τ).*opt.g + 1.0/opt.τ .* g_t
-    opt.h = (1.0-1.0/opt.τ).*opt.h + 1.0/opt.τ .* dot(g_t,g_t)
+    opt.g .= (1.0-1.0/opt.τ)*opt.g + 1.0/opt.τ * g_t
+    opt.h = (1.0-1.0/opt.τ)*opt.h + 1.0/opt.τ * dot(g_t,g_t)
     opt.ρ = dot(opt.g,opt.g)/opt.h
     opt.τ = opt.τ*(1-opt.ρ)+1.0
     return opt.ρ * g_t

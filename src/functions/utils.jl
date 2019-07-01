@@ -3,9 +3,14 @@
 """ Jittering object adapting to the type of the GP """
 struct Jittering end;
 
-Base.convert(::Type{Float64},::Jittering) = Float64(1e-5)
-Base.convert(::Type{Float32},::Jittering) = Float32(1e-4)
-Base.convert(::Type{Float16},::Jittering) = Float16(1e-3)
+const jitter = Jittering()
+
+@inline Base.Float64(::Jittering) = Float64(1e-5)
+@inline Base.Float32(::Jittering) = Float32(1e-4)
+@inline Base.Float16(::Jittering) = Float16(1e-3)
+@inline Base.convert(::Type{Float64},::Jittering) = Float64(1e-5)
+@inline Base.convert(::Type{Float32},::Jittering) = Float32(1e-4)
+@inline Base.convert(::Type{Float16},::Jittering) = Float16(1e-3)
 
 """ delta function `(i,j)`, equal `1` if `i == j`, `0` else """
 @inline function δ(i::Integer,j::Integer)
@@ -13,28 +18,36 @@ Base.convert(::Type{Float16},::Jittering) = Float16(1e-3)
 end
 
 """Hadamard product between two arrays of same size"""
-function hadamard(A::AbstractArray{<:Real},B::AbstractArray{<:Real})
+@inline function hadamard(A::AbstractArray{<:Real},B::AbstractArray{<:Real})
     A.*B
 end
 
 """ Add on place the transpose of a matrix """
-function add_transpose!(A::AbstractMatrix{<:Real})
+@inline function add_transpose!(A::AbstractMatrix{<:Real})
     A .+= A'
 end
 
 """ Return the trace of A*B' """
-function opt_trace(A::AbstractMatrix{<:Real},B::AbstractMatrix{<:Real})
+@inline function opt_trace(A::AbstractMatrix{<:Real},B::AbstractMatrix{<:Real})
     dot(A,B)
 end
 
 """ Return the diagonal of A*B' """
-function opt_diag(A::AbstractArray{T,N},B::AbstractArray{T,N}) where {T<:Real,N}
+@inline function opt_diag(A::AbstractArray{T,N},B::AbstractArray{T,N}) where {T<:Real,N}
     vec(sum(A.*B,dims=2))
 end
 
 """ Return the multiplication of Diagonal(v)*B """
 function opt_diag_mul_mat(v::AbstractVector{T},B::AbstractMatrix{T}) where {T<:Real}
     v.*B
+end
+
+@inline function κdiagθκ(κ::AbstractMatrix{T},θ::AbstractVector{T}) where {T<:Real}
+    transpose(θ.*κ)*κ
+end
+
+@inline function ρκdiagθκ(ρ::T,κ::AbstractMatrix{T},θ::AbstractVector{T}) where {T<:Real}
+    transpose((ρ*θ).*κ)*κ
 end
 
 """ Return the addition of a diagonal to a symmetric matrix """

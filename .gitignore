@@ -8,7 +8,6 @@ Manifest.toml
 #Do not save checkpoints and testpoints
 examples/.ipynb_checkpoints/*
 test/main_testing.jl
-dev/*
 
 #Docs
 docs/build/

@@ -4,7 +4,8 @@ Class for Gaussian Processes models
 ```julia
 GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},
    kernel::Union{Kernel,AbstractVector{<:Kernel}};
-   noise::Real=1e-5, verbose::Integer=0,
+   noise::Real=1e-5, opt_noise::Bool=true,
+   mean::Union{Real,Vector{Real},PriorMean}=0.0, verbose::Integer=0,
    Autotuning::Bool=true,atfrequency::Integer=1,
    IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
 ```
@@ -18,7 +19,9 @@ Argument list :
  - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
 
 **Keyword arguments**
-
+ - `noise` : Initial noise of the model
+ - `opt_noise` : Flag for optimizing the noise σ=Σ(y-f)^2/N
+ - `mean` : Option for putting a prior mean
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
  - `Autotuning` : Flag for optimizing hyperparameters
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
@@ -30,11 +33,11 @@ mutable struct GP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: Ab
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
-    nFeature::Int64 # Number of features of the GP (equal to number of points)
+    nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
-    μ₀::LatentArray{MeanPrior{T}}
+    μ₀::LatentArray{PriorMean{T}}
     Knn::LatentArray{Symmetric{T,Matrix{T}}}
     invKnn::LatentArray{Symmetric{T,Matrix{T}}}
     kernel::LatentArray{Kernel{T}}
@@ -43,22 +46,23 @@ mutable struct GP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: Ab
     verbose::Int64 #Level of printing information
     Autotuning::Bool
     atfrequency::Int64
+    opt_noise::Bool
     Trained::Bool
 end
 
 
-function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}};  noise::Real=1e-5,
-            verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,mean::Union{<:Real,AbstractVector{<:Real},MeanPrior}=ZeroMean(),
+function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}};  noise::Real=1e-5, opt_noise::Real=true,
+            verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2}
             likelihood = GaussianLikelihood(noise)
             inference = Analytic()
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
 
             nPrior = IndependentPriors ? nLatent : 1
-            nFeature = nSample = size(X,1); nDim = size(X,2);
+            nFeatures = nSample = size(X,1); nDim = size(X,2);
             kernel = ArrayType([deepcopy(kernel) for _ in 1:nPrior])
 
-            Knn = LatentArray([Symmetric(Matrix{T1}(I,nFeature,nFeature)) for _ in 1:nPrior]);
+            Knn = LatentArray([Symmetric(Matrix{T1}(I,nFeatures,nFeatures)) for _ in 1:nPrior]);
             invKnn = copy(Knn)
             μ₀ = []
             if typeof(mean) <: Real
@@ -68,14 +72,14 @@ function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel
             else
                 μ₀ = [mean for _ in 1:nPrior]
             end
-            likelihood = init_likelihood(likelihood,inference,nLatent,nSample)
+            likelihood = init_likelihood(likelihood,inference,nLatent,nSample,nFeatures)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
 
             model = GP{GaussianLikelihood{T1},Analytic{T1},T1,ArrayType{T1}}(X,y,
-                    nFeature, nDim, nFeature, nLatent,
+                    nFeatures, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,
                     μ₀,Knn,invKnn,kernel,likelihood,inference,
-                    verbose,Autotuning,atfrequency,false)
+                    verbose,Autotuning,atfrequency,opt_noise,false)
             computeMatrices!(model)
             model.Trained = true
             return model

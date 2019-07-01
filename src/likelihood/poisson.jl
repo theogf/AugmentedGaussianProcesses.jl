@@ -16,7 +16,7 @@ function PoissonLikelihood(λ::T=1.0) where {T<:Real}
     PoissonLikelihood{T}([λ])
 end
 
-function init_likelihood(likelihood::PoissonLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed) where T
+function init_likelihood(likelihood::PoissonLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Int,nFeatures::Int) where T
     PoissonLikelihood{T}(
     [likelihood.λ[1] for _ in 1:nLatent],
     [zeros(T,nSamplesUsed) for _ in 1:nLatent],

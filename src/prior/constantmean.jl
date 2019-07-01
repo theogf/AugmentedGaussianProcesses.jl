@@ -1,4 +1,4 @@
-mutable struct ConstantMean{T<:Real} <: MeanPrior{T}
+mutable struct ConstantMean{T<:Real} <: PriorMean{T}
     C::T
     opt::Optimizer
 end
