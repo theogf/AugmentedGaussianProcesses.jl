@@ -12,13 +12,14 @@ end
 
 function init!(alg::MEC,X,y,kernel)
     @assert size(X,1) > 1 "First batch should have at least 2 samples"
-    samples = sample(1:size(X,1),2,replace=false)
+    samples = sample(1:size(X,1), 2, replace=false)
     alg.centers = copy(X[samples,:])
     alg.k = size(alg.centers,1)
-    # while alg.k < alg.kmax
-        # s = sample(1:size(X,1),59,replace=false)
-        # update!(alg,X[s,:],y[s],kernel)
-    # end
+
+    while alg.k < alg.kmax
+        s = sample(1:size(X,1), 59, replace=false)
+        add_point!(alg, X[s,:], y[s], kernel)
+    end
 end
 
 function add_point!(alg::MEC,X,y,kernel)

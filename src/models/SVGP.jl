@@ -48,7 +48,7 @@ Argument list :
 """
 function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             likelihood::LikelihoodType,inference::InferenceType,
-            nInducingPoints::Integer
+            Zalg::Union{AbstractMatrix{T1},ZAlg,Int}
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
             IndependentPriors::Bool=true, Zoptimizer::Union{Optimizer,Nothing}=Nothing(),ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
@@ -60,9 +60,16 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Kernel,
             kernel = [deepcopy(kernel) for _ in 1:nPrior]
 
 
-            @assert nInducingPoints > 0 && nInducingPoints < nSample "The number of inducing points is incorrect (negative or bigger than number of samples)"
-            Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10); Z=[deepcopy(Z) for _ in 1:nPrior]
-            nFeature = nInducingPoints
+            if isa(Zalg,Int)
+                @assert Zalg > 0 && Zalg < nSample "The number of inducing points is incorrect (negative or bigger than number of samples)"
+                Z = KMeansInducingPoints(X,Zalg,nMarkov=10);
+            elseif isa(Zalg,ZAlg)
+                init!(Zalg,X,y[1],kernel[1])
+                Z = Zalg.centers
+            end
+            nFeature = size(Z,1)
+            Z=[deepcopy(Z) for _ in 1:nPrior]
+
             if !isnothing(Zoptimizer)
                 Zoptimizer = [GradDescent.deepcopy(Zoptimizer) for _ in 1:nPrior]
             end
