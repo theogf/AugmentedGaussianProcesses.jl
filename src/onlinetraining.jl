@@ -146,15 +146,18 @@ function init_onlinemodel(model::OnlineVGP{<:Likelihood,<:Inference,T},X,y) wher
     model.μ = LatentArray([zeros(T,model.nFeature) for _ in 1:model.nLatent]); model.η₁ = deepcopy(model.μ);
     model.Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T)*I,model.nFeature))) for _ in 1:model.nLatent]);
     model.η₂ = -0.5*inv.(model.Σ);
-    model.κ = LatentArray([zeros(T,nSamples, model.nFeature) for _ in 1:model.nPrior])
-    model.κold = LatentArray([zeros(T,nSamples, model.nFeature) for _ in 1:model.nPrior])
-    model.Knm = deepcopy(model.κ)
-    model.K̃ = LatentArray([zeros(T,nSamples) for _ in 1:model.nPrior])
-    model.κₐ = LatentArray([zeros(T, model.nFeature, model.nFeature) for _ in 1:model.nPrior])
-    model.Kab = deepcopy(model.κₐ)
-    model.K̃ₐ = LatentArray([zeros(T, model.nFeature, model.nFeature) for _ in 1:model.nPrior])
+    model.Kmm = broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
+    model.invKmm = inv.(model.Kmm)
+    model.Kab = broadcast((Z,Zₐ,kernel)->kernelmatrix(Zₐ,Z,kernel),model.Z,model.Zₐ,model.kernel)
+    model.κₐ = model.Kab.*model.invKmm
+    Kₐ = Symmetric.(kernelmatrix.(model.Zₐ,model.kernel)+convert(T,Jittering())*getvariance.(model.kernel).*[I])
+    model.K̃ₐ = Kₐ .+ model.κₐ.*transpose.(model.Kab)
+    model.Knm = kernelmatrix.([model.X],model.Z,model.kernel)
+    model.κ = model.Knm.*model.invKmm
+    model.K̃ = kerneldiagmatrix.([model.X],model.kernel) .+ [convert(T,Jittering())*ones(T,size(model.X,1))] - opt_diag.(model.κ,model.Knm)
+    @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
+    model.inference.HyperParametersUpdated=false
     model.invDₐ = LatentArray([Symmetric(zeros(T, model.nFeature, model.nFeature)) for _ in 1:model.nPrior])
     model.prev𝓛ₐ  = LatentArray(zeros(model.nLatent))
     model.prevη₁  = copy.(model.η₁)
-    model.Kmm = LatentArray([similar(model.Σ[1]) for _ in 1:model.nPrior]); model.invKmm = similar.(model.Kmm)
 end
