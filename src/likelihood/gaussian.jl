@@ -40,7 +40,7 @@ function Base.show(io::IO,model::GaussianLikelihood{T}) where T
     print(io,"Gaussian likelihood")
 end
 
-function init_likelihood(likelihood::GaussianLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer) where {T<:Real}
+function init_likelihood(likelihood::GaussianLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where {T<:Real}
     if length(likelihood.ϵ) ==1 && length(likelihood.ϵ) != nLatent
         return GaussianLikelihood{T}([likelihood.ϵ[1] for _ in 1:nLatent],[fill(inv(likelihood.ϵ[1]),nSamplesUsed) for _ in 1:nLatent])
     elseif length(likelihood.ϵ) != nLatent
@@ -62,7 +62,7 @@ function local_updates!(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
         #TODO make it a moving average
         ρ = inv(sqrt(1+model.inference.nIter))
         model.likelihood.ϵ .= (1-ρ)*model.likelihood.ϵ + ρ/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y[model.inference.MBIndices]-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
-        @show model.likelihood.ϵ
+        model.likelihood.ϵ
     else
         model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
     end
