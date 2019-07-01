@@ -4,17 +4,15 @@ using StatsBase, Distances
 using Random: seed!
 using BenchmarkTools
 using Dates
-using PyCall
 using ValueHistories
 using Plots
 using TimerOutputs
+using MLDataUtils
 const to = TimerOutput()
 const AGP = AugmentedGaussianProcesses
 pyplot()
 clibrary(:cmocean)
 seed!(42)
-@pyimport sklearn.datasets as sk
-@pyimport sklearn.model_selection as sp
 N_data = 500
 N_class = 3
 N_test = 50
@@ -49,7 +47,7 @@ for i in 1:N_data
 end
 
 xmin = minimum(X); xmax = maximum(X)
-X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
+(X,y),(X_test,y_test) = splitobs((X,y),obsdim=1,at=0.33)
 x_grid = range(xmin,length=N_grid,stop=xmax)
 X_grid = hcat([j for i in x_grid, j in x_grid][:],[i for i in x_grid, j in x_grid][:])
 
@@ -57,7 +55,7 @@ x₁slice = 0.5
 X_slice = hcat(fill(x₁slice,N_grid),x_grid)
 
 function initial_lengthscale(X)
-    D = pairwise(SqEuclidean(),X')
+    D = pairwise(SqEuclidean(),X,dims=1)
     return median([D[i,j] for i in 2:size(D,1) for j in 1:(i-1)])
 end
 function acc(y_test,y_pred)
@@ -196,15 +194,15 @@ function optim_train!(model;iterations=100,callback=0,Convergence=nothing)
     model.Trained = true
 end
 ##Which algorithm are tested
-fullm = !true
-sparsem = true
+fullm = true
+sparsem = !true
 stochm = !true
 expecm = !true
 samplem = !true
 
 if fullm
-    global fmodel = VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
-    t_full = @elapsed train!(fmodel,iterations=100)#,callback=callback)
+    global fmodel = VGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticVI(),verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    t_full = @elapsed train!(fmodel,iterations=1000)#,callback=callback)
 
     global y_full = predict_y(fmodel,X_test)
     global y_fall = proba_y(fmodel,X_test)
@@ -224,13 +222,13 @@ end
 
 # end #End for loop on kernel lengthscale
 if sparsem
-    global smodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),100,verbose=0,Autotuning=true,atfrequency=1,IndependentPriors=true)
+    global smodel = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticVI(),100,verbose=3,Autotuning=true,atfrequency=1,IndependentPriors=true)
     # smodel.AutotuningFrequency=5
     # smetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(smodel,X_test=X_test,y_test=y_test)
     # smodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=3,kernel=kernel,m=100,Stochastic=false)
     train!(smodel,iterations=4)#,callback=callback)
     @profiler train!(smodel,iterations=10)#,callback=callback)
-    @timeit to "mainloop" optim_train!(smodel,iterations=50)#,callback=callback)
+    @timeit to "mainloop" optim_train!(smodel,iterations=500)#,callback=callback)
     print(to)
     # t_sparse = @elapsed smodel.train(iterations=100,callback=callback)
     global y_sparse = predict_y(smodel,X_test)

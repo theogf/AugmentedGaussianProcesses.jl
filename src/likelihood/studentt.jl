@@ -36,7 +36,7 @@ function StudentTLikelihood(ν::T,σ::T=one(T)) where {T<:Real}
     StudentTLikelihood{T}(ν,σ)
 end
 
-function init_likelihood(likelihood::StudentTLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int) where T
+function init_likelihood(likelihood::StudentTLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
         StudentTLikelihood{T}(
         likelihood.ν,likelihood.σ,

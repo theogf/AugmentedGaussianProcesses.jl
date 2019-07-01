@@ -25,7 +25,7 @@ function TemplateLikelihood()
     TemplateLikelihood{Float64}()
 end
 
-function init_likelihood(likelihood::TemplateLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer) where T
+function init_likelihood(likelihood::TemplateLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
         TemplateLikelihood{T}([zeros(T,nSamplesUsed) for _ in 1:nLatent])
     else
@@ -55,67 +55,56 @@ end
 function local_updates!(model::VGP{<:TemplateLikelihood,<:AnalyticVI})
 end
 
-function local_updates!(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
+function local_updates!(model::SVGP{<:TemplateLikelihood,<:AnalyticVI})
 end
 
-function sample_local!(model::VGP{<:LogisticLikelihood,<:GibbsSampling})
+function sample_local!(model::VGP{<:TemplateLikelihood,<:GibbsSampling})
     return nothing
 end
 
 ### Natural Gradient Section ###
 
-function expec_μ(model::VGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
+function expec_μ(model::VGP{<:TemplateLikelihood,<:AnalyticVI},index::Integer)
 end
 
-function ∇μ(model::VGP{<:LogisticLikelihood})
+function ∇μ(model::VGP{<:TemplateLikelihood})
 end
 
-function expec_μ(model::SVGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
+function expec_μ(model::SVGP{<:TemplateLikelihood,<:AnalyticVI},index::Integer)
 end
 
-function ∇μ(model::SVGP{<:LogisticLikelihood})
+function ∇μ(model::SVGP{<:TemplateLikelihood})
 end
 
-function expec_Σ(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
+function expec_Σ(model::AbstractGP{<:TemplateLikelihood,<:AnalyticVI},index::Integer)
     return model.likelihood.θ[index]
 end
 
-function ∇Σ(model::AbstractGP{<:LogisticLikelihood})
+function ∇Σ(model::AbstractGP{<:TemplateLikelihood})
     return model.likelihood.θ
 end
 
 ### ELBO Section ###
 
-function ELBO(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI})
-    return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
+function ELBO(model::AbstractGP{<:TemplateLikelihood,<:AnalyticVI})
+    return expecLogLikelihood(model) - GaussianKL(model)
 end
 
-function expecLogLikelihood(model::VGP{<:LogisticLikelihood,<:AnalyticVI})
-    tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-dot(θ,Σ+abs2.(μ))),
-                        model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
+function expecLogLikelihood(model::VGP{<:TemplateLikelihood,<:AnalyticVI})
+    tot = 0.0
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
-    tot = -model.nLatent*(0.5*model.inference.nSamplesUsed*logtwo)
-    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y[model.inference.MBIndices])-dot(θ,K̃+κΣκ+abs2.(κμ))),
-                        model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
+function expecLogLikelihood(model::SVGP{<:TemplateLikelihood,<:AnalyticVI})
+    tot = 0.0
     return model.inference.ρ*tot
 end
 
-function PolyaGammaKL(model::AbstractGP{<:LogisticLikelihood})
-    model.inference.ρ*sum(broadcast(PolyaGammaKL,[ones(length(model.likelihood.c[1]))],model.likelihood.c,model.likelihood.θ))
-end
 
 ### Gradient Section ###
 
-function gradpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
-    σ=y*f
-    σ*(one(T)-σ)
+function gradpdf(::TemplateLikelihood,y::Int,f::T) where {T<:Real}
 end
 
-function hessiandiagpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
-    σ=y*f
-    σ*(one(T)-2σ + abs2(σ))
+function hessiandiagpdf(::TemplateLikelihood,y::Int,f::T) where {T<:Real}
 end

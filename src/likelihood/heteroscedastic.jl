@@ -29,7 +29,7 @@ struct HeteroscedasticLikelihood{T<:Real} <: RegressionLikelihood{T}
     function HeteroscedasticLikelihood{T}(kernel::AbstractVector{<:Kernel},μ₀::AbstractVector{<:PriorMean},λ::AbstractVector{T},c::AbstractVector{<:AbstractVector{T}},ϕ::AbstractVector{<:AbstractVector{T}},γ::AbstractVector{<:AbstractVector{T}},θ::AbstractVector{<:AbstractVector{T}},μ::AbstractVector{<:AbstractVector{T}},Σ::AbstractVector{<:Symmetric{T,Matrix{T}}},σg::AbstractVector{<:AbstractVector{T}},K::AbstractVector{<:Symmetric{T,Matrix{T}}},invK::AbstractVector{<:Symmetric{T,Matrix{T}}}) where {T<:Real}
          new{T}(kernel,μ₀,λ,c,ϕ,γ,θ,μ,Σ,σg,K,invK)
      end
-     function HeteroscedasticLikelihood{T}(kernel::AbstractVector{<:Kernel},μ₀::AbstractVector{<:PriorMean},λ::AbstractVector{T},c::AbstractVector{<:AbstractVector{T}},ϕ::AbstractVector{<:AbstractVector{T}},γ::AbstractVector{<:AbstractVector{T}},θ::AbstractVector{<:AbstractVector{T}},μ::AbstractVector{<:AbstractVector{T}},Σ::AbstractVector{<:Symmetric{T,Matrix{T}}},σg::AbstractVector{<:AbstractVector{T}},K::AbstractVector{<:Symmetric{T,Matrix{T}}},invK::AbstractVector{<:Symmetric{T,Matrix{T}}},κ::AbstractVector{<:AbstractMatrix{T}},K̃::AbstractVector{<:AbtractVector{T}}) where {T<:Real}
+     function HeteroscedasticLikelihood{T}(kernel::AbstractVector{<:Kernel},μ₀::AbstractVector{<:PriorMean},λ::AbstractVector{T},c::AbstractVector{<:AbstractVector{T}},ϕ::AbstractVector{<:AbstractVector{T}},γ::AbstractVector{<:AbstractVector{T}},θ::AbstractVector{<:AbstractVector{T}},μ::AbstractVector{<:AbstractVector{T}},Σ::AbstractVector{<:Symmetric{T,Matrix{T}}},σg::AbstractVector{<:AbstractVector{T}},K::AbstractVector{<:Symmetric{T,Matrix{T}}},invK::AbstractVector{<:Symmetric{T,Matrix{T}}},κ::AbstractVector{<:AbstractMatrix{T}},K̃::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
           new{T}(kernel,μ₀,λ,c,ϕ,γ,θ,μ,Σ,σg,K,invK,κ,K̃)
       end
 end
@@ -54,7 +54,7 @@ function Base.show(io::IO,model::HeteroscedasticLikelihood{T}) where T
     print(io,"Gaussian likelihood with heteroscedastic noise")
 end
 
-function init_likelihood(likelihood::HeteroscedasticLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer,nFeatures::Integers) where {T<:Real}
+function init_likelihood(likelihood::HeteroscedasticLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer,nFeatures::Integer) where {T<:Real}
     kernel = Vector{Kernel}(undef,nLatent)
     if length(likelihood.kernel) != nLatent
         kernel[:] = [deepcopy(likelihood.kernel[1]) for _ in 1:nLatent]

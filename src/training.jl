@@ -18,7 +18,7 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
     @assert iterations > 0  "Number of iterations should be positive"
     # model.evol_conv = [] #Array to check on the evolution of convergence
     local_iter::Int64 = 1; conv = Inf;
-
+    p = Progress(iterations,dt=0.2,desc="Training Progress: ")
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             update_parameters!(model) #Update all the variational parameters
@@ -31,9 +31,11 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
             end
             ### Print out informations about the convergence
             if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
-                print("Iteration : $local_iter ")
-                 print("ELBO is : $(ELBO(model))")
-                 print("\n")
+                # print("Iteration : $local_iter ")
+                 # print("ELBO is : $(ELBO(model))")
+                 # print("\n")
+            elbo=ELBO(model)
+             next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
              end
             local_iter += 1; model.inference.nIter += 1
             (local_iter <= iterations) || break; #Verify if the number of maximum iterations has been reached

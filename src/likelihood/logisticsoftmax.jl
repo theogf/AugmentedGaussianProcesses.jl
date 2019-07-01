@@ -55,7 +55,7 @@ function Base.show(io::IO,model::LogisticSoftMaxLikelihood{T}) where T
 end
 
 
-function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer) where T
+function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer,nFeatures::Integer) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
         c = [ones(T,nSamplesUsed) for i in 1:nLatent]
         α = nLatent*ones(T,nSamplesUsed)

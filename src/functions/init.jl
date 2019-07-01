@@ -39,12 +39,6 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
         else
             return false
         end
-    elseif likelihood isa AltHeteroscedasticLikelihood
-        if inference isa AnalyticVI
-            return true
-        else
-            return false
-        end
     elseif likelihood isa LogisticLikelihood
         if inference isa AnalyticVI
             return true

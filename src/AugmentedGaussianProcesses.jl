@@ -36,14 +36,9 @@ using .PGSampler
 # using MLKernels
 using GradDescent
 export Optimizer, Adam, VanillaGradDescent, ALRSVI, InverseDecay
-using DataFrames
-using Distributions
-using LinearAlgebra
-using StatsBase
-using StatsFuns
-using SpecialFunctions
-using Expectations
-using Random
+using DataFrames, LinearAlgebra
+using StatsBase, StatsFuns, SpecialFunctions, Expectations, Random, Distributions
+using ProgressMeter
 import Base: convert, show, copy
 #Exported modules
 export KMeansModule

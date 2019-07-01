@@ -29,7 +29,7 @@ function BayesianSVM()
     BayesianSVM{Float64}()
 end
 
-function init_likelihood(likelihood::BayesianSVM{T},inference::Inference{T},nLatent::Integer,nSamplesUsed) where T
+function init_likelihood(likelihood::BayesianSVM{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer,nFeatures::Integer) where T
     BayesianSVM{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
 end
 function pdf(l::BayesianSVM,y::Real,f::Real)
