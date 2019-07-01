@@ -24,11 +24,11 @@ logit(x) =  1.0./(1.0.+exp.(-x))
 
 plot(X,f,t=:scatter)
 plot!(X,y,t=:scatter)
-logitmodel= VGP(X,y,k,LogisticLikelihood(),AnalyticVI(),Autotuning=true);
+logitmodel= VGP(X,y,k,LogisticLikelihood(),AnalyticVI());
 train!(logitmodel,iterations=300)#,callback=intplot)
 logitpred = (proba_y(logitmodel,X_test).-0.5).*2
 plot!(X_test,logitpred)
-svmmodel = VGP(X,y,k,BayesianSVM(),AnalyticVI(),Autotuning=true);
+svmmodel = VGP(X,y,k,BayesianSVM(),AnalyticVI());
 train!(svmmodel,iterations=50)#,callback=intplot)
 svmpred = (proba_y(svmmodel,X_test).-0.5).*2
 # svmpred2 = (AugmentedGaussianProcesses.svmpredictproba(svmmodel,X_test).-0.5)*2

@@ -2,12 +2,11 @@
 Class for Gaussian Processes models
 
 ```julia
-GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},
-   kernel::Union{Kernel,AbstractVector{<:Kernel}};
-   noise::Real=1e-5, opt_noise::Bool=true,
-   mean::Union{Real,Vector{Real},PriorMean}=0.0, verbose::Integer=0,
-   Autotuning::Bool=true,atfrequency::Integer=1,
-   IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
+GP(X::AbstractArray{T1,N1}, y::AbstractArray{T2,N2}, kernel::Union{Kernel,AbstractVector{<:Kernel}};
+    noise::Real=1e-5, opt_noise::Bool=true, verbose::Int=0,
+    optimizer::Bool=Adam(α=0.01),atfrequency::Int=1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+    IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
 ```
 
 Argument list :
@@ -23,9 +22,10 @@ Argument list :
  - `opt_noise` : Flag for optimizing the noise σ=Σ(y-f)^2/N
  - `mean` : Option for putting a prior mean
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `Autotuning` : Flag for optimizing hyperparameters
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
+ - `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
+ - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
+ - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
 mutable struct GP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: AbstractGP{L,I,T,V}
@@ -44,22 +44,30 @@ mutable struct GP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: Ab
     likelihood::Likelihood{T}
     inference::Inference{T}
     verbose::Int64 #Level of printing information
-    Autotuning::Bool
+    optimizer::Union{Optimizer,Nothing}
     atfrequency::Int64
     opt_noise::Bool
     Trained::Bool
 end
 
 
-function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}};  noise::Real=1e-5, opt_noise::Real=true,
-            verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-            IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2}
+function GP(X::AbstractArray{T1,N1}, y::AbstractArray{T2,N2}, kernel::Union{Kernel,AbstractVector{<:Kernel}};
+                noise::Real=1e-5, opt_noise::Bool=true, verbose::Int=0,
+                optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
+                mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+                IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2}
             likelihood = GaussianLikelihood(noise)
             inference = Analytic()
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
 
             nPrior = IndependentPriors ? nLatent : 1
             nFeatures = nSample = size(X,1); nDim = size(X,2);
+            if isa(optimizer,Bool)
+                optimizer = optimizer ? Adam(α=0.01) : nothing
+            end
+            if !isnothing(optimizer)
+                setoptimizer!(kernel,optimizer)
+            end
             kernel = ArrayType([deepcopy(kernel) for _ in 1:nPrior])
 
             Knn = LatentArray([Symmetric(Matrix{T1}(I,nFeatures,nFeatures)) for _ in 1:nPrior]);
@@ -79,7 +87,7 @@ function GP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel
                     nFeatures, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,
                     μ₀,Knn,invKnn,kernel,likelihood,inference,
-                    verbose,Autotuning,atfrequency,opt_noise,false)
+                    verbose,optimizer,atfrequency,opt_noise,false)
             computeMatrices!(model)
             model.Trained = true
             return model

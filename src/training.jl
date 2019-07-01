@@ -26,7 +26,7 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
             if callback != 0
                 callback(model,model.inference.nIter) #Use a callback method if put by user
             end
-            if model.Autotuning && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
+            if !isnothing(model.optimizer) && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
             ### Print out informations about the convergence
