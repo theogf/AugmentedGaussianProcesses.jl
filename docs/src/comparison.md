@@ -40,8 +40,8 @@ AGP.jl stands for AugmentedGaussianProcesses.jl and GP.jl for GaussianProcesses.
 | Exponentiated Quadratic  | ✖ | ✓ | ✖ |
 | Rational Quadratic | ✖ | ✓ | ✓ |
 | Wiener | ✖ | ✓ | ✖ |
-| Sum of kernel | ✖ | ✖ | ✖ |
-| Product of kernels | ✖ | ✖ | ✖ |
+| Sum of kernel | ✖ | ✖ | ✓ |
+| Product of kernels | ✖ | ✖ | ✓ |
 
 Note that the kernels will be defered to `MLKernels.jl` in the future.
 
@@ -49,7 +49,7 @@ Note that the kernels will be defered to `MLKernels.jl` in the future.
 
 | Feature | AGP.jl | Stheno.jl | GP.jl |
 | --- | :-: | :-: | :-: |
-| Sparse GP | ✓ | ✖ | ✖ |
+| Sparse GP | ✓ | ✖ | ✓  |
 | Custom prior Mean | ✓ | ✓ | ✓ |
 | Hyperparam. Opt. | ✓ | ? | ? |
 | MultiOutput | ✖ | ✓ | ✖ |
