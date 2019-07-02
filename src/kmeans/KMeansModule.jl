@@ -3,9 +3,8 @@
 """
 # module KMeansModule
 
-using Distributions
-using StatsBase
-using LinearAlgebra, Clustering, Distances
+using Distributions, StatsBase
+using LinearAlgebra, Clustering, Distances, DataStructures
 using AugmentedGaussianProcesses.KernelModule
 using GradDescent
 

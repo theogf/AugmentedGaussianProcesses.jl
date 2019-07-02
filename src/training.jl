@@ -34,9 +34,9 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
                 # print("Iteration : $local_iter ")
                  # print("ELBO is : $(ELBO(model))")
                  # print("\n")
-            elbo=ELBO(model)
-             next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
-             end
+                elbo=ELBO(model)
+                next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
+            end
             local_iter += 1; model.inference.nIter += 1
             (local_iter <= iterations) || break; #Verify if the number of maximum iterations has been reached
             isa(model,OnlineVGP) && model.Sequential && model.dataparsed && break

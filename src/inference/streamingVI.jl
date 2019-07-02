@@ -29,13 +29,13 @@ end
 """Generic method for variational updates using analytical formulas"""
 function variational_updates!(model::AbstractGP{LType,StreamingVI{T}}) where {LType<:Likelihood,T}
     #Set as old values
-    println(model.inference.nIter," ",model.nFeature)
+    println(model.inference.nIter," ",model.nFeatures)
     Kₐ = copy(model.Kmm[1])
     invKₐ = copy(model.invKmm[1])
     Zₐ = copy(model.Zalg.centers)
     invDₐ = Symmetric(-2*model.η₂[1]-invKₐ)
     Dₐ = inv(invDₐ)
-    mₐ = copy(model.nFeature)
+    mₐ = copy(model.nFeatures)
     ŷ = vcat(model.y[1][model.inference.MBIndices],Dₐ*model.η₁[1]);
     updateZ!(model)
     ### DO STUFF WITH HYPERPARAMETERS HERE
@@ -63,12 +63,12 @@ end
 """Generic method for variational updates using analytical formulas"""
 function variational_updates_old!(model::AbstractGP{LType,StreamingVI{T}}) where {LType<:Likelihood,T}
     #Set as old values
-    println(model.inference.nIter," ",model.nFeature)
+    println(model.inference.nIter," ",model.nFeatures)
     Kₐ = copy(model.Kmm[1])
     invKₐ = copy(model.invKmm[1])
     Zₐ = copy(model.Zalg.centers)
     invDₐ = Symmetric(-2*model.η₂[1]-invKₐ)
-    mₐ = copy(model.nFeature)
+    mₐ = copy(model.nFeatures)
     ŷ = vcat(model.y[1][model.inference.MBIndices],Dₐ*model.η₁[1]);
     updateZ!(model)
     ### DO STUFF WITH HYPERPARAMETERS HERE

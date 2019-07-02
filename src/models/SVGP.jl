@@ -28,7 +28,7 @@ Argument list :
  - `optimizer` : Optimizer for inducing point locations (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: AbstractGP{L,I,T,V}
+mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: SparseGP{L,I,T,V}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
@@ -65,8 +65,8 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
             IndependentPriors::Bool=true,Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
             ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
-            
-           
+
+
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(:SVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
 
@@ -88,11 +88,14 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
                 init!(Zalg,X,y[1],kernel[1])
                 Z = Zalg.centers
             end
-            nFeature = size(Z,1)
+            nFeatures = size(Z,1)
             Z=[deepcopy(Z) for _ in 1:nPrior]
 
+            if isa(Zoptimizer,Bool)
+                Zoptimizer = Zoptimizer ? Adam(α=0.001) : nothing
+            end
             if !isnothing(Zoptimizer)
-                Zoptimizer = [GradDescent.deepcopy(Zoptimizer) for _ in 1:nPrior]
+                Zoptimizer = [deepcopy(Zoptimizer) for _ in 1:nPrior]
             end
 
             μ = LatentArray([zeros(T1,nFeatures) for _ in 1:nLatent]); η₁ = deepcopy(μ);

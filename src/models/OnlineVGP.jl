@@ -3,7 +3,7 @@ mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nDim::Int64 # Number of covariates per data point
-    nFeature::Int64 # Number of features of the GP (equal to number of points)
+    nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number of latent GPs
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
@@ -16,6 +16,7 @@ mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}
     Σ::LatentArray{Symmetric{T,Matrix{T}}}
     η₁::LatentArray{V}
     η₂::LatentArray{Symmetric{T,Matrix{T}}}
+    μ₀::LatentArray{PriorMean{T}}
     Z::LatentArray{Matrix{T}}
     Kmm::LatentArray{Symmetric{T,Matrix{T}}}
     invKmm::LatentArray{Symmetric{T,Matrix{T}}}
@@ -61,6 +62,7 @@ function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
             likelihood::Likelihood{T1},inference::Inference,
             Zalg::ZAlg=CircleKMeans()#,Sequential::Bool=false
             ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
+            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true, Zoptimizer::Union{Any,Nothing}=Nothing(),ArrayType::UnionAll=Vector) where {T1<:Real,T2}
 
             @assert check_implementation(:OnlineVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
@@ -72,6 +74,14 @@ function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
             Σ = LatentArray{Symmetric{T1,Matrix{T1}}}()
             η₁ = LatentArray{ArrayType{T1}}()
             η₂ = LatentArray{Symmetric{T1,Matrix{T1}}}()
+            μ₀ = []
+            if typeof(mean) <: Real
+                μ₀ = [ConstantMean(mean)]
+            elseif typeof(mean) <: AbstractVector{<:Real}
+                μ₀ = [EmpiricalMean(mean)]
+            else
+                μ₀ = [mean]
+            end
             Z = LatentArray{Matrix{T1}}()
             if !isnothing(Zoptimizer)
                 Zoptimizer = [deepcopy(Zoptimizer) for _ in 1:nPrior]
@@ -92,13 +102,13 @@ function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
             inference.nIter = 1
             return OnlineVGP{typeof(likelihood),typeof(inference),T1,ArrayType{T1}}(
                     Matrix{T1}(undef,1,1),LatentArray(),
-                    # nSample, nDim, nFeature,
+                    # nSample, nDim, nFeatures,
                     -1,0,nLatent,
                     IndependentPriors,nPrior,
                     kernel,likelihood,inference,
                     Zalg,Zupdated,
                     # Sequential,dataparsed,lastindex,
-                    μ,Σ,η₁,η₂,
+                    μ,Σ,η₁,η₂,μ₀,
                     Z,Kmm,invKmm,Knm,κ,κold,K̃,
                     Zₐ,Kab,κₐ,K̃ₐ,invDₐ,prevη₁,𝓛ₐ,
                     verbose,Autotuning,atfrequency,Zoptimizer,false

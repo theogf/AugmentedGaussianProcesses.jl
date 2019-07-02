@@ -22,7 +22,7 @@ function train!(model::OnlineVGP,X::AbstractArray,y::AbstractArray;iterations::I
         save_old_parameters!(model)
         updateZ!(model);
     end
-    model.likelihood = init_likelihood(model.likelihood,model.inference,model.nLatent,size(X,1))
+    model.likelihood = init_likelihood(model.likelihood,model.inference,model.nLatent,size(X,1),model.nFeatures)
     model.inference.nSamplesUsed = model.inference.nSamples = size(X,1)
     model.inference.MBIndices = collect(1:size(X,1))
 
@@ -119,7 +119,7 @@ function compute_local_from_prev(model::OnlineVGP)
 end
 
 function setZ!(model::OnlineVGP)
-    model.nFeature = model.Zalg.k
+    model.nFeatures = model.Zalg.k
     model.Zupdated = true
     model.Z = fill(model.Zalg.centers,model.nPrior) #TEMP for 1 latent
 end
@@ -140,12 +140,13 @@ function init_onlinemodel(model::OnlineVGP{<:Likelihood,<:Inference,T},X,y) wher
     end
     nSamples = size(X,1)
     model.nDim = size(X,2)
-    model.nFeature = model.Zalg.k
+    model.nFeatures = model.Zalg.k
     model.Z = [copy(model.Zalg.centers) for _ in 1:model.nPrior]
     model.Zₐ = copy.(model.Z)
-    model.μ = LatentArray([zeros(T,model.nFeature) for _ in 1:model.nLatent]); model.η₁ = deepcopy(model.μ);
-    model.Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T)*I,model.nFeature))) for _ in 1:model.nLatent]);
+    model.μ = LatentArray([zeros(T,model.nFeatures) for _ in 1:model.nLatent]); model.η₁ = deepcopy(model.μ);
+    model.Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T)*I,model.nFeatures))) for _ in 1:model.nLatent]);
     model.η₂ = -0.5*inv.(model.Σ);
+    model.μ₀ = [deepcopy(model.μ₀[1]) for _ in 1:model.nPrior]
     model.Kmm = broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
     model.invKmm = inv.(model.Kmm)
     model.Kab = broadcast((Z,Zₐ,kernel)->kernelmatrix(Zₐ,Z,kernel),model.Z,model.Zₐ,model.kernel)
@@ -157,7 +158,7 @@ function init_onlinemodel(model::OnlineVGP{<:Likelihood,<:Inference,T},X,y) wher
     model.K̃ = kerneldiagmatrix.([model.X],model.kernel) .+ [convert(T,Jittering())*ones(T,size(model.X,1))] - opt_diag.(model.κ,model.Knm)
     @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     model.inference.HyperParametersUpdated=false
-    model.invDₐ = LatentArray([Symmetric(zeros(T, model.nFeature, model.nFeature)) for _ in 1:model.nPrior])
+    model.invDₐ = LatentArray([Symmetric(zeros(T, model.nFeatures, model.nFeatures)) for _ in 1:model.nPrior])
     model.prev𝓛ₐ  = LatentArray(zeros(model.nLatent))
     model.prevη₁  = copy.(model.η₁)
 end

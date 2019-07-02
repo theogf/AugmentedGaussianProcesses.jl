@@ -62,7 +62,6 @@ function local_updates!(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
         #TODO make it a moving average
         ρ = inv(sqrt(1+model.inference.nIter))
         model.likelihood.ϵ .= (1-ρ)*model.likelihood.ϵ + ρ/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y[model.inference.MBIndices]-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
-        model.likelihood.ϵ
     else
         model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
     end
@@ -70,11 +69,18 @@ function local_updates!(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
 end
 
 function local_updates!(model::OnlineVGP{GaussianLikelihood{T}}) where {T<:Real}
-    model.likelihood.ϵ .= model.likelihood.ϵ .+ 0.1*(1.0/model.inference.nSamplesUsed*broadcast((y,κ,μ,Σ,K̃)->sum(abs2,y-κ*μ)+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)-model.likelihood.ϵ)
+    @show model.likelihood.ϵ
+    if model.inference.nIter >= 10
+        ρ = inv(sqrt(1+model.inference.nIter))
+        model.likelihood.ϵ .= (1-ρ)*model.likelihood.ϵ + ρ/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y[model.inference.MBIndices]-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
+    end
+    # model.likelihood.ϵ .= model.likelihood.ϵ .+ 0.1*(1.0/model.inference.nSamplesUsed*broadcast((y,κ,μ,Σ,K̃)->sum(abs2,y-κ*μ)+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)-model.likelihood.ϵ)
+    model.likelihood.θ .= broadcast(ϵ->fill(inv(ϵ),model.inference.nSamplesUsed),model.likelihood.ϵ)
+
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function cond_mean(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}},index::Integer) where {T<:Real}
+function cond_mean(model::SparseGP{GaussianLikelihood{T},AnalyticVI{T}},index::Integer) where {T<:Real}
     return model.y[index][model.inference.MBIndices].*model.likelihood.θ[index]
 end
 
@@ -82,7 +88,7 @@ function ∇μ(model::AbstractGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<
     return getindex.(model.y,[model.inference.MBIndices])./model.likelihood.ϵ
 end
 
-function ∇Σ(model::SVGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
+function ∇Σ(model::SparseGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
     return model.likelihood.θ
 end
 

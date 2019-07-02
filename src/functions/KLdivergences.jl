@@ -10,7 +10,7 @@ end
 
 """Compute the KL Divergence between the Sparse GP Prior and the variational distribution for the sparse variational model"""
 function GaussianKL(model::OnlineVGP)
-    return 0.5*sum(opt_trace.(model.invKmm,model.Σ+model.μ.*transpose.(model.μ)).-model.nFeature.-logdet.(model.Σ).-logdet.(model.invKmm))
+    return 0.5*sum(opt_trace.(model.invKmm,model.Σ+model.μ.*transpose.(model.μ)).-model.nFeatures.-logdet.(model.Σ).-logdet.(model.invKmm))
 end
 
 function extraKL(model::VGP)
