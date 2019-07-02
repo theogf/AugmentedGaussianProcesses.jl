@@ -12,17 +12,19 @@ there are options to change the number of max iterations,
 """
 function train!(model::OnlineVGP,X::AbstractArray,y::AbstractArray;iterations::Integer=2,callback::Union{Nothing,Function}=nothing,Convergence=0)
     model.X,model.y,nLatent,model.likelihood = check_data!(X,y,model.likelihood)
+
     @assert nLatent == model.nLatent "Data should always contains the same number of outputs"
     @assert iterations > 0  "Number of iterations should be positive"
 
-    if model.inference.nIter == 1
+    if model.inference.nIter == 1 # The first time data is seen, initialize all parameters
         init_onlinemodel(model,X,y)
+        model.likelihood = init_likelihood(model.likelihood,model.inference,model.nLatent,size(X,1),model.nFeatures)
     else
         save_old_parameters!(model)
+        model.likelihood = init_likelihood(model.likelihood,model.inference,model.nLatent,size(X,1),model.nFeatures)
         compute_local_from_prev!(model)
         updateZ!(model);
     end
-    model.likelihood = init_likelihood(model.likelihood,model.inference,model.nLatent,size(X,1),model.nFeatures)
     model.inference.nSamplesUsed = model.inference.nSamples = size(X,1)
     model.inference.MBIndices = collect(1:size(X,1))
 
@@ -33,6 +35,7 @@ function train!(model::OnlineVGP,X::AbstractArray,y::AbstractArray;iterations::I
         try #Allow for keyboard interruption without losing the model
             setZ!(model)
             if local_iter == 1
+                println("BLAH")
                 computeMatrices!(model)
                 natural_gradient!(model)
                 global_update!(model)
@@ -87,11 +90,10 @@ function computeMatrices!(model::OnlineVGP{<:Likelihood,<:Inference,T}) where {T
     model.invKmm .= inv.(model.Kmm)
     model.Kab .= broadcast((Z,Zₐ,kernel)->kernelmatrix(Zₐ,Z,kernel),model.Z,model.Zₐ,model.kernel)
     model.κₐ .= model.Kab.*model.invKmm
-    model.Kₐ = Symmetric.(kernelmatrix.(model.Zₐ,model.kernel)+convert(T,Jittering())*getvariance.(model.kernel).*[I])
+    Kₐ = Symmetric.(kernelmatrix.(model.Zₐ,model.kernel)+convert(T,Jittering())*getvariance.(model.kernel).*[I])
     model.K̃ₐ .= Kₐ .+ model.κₐ.*transpose.(model.Kab)
     model.Knm .= kernelmatrix.([model.X],model.Z,model.kernel)
     model.κ .= model.Knm.*model.invKmm
-    model.κold .= kernelmatrix.([model.X],model.Zₐ,model.kernel).*inv.(Kₐ)
     model.K̃ .= kerneldiagmatrix.([model.X],model.kernel) .+ [convert(T,Jittering())*ones(T,size(model.X,1))] - opt_diag.(model.κ,model.Knm)
     @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     model.inference.HyperParametersUpdated=false
@@ -108,11 +110,10 @@ end
 
 function compute_local_from_prev!(model::OnlineVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
     setZ!(model)
-    println("BLAH")
     model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
     model.Knm .= kernelmatrix.([model.X],model.Z,model.kernel)
     model.κ .= model.Knm.*inv.(model.Kmm)
-    local_updates!(model)
+    # local_updates!(model)
 end
 
 function setZ!(model::OnlineVGP)

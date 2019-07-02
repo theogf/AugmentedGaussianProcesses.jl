@@ -22,7 +22,6 @@ mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}
     invKmm::LatentArray{Symmetric{T,Matrix{T}}}
     Knm::LatentArray{Matrix{T}}
     κ::LatentArray{Matrix{T}}
-    κold::LatentArray{Matrix{T}}
     K̃::LatentArray{V}
     Zₐ::LatentArray{Matrix{T}}
     Kab::LatentArray{Matrix{T}}
@@ -96,7 +95,6 @@ function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
             invKmm = LatentArray{Symmetric{T1,Matrix{T1}}}()
             Knm = LatentArray{Matrix{T1}}()
             κ = LatentArray{Matrix{T1}}()
-            κold = LatentArray{Matrix{T1}}()
             K̃ = LatentArray{ArrayType{T1}}()
             Zₐ = LatentArray{Matrix{T1}}()
             Kab = LatentArray{Matrix{T1}}()
@@ -115,7 +113,7 @@ function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
                     Zalg,Zupdated,
                     # Sequential,dataparsed,lastindex,
                     μ,Σ,η₁,η₂,μ₀,
-                    Z,Kmm,invKmm,Knm,κ,κold,K̃,
+                    Z,Kmm,invKmm,Knm,κ,K̃,
                     Zₐ,Kab,κₐ,K̃ₐ,invDₐ,prevη₁,𝓛ₐ,
                     verbose,optimizer,atfrequency,Zoptimizer,false
                     )

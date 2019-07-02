@@ -47,7 +47,7 @@ function init_likelihood(likelihood::GaussianLikelihood{T},inference::Inference{
         @warn "Wrong dimension of ϵ : $(length(likelihood.ϵ)), using first value only"
         return GaussianLikelihood{T}([likelihood.ϵ[1] for _ in 1:nLatent])
     else
-        return GaussianLikelihood{T}(likelihood.ϵ,[fill(likelihood.ϵ[i],nSamplesUsed) for i in 1:nLatent])
+        return GaussianLikelihood{T}(likelihood.ϵ,[fill(inv(likelihood.ϵ[i]),nSamplesUsed) for i in 1:nLatent])
     end
 end
 
@@ -85,7 +85,7 @@ function cond_mean(model::SparseGP{GaussianLikelihood{T},AnalyticVI{T}},index::I
 end
 
 function ∇μ(model::AbstractGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
-    return getindex.(model.y,[model.inference.MBIndices]).*model.likelihood.θ
+    return hadamard.(getindex.(model.y,[model.inference.MBIndices]),model.likelihood.θ)
 end
 
 function ∇Σ(model::SparseGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
