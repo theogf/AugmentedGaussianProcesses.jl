@@ -51,6 +51,6 @@ function add_point!(alg::StreamOnline,X,y,model)
     # alg.centers = vcat(alg.centers,new_centers)
 end
 
-function remove_point!(alg::StreamOnline,X,y,model)
+function remove_point!(alg::StreamOnline,X,model)
 
 end

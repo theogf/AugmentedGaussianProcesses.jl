@@ -69,10 +69,10 @@ function local_updates!(model::SVGP{GaussianLikelihood{T}}) where {T<:Real}
 end
 
 function local_updates!(model::OnlineVGP{GaussianLikelihood{T}}) where {T<:Real}
-    @show model.likelihood.ϵ
+    # @show model.likelihood.ϵ
     if model.inference.nIter >= 10
-        ρ = inv(sqrt(1+model.inference.nIter))
-        model.likelihood.ϵ .= (1-ρ)*model.likelihood.ϵ + ρ/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y[model.inference.MBIndices]-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
+        # ρ = inv(sqrt(1+model.inference.nIter))
+        # model.likelihood.ϵ .= (1-ρ)*model.likelihood.ϵ + ρ/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y[model.inference.MBIndices]-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
     end
     # model.likelihood.ϵ .= model.likelihood.ϵ .+ 0.1*(1.0/model.inference.nSamplesUsed*broadcast((y,κ,μ,Σ,K̃)->sum(abs2,y-κ*μ)+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)-model.likelihood.ϵ)
     model.likelihood.θ .= broadcast(ϵ->fill(inv(ϵ),model.inference.nSamplesUsed),model.likelihood.ϵ)
@@ -85,7 +85,7 @@ function cond_mean(model::SparseGP{GaussianLikelihood{T},AnalyticVI{T}},index::I
 end
 
 function ∇μ(model::AbstractGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}
-    return getindex.(model.y,[model.inference.MBIndices])./model.likelihood.ϵ
+    return getindex.(model.y,[model.inference.MBIndices]).*model.likelihood.θ
 end
 
 function ∇Σ(model::SparseGP{GaussianLikelihood{T},AnalyticVI{T}}) where {T<:Real}

@@ -93,7 +93,7 @@ function natural_gradient!(model::SVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likel
     map!(∇η₂,model.inference.∇η₂,∇Σ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂)
 end
 
-function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},invKmm::Symmetric{T,Matrix{T}},μ₀::PriorMean,η₁::AbstractVector{T}) where {T <: Real}
+function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},invKmm::Symmetric{T,Matrix{T}},μ₀::PriorMean,η₁::AbstractVector{T}) where {T<:Real}
     transpose(κ)*(ρ*∇μ) + invKmm*μ₀ - η₁
 end
 
@@ -103,8 +103,8 @@ end
 
 """Computation of the natural gradient for the natural parameters"""
 function natural_gradient!(model::OnlineVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
-    model.η₁ .= transpose.(model.κ).*∇μ(model) .+ transpose.(model.κₐ).*model.prevη₁
-    model.η₂ .= -Symmetric.(transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+0.5*transpose.(model.κₐ).*model.invDₐ.*model.κₐ.+0.5.*model.invKmm)
+    model.η₁ .= model.invKmm.*model.μ₀ + transpose.(model.κ).*∇μ(model) .+ transpose.(model.κₐ).*model.prevη₁
+    model.η₂ .= -0.5*Symmetric.(transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+transpose.(model.κₐ).*model.invDₐ.*model.κₐ.+model.invKmm)
 end
 
 """Conversion from natural to standard distribution parameters"""

@@ -32,7 +32,7 @@ mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}
     prevη₁::LatentArray{V}
     prev𝓛ₐ::LatentArray{T}
     verbose::Int64
-    Autotuning::Bool
+    optimizer::Union{Optimizer,Nothing}
     atfrequency::Int64
     Zoptimizer::Union{LatentArray{Optimizer},Nothing}
     Trained::Bool
@@ -61,13 +61,19 @@ function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
             kernel::Kernel,
             likelihood::Likelihood{T1},inference::Inference,
             Zalg::ZAlg=CircleKMeans()#,Sequential::Bool=false
-            ;verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,
+            ;verbose::Integer=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true, Zoptimizer::Union{Any,Nothing}=Nothing(),ArrayType::UnionAll=Vector) where {T1<:Real,T2}
 
             @assert check_implementation(:OnlineVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
             nLatent = 1
             nPrior = IndependentPriors ? nLatent : 1
+            if isa(optimizer,Bool)
+                optimizer = optimizer ? Adam(α=0.01) : nothing
+            end
+            if !isnothing(optimizer)
+                setoptimizer!(kernel,optimizer)
+            end
             kernel = [deepcopy(kernel) for _ in 1:nPrior];
             Zupdated = false;
             μ = LatentArray{ArrayType{T1}}()
@@ -111,7 +117,7 @@ function OnlineVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
                     μ,Σ,η₁,η₂,μ₀,
                     Z,Kmm,invKmm,Knm,κ,κold,K̃,
                     Zₐ,Kab,κₐ,K̃ₐ,invDₐ,prevη₁,𝓛ₐ,
-                    verbose,Autotuning,atfrequency,Zoptimizer,false
+                    verbose,optimizer,atfrequency,Zoptimizer,false
                     )
             # model.verbose = verbose;
             # model.Autotuning = Autotuning;

@@ -116,7 +116,7 @@ end
 
 
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
-function KMeansInducingPoints(X::Array{T,N},nC::Integer;nMarkov::Integer=10,kweights::Vector{T}=[0.0]) where {T,N}
+function KMeansInducingPoints(X::AbstractArray{T,N},nC::Integer;nMarkov::Integer=10,kweights::Vector{T}=[0.0]) where {T,N}
     C = copy(transpose(KmeansSeed(X,nC,nMarkov)))
     if kweights!=[0.0]
         Clustering.kmeans!(copy(transpose(X)),C,weights=kweights,tol=1e-3)

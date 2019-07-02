@@ -1,10 +1,13 @@
 """Create the covariance matrix between the matrix X1 and X2 with the covariance function `kernel`"""
-function kernelmatrix(X1::AbstractArray{T1},X2::AbstractArray{T2},kernel::Kernel) where {T1<:Real,T2<:Real}
+function kernelmatrix(X1::AbstractMatrix{T1},X2::AbstractMatrix{T2},kernel::Kernel) where {T1<:Real,T2<:Real}
     K = pairwise(getmetric(kernel),X1,X2,dims=1)
     v = getvariance(kernel)
     return lmul!(v,map!(kappa(kernel),K,K))
 end
 
+function kernelmatrix(X1::AbstractVector{T1},X2::AbstractVector{T2},kernel::Kernel) where {T1<:Real,T2<:Real}
+    kernelmatrix(reshape(X1,:,1),reshape(X2,:,1),kernel)
+end
 """Compute the covariance matrix between the matrix X1 and X2 with the covariance function `kernel` in preallocated matrix K"""
 function kernelmatrix!(K::AbstractArray{T1},X1::AbstractArray{T2},X2::AbstractArray{T3},kernel::Kernel) where {T1<:Real,T2<:Real,T3<:Real}
     (n1,n2) = size(K)
@@ -17,7 +20,7 @@ function kernelmatrix!(K::AbstractArray{T1},X1::AbstractArray{T2},X2::AbstractAr
 end
 
 """Compute the covariance matrix of the matrix X, optionally only compute the diagonal terms"""
-function kernelmatrix(X::AbstractArray{T1},kernel::Kernel;diag::Bool=false) where {T1<:Real}
+function kernelmatrix(X::AbstractMatrix{T1},kernel::Kernel;diag::Bool=false) where {T1<:Real}
     if diag
         return kerneldiagmatrix(X,kernel)
     end
@@ -25,6 +28,10 @@ function kernelmatrix(X::AbstractArray{T1},kernel::Kernel;diag::Bool=false) wher
     v = getvariance(kernel)
     # return v.*map(kappa(kernel),K)
     return v*map!(kappa(kernel),K,K)
+end
+
+function kernelmatrix(X::AbstractVector{T1},kernel::Kernel;diag::Bool=false) where {T1<:Real}
+    kernelmatrix(reshape(X,:,1),kernel,diag=diag)
 end
 
 """Compute the covariance matrix of the matrix X in preallocated matrix K, optionally only compute the diagonal terms"""
