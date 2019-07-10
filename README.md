@@ -12,18 +12,29 @@ AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development 
   - **BayesianSVM** : A Classifier with a likelihood equivalent to the classic SVM [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20BayesianSVM.ipynb)/[Reference][arxivbsvm]
   - **Logistic** : A Classifier with a Bernoulli likelihood with the logistic link [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Classification%20-%20Logistic.ipynb)/[Reference][arxivxgpc]
 
-    ![Classification Plot](docs/src/assets/Classification.png)
+<p align=center>
+  <img src="docs/src/assets/Classification.png">
+</p>
+
 ---
 ## Three GP Regression likelihood
   - **Gaussian** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here) [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20Gaussian.ipynb)/[Reference][arxivgpbigdata]
   - **StudentT** : The standard Gaussian Process regression with a Student-t likelihood (the degree of freedom ν is not optimizable for the moment) [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20StudentT.ipynb)/[Reference][jmlrstudentt]
-  - **Laplace** : Gaussian Process regression with a Laplace likelihood (https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20Laplace.ipynb)/(No reference at the moment)
-
-   ![Regression Plot](docs/src/assets/Regression.png)
+  - **Laplace** : Gaussian Process regression with a Laplace likelihood [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20Laplace.ipynb)/(No reference at the moment)
+  - **Heteroscedastic** : Regression with non-stationary noise, given by an additional GP. (no reference at the moment)
+  
+<p align=center>
+   <img src="docs/src/assets/Regression.png">
+ </p>
+ 
 ---
 ## One Multi-Class Classification Likelihood
   - **Logistic-SoftMax** : A modified version of the softmax where the exponential is replaced by the logistic function [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/MultiClass%20-%20LogisticSoftMax.ipynb)/[Reference][uaimulticlass]
-  ![MultiClass Plot](docs/src/assets/final3D.png)
+  
+ <p align=center>
+   <img src="docs/src/assets/final3D.png">
+ </p>
+  
 ## More models in development
   - **Poisson** : For point process estimation
   - **Heteroscedastic** : Non stationary noise

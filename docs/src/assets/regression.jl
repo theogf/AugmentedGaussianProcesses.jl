@@ -25,19 +25,19 @@ y_studentt = f .+ rand(TDist(ν),N)
 y_laplace = f .+ rand(Laplace(0,β),N)
 y_hetero = f .+ randn(N).*sqrt.(inv.(logit.(g)))
 
-gpmodel= GP(X,y_gaussian,k,Autotuning=true,noise=σ^2);
+gpmodel= GP(X,y_gaussian,k,noise=σ^2);
 train!(gpmodel,iterations=50)#,callback=intplot)
 gppred,gppred_cov = proba_y(gpmodel,X_test)
 
-stumodel = VGP(X,y_studentt,k,StudentTLikelihood(ν),AnalyticVI(),Autotuning=true);
+stumodel = VGP(X,y_studentt,k,StudentTLikelihood(ν),AnalyticVI());
 train!(stumodel,iterations=50)#,callback=intplot)
 stupred,stupred_cov = proba_y(stumodel,X_test)
 
-lapmodel = VGP(X,y_laplace,k,LaplaceLikelihood(β),AnalyticVI(),Autotuning=true);
+lapmodel = VGP(X,y_laplace,k,LaplaceLikelihood(β),AnalyticVI());
 train!(lapmodel,iterations=50)#,callback=intplot)
 lappred,lappred_cov = proba_y(lapmodel,X_test)
 
-hetmodel = VGP(X,y_hetero,k,HeteroscedasticLikelihood(k,convert(PriorMean,mu0)),AnalyticVI(),Autotuning=true)
+hetmodel = VGP(X,y_hetero,k,HeteroscedasticLikelihood(k,convert(PriorMean,mu0)),AnalyticVI())
 train!(hetmodel,iterations=50)
 hetpred,hetpred_cov = proba_y(hetmodel,X_test)
 

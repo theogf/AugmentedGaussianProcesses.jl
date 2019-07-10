@@ -56,12 +56,12 @@ for model in String.(keys(compat))
         for i in compat[model][likelihood]
             SUITE["Models"][model][likelihood][i] = BenchmarkGroup(funcs)
             if model == "GP"
-                models[model][likelihood][i] = eval(Meta.parse(model*"(X,Vector(data[:$((y_key[likelihood]))]),kernel,Autotuning=true,atfrequency=1)"))
-                SUITE["Models"][model][likelihood][i]["init"] = eval(Meta.parse("@benchmarkable $model(\$X,y_train,\$kernel,Autotuning=true,atfrequency=1) setup=(y_train = Vector(\$D[:\$((y_key[likelihood]))])"))
+                models[model][likelihood][i] = eval(Meta.parse(model*"(X,Vector(data[:$((y_key[likelihood]))]),kernel,atfrequency=1)"))
+                SUITE["Models"][model][likelihood][i]["init"] = eval(Meta.parse("@benchmarkable $model(\$X,y_train,\$kernel,atfrequency=1) setup=(y_train = Vector(\$D[:\$((y_key[likelihood]))])"))
             else
-                # println(Meta.parse(model*"(X,y[\"$likelihood\"],kernel,$(convertl(likelihood)) ,$(converti(i))$(add_ind(model)),Autotuning=true,atfrequency=1)"))
-                models[model][likelihood][i] = eval(Meta.parse(model*"(X,Vector(data[:$((y_key[likelihood]))]),kernel,$(convertl(likelihood)) ,$(converti(i))$(add_ind(model)),Autotuning=true,atfrequency=1)"))
-                SUITE["Models"][model][likelihood][i]["init"] = eval(Meta.parse("@benchmarkable $model(\$X,y_train,\$kernel,$(convertl(likelihood)),$(converti(i)) $(add_ind(model)),Autotuning=true,atfrequency=1) setup=(y_train = Vector(\$data[:\$((y_key[likelihood]))]))"))
+                # println(Meta.parse(model*"(X,y[\"$likelihood\"],kernel,$(convertl(likelihood)) ,$(converti(i))$(add_ind(model)),atfrequency=1)"))
+                models[model][likelihood][i] = eval(Meta.parse(model*"(X,Vector(data[:$((y_key[likelihood]))]),kernel,$(convertl(likelihood)) ,$(converti(i))$(add_ind(model)),atfrequency=1)"))
+                SUITE["Models"][model][likelihood][i]["init"] = eval(Meta.parse("@benchmarkable $model(\$X,y_train,\$kernel,$(convertl(likelihood)),$(converti(i)) $(add_ind(model)),atfrequency=1) setup=(y_train = Vector(\$data[:\$((y_key[likelihood]))]))"))
             end
             SUITE["Models"][model][likelihood][i]["elbo"] = @benchmarkable ELBO(gpmodel) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))
             SUITE["Models"][model][likelihood][i]["computematrices"] = @benchmarkable AGP.computeMatrices!(gpmodel) setup=(gpmodel=deepcopy($(models[model][likelihood][i])))

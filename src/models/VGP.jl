@@ -2,12 +2,11 @@
 Class for variational Gaussian Processes models (non-sparse)
 
 ```julia
- VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},
-     kernel::Union{Kernel,AbstractVector{<:Kernel}},
-     likelihood::LikelihoodType,inference::InferenceType;
-     verbose::Integer=0,Autotuning::Bool=true,
-     atfrequency::Integer=1,IndependentPriors::Bool=true,
-     ArrayType::UnionAll=Vector)
+VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+    likelihood::LikelihoodType,inference::InferenceType;
+    verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+    IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
 ```
 
 Argument list :
@@ -23,8 +22,9 @@ Argument list :
 **Keyword arguments**
 
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `Autotuning` : Flag for optimizing hyperparameters
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
+- `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
+- `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
+- `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
@@ -48,7 +48,7 @@ mutable struct VGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: A
     likelihood::Likelihood{T}
     inference::Inference{T}
     verbose::Int64 #Level of printing information
-    Autotuning::Bool
+    optimizer::Union{Optimizer,Nothing}
     atfrequency::Int64
     Trained::Bool
 end
@@ -56,7 +56,8 @@ end
 
 function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
             likelihood::LikelihoodType,inference::InferenceType;
-            verbose::Integer=0,Autotuning::Bool=true,atfrequency::Integer=1,mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+            verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
+            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2,LikelihoodType<:Likelihood,InferenceType<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
@@ -64,6 +65,12 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
 
             nPrior = IndependentPriors ? nLatent : 1
             nFeatures = nSample = size(X,1); nDim = size(X,2);
+            if isa(optimizer,Bool)
+                optimizer = optimizer ? Adam(α=0.01) : nothing
+            end
+            if !isnothing(optimizer)
+                setoptimizer!(kernel,optimizer)
+            end
             kernel = ArrayType([deepcopy(kernel) for _ in 1:nPrior])
 
             μ = LatentArray([zeros(T1,nFeatures) for _ in 1:nLatent]); η₁ = deepcopy(μ)
@@ -87,7 +94,7 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
                     nFeatures, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,μ,Σ,η₁,η₂,
                     μ₀,Knn,invKnn,kernel,likelihood,inference,
-                    verbose,Autotuning,atfrequency,false)
+                    verbose,optimizer,atfrequency,false)
 end
 
 function Base.show(io::IO,model::VGP{<:Likelihood,<:Inference,T}) where T

@@ -17,7 +17,7 @@ floattypes = [Float64]
 @testset "GP" begin
     for floattype in floattypes
         @test typeof(GP(X,y,k)) <: GP{eval(Meta.parse("GaussianLikelihood{"*string(floattype)*"}")),eval(Meta.parse("Analytic{"*string(floattype)*"}")),floattype,Vector{floattype}}
-        model = GP(X,y,k,Autotuning=true,verbose=2)
+        model = GP(X,y,k,verbose=2)
         @test train!(model,iterations=50)
         @test mean(abs2.(predict_y(model,X)-y)) < 0.2
     end

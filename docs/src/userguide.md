@@ -10,8 +10,8 @@ There are 3 main actions needed to train and use the different models:
 
 ### GP vs VGP vs SVGP
 
-There are currently 3 possible models:
-- [`GP`](@ref) corresponds to the original GP regression model.
+There are currently 3 possible Gaussian Process models:
+- [`GP`](@ref) corresponds to the original GP regression model, it is necessarily with a Gaussian likelihood.
 ```julia
     GP(X_train,y_train,kernel)
 ```
@@ -29,21 +29,29 @@ There are currently 3 possible models:
 
 #### Regression
 
-For **regression** one can use the [`GaussianLikelihood`](@ref), the [`StudentTLikelihood`](@ref) or the [`LaplaceLikelihood`](@ref) likelihood. The first one is assuming that the model has [**Gaussian noise**](https://en.wikipedia.org/wiki/Gaussian_noise), the second assumes noise from a [**Student-T**](https://en.wikipedia.org/wiki/Student%27s_t-distribution) distribution (more robust to ouliers) and the last one assumes noise from a [**Laplace**](https://en.wikipedia.org/wiki/Laplace_distribution) distribution.
+For **regression**, four likelihoods are available :
+- The classical [`GaussianLikelihood`](@ref), for [**Gaussian noise**](https://en.wikipedia.org/wiki/Gaussian_noise)
+- The [`StudentTLikelihood`](@ref), assuming noise from a [**Student-T**](https://en.wikipedia.org/wiki/Student%27s_t-distribution) distribution (more robust to ouliers)
+- The [`LaplaceLikelihood`](@ref), with noise from a [**Laplace**](https://en.wikipedia.org/wiki/Laplace_distribution) distribution.
+- The [`HeteroscedasticLikelihood`](@ref), (in development) where the noise is a function of the input: ``\\text{Var}(X) = \\lambda\\sigma^{-1}(g(X))`` where `g(X)` is an additional Gaussian Process and ``\\sigma`` is the logistic function.
 
 #### Classification
 
-For **classification** one can select the [`LogisticLikelihood`](@ref) : a Bernoulli likelihood with a [**logistic link**](https://en.wikipedia.org/wiki/Logistic_function) or the [`BayesianSVM`](@ref) likelihood based on the [**frequentist SVM**](https://en.wikipedia.org/wiki/Support_vector_machine#Bayesian_SVM), equivalent to use a hinge loss.
+For **classification** one can select among
+- The [`LogisticLikelihood`](@ref) : a Bernoulli likelihood with a [**logistic link**](https://en.wikipedia.org/wiki/Logistic_function)
+- The [`BayesianSVM`](@ref) likelihood based on the [**frequentist SVM**](https://en.wikipedia.org/wiki/Support_vector_machine#Bayesian_SVM), equivalent to use a hinge loss.
 
 #### Multi-class classification
 
-In development
+There is two available likelihoods for multi-class classification:
+- The [`SoftMaxLikelihood`](@ref), the most common approach. However no analytical solving is possible
+- The [`LogisticSoftMaxLikelihood`](@ref), a modified softmax where the exponential function is replaced by the logistic function. It allows to get a fully conjugate model, [**Corresponding paper**](https://arxiv.org/abs/1905.09670)
 
 ### Inference
 
 Inference can be done in various ways.
 
-- [`AnalyticVI`](@ref) : Variational Inference with closed-form updates. For non-Gaussian likelihoods, this relies on augmented version of the likelihoods. For using Stochastic Variational Inference, one can use [`AnalyticSVI`](@ref) with the size of the mini-batch as an argument
+- [`AnalyticVI`](@ref) : [Variational Inference](https://en.wikipedia.org/wiki/Variational_Bayesian_methods) with closed-form updates. For non-Gaussian likelihoods, this relies on augmented version of the likelihoods. For using Stochastic Variational Inference, one can use [`AnalyticSVI`](@ref) with the size of the mini-batch as an argument
 - [`GibbsSampling`](@ref) : Gibbs Sampling of the true posterior, this also rely on an augmented version of the likelihoods, this is only valid for the `VGP` model at the moment.
 - [`QuadratureVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via quadrature.
 - [`MCIntegrationVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via Monte Carlo Integration
@@ -57,13 +65,33 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 | GaussianLikelihood   | ✔  | ✖  | ✖ | ✖  |
 | StudentTLikelihood   | ✔  | ✔ | (dev) | ✖  |
 | LaplaceLikelihood   | ✔ | (dev) | (dev) | ✖ |
+| HeteroscedasticLikelihood   | ✔ | (dev)  | (dev)  | ✖ |
 | LogisticLikelihood   | ✔  | ✔  | (dev) | ✖  |
 | BayesianSVM   | ✔  | (dev) | ✖ | ✖  |
 | LogisticSoftMaxLikelihood   | ✔  | ✔  | ✖ | (dev)  |
 | SoftMaxLikelihood   | ✖  |  ✖  | ✖  | (dev)  |
 | Poisson   | ✔ | (dev) | ✖  |  ✖ |
 
-(dev) means that the feature is possible and may be developped and tested but is not available yet, all contributions are very welcome!
+(dev) means that the feature is possible and may be developped and tested but is not available yet. All contributions or requests are very welcome!
+
+### Additional Parameters
+
+#### Hyperparameter optimization
+
+One can optimize the kernel hyperparameters as well as the inducing points location by maximizing the ELBO. All derivations are already hand-coded (no AD needed). One can select the optimization scheme via :
+- The `optimizer` keyword, can be `nothing` or `false` for no optimization or can be an optimizer from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. By default it is set to `Adam(α=0.01)`
+- The `Zoptimizer` keyword, similar to `optimizer` it is used for optimizing the inducing points locations, it is by default set to `nothing` (no optimization)
+
+#### [PriorMean](@id meanprior)
+
+The `mean` keyword allows you to add different types of prior means:
+- [`ZeroMean`](@ref), a constant mean that cannot be optimized
+- [`ConstantMean`](@ref), a constant mean that can be optimized
+- [`EmpiricalMean`](@ref), a vector mean with a different value for each point
+
+#### IndependentPriors
+
+When having multiple latent Gaussian Processes one can decide to have a common prior for all of them or to have a separate prior for each latent GP. Having a common prior has the advantage that less computations are required to optimize hyperparameters.
 
 ## [Training](@id train)
 

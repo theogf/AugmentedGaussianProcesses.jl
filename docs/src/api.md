@@ -29,7 +29,9 @@ GaussianLikelihood
 StudentTLikelihood
 LaplaceLikelihood
 LogisticLikelihood
+HeteroscedasticLikelihood
 BayesianSVM
+SoftMaxLikelihood
 LogisticSoftMaxLikelihood
 PoissonLikelihood
 ```

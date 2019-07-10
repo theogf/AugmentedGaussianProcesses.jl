@@ -25,9 +25,9 @@ function update_hyperparameters!(model::SVGP{<:Likelihood,<:Inference,T}) where 
     f_l,f_v,f_μ₀ = hyperparameter_gradient_function(model)
     grads_l = map(compute_hyperparameter_gradient,model.kernel,fill(f_l,model.nPrior),Jmm,Jnm,Jnn,collect(1:model.nPrior))
     grads_v = map(f_v,model.kernel,1:model.nPrior)
-    if model.OptimizeInducingPoints
+    if !isnothing(model.Zoptimizer)
         Z_gradients = inducingpoints_gradient(model) #Compute the gradient given the inducing points location
-        model.Z += GradDescent.update(model.optimizer,Z_gradients) #Apply the gradients on the location
+        model.Z += GradDescent.update(model.Zoptimizer,Z_gradients) #Apply the gradients on the location
     end
     grads_μ₀ = map(f_μ₀,1:model.nPrior)
     apply_gradients_lengthscale!.(model.kernel,grads_l)
