@@ -151,10 +151,11 @@ end
 
 ## Numerical Gradients ##
 
-function gradpdf(::StudentTLikelihood,y::Int,f::T) where {T<:Real}
-    @error "Not implemented yet"
+function gradpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
+    -pdf(l,y,f)*(one(T)+l.ν)*(f-y)/(l.ν*l.σ^2*(f-y)^2)
 end
 
-function hessiandiagpdf(::StudentTLikelihood,y::Int,f::T) where {T<:Real}
-    @error "Not implemented yet"
+function hessiandiagpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
+    v = l.ν*l.σ^2; Δ² = (f-y)^2
+    -pdf(l,y,f)*(one(T)+l.ν)*(v-(2*one(T)+l.ν)*Δ²)/(v+Δ²)^2
 end

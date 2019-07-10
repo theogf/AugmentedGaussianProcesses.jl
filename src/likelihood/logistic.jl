@@ -129,11 +129,11 @@ end
 ### Gradient Section ###
 
 function gradpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
-    σ=y*f
+    σ=logistic(y*f)
     σ*(one(T)-σ)
 end
 
 function hessiandiagpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
-    σ=y*f
+    σ=logistic(y*f)
     σ*(one(T)-2σ + abs2(σ))
 end

@@ -63,7 +63,7 @@ end
 function compute_grad_expectations!(model::VGP{<:Likelihood,<:QuadratureVI})
     for k in 1:model.nLatent
         for i in 1:model.nSample
-            grad_quad(model.likelihood,model.y[k][i],model.μ[k][i],model.Σ[k][i,i])
+            model.inference.∇μE[k][i], model.inference.∇ΣE[k][i] = grad_quad(model.likelihood, model.y[k][i], model.μ[k][i], model.Σ[k][i,i],model.inference.nPoints)
         end
     end
 end
@@ -72,14 +72,14 @@ function compute_grad_expectations!(model::SVGP{<:Likelihood,<:QuadratureVI})
     μ = model.κ.*model.μ; Σ = opt_diag(model.κ.*model.Σ,model.κ)
     for k in 1:model.nLatent
         for i in 1:model.nSample
-            model.inference.∇μE[k][i], model.inference.∇ΣE[k][i] = grad_quad(model.likelihood,model.y[k][i],μ[k][i],Σ[k][i,i])
+            model.inference.∇μE[k][i], model.inference.∇ΣE[k][i] = grad_quad(model.likelihood, model.y[k][i], μ[k][i], Σ[k][i,i], model.inference.nPoints)
         end
     end
 end
 
 function grad_quad(likelihood::Likelihood,y::Real,μ::Real,σ²::Real,nPoints::Int) where {T<:Real}
     e = expectation(Normal(μ,sqrt(σ²)),n=nPoints)
-    p = e(x->pdf(likelihood,y,x),d)
+    p = e(x->pdf(likelihood,y,x))
     dE = e(x->gradpdf(likelihood,y,x))/p
     d²E = e(x->hessiandiagpdf(likelihood,y,x))/p
     return dE, d²E - dE^2
