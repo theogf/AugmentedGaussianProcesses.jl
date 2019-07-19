@@ -59,6 +59,16 @@ function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,
     QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false,nMinibatch)
 end
 
+function expecLogLikelihood(model::VGP{<:Likelihood,<:QuadratureVI})
+    tot = 0.0
+    for k in 1:model.nLatent
+        for i in 1:model.nSample
+            expectation(x->logpdf(model.likelihood,model.y[k][i],x),Normal(model.μ[k][i],sqrt(model.Σ[k][i,i])))
+        end
+    end
+    return tot
+end
+
 
 function compute_grad_expectations!(model::VGP{<:Likelihood,<:QuadratureVI})
     for k in 1:model.nLatent
@@ -79,10 +89,10 @@ end
 
 function grad_quad(likelihood::Likelihood,y::Real,μ::Real,σ²::Real,nPoints::Int) where {T<:Real}
     e = expectation(Normal(μ,sqrt(σ²)),n=nPoints)
-    p = e(x->pdf(likelihood,y,x))
-    dE = e(x->gradpdf(likelihood,y,x))/p
-    d²E = e(x->hessiandiagpdf(likelihood,y,x))/p
-    return dE, d²E - dE^2
+    # p = e(x->pdf(likelihood,y,x))
+    dμ = e(x->gradpdf(likelihood,y,x))
+    dΣ = 0.5*e(x->hessiandiagpdf(likelihood,y,x))
+    return dμ, dΣ
 end
 
 

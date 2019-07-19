@@ -92,7 +92,7 @@ function variational_updates!(model::SVGP{<:Likelihood,<:NumericalVI}) where {L<
 end
 
 function natural_gradient!(model::VGP{<:Likelihood,<:NumericalVI})
-    model.inference.∇η₁ .= model.Σ.*(model.inference.∇μE .- model.invKnn.*model.μ)
+    model.inference.∇η₁ .= model.Σ.*(model.inference.∇μE .- model.invKnn.*model.μ₀)
     model.inference.∇η₂ .= Symmetric.(Diagonal.(model.inference.∇ΣE).-0.5.*model.invKnn .- model.η₂)
 end
 
@@ -142,6 +142,26 @@ end
 
 function ELBO(model::AbstractGP{<:Likelihood,<:NumericalVI})
     return expecLogLikelihood(model) - GaussianKL(model)
+end
+
+function η_ξ(μ::AbstractVector{<:Real},Σ)
+
+end
+
+function ξ_η(η₁::AbstractVector{<:Real},η₂)
+
+end
+
+function θ_ξ(μ::AbstractVector{<:Real},Σ::AbstractMatrix{<:Real})
+    μ,Σ+μ*transpose(μ)
+end
+
+function ξ_θ(θ₁::AbstractVector{<:Real},θ₂::AbstractMatrix{<:Real})
+    θ₁,θ₂-θ₁*transpose(θ₁)
+end
+
+function dL_dξxdξ_dθ(θ₁::AbstractVector{<:Real},θ₂::AbstractMatrix{<:Real},∇μL::AbstractVector{<:Real},∇Σ::AbstractVector{<:Real})
+
 end
 
 function expec_μ(model::AbstractGP{<:Likelihood,<:NumericalVI},index::Integer)

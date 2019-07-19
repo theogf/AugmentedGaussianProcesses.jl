@@ -89,8 +89,8 @@ end
 
 """Computation of the natural gradient for the natural parameters"""
 function natural_gradient!(model::SVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
-    map!(∇η₁,model.inference.∇η₁,∇μ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.μ₀,model.η₁)
-    map!(∇η₂,model.inference.∇η₂,∇Σ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂)
+    model.inference.∇η₁ .= ∇η₁.(∇μ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.μ₀,model.η₁)
+    model.inference.∇η₂ .= ∇η₂.(∇Σ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂)
 end
 
 function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},invKmm::Symmetric{T,Matrix{T}},μ₀::PriorMean,η₁::AbstractVector{T}) where {T <: Real}
