@@ -80,7 +80,7 @@ function makie1D!(scene::Scene,model::AbstractGP)
     return scene
 end
 
-function makie1D!(scene::Scene,model::AbstractGP{<:RegressionLikelihood},x_grid::AbstractVector)
+function makie1D!(scene::Scene,model::AbstractGP{T,<:RegressionLikelihood},x_grid::AbstractVector) where {T}
     μ_grid,σ²_grid = proba_y(model,x_grid)
     if model.nLatent == 1
         Makie.scatter!(scene,model.X[:,1],model.y[1],markersize=0.01,color=:black)
@@ -100,7 +100,7 @@ function makie1D!(scene::Scene,model::AbstractGP{<:RegressionLikelihood},x_grid:
     return scene
 end
 
-function makie1D!(scene::Scene,model::AbstractGP{<:ClassificationLikelihood},x_grid::AbstractVector)
+function makie1D!(scene::Scene,model::AbstractGP{T,<:ClassificationLikelihood},x_grid::AbstractVector) where {T}
     μ_grid,σ²_grid = predict_f(model,x_grid,covf=true)
     py_grid = proba_y(model,x_grid)
     if model.nLatent == 1

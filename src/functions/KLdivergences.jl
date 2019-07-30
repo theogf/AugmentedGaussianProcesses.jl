@@ -48,7 +48,7 @@ function PolyaGammaKL(b,c,θ)
 end
 
 """Compute Entropy for Generalized inverse Gaussian latent variables (BayesianSVM)"""
-function GIGEntropy(model::AbstractGP{<:BayesianSVM})
+function GIGEntropy(model::AbstractGP{T,<:BayesianSVM}) where {T}
     return model.inference.ρ*sum(broadcast(b->0.5*sum(log.(b))+sum(log.(2.0*besselk.(0.5,sqrt.(b))))-0.5*sum(sqrt.(b)),model.likelihood.ω))
 end
 

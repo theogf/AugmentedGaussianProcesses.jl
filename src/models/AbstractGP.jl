@@ -1,4 +1,4 @@
-abstract type AbstractGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractArray{T}} end
+abstract type AbstractGP{T<:Real,L<:Likelihood{T},I<:Inference{T},V<:AbstractArray{T}} end
 
 function Random.rand!(model::AbstractGP,A::DenseArray{T},X::AbstractArray{T}) where {T<:Real}
     rand!(MvNormal(predict_f(model,X,covf=true,fullcov=true)...),A)

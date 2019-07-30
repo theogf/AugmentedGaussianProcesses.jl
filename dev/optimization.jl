@@ -81,7 +81,7 @@ elbos = MVHistory()
 lparams = MVHistory()
 vparams = MVHistory()
 anim  = Animation()
-function callback(model::GP{TLike,TInf},iter) where {TLike,TInf}
+function callback(model::GP{T,TLike,TInf},iter) where {T,TLike,TInf}
     push!(elbos,:loglike,AugmentedGaussianProcesses.expecLogLikelihood(model))
     push!(elbos,:gaussian,-AugmentedGaussianProcesses.GaussianKL(model))
     if AugmentedGaussianProcesses.isaugmented(TLike())

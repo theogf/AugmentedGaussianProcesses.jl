@@ -6,6 +6,6 @@ include("analyticVI.jl")
 include("gibbssampling.jl")
 include("numericalVI.jl")
 
-function post_process!(model::AbstractGP{<:Likelihood,<:Inference})
+function post_process!(model::AbstractGP{T,<:Likelihood,<:Inference}) where {T}
     nothing
 end

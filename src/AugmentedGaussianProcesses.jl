@@ -37,7 +37,7 @@ using .PGSampler
 using GradDescent
 export Optimizer, Adam, VanillaGradDescent, ALRSVI, InverseDecay
 using DataFrames, LinearAlgebra
-using StatsBase, StatsFuns, SpecialFunctions, Expectations, Random, Distributions
+using StatsBase, StatsFuns, SpecialFunctions, Expectations, Random, Distributions, FastGaussQuadrature
 using ProgressMeter
 import Base: convert, show, copy
 #Exported modules

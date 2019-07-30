@@ -75,20 +75,20 @@ function init_inference(inference::AnalyticVI{T},nLatent::Integer,nFeatures::Int
 end
 
 """Generic method for variational updates using analytical formulas"""
-function variational_updates!(model::AbstractGP{L,AnalyticVI{T}}) where {L<:Likelihood,T}
+function variational_updates!(model::AbstractGP{T,L,AnalyticVI{T}}) where {T,L}
     local_updates!(model)
     natural_gradient!(model)
     global_update!(model)
 end
 
 """Coordinate ascent updates on the natural parameters"""
-function natural_gradient!(model::VGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
+function natural_gradient!(model::VGP{T,L,AnalyticVI{T}}) where {T,L}
     model.η₁ .= ∇μ(model) .+ model.invKnn.*model.μ₀
     model.η₂ .= -0.5*Symmetric.(Diagonal{T}.(∇Σ(model)).+model.invKnn)
 end
 
 """Computation of the natural gradient for the natural parameters"""
-function natural_gradient!(model::SVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
+function natural_gradient!(model::SVGP{T,L,AnalyticVI{T}}) where {T,L}
     model.inference.∇η₁ .= ∇η₁.(∇μ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.μ₀,model.η₁)
     model.inference.∇η₂ .= ∇η₂.(∇Σ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂)
 end
@@ -102,13 +102,13 @@ function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},invK
 end
 
 """Conversion from natural to standard distribution parameters"""
-function global_update!(model::VGP{L,AnalyticVI{T}}) where {L<:Likelihood,T}
+function global_update!(model::VGP{T,L,AnalyticVI{T}}) where {T,L}
     model.Σ .= -0.5.*inv.(model.η₂)
     model.μ .= model.Σ.*model.η₁
 end
 
 """Update of the natural parameters and conversion from natural to standard distribution parameters"""
-function global_update!(model::SVGP{L,AnalyticVI{T}}) where {L<:Likelihood,T}
+function global_update!(model::SVGP{T,L,AnalyticVI{T}}) where {T,L}
     if model.inference.Stochastic
         model.η₁ .= model.η₁ .+ GradDescent.update.(model.inference.optimizer_η₁,model.inference.∇η₁)
         model.η₂ .= Symmetric.(model.η₂ .+ GradDescent.update.(model.inference.optimizer_η₂,model.inference.∇η₂))

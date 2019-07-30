@@ -28,7 +28,7 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
             return false
         end
     elseif likelihood isa LaplaceLikelihood
-        if inference isa AnalyticVI
+        if inference isa AnalyticVI || inference isa QuadratureVI
             return true
         else
             return false

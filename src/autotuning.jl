@@ -18,7 +18,7 @@ end
 """
     Update all hyperparameters for the sparse variational GP models
 """
-function update_hyperparameters!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
+function update_hyperparameters!(model::SVGP{T}) where {T<:Real}
     Jmm = kernelderivativematrix.(model.Z,model.kernel)
     Jnm = kernelderivativematrix.([model.X[model.inference.MBIndices,:]],model.Z,model.kernel)
     Jnn = kernelderivativediagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel)
@@ -47,7 +47,7 @@ end
 """
     Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model
 """
-function hyperparameter_gradient_function(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
+function hyperparameter_gradient_function(model::VGP{T}) where {T<:Real}
     A = ([Diagonal{T}(I,model.nFeatures)].-model.invKnn.*(model.Σ.+(model.µ.-model.μ₀).*transpose.(model.μ.-model.μ₀))).*model.invKnn
     if model.IndependentPriors
         return (function(Jnn,index)
@@ -72,7 +72,7 @@ function hyperparameter_gradient_function(model::VGP{<:Likelihood,<:Inference,T}
     end
 end
 
-function hyperparameter_local_gradient_function(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
+function hyperparameter_local_gradient_function(model::VGP{T}) where {T<:Real}
     A = ([Diagonal{T}(I,model.nFeatures)].-model.likelihood.invK.*(model.likelihood.Σ.+(model.likelihood.µ.-model.likelihood.μ₀).*transpose.(model.likelihood.μ.-model.likelihood.μ₀))).*model.likelihood.invK
     return (function(Jnn,index)
                 return -hyperparameter_KL_gradient(Jnn,A[index])
@@ -86,7 +86,7 @@ function hyperparameter_local_gradient_function(model::VGP{<:Likelihood,<:Infere
 end
 
 """Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model"""
-function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
+function hyperparameter_gradient_function(model::SVGP{T}) where {T<:Real}
     A = ([Diagonal{T}(I,model.nFeatures)].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
     ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeatures) #Empty container to save data allocation
     κΣ = model.κ.*model.Σ
@@ -119,7 +119,7 @@ function hyperparameter_gradient_function(model::SVGP{<:Likelihood,<:Inference,T
 end
 
 """Gradient with respect to hyperparameter with independent priors"""
-function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:AnalyticVI{T},T},ι::Matrix{T},κΣ::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Integer) where {T<:Real}
+function hyperparameter_expec_gradient(model::SVGP{T},ι::Matrix{T},κΣ::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Integer) where {T<:Real}
     mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[index])
     Jnn .-= opt_diag(ι,model.Knm[index]) + opt_diag(model.κ[index],Jnm)
     dμ = dot(cond_mean(model,index),ι*model.μ[index])
@@ -130,7 +130,7 @@ function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:AnalyticVI{
 end
 
 """Gradient with respect to hyperparameter with independent priors"""
-function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:NumericalVI{T},T},ι::Matrix{T},κΣ::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Integer) where {T<:Real}
+function hyperparameter_expec_gradient(model::SVGP{T},ι::Matrix{T},κΣ::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Integer) where {T<:Real}
     mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[index])
     Jnn .-= opt_diag(ι,model.Knm[index]) + opt_diag(model.κ[index],Jnm)
     dμ = dot(expec_μ(model,index),ι*model.μ[index])
@@ -139,7 +139,7 @@ function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:NumericalVI
 end
 
 """Gradient with respect to hyperparameter with shared priors"""
-function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:AnalyticVI{T},T},ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
+function hyperparameter_expec_gradient(model::SVGP{T},ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
     mul!(ι,(Jnm-model.κ[1]*Jmm),model.invKmm[1])
     Jnn .-= opt_diag(ι,model.Knm[1]) + opt_diag(model.κ[1],Jnm)
     dμ = sum(dot(cond_mean(model,i),ι*model.μ[i]) for i in 1:model.nLatent)
@@ -149,7 +149,7 @@ function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:AnalyticVI{
 end
 
 """Gradient with respect to hyperparameter with shared priors"""
-function hyperparameter_expec_gradient(model::SVGP{<:Likelihood{T},<:NumericalVI{T},T},ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
+function hyperparameter_expec_gradient(model::SVGP{T},ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
     mul!(ι,(Jnm-model.κ[1]*Jmm),model.invKmm[1])
     Jnn .-= opt_diag(ι,model.Knm[1]) + opt_diag(model.κ[1],Jnm)
     dμ = sum(dot(expec_μ(model,i),ι*model.μ[i]) for i in 1:model.nLatent)
@@ -159,7 +159,7 @@ end
 
 
 """Return a function computing the gradient of the ELBO given the inducing point locations"""
-function inducingpoints_gradient(model::SVGP{<:Likelihood{T},<:Inference{T},T}) where {T<:Real}
+function inducingpoints_gradient(model::SVGP{T}) where {T<:Real}
     if model.IndependentPriors
         gradients_inducing_points = zero(model.Z[1])
         A = ([I].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm

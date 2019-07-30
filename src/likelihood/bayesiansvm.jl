@@ -68,50 +68,50 @@ end
 ###############################################################################
 
 
-function local_updates!(model::VGP{BayesianSVM{T},<:AnalyticVI}) where {T<:Real}
+function local_updates!(model::VGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
     model.likelihood.ω .= broadcast((μ,Σ,y)->abs2.(one(T) .- y.*μ) + Σ ,model.μ,diag.(model.Σ),model.y)
     model.likelihood.θ .= broadcast(b->one(T)./sqrt.(b),model.likelihood.ω)
 end
 
-function local_updates!(model::SVGP{BayesianSVM{T},<:AnalyticVI}) where {T<:Real}
+function local_updates!(model::SVGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
     model.likelihood.ω .= broadcast((κ,μ,Σ,y,K̃)->abs2.(one(T) .- y[model.inference.MBIndices].*(κ*μ)) + opt_diag(κ*Σ,κ) + K̃,model.κ,model.μ,model.Σ,model.y,model.K̃)
     model.likelihood.θ .= broadcast(b->one(T)./sqrt.(b),model.likelihood.ω)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function cond_mean(model::VGP{BayesianSVM{T}},index::Integer) where {T<:Real}
+function cond_mean(model::VGP{T,<:BayesianSVM},index::Integer) where {T}
     return model.y[index].*(model.likelihood.θ[index] .+ one(T))
 end
 
-function ∇μ(model::VGP{BayesianSVM{T}}) where {T<:Real}
+function ∇μ(model::VGP{T,<:BayesianSVM}) where {T}
     return broadcast((y,θ)->y.*(θ.+one(T)),model.y,model.likelihood.θ)
 end
 
 """ Return the gradient of the expectation for latent GP `index` """
-function cond_mean(model::SVGP{BayesianSVM{T}},index::Integer) where {T<:Real}
+function cond_mean(model::SVGP{T,<:BayesianSVM},index::Integer) where {T}
     return model.y[index][model.inference.MBIndices].*(model.likelihood.θ[index].+one(T))
 end
 
-function ∇μ(model::SVGP{BayesianSVM{T}}) where {T<:Real}
+function ∇μ(model::SVGP{T,<:BayesianSVM}) where {T}
     return broadcast((y,θ)->y[model.inference.MBIndices].*(θ.+one(T)),model.y,model.likelihood.θ)
 end
 
-function ∇Σ(model::AbstractGP{BayesianSVM{T}}) where {T<:Real}
+function ∇Σ(model::AbstractGP{T,<:BayesianSVM}) where {T}
     return model.likelihood.θ
 end
 
-function ELBO(model::AbstractGP{<:BayesianSVM})
+function ELBO(model::AbstractGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
     return expecLogLikelihood(model) - GaussianKL(model) - GIGEntropy(model)
 end
 
-function expecLogLikelihood(model::VGP{BayesianSVM{T},AnalyticVI{T}}) where {T<:Real}
+function expecLogLikelihood(model::VGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
     tot += sum(broadcast((μ,y,θ,Σ)->(sum(μ.*y)-0.5*dot(θ,Σ+abs2.(one(T).-y.*μ))),
                         model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{BayesianSVM{T},AnalyticVI{T}}) where {T<:Real}
+function expecLogLikelihood(model::SVGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
     tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->(sum(κμ.*y[model.inference.MBIndices])-0.5*dot(θ,K̃+κΣκ+abs2.(one(T).-y[model.inference.MBIndices].*κμ))),
                         model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))

@@ -75,21 +75,21 @@ function update_parameters!(model::SVGP)
     variational_updates!(model);
 end
 
-function computeMatrices!(model::GP{<:Likelihood,<:Inference,T}) where {T<:Real}
+function computeMatrices!(model::GP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
         model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) )
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn.+ model.likelihood.ϵ.*[I])))
     end
 end
 
-function computeMatrices!(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
+function computeMatrices!(model::VGP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
         model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
     end
 end
 
-function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
+function computeMatrices!(model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
         model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*T(jitter)*I),model.Z,model.kernel)
         model.invKmm .= Symmetric.(inv.(cholesky.(model.Kmm)))

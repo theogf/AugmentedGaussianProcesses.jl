@@ -86,17 +86,17 @@ end
 
 ## Local Updates ##
 
-function local_updates!(model::VGP{<:StudentTLikelihood,<:AnalyticVI})
+function local_updates!(model::VGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
     model.likelihood.β .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y).+model.likelihood.σ^2*model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
     model.likelihood.θ .= broadcast(β->model.likelihood.α./β,model.likelihood.β)
 end
 
-function local_updates!(model::SVGP{<:StudentTLikelihood,<:AnalyticVI})
+function local_updates!(model::SVGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
     model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices]).+model.likelihood.σ^2*model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
     model.likelihood.θ .= broadcast(β->model.likelihood.α./β,model.likelihood.β)
 end
 
-function sample_local!(model::VGP{<:StudentTLikelihood,<:GibbsSampling})
+function sample_local!(model::VGP{T,<:StudentTLikelihood,<:GibbsSampling}) where {T}
     model.likelihood.β .= broadcast((μ::AbstractVector{<:Real},y)->rand.(InverseGamma.(model.likelihood.α,0.5*(abs2.(μ-y).+model.likelihood.σ^2*model.likelihood.ν))),model.μ,model.y)
     model.likelihood.θ .= broadcast(β->1.0./β,model.likelihood.β)
     return nothing
@@ -104,58 +104,67 @@ end
 
 ## Global Gradients ##
 
-function cond_mean(model::VGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::VGP{T,<:StudentTLikelihood,<:AnalyticVI},index::Integer) where {T}
     return model.likelihood.θ[index].*model.y[index]
 end
 
-function ∇μ(model::VGP{<:StudentTLikelihood})
+function ∇μ(model::VGP{T,<:StudentTLikelihood}) where {T}
     return hadamard.(model.likelihood.θ,model.y)
 end
 
-function cond_mean(model::SVGP{<:StudentTLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::SVGP{T,<:StudentTLikelihood,<:AnalyticVI},index::Integer) where {T}
     return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]
 end
 
-function ∇μ(model::SVGP{<:StudentTLikelihood,<:AnalyticVI})
+function ∇μ(model::SVGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
     return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))
 end
 
-function ∇Σ(model::AbstractGP{<:StudentTLikelihood})
+function ∇Σ(model::AbstractGP{T,<:StudentTLikelihood}) where {T}
     return model.likelihood.θ
 end
 
-function ELBO(model::AbstractGP{<:StudentTLikelihood,<:AnalyticVI})
+function ELBO(model::AbstractGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
     return expecLogLikelihood(model) - InverseGammaKL(model) - GaussianKL(model)
 end
 
 ## ELBO Section ##
 
-function expecLogLikelihood(model::VGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
+function expecLogLikelihood(model::VGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
     tot = -0.5*model.nLatent*model.nSample*(log(twoπ*model.likelihood.σ))
     tot += -0.5.*sum(broadcast(β->sum(model.nSample*digamma(model.likelihood.α).-log.(β)),model.likelihood.β))
     tot += -0.5.*sum(broadcast((θ,Σ,μ,y)->dot(θ,Σ+abs2.(μ)-2.0*μ.*y-abs2.(y)),model.likelihood.θ,diag.(model.Σ),model.μ,model.y))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{StudentTLikelihood{T},AnalyticVI{T}}) where T
+function expecLogLikelihood(model::SVGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
     tot = -0.5*model.nLatent*model.inference.nSamplesUsed*(log(twoπ*model.likelihood.σ))
     tot += -0.5.*sum(broadcast(β->sum(model.inference.nSamplesUsed*digamma(model.likelihood.α).-log.(β)),model.likelihood.β))
     tot += -0.5.*sum(broadcast((θ,K̃,κ,Σ,κμ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κμ)-2.0*(κμ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.κ.*model.μ,model.y))
     return model.inference.ρ*tot
 end
 
-function InverseGammaKL(model::AbstractGP{<:StudentTLikelihood})
+function InverseGammaKL(model::AbstractGP{T,<:StudentTLikelihood}) where {T}
     α_p = model.likelihood.ν/2; β_p= α_p*model.likelihood.σ^2
     model.inference.ρ*sum(broadcast(InverseGammaKL,model.likelihood.α,model.likelihood.β,α_p,β_p))
 end
 
-## Numerical Gradients ##
+## PDF and Log PDF Gradients ##
+
+function grad_log_pdf_μ(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
+    (one(T)+l.ν) * (y-f) / ((f-y)^2 + l.σ^2*l.ν)
+end
 
 function gradpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
-    -pdf(l,y,f)*(one(T)+l.ν)*(f-y)/(l.ν*l.σ^2*(f-y)^2)
+    grad_log_pdf_μ(l,y,f)*pdf(l,y,f)
 end
 
 function hessiandiagpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
-    v = l.ν*l.σ^2; Δ² = (f-y)^2
-    -pdf(l,y,f)*(one(T)+l.ν)*(v-(2*one(T)+l.ν)*Δ²)/(v+Δ²)^2
+    v = l.ν * l.σ^2; Δ² = (f-y)^2
+    pdf(l,y,f) * (one(T)+l.ν) * (-v + (2*one(T) + l.ν) * Δ²) / (v+Δ²)^2
+end
+
+function grad_log_pdf_Σ(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
+    v = l.ν * l.σ^2; Δ² = (f-y)^2
+    (one(T)+l.ν) * (-v + Δ²) / (v+Δ²)^2
 end

@@ -61,7 +61,7 @@ function predict_f(model::SVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov
     return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 end
 
-function predict_f(model::VGP{<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where T
+function predict_f(model::VGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
     μf =  [vec(mean(hcat(f[k]...),dims=2)) for k in 1:model.nLatent]
@@ -88,40 +88,40 @@ function predict_y(model::AbstractGP,X_test::AbstractVector)
 end
 
 """
-`predict_y(model::AbstractGP{<:RegressionLikelihood},X_test::AbstractMatrix)`
+`predict_y(model::AbstractGP{T,<:RegressionLikelihood},X_test::AbstractMatrix)`
 
 Return the predictive mean of `X_test`
 """
-function predict_y(model::AbstractGP{<:RegressionLikelihood},X_test::AbstractMatrix)
+function predict_y(model::AbstractGP{T,<:RegressionLikelihood},X_test::AbstractMatrix) where {T}
     return predict_f(model,X_test,covf=false)
 end
 
 """
-`predict_y(model::AbstractGP{<:ClassificationLikelihood},X_test::AbstractMatrix)`
+`predict_y(model::AbstractGP{T,<:ClassificationLikelihood},X_test::AbstractMatrix)`
 
 Return the predicted most probable sign of `X_test`
 """
-function predict_y(model::AbstractGP{<:ClassificationLikelihood},X_test::AbstractMatrix)
+function predict_y(model::AbstractGP{T,<:ClassificationLikelihood},X_test::AbstractMatrix) where {T}
     return [sign.(f) for f in predict_f(model,X_test,covf=false)]
 end
 
 """
-`predict_y(model::AbstractGP{<:MultiClassLikelihood},X_test::AbstractMatrix)`
+`predict_y(model::AbstractGP{T,<:MultiClassLikelihood},X_test::AbstractMatrix)`
 
 Return the predicted most probable class of `X_test`
 """
-function predict_y(model::AbstractGP{<:MultiClassLikelihood},X_test::AbstractMatrix)
+function predict_y(model::AbstractGP{T,<:MultiClassLikelihood},X_test::AbstractMatrix) where {T}
     n = size(X_test,1)
     μ_f = predict_f(model,X_test,covf=false)
     return [model.likelihood.class_mapping[argmax([μ[i] for μ in μ_f])] for i in 1:n]
 end
 
 """
-`predict_y(model::AbstractGP{<:EventLikelihood},X_test::AbstractMatrix)`
+`predict_y(model::AbstractGP{T,<:EventLikelihood},X_test::AbstractMatrix)`
 
 Return the expected number of events for the locations `X_test`
 """
-function predict_y(model::AbstractGP{<:EventLikelihood},X_test::AbstractMatrix)
+function predict_y(model::AbstractGP{T,<:EventLikelihood},X_test::AbstractMatrix) where {T}
     n = size(X_test,1)
     μ_f = predict_f(model,X_test,covf=false)
     return model.likelihood.λ.*((x->logistic.(x)).(μ_f))
@@ -146,7 +146,7 @@ function proba_y(model::AbstractGP,X_test::AbstractMatrix{T}) where {T<:Real}
     compute_proba(model.likelihood,μ_f,Σ_f)
 end
 
-function proba_y(model::VGP{<:MultiClassLikelihood,<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
+function proba_y(model::VGP{T,<:MultiClassLikelihood,<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T}
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
@@ -164,7 +164,7 @@ function proba_y(model::VGP{<:MultiClassLikelihood,<:GibbsSampling},X_test::Abst
     return DataFrame(proba/nf,labels)
 end
 
-function proba_y(model::VGP{<:ClassificationLikelihood,<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
+function proba_y(model::VGP{T,<:ClassificationLikelihood,<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)

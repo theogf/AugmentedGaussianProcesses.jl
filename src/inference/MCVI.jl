@@ -51,7 +51,7 @@ function MCIntegrationSVI(nMinibatch::Integer;ϵ::T=1e-5,nMC::Integer=200,optimi
     MCIntegrationVI{T}(ϵ,nMC,0,optimizer,true,nMinibatch)
 end
 
-function compute_grad_expectations!(model::VGP{<:Likelihood,<:MCIntegrationVI})
+function compute_grad_expectations!(model::VGP{T,L,<:MCIntegrationVI}) where {T,L}
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     for i in 1:model.nSample
@@ -60,7 +60,7 @@ function compute_grad_expectations!(model::VGP{<:Likelihood,<:MCIntegrationVI})
     end
 end
 
-function compute_grad_expectations!(model::SVGP{<:Likelihood,<:MCIntegrationVI})
+function compute_grad_expectations!(model::SVGP{T,L,<:MCIntegrationVI}) where {T,L}
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     Σ = opt_diag.(model.κ.*model.Σ,model.κ)
@@ -71,7 +71,7 @@ function compute_grad_expectations!(model::SVGP{<:Likelihood,<:MCIntegrationVI})
     end
 end
 
-function compute_log_expectations(model::VGP{<:Likelihood,<:MCIntegrationVI})
+function compute_log_expectations(model::VGP{T,L,<:MCIntegrationVI}) where {T,L}
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     loglike = 0.0
@@ -83,7 +83,7 @@ function compute_log_expectations(model::VGP{<:Likelihood,<:MCIntegrationVI})
 end
 
 
-function compute_log_expectations(model::SVGP{<:Likelihood,<:MCIntegrationVI})
+function compute_log_expectations(model::SVGP{T,L,<:MCIntegrationVI}) where {T,L}
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     loglike = 0.0

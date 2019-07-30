@@ -64,17 +64,17 @@ end
 
 ### Local Updates Section ###
 
-function local_updates!(model::VGP{<:LogisticLikelihood,<:AnalyticVI})
+function local_updates!(model::VGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(Σ+abs2.(μ)),model.μ,diag.(model.Σ))
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end
 
-function local_updates!(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
+function local_updates!(model::SVGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
     model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),model.μ,model.Σ,model.K̃,model.κ)
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end
 
-function sample_local!(model::VGP{<:LogisticLikelihood,<:GibbsSampling})
+function sample_local!(model::VGP{T,<:LogisticLikelihood,<:GibbsSampling}) where {T}
     pg = PolyaGammaDist()
     model.likelihood.θ .= broadcast((μ::AbstractVector{<:Real})->draw.([pg],[1.0],μ),model.μ)
     return nothing
@@ -82,47 +82,47 @@ end
 
 ### Natural Gradient Section ###
 
-function cond_mean(model::VGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::VGP{T,<:LogisticLikelihood,<:AnalyticVI},index::Integer) where {T}
     return 0.5*model.y[index]
 end
 
-function ∇μ(model::VGP{<:LogisticLikelihood})
+function ∇μ(model::VGP{T,<:LogisticLikelihood}) where {T}
     return 0.5*model.y
 end
 
-function cond_mean(model::SVGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
+function cond_mean(model::SVGP{T,<:LogisticLikelihood,<:AnalyticVI},index::Integer) where {T}
     return 0.5.*model.y[index][model.inference.MBIndices]
 end
 
-function ∇μ(model::SVGP{<:LogisticLikelihood})
+function ∇μ(model::SVGP{T,<:LogisticLikelihood}) where {T}
     return 0.5.*getindex.(model.y,[model.inference.MBIndices])
 end
 
-function ∇Σ(model::AbstractGP{<:LogisticLikelihood})
+function ∇Σ(model::AbstractGP{T,<:LogisticLikelihood}) where {T}
     return model.likelihood.θ
 end
 
 ### ELBO Section ###
 
-function ELBO(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI})
+function ELBO(model::AbstractGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
     return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
 end
 
-function expecLogLikelihood(model::VGP{<:LogisticLikelihood,<:AnalyticVI})
+function expecLogLikelihood(model::VGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
     tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-dot(θ,Σ+abs2.(μ))),
                         model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
+function expecLogLikelihood(model::SVGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
     tot = -model.nLatent*(0.5*model.inference.nSamplesUsed*logtwo)
     tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y[model.inference.MBIndices])-dot(θ,K̃+κΣκ+abs2.(κμ))),
                         model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
     return model.inference.ρ*tot
 end
 
-function PolyaGammaKL(model::AbstractGP{<:LogisticLikelihood})
+function PolyaGammaKL(model::AbstractGP{T,<:LogisticLikelihood}) where {T}
     model.inference.ρ*sum(broadcast(PolyaGammaKL,[ones(length(model.likelihood.c[1]))],model.likelihood.c,model.likelihood.θ))
 end
 
