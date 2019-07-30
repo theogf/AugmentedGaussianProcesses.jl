@@ -14,8 +14,7 @@ Gaussian Processes are extremely practical model since they are non-parametric a
 
 We are interested in models which consist of a GP prior on a latent function $f\sim \text{GP}(0,k)$, where $k$ is the kernel function and the data $y$ is connected to $f$ via a non-conjugate likelihood $p(y|f)$ . We now aim on finding an augmented representation of the model which renders the model conditionally conjugate. Let $\omega$ be potential augmentation, then the augmented joint distribution is
 
-
- $p(y,f,\omega) =p(y|f,\omega)p(\omega)p(f)$.
+ $$p(y,f,\omega) =p(y|f,\omega)p(\omega)p(f).$$
 
  The original model can be restored by marginalizing $\omega$, i.e. $p(y,f) =\int p(y,f,\omega)d\omega$.
 
@@ -25,14 +24,13 @@ We are interested in models which consist of a GP prior on a latent function $f\
 
 Many popular likelihood functions can be expressed as ascale mixture of Gaussians
 
+$$p(y|f) =\int N(y;Bf,\text{diag}(\omega^{−1}))p(\omega)d\omega,$$
 
-$p(y|f) =\int N(y;Bf,\text{diag}(\omega^{−1}))p(\omega)d\omega,$
-
-where $B$ is a matrix (Palmer et al., 2006).  This representation directly leads to the augmented likelihood $p(y|\omega,f) =N(y;Bf,\text{diag}(\omega^{−1}))$ which is conjugate in $f$, i.e. the posterior is Gaussian again.
+where $B$ is a matrix (Palmer et al., 2006).  This representation directly leads to the augmented likelihood $p(y|\omega,f) =N(y;Bf,\text{diag}(\omega^{−1}))$ which is conjugate in $f$, i.e. the posterior is again a Gaussian. I am currently working on a generalized  and automatic approach, which should be available during this year.
 
 
 #### Inference in the augmented model
-We n assume that the augmentation, discussed in the previous section, was successful and we obtained an augmented model $p(y,f,\omega) = p(y|f,\omega)p(f)p(\omega)$ that is conditionally conjugate.
+If we assume that the augmentation, discussed in the previous section, was successful and that we obtained an augmented model $p(y,f,\omega) = p(y|f,\omega)p(f)p(\omega)$ which is conditionally conjugate.
 In a conditionally conjugate model variational inference is easy and block coordinate ascent updates can be computed in closed-form.
 We follow as structured mean-field approach and assume a decoupling between the latent GP $f$ and the auxiliary variable $\omega$ in the variational distribution $q(f,\omega) = q(f) q(\omega)$.  We alternate between updating $q(f)$ and $q(\omega)$ by using the typical coordinate ascent (CAVI) updates building on expectations of the log complete conditionals.
 

@@ -11,3 +11,15 @@ function Random.rand(model::AbstractGP,X::AbstractArray{T},n::Int=1) where {T<:R
         @error "Sampling not implemented for multiple output GPs"
     end
 end
+
+Distributions.mean(model::AbstractGP) = model.μ
+
+covariance(model::AbstractGP) = model.Σ
+
+diag_covariance(model::AbstractGP) = diag.(model.Σ)
+
+prior_mean(model::AbstractGP) = model.μ₀
+
+Base.length(model::AbstractGP) = model.nLatent
+
+kernel(model::AbstractGP) = model.kernel

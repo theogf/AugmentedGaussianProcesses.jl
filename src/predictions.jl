@@ -185,7 +185,7 @@ function compute_proba(l::Likelihood{T},μ::AbstractVector{<:AbstractVector{T}},
     compute_proba.([l],μ,σ²)
 end
 
-### TODO I Have to think about this solution
+### TODO Think about a better solution (general multi-likelihood problem)
 
 
 function compute_proba(l::Likelihood{T},μ::AbstractVector{T},σ²::AbstractVector{}) where {T<:Real}
