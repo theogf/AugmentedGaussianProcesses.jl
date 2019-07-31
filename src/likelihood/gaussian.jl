@@ -69,18 +69,12 @@ function local_updates!(model::SVGP{T,<:GaussianLikelihood}) where {T}
     model.likelihood.θ .= broadcast(ϵ->fill(inv(ϵ),model.inference.nSamplesUsed),model.likelihood.ϵ)
 end
 
-""" Return the gradient of the expectation for latent GP `index` """
-function cond_mean(model::SVGP{T,GaussianLikelihood{T},AnalyticVI{T}},index::Integer) where {T}
-    return model.y[index][model.inference.MBIndices].*model.likelihood.θ[index]
-end
+@inline ∇E_μ(model::SVGP{T,<:GaussianLikelihood,<:AnalyticVI}) where {T} = model.inference.y./model.likelihood.ϵ
+@inline ∇E_μ(model::SVGP{T,<:GaussianLikelihood,<:AnalyticVI},i::Int) where {T} = model.inference.y[i]./model.likelihood.ϵ[i]
+@inline ∇E_Σ(model::SVGP{T,<:GaussianLikelihood,<:AnalyticVI}) where {T} = 0.5*model.likelihood.θ
+@inline ∇E_Σ(model::SVGP{T,<:GaussianLikelihood,<:AnalyticVI},i::Int) where {T} = 0.5*model.likelihood.θ[i]
 
-function ∇μ(model::SVGP{T,GaussianLikelihood{T},AnalyticVI{T}}) where {T}
-    return getindex.(model.y,[model.inference.MBIndices])./model.likelihood.ϵ
-end
 
-function ∇Σ(model::SVGP{T,GaussianLikelihood{T},AnalyticVI{T}}) where {T}
-    return model.likelihood.θ
-end
 
 function predict_f(model::GP{T,GaussianLikelihood{T},Analytic{T}},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)

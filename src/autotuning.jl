@@ -88,7 +88,7 @@ function hyperparameter_gradient_function(model::SVGP{T}) where {T<:Real}
                 end,
                 function(kernel::Kernel{T},index::Int)
                     return 1.0/getvariance(kernel)*(
-                            - model.inference.ρ*dot(model.likelihood.θ[index],model.K̃[index])
+                            - model.inference.ρ*dot(∇E_Σ(model,index),model.K̃[index])
                             - hyperparameter_KL_gradient(model.Kmm[index],A[index]))
                 end,
                 function(index)
@@ -101,7 +101,7 @@ function hyperparameter_gradient_function(model::SVGP{T}) where {T<:Real}
                 end,
                 function(kernel::Kernel{T},index::Int)
                     return 1.0/getvariance(kernel)*(model.inference.ρ*sum(
-                            -dot(model.likelihood.θ[i],model.K̃[1]) for i in 1:model.nLatent)
+                            -dot(∇E_Σ(model,i),model.K̃[1]) for i in 1:model.nLatent)
                             - sum(hyperparameter_KL_gradient.(model.Kmm,A)))
                 end,
                 function(index)
@@ -114,10 +114,10 @@ end
 function hyperparameter_expec_gradient(model::SVGP{T,<:Likelihood,<:AnalyticVI},ι::Matrix{T},κΣ::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Integer) where {T<:Real}
     mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[index])
     Jnn .-= opt_diag(ι,model.Knm[index]) + opt_diag(model.κ[index],Jnm)
-    dμ = dot(cond_mean(model,index),ι*model.μ[index])
-    dΣ = -0.5 * dot(model.likelihood.θ[index],Jnn)
-    dΣ += -0.5 * dot(model.likelihood.θ[index],2.0*(opt_diag(ι*model.Σ[index],model.κ[index])))
-    dΣ += -0.5*dot(model.likelihood.θ[index],2.0*(ι*model.μ[index]).*(model.κ[index]*model.μ[index]))
+    dμ = dot(∇E_μ(model,index),ι*model.μ[index])
+    dΣ =  -dot(∇E_Σ(model,index),Jnn)
+    dΣ += -dot(∇E_Σ(model,index),2.0*(opt_diag(ι*model.Σ[index],model.κ[index])))
+    dΣ += -dot(∇E_Σ(model,index),2.0*(ι*model.μ[index]).*(model.κ[index]*model.μ[index]))
     return model.inference.ρ*(dμ+dΣ)
 end
 
@@ -125,8 +125,8 @@ end
 function hyperparameter_expec_gradient(model::SVGP{T,<:Likelihood,<:NumericalVI},ι::Matrix{T},κΣ::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Integer) where {T<:Real}
     mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[index])
     Jnn .-= opt_diag(ι,model.Knm[index]) + opt_diag(model.κ[index],Jnm)
-    dμ = dot(expec_μ(model,index),ι*model.μ[index])
-    dΣ = -dot(expec_Σ(model,index),Jnn+2.0*(opt_diag(ι*model.Σ[index],model.κ[index])))
+    dμ = dot(∇E_μ(model,index),ι*model.μ[index])
+    dΣ = dot(∇E_Σ(model,index),Jnn+2.0*(opt_diag(ι*model.Σ[index],model.κ[index])))
     return model.inference.ρ*(dμ+dΣ)
 end
 
@@ -134,9 +134,9 @@ end
 function hyperparameter_expec_gradient(model::SVGP{T,<:Likelihood,<:AnalyticVI},ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
     mul!(ι,(Jnm-model.κ[1]*Jmm),model.invKmm[1])
     Jnn .-= opt_diag(ι,model.Knm[1]) + opt_diag(model.κ[1],Jnm)
-    dμ = sum(dot(cond_mean(model,i),ι*model.μ[i]) for i in 1:model.nLatent)
-    dΣ = -0.5*sum(dot(model.likelihood.θ[i],Jnn+2.0*opt_diag(ι,κΣ[i])) for i in 1:model.nLatent)
-    dΣ += -0.5*sum(dot(model.likelihood.θ[i],2.0*(ι*model.μ[i]).*(model.κ[1]*model.μ[i])) for i in 1:model.nLatent)
+    dμ = sum(dot(∇E_μ(model,i),ι*model.μ[i]) for i in 1:model.nLatent)
+    dΣ = -0.5*sum(dot(∇E_Σ(model,i),Jnn+2.0*opt_diag(ι,κΣ[i])) for i in 1:model.nLatent)
+    dΣ += -0.5*sum(dot(∇E_Σ(model,i),2.0*(ι*model.μ[i]).*(model.κ[1]*model.μ[i])) for i in 1:model.nLatent)
     return model.inference.ρ*(dμ+dΣ)
 end
 
@@ -144,8 +144,8 @@ end
 function hyperparameter_expec_gradient(model::SVGP{T,<:Likelihood,<:NumericalVI},ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
     mul!(ι,(Jnm-model.κ[1]*Jmm),model.invKmm[1])
     Jnn .-= opt_diag(ι,model.Knm[1]) + opt_diag(model.κ[1],Jnm)
-    dμ = sum(dot(expec_μ(model,i),ι*model.μ[i]) for i in 1:model.nLatent)
-    dΣ = -sum(dot(expec_Σ(model,i),Jnn+2.0*opt_diag(ι,κΣ[i])) for i in 1:model.nLatent)
+    dμ = sum(dot(∇E_μ(model,i),ι*model.μ[i]) for i in 1:model.nLatent)
+    dΣ = sum(dot(∇E_Σ(model,i),Jnn+2.0*opt_diag(ι,κΣ[i])) for i in 1:model.nLatent)
     return model.inference.ρ*(dμ+dΣ)
 end
 

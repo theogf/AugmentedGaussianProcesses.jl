@@ -98,28 +98,14 @@ function sample_local!(model::VGP{T,<:LaplaceLikelihood,<:GibbsSampling}) where 
     return nothing
 end
 
-""" Return the gradient of the expectation for latent GP `index` """
-function cond_mean(model::VGP{T,<:LaplaceLikelihood,<:AnalyticVI},index::Integer) where {T}
-    return model.likelihood.θ[index].*model.y[index]
-end
+@inline ∇E_μ(model::AbstractGP{T,<:LaplaceLikelihood,<:GibbsorVI}) where {T} =  hadamard.(model.likelihood.θ,model.inference.y)
+@inline ∇E_μ(model::AbstractGP{T,<:LaplaceLikelihood,<:GibbsorVI},i::Int) where {T} =  model.likelihood.θ[i].*model.inference.y[i]
 
-function ∇μ(model::VGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {T}
-    return hadamard.(model.likelihood.θ,model.y)
-end
+@inline ∇E_Σ(model::AbstractGP{T,<:LaplaceLikelihood,<:GibbsorVI}) where {T} = 0.5*model.likelihood.θ
+@inline ∇E_Σ(model::AbstractGP{T,<:LaplaceLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5*model.likelihood.θ[i]
 
-""" Return the gradient of the expectation for latent GP `index` """
-function cond_mean(model::SVGP{T,<:LaplaceLikelihood,<:AnalyticVI},index::Integer) where {T}
-    return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]
-end
 
-function ∇μ(model::SVGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {T}
-    return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))
-end
-
-function ∇Σ(model::AbstractGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {T}
-    return model.likelihood.θ
-end
-
+## ELBO ##
 function ELBO(model::AbstractGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {T}
     return expecLogLikelihood(model) - GIGExpKL(model) - GaussianKL(model)
 end
@@ -134,7 +120,7 @@ end
 function expecLogLikelihood(model::SVGP{T,LaplaceLikelihood{T},AnalyticVI{T}}) where {T}
     tot = -0.5*model.nLatent*model.inference.nSamplesUsed*log(twoπ)
     tot += 0.5.*sum(broadcast(θ->sum(log.(θ)),model.likelihood.θ))
-    tot += -0.5.*sum(broadcast((θ,K̃,κ,Σ,μ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)-2.0*(κ*μ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.μ,model.y))
+    tot += -0.5.*sum(broadcast((θ,K̃,κ,Σ,μ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)-2.0*(κ*μ).*y-abs2.(y))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.μ,model.inference.y))
     return model.inference.ρ*tot
 end
 
@@ -152,9 +138,13 @@ end
 
 ## PDF and Log PDF Gradients ##
 
-function grad_log_pdf_μ(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real}
-    sign(y-f)./l.β
+function grad_quad(likelihood::LaplaceLikelihood{T},y::Real,μ::Real,σ²::Real,inference::Inference) where {T<:Real}
+    # -0.5*(-one(T)+erf((y-μ)/sqrt(2σ²)))/likelihood.β[1],Distributions.pdf(Normal(μ,sqrt(σ²)),y)/likelihood.β[1]^2
+    p = Normal(μ,sqrt(σ²))
+    -(2*Distributions.cdf(p,y)-one(T))/likelihood.β[1],zero(T)#Distributions.pdf(p,y)/likelihood.β[1]^2
 end
+
+@inline grad_log_pdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real} = sign(y-f)./l.β[1]
 
 function gradpdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real}
     grad_log_pdf_μ(l,y,f)*pdf(l,y,f)
@@ -164,6 +154,4 @@ function hessiandiagpdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real}
     pdf(l,y,f)/(l.β[1]^2)
 end
 
-function grad_log_pdf_Σ(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real}
-    zero(T)
-end
+@inline hessian_log_pdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real} = zero(T)

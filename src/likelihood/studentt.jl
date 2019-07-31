@@ -104,31 +104,17 @@ end
 
 ## Global Gradients ##
 
-function cond_mean(model::VGP{T,<:StudentTLikelihood,<:AnalyticVI},index::Integer) where {T}
-    return model.likelihood.θ[index].*model.y[index]
-end
+@inline ∇E_μ(model::AbstractGP{T,<:StudentTLikelihood,<:GibbsorVI}) where {T} = hadamard.(model.likelihood.θ,model.inference.y)
+@inline ∇E_μ(model::AbstractGP{T,<:StudentTLikelihood,<:GibbsorVI},i::Int) where {T} = model.likelihood.θ[i].*model.inference.y[i]
 
-function ∇μ(model::VGP{T,<:StudentTLikelihood}) where {T}
-    return hadamard.(model.likelihood.θ,model.y)
-end
+@inline ∇E_Σ(model::AbstractGP{T,<:StudentTLikelihood,<:GibbsorVI}) where {T} = 0.5.*model.likelihood.θ
+@inline ∇E_Σ(model::AbstractGP{T,<:StudentTLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5.*model.likelihood.θ[i]
 
-function cond_mean(model::SVGP{T,<:StudentTLikelihood,<:AnalyticVI},index::Integer) where {T}
-    return model.likelihood.θ[index].*model.y[index][model.inference.MBIndices]
-end
-
-function ∇μ(model::SVGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
-    return hadamard.(model.likelihood.θ,getindex.(model.y,[model.inference.MBIndices]))
-end
-
-function ∇Σ(model::AbstractGP{T,<:StudentTLikelihood}) where {T}
-    return model.likelihood.θ
-end
+## ELBO Section ##
 
 function ELBO(model::AbstractGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
     return expecLogLikelihood(model) - InverseGammaKL(model) - GaussianKL(model)
 end
-
-## ELBO Section ##
 
 function expecLogLikelihood(model::VGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
     tot = -0.5*model.nLatent*model.nSample*(log(twoπ*model.likelihood.σ))
@@ -140,7 +126,7 @@ end
 function expecLogLikelihood(model::SVGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
     tot = -0.5*model.nLatent*model.inference.nSamplesUsed*(log(twoπ*model.likelihood.σ))
     tot += -0.5.*sum(broadcast(β->sum(model.inference.nSamplesUsed*digamma(model.likelihood.α).-log.(β)),model.likelihood.β))
-    tot += -0.5.*sum(broadcast((θ,K̃,κ,Σ,κμ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κμ)-2.0*(κμ).*y[model.inference.MBIndices]-abs2.(y[model.inference.MBIndices]))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.κ.*model.μ,model.y))
+    tot += -0.5.*sum(broadcast((θ,K̃,κ,Σ,κμ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κμ)-2.0*(κμ).*y-abs2.(y))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.κ.*model.μ,model.inference.y))
     return model.inference.ρ*tot
 end
 
@@ -149,9 +135,9 @@ function InverseGammaKL(model::AbstractGP{T,<:StudentTLikelihood}) where {T}
     model.inference.ρ*sum(broadcast(InverseGammaKL,model.likelihood.α,model.likelihood.β,α_p,β_p))
 end
 
-## PDF and Log PDF Gradients ##
+## PDF and Log PDF Gradients ## (verified gradients)
 
-function grad_log_pdf_μ(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
+function grad_log_pdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
     (one(T)+l.ν) * (y-f) / ((f-y)^2 + l.σ^2*l.ν)
 end
 
@@ -159,12 +145,13 @@ function gradpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
     grad_log_pdf_μ(l,y,f)*pdf(l,y,f)
 end
 
+function hessian_log_pdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
+    v = l.ν * l.σ^2; Δ² = (f-y)^2
+    (one(T)+l.ν) * (-v + Δ²) / (v+Δ²)^2
+end
+
+
 function hessiandiagpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
     v = l.ν * l.σ^2; Δ² = (f-y)^2
     pdf(l,y,f) * (one(T)+l.ν) * (-v + (2*one(T) + l.ν) * Δ²) / (v+Δ²)^2
-end
-
-function grad_log_pdf_Σ(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
-    v = l.ν * l.σ^2; Δ² = (f-y)^2
-    (one(T)+l.ν) * (-v + Δ²) / (v+Δ²)^2
 end

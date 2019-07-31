@@ -57,13 +57,13 @@ function variational_updates!(model::VGP{T,L,GibbsSampling{T}}) where {T,L}
     end
 end
 
-function ELBO(model::AbstractGP{<:Likelihood,<:GibbsSampling})
+function ELBO(model::AbstractGP{T,<:Likelihood,<:GibbsSampling}) where {T}
     return NaN
 end
 
 function sample_global!(model::VGP{T,<:Likelihood,<:GibbsSampling}) where {T}
-    model.Σ .= inv.(Symmetric.(Diagonal.(∇Σ(model)).+model.invKnn))
-    model.μ .= rand.(MvNormal.(model.Σ.*∇μ(model),model.Σ))
+    model.Σ .= inv.(Symmetric.(Diagonal.(2.0.*∇E_Σ(model)).+model.invKnn))
+    model.μ .= rand.(MvNormal.(model.Σ.*∇E_μ(model),model.Σ))
     return nothing
 end
 

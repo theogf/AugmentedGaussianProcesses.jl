@@ -79,6 +79,12 @@ function init_inference(inference::NumericalVI{T},nLatent::Integer,nFeatures::In
     return inference
 end
 
+∇E_μ(model::AbstractGP{T,L,<:NumericalVI}) where {T,L} = -model.inference.ν
+∇E_μ(model::AbstractGP{T,L,<:NumericalVI},i::Int) where {T,L} = -model.inference.ν[i]
+∇E_Σ(model::AbstractGP{T,L,<:NumericalVI}) where {T,L} = 0.5.*model.inference.λ
+∇E_Σ(model::AbstractGP{T,L,<:NumericalVI},i::Int) where {T,L} = 0.5.*model.inference.λ[i]
+
+
 function variational_updates!(model::VGP{T,L,<:NumericalVI}) where {T,L}
     compute_grad_expectations!(model)
     natural_gradient!(model)
@@ -92,13 +98,13 @@ function variational_updates!(model::SVGP{T,L,<:NumericalVI}) where {T,L}
 end
 
 function natural_gradient!(model::VGP{T,L,<:NumericalVI}) where {T,L}
-    model.inference.∇η₂ .= Symmetric.(Diagonal.(model.inference.∇ΣE) .- 0.5.*model.invKnn .- model.η₂)
-    model.inference.∇η₁ .= model.inference.∇μE .+ model.invKnn.*(model.μ₀.-model.μ) - 2 .*model.inference.∇η₂.*model.μ
+    model.inference.∇η₂ .= Symmetric.(Diagonal.(∇E_Σ(model)) .- 0.5.*model.invKnn .- model.η₂)
+    model.inference.∇η₁ .= ∇E_μ(model) .- model.invKnn.*(model.μ.-model.μ₀) - 2 .*model.inference.∇η₂.*model.μ
 end
 
 function natural_gradient!(model::SVGP{T,L,<:NumericalVI}) where {T,L}
-    model.inference.∇η₁ .= model.Σ.*(model.inference.ρ.*transpose.(model.κ).*model.inference.∇μE .- model.invKmm.*model.μ)
-    model.inference.∇η₂ .= Symmetric.(model.inference.ρ.*transpose.(model.κ).*Diagonal.(model.inference.∇ΣE).*model.κ.-0.5.*model.invKmm .- model.η₂)
+    model.inference.∇η₂ .= Symmetric.(model.inference.ρ.*transpose.(model.κ).*Diagonal.(∇E_Σ(model)).*model.κ.-0.5.*model.invKmm .- model.η₂)
+    model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*∇E_μ(model) .- model.invKmm.*(model.μ.-model.μ₀) - 2 .*model.inference.∇η₂.*model.μ
 end
 
 function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}

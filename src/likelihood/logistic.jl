@@ -82,25 +82,10 @@ end
 
 ### Natural Gradient Section ###
 
-function cond_mean(model::VGP{T,<:LogisticLikelihood,<:AnalyticVI},index::Integer) where {T}
-    return 0.5*model.y[index]
-end
-
-function ∇μ(model::VGP{T,<:LogisticLikelihood}) where {T}
-    return 0.5*model.y
-end
-
-function cond_mean(model::SVGP{T,<:LogisticLikelihood,<:AnalyticVI},index::Integer) where {T}
-    return 0.5.*model.y[index][model.inference.MBIndices]
-end
-
-function ∇μ(model::SVGP{T,<:LogisticLikelihood}) where {T}
-    return 0.5.*getindex.(model.y,[model.inference.MBIndices])
-end
-
-function ∇Σ(model::AbstractGP{T,<:LogisticLikelihood}) where {T}
-    return model.likelihood.θ
-end
+@inline ∇E_μ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI}) where {T} = 0.5*model.inference.y
+@inline ∇E_μ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5*model.inference.y[i]
+@inline ∇E_Σ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI}) where {T} = 0.5*model.likelihood.θ
+@inline ∇E_Σ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5*model.likelihood.θ[i]
 
 ### ELBO Section ###
 
@@ -117,8 +102,8 @@ end
 
 function expecLogLikelihood(model::SVGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
     tot = -model.nLatent*(0.5*model.inference.nSamplesUsed*logtwo)
-    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y[model.inference.MBIndices])-dot(θ,K̃+κΣκ+abs2.(κμ))),
-                        model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
+    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y)-dot(θ,K̃+κΣκ+abs2.(κμ))),
+                        model.κ.*model.μ,model.inference.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
     return model.inference.ρ*tot
 end
 

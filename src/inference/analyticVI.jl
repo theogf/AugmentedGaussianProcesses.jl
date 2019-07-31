@@ -85,14 +85,14 @@ end
 
 """Coordinate ascent updates on the natural parameters"""
 function natural_gradient!(model::VGP{T,L,AnalyticVI{T}}) where {T,L}
-    model.η₁ .= ∇μ(model) .+ model.invKnn.*model.μ₀
-    model.η₂ .= -0.5*Symmetric.(Diagonal{T}.(∇Σ(model)).+model.invKnn)
+    model.η₁ .= ∇E_μ(model) .+ model.invKnn.*model.μ₀
+    model.η₂ .= -Symmetric.(Diagonal{T}.(∇E_Σ(model)).+0.5.*model.invKnn)
 end
 
 """Computation of the natural gradient for the natural parameters"""
 function natural_gradient!(model::SVGP{T,L,AnalyticVI{T}}) where {T,L}
-    model.inference.∇η₁ .= ∇η₁.(∇μ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.μ₀,model.η₁)
-    model.inference.∇η₂ .= ∇η₂.(∇Σ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂)
+    model.inference.∇η₁ .= ∇η₁.(∇E_μ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.μ₀,model.η₁)
+    model.inference.∇η₂ .= ∇η₂.(∇E_Σ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂)
 end
 
 function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},invKmm::Symmetric{T,Matrix{T}},μ₀::PriorMean,η₁::AbstractVector{T}) where {T <: Real}
@@ -100,7 +100,7 @@ function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},invKmm
 end
 
 function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},invKmm::Symmetric{T,Matrix{T}},η₂::Symmetric{T,Matrix{T}}) where {T<:Real}
-    -0.5*(ρκdiagθκ(ρ,κ,θ)+invKmm) - η₂
+    -(ρκdiagθκ(ρ,κ,θ)+0.5.*invKmm) - η₂
 end
 
 """Conversion from natural to standard distribution parameters"""
