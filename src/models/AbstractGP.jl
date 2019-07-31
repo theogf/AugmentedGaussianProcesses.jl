@@ -12,7 +12,7 @@ function Random.rand(model::AbstractGP,X::AbstractArray{T},n::Int=1) where {T<:R
     end
 end
 
-Distributions.mean(model::AbstractGP) = model.μ
+# Statistics.mean(model::AbstractGP) = model.μ
 
 covariance(model::AbstractGP) = model.Σ
 
