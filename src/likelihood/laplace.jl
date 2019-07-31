@@ -81,7 +81,7 @@ function compute_proba(l::LaplaceLikelihood{T},μ::AbstractVector{T},σ²::Abstr
     return μ_pred,σ²_pred
 end
 
-###############################################################################
+## Local Updates ##
 
 function local_updates!(model::VGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {T}
     model.likelihood.b .= broadcast((Σ,μ,y)->(Σ+abs2.(μ-y)),diag.(model.Σ),model.μ,model.y)
@@ -89,7 +89,7 @@ function local_updates!(model::VGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {T
 end
 
 function local_updates!(model::SVGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {T}
-    model.likelihood.b .= broadcast((K̃,κ,Σ,μ,y)->(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices])),model.K̃,model.κ,model.Σ,model.μ,model.y)
+    model.likelihood.b .= broadcast((K̃,κ,Σ,μ,y)->(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y)),model.K̃,model.κ,model.Σ,model.μ,model.inference.y)
     model.likelihood.θ .= broadcast((a,b)->sqrt(a)./sqrt.(b),model.likelihood.a,model.likelihood.b)
 end
 

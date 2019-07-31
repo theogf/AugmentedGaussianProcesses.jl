@@ -89,7 +89,8 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSample,nFeatures)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
-
+            inference.x = view(X,:,:)
+            inference.y = view.(y,:)
             VGP{T1,TLikelihood,TInference,ArrayType{T1}}(X,y,
                     nFeatures, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,μ,Σ,η₁,η₂,

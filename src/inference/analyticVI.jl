@@ -24,18 +24,20 @@ mutable struct AnalyticVI{T<:Real} <: Inference{T}
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     ∇η₁::LatentArray{Vector{T}}
     ∇η₂::LatentArray{Matrix{T}} #Stored as a matrix since symmetric sums do not help for the moment WARNING
-    function AnalyticVI{T}(ϵ::T,nIter::Integer,optimizer_η₁::AbstractVector{<:Optimizer},optimizer_η₂::AbstractVector{<:Optimizer},Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
-        return new{T}(ϵ,nIter,optimizer_η₁,optimizer_η₂,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag)
+    x::SubArray{T,2,Matrix{T}}#,Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
+    y::LatentArray{SubArray}
+    function AnalyticVI{T}(ϵ::T,nIter::Integer,optimizer::AbstractVector{<:Optimizer},Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
+        return new{T}(ϵ,nIter,optimizer,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag)
     end
-    function AnalyticVI{T}(ϵ::T,nIter::Integer,optimizer_η₁::AbstractVector{<:Optimizer},optimizer_η₂::AbstractVector{<:Optimizer},Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool,∇η₁::AbstractVector{<:AbstractVector},
+    function AnalyticVI{T}(ϵ::T,nIter::Integer,optimizer::AbstractVector{<:Optimizer},Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool,∇η₁::AbstractVector{<:AbstractVector},
     ∇η₂::AbstractVector{<:AbstractMatrix}) where T
-        return new{T}(ϵ,nIter,optimizer_η₁,optimizer_η₂,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag,∇η₁,∇η₂)
+        return new{T}(ϵ,nIter,optimizer,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag,∇η₁,∇η₂)
     end
 end
 
 
 function AnalyticVI(;ϵ::T=1e-5) where {T<:Real}
-    AnalyticVI{Float64}(ϵ,0,[VanillaGradDescent(η=1.0)],[VanillaGradDescent(η=1.0)],false,1,1,[1],1.0,true)
+    AnalyticVI{Float64}(ϵ,0,[VanillaGradDescent(η=1.0)],false,1,1,[1],1.0,true)
 end
 
 """

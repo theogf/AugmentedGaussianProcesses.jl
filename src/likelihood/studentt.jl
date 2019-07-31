@@ -92,7 +92,7 @@ function local_updates!(model::VGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {
 end
 
 function local_updates!(model::SVGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
-    model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y[model.inference.MBIndices]).+model.likelihood.σ^2*model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.y)
+    model.likelihood.β .= broadcast((K̃,κ,Σ,μ,y)->0.5*(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y).+model.likelihood.σ^2*model.likelihood.ν),model.K̃,model.κ,model.Σ,model.μ,model.inference.y)
     model.likelihood.θ .= broadcast(β->model.likelihood.α./β,model.likelihood.β)
 end
 

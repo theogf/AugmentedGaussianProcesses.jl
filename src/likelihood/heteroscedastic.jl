@@ -105,43 +105,28 @@ function local_autotuning!(model::VGP{T,<:HeteroscedasticLikelihood}) where {T}
 end
 
 function local_updates!(model::SVGP{T,HeteroscedasticLikelihood{T}}) where {T}
-    model.likelihood.ϕ .= broadcast((κ,μ,Σ,y,K̃)->0.5*(abs2.(κ*μ-y)+opt_diag(κ*Σ,κ)+K̃),model.κ,model.μ,diag.(model.Σ),model.y,model.K̃)
+    model.likelihood.ϕ .= broadcast((κ,μ,Σ,y,K̃)->0.5*(abs2.(κ*μ-y)+opt_diag(κ*Σ,κ)+K̃),model.κ,model.μ,diag.(model.Σ),model.inference.y,model.K̃)
     model.likelihood.c .= broadcast((κ,μ,Σ,K̃)->sqrt.(opt_diag(κ*Σ,κ)+abs2.(κ*μ)+K̃),model.likelihood.κ,model.likelihood.μ,diag.(model.likelihood.Σ),model.likelihood.K̃)
     model.likelihood.γ .= broadcast((λ,ϕ,κμ,c)->0.5*λ*ϕ.*safe_expcosh.(-0.5*μ,0.5*c),model.likelihood.λ,model.likelihood.ϕ,model.likelihood.κ.*model.likelihood.μ,model.likelihood.c)
     model.likelihood.θ .= broadcast((γ,c)->0.5*(one(T).+γ)./c.*tanh.(0.5*c),model.likelihood.γ,model.likelihood.c)
     model.likelihood.K .= broadcast(kernel->Symmetric(kernelmatrix(model.Z,kernel)+getvariance(kernel)*T(jitter)*I),model.likelihood.kernel)
     model.likelihood.invK .= inv.(model.likelihood.K)
-    model.likelihood.Knm .= broadcast(kernel->kernelmatrix(model.X[model.inference.MBIndices],model.Z,kernel),model.likelihood.kernel)
+    model.likelihood.Knm .= broadcast(kernel->kernelmatrix(model.inference.x,model.Z,kernel),model.likelihood.kernel)
     model.likelihood.κ .= model.likelihood.Knm.*model.invK
-    model.likelihood.K̃ .=  broadcast(kernel->kerneldiagmatrix(model.X[model.inference.MBIndices],kernel),model.likelihood.kernel)
+    model.likelihood.K̃ .=  broadcast(kernel->kerneldiagmatrix(model.inference.x,kernel),model.likelihood.kernel)
     model.likelihood.Σ .= broadcast((θ,κ,invK)->Symmetric(inv(model.inference.ρ*transpose(κ)*Diagonal(θ)*κ+invK)),model.likelihood.θ,model.likelihood.κ,model.likelihood.invK)
     model.likelihood.μ .= broadcast((Σ,invK,μ₀,γ)->Σ*(invK*μ₀+0.5*transpose(κ)*(one(T).-γ)),model.likelihood.Σ,model.likelihood.invK,model.likelihood.μ₀,model.likelihood.γ)
     model.likelihood.σg .=  broadcast((μ,Σ)->expectation.(logistic,Normal.(μ,sqrt.(diag(Σ)))),model.likelihood.μ,model.likelihood.Σ)
     model.likelihood.λ .= broadcast((ϕ,σg)->model.inference.nSamples/dot(ϕ,σg),model.likelihood.ϕ,model.likelihood.σg)
 end
 
+@inline ∇E_μ(model::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI}) where {T} = 0.5*hadamard.(model.inference.y,model.likelihood.λ.*model.likelihood.σg)
+@inline ∇E_μ(model::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI},i::Int) where {T} = 0.5*model.likelihood.λ[i]*model.inference.y[i].*model.likelihood.σg[i]
 
-function cond_mean(model::VGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}},index::Integer) where {T}
-    return model.likelihood.λ[index]*model.y[index].*model.likelihood.σg[index]
-end
+@inline ∇E_Σ(model::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI}) where {T} = 0.5*model.likelihood.λ.*model.likelihood.σg
+@inline ∇E_Σ(model::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI},i::Int) where {T} = 0.5*model.likelihood.λ[i].*model.likelihood.σg[i]
 
-function ∇μ(model::VGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}}) where {T}
-    return 0.5*hadamard.(model.y,model.likelihood.λ.*model.likelihood.σg)
-end
-
-function cond_mean(model::SVGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}},index::Integer) where {T}
-    return model.likelihood.λ[index]*model.y[index][model.inference.MBIndices].*σg[index]
-end
-
-function ∇μ(model::SVGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}}) where {T}
-    return hadamard.(getindex.(model.y,[model.inference.MBIndices]),model.likelihood.λ.*model.likelihood.σg)
-end
-
-function ∇Σ(model::AbstractGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}}) where {T}
-    return model.likelihood.λ.*model.likelihood.σg
-end
-
-function proba_y(model::VGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T}
+function proba_y(model::VGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T<:Real}
     μf, σ²f = predict_f(model,X_test,covf=true)
     μg, σ²g = _predict_f.(model.likelihood.μ,model.likelihood.Σ,model.likelihood.invK,model.likelihood.kernel,[X_test],[model.X],covf=true)[1]#WARNING Only valid for 1D output
     return μf,σ²f.+broadcast((λ,μ,σ)->expectation.(x->inv(λ*logistic(x)),Normal.(μ,sqrt.(σ))),model.likelihood.λ,μg,σ²g)

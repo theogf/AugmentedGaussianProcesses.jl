@@ -12,8 +12,10 @@ mutable struct MCIntegrationVI{T<:Real} <: NumericalVI{T}
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     ∇η₁::AbstractVector{AbstractVector}
     ∇η₂::AbstractVector{AbstractArray}
-    ∇μE::AbstractVector{AbstractVector}
-    ∇ΣE::AbstractVector{AbstractVector}
+    ν::AbstractVector{AbstractVector}
+    λ::AbstractVector{AbstractVector}
+    x::SubArray{T,2,Matrix{T},Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
+    y::LatentArray{SubArray}
     function MCIntegrationVI{T}(ϵ::T,nMC::Integer,nIter::Integer,optimizer::Opt,Stochastic::Bool,nSamplesUsed::Integer=1) where {T<:Real,Opt<:Optimizer}
         return new{T}(ϵ,nIter,[optimizer],[optimizer],nMC,Stochastic,1,nSamplesUsed)
     end

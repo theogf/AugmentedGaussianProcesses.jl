@@ -16,8 +16,8 @@ end
 ## Update all hyperparameters for the sparse variational GP models ##
 function update_hyperparameters!(model::SVGP{T}) where {T<:Real}
     Jmm = kernelderivativematrix.(model.Z,model.kernel)
-    Jnm = kernelderivativematrix.([model.X[model.inference.MBIndices,:]],model.Z,model.kernel)
-    Jnn = kernelderivativediagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel)
+    Jnm = kernelderivativematrix.([model.inference.x],model.Z,model.kernel)
+    Jnn = kernelderivativediagmatrix.([model.inference.x],model.kernel)
     f_l,f_v,f_μ₀ = hyperparameter_gradient_function(model)
     grads_l = map(compute_hyperparameter_gradient,model.kernel,fill(f_l,model.nPrior),Jmm,Jnm,Jnn,collect(1:model.nPrior))
     grads_v = map(f_v,model.kernel,1:model.nPrior)
