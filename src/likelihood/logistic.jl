@@ -113,10 +113,14 @@ end
 
 ### Gradient Section ###
 
+@inline grad_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T} = y*logistic(-y*f)
+
 function gradpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
     σ=logistic(y*f)
     σ*(one(T)-σ)
 end
+
+@inline hessian_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T<:Real} = -exp(y*f)/logistic(-y*f)^2
 
 function hessiandiagpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
     σ=logistic(y*f)

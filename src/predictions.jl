@@ -83,6 +83,7 @@ function predict_f(model::AbstractGP,X_test::AbstractVector{T};covf::Bool=false,
     predict_f(model,reshape(X_test,length(X_test),1),covf=covf,fullcov=fullcov)
 end
 
+## Wrapper to predict vectors ##
 function predict_y(model::AbstractGP,X_test::AbstractVector)
     return predict_y(model,reshape(X_test,length(X_test),1))
 end
@@ -127,9 +128,9 @@ function predict_y(model::AbstractGP{T,<:EventLikelihood},X_test::AbstractMatrix
     return model.likelihood.λ.*((x->logistic.(x)).(μ_f))
 end
 
-
+## Wrapper to return proba on vectors
 function proba_y(model::AbstractGP,X_test::AbstractVector{T}) where {T<:Real}
-    return proba_y(model,reshape(X_test,length(X_test),1))
+    return proba_y(model,reshape(X_test,:,1))
 end
 
 """
@@ -141,12 +142,12 @@ Return the probability distribution p(y_test|model,X_test) :
     - Vector of probabilities of y_test = 1 for binary classification
     - Dataframe with columns and probability per class for multi-class classification
 """
-function proba_y(model::AbstractGP,X_test::AbstractMatrix{T}) where {T<:Real}
+function proba_y(model::AbstractGP,X_test::AbstractMatrix)
     μ_f,Σ_f = predict_f(model,X_test,covf=true)
     compute_proba(model.likelihood,μ_f,Σ_f)
 end
 
-function proba_y(model::VGP{T,<:MultiClassLikelihood,<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T}
+function proba_y(model::VGP{T,<:MultiClassLikelihood{T},<:GibbsSampling{T}},X_test::AbstractMatrix{T};nSamples::Int=200) where {T}
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
