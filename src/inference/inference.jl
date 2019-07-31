@@ -9,3 +9,5 @@ include("numericalVI.jl")
 function post_process!(model::AbstractGP{T,<:Likelihood,<:Inference}) where {T}
     nothing
 end
+
+const GibbsorVI = Union{<:GibbsSampling,<:AnalyticVI}

@@ -103,25 +103,12 @@ end
 
 ## Global Gradient Section ##
 
-function cond_mean(model::VGP{T,<:LogisticSoftMaxLikelihood},index::Int) where {T}
-    0.5.*(model.likelihood.Y[index]-model.likelihood.γ[index])
-end
-
-function ∇μ(model::VGP{T,<:LogisticSoftMaxLikelihood}) where {T}
-    0.5.*(model.likelihood.Y.-model.likelihood.γ)
-end
-
-function cond_mean(model::SVGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI},index::Integer) where {T}
-    0.5.*(model.likelihood.Y[index][model.inference.MBIndices]-model.likelihood.γ[index])
-end
-
-function ∇μ(model::SVGP{T,<:LogisticSoftMaxLikelihood}) where {T}
-    0.5.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
-end
-
-function ∇Σ(model::AbstractGP{T,<:LogisticSoftMaxLikelihood}) where {T}
-    model.likelihood.θ
-end
+@inline ∇E_μ(model::VGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI}) where {T} = 0.5.*(model.likelihood.Y.-model.likelihood.γ)
+@inline ∇E_μ(model::VGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5.*(model.likelihood.Y.-model.likelihood.γ)
+@inline ∇E_μ(model::SVGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI}) where {T} = 0.5.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
+@inline ∇E_μ(model::SVGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5.*(model.likelihood.Y[i][model.inference.MBIndices]-model.likelihood.γ[i])
+@inline ∇E_Σ(model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI}) where {T} = 0.5.*model.likelihood.θ
+@inline ∇E_Σ(model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5.*model.likelihood.θ[i]
 
 ## ELBO Section ##
 
@@ -177,8 +164,8 @@ function grad_samples(model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:Numerica
         grad_Σ += diaghessian_logisticsoftmax(samples[i,:],σ,class)/s - abs2.(g_μ)
     end
     for k in 1:model.nLatent
-        model.inference.∇μE[k][index] = grad_μ[k]/nSamples
-        model.inference.∇ΣE[k][index] = 0.5.*grad_Σ[k]/nSamples
+        model.inference.ν[k][index] = -grad_μ[k]/nSamples
+        model.inference.λ[k][index] = grad_Σ[k]/nSamples
     end
 end
 

@@ -16,8 +16,7 @@ QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0
 mutable struct QuadratureVI{T<:Real} <: NumericalVI{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    optimizer_η₁::LatentArray{Optimizer} #Learning rate for stochastic updates
-    optimizer_η₂::LatentArray{Optimizer} #Learning rate for stochastic updates
+    optimizer::LatentArray{Optimizer} #Learning rate for stochastic updates
     nPoints::Int64 #Number of points for the quadrature
     nodes::Vector{T}
     weights::Vector{T}
@@ -60,7 +59,7 @@ QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Adam()`
 """
-function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
+function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Momentum(η=0.001)) where {T<:Real}
     QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false,nMinibatch)
 end
 

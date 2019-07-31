@@ -122,7 +122,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
                     μ₀,Kmm,invKmm,Knm,κ,K̃,
                     kernel,likelihood,inference,
                     verbose,optimizer,atfrequency,Zoptimizer,false)
-            if isa(inference.optimizer_η₁[1],ALRSVI)
+            if isa(inference.optimizer[1],ALRSVI)
                 init!(model.inference,model)
             end
             return model

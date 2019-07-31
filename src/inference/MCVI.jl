@@ -1,8 +1,7 @@
 mutable struct MCIntegrationVI{T<:Real} <: NumericalVI{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    optimizer_η₁::AbstractVector{Optimizer} #Learning rate for stochastic updates
-    optimizer_η₂::AbstractVector{Optimizer} #Learning rate for stochastic updates
+    optimizer::LatentArray{Optimizer} #Learning rate for stochastic updates
     nMC::Int64 #Number of samples for MC Integrations
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64 #Number of samples of the data
@@ -31,7 +30,7 @@ Constructor for Variational Inference via MC Integration approximation.
     - `nMC::Int` : Number of samples per data point for the integral evaluation
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
-function MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
+function MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Momentum(η=0.01)) where {T<:Real}
     MCIntegrationVI{T}(ϵ,nMC,0,optimizer,false,1)
 end
 
@@ -49,7 +48,7 @@ Constructor for Stochastic Variational Inference via MC integration approximatio
     - `nMC::Int` : Number of samples per data point for the integral evaluation
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
-function MCIntegrationSVI(nMinibatch::Integer;ϵ::T=1e-5,nMC::Integer=200,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
+function MCIntegrationSVI(nMinibatch::Integer;ϵ::T=1e-5,nMC::Integer=200,optimizer::Optimizer=Momentum(η=0.001)) where {T<:Real}
     MCIntegrationVI{T}(ϵ,nMC,0,optimizer,true,nMinibatch)
 end
 

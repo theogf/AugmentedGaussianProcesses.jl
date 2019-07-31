@@ -14,8 +14,7 @@ AnalyticVI(;ϵ::T=1e-5)
 mutable struct AnalyticVI{T<:Real} <: Inference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    optimizer_η₁::LatentArray{Optimizer} #Learning rate for stochastic updates
-    optimizer_η₂::LatentArray{Optimizer} #Learning rate for stochastic updates
+    optimizer::LatentArray{Optimizer} #Learning rate for stochastic updates
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64
     nSamplesUsed::Int64 #Size of mini-batches
@@ -55,7 +54,7 @@ AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay())
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `InverseDecay()` (ρ=(τ+iter)^-κ)
 """
 function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay()) where {T<:Real}
-    AnalyticVI{T}(ϵ,0,[optimizer],[optimizer],true,1,nMinibatch,1:nMinibatch,1.0,true)
+    AnalyticVI{T}(ϵ,0,[optimizer],true,1,nMinibatch,1:nMinibatch,1.0,true)
 end
 
 function Base.show(io::IO,inference::AnalyticVI{T}) where T
@@ -69,8 +68,7 @@ function init_inference(inference::AnalyticVI{T},nLatent::Integer,nFeatures::Int
     inference.nSamplesUsed = nSamplesUsed
     inference.MBIndices = 1:nSamplesUsed
     inference.ρ = nSamples/nSamplesUsed
-    inference.optimizer_η₁ = [copy(inference.optimizer_η₁[1]) for _ in 1:nLatent]
-    inference.optimizer_η₂ = [copy(inference.optimizer_η₂[1]) for _ in 1:nLatent]
+    inference.optimizer = [copy(inference.optimizer[1]) for _ in 1:nLatent]
     inference.∇η₁ = [zeros(T,nFeatures) for _ in 1:nLatent];
     inference.∇η₂ = [Matrix(Diagonal(ones(T,nFeatures))) for _ in 1:nLatent]
     return inference
@@ -112,8 +110,13 @@ end
 """Update of the natural parameters and conversion from natural to standard distribution parameters"""
 function global_update!(model::SVGP{T,L,AnalyticVI{T}}) where {T,L}
     if model.inference.Stochastic
-        model.η₁ .= model.η₁ .+ GradDescent.update.(model.inference.optimizer_η₁,model.inference.∇η₁)
-        model.η₂ .= Symmetric.(model.η₂ .+ GradDescent.update.(model.inference.optimizer_η₂,model.inference.∇η₂))
+        for k in 1:model.nLatent
+            Δ = GradDescent.update(model.inference.optimizer[k],vcat(model.inference.∇η₁[k],model.inference.∇η₂[k][:]))
+            model.η₁[k] .= model.η₁[k] + Δ[1:model.nFeatures]
+            model.η₂[k] .= Symmetric(model.η₂[k] + reshape(Δ[(model.nFeatures+1):end],model.nFeatures,model.nFeatures))
+            # model.η₁ .= model.η₁ .+ GradDescent.update.(model.inference.optimizer_η₁,model.inference.∇η₁)
+            # model.η₂ .= Symmetric.(model.η₂ .+ GradDescent.update.(model.inference.optimizer_η₂,model.inference.∇η₂))
+        end
     else
         model.η₁ .+= model.inference.∇η₁
         model.η₂ .= Symmetric.(model.inference.∇η₂ .+ model.η₂)
