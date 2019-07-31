@@ -69,10 +69,10 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 | Likelihood/Inference | AnalyticVI | GibbsSampling | QuadratureVI | MCIntegrationVI |
 | --- | :-: | :-: | :-: | :-: |
 | GaussianLikelihood   | ✔  | ✖  | ✖ | ✖  |
-| StudentTLikelihood   | ✔  | ✔ | (dev) | ✖  |
-| LaplaceLikelihood   | ✔ | (dev) | (dev) | ✖ |
+| StudentTLikelihood   | ✔  | ✔ | ✔ | ✖  |
+| LaplaceLikelihood   | ✔ | (dev) | ✔ | ✖ |
 | HeteroscedasticLikelihood   | ✔ | (dev)  | (dev)  | ✖ |
-| LogisticLikelihood   | ✔  | ✔  | (dev) | ✖  |
+| LogisticLikelihood   | ✔  | ✔  | ✔ | ✖  |
 | BayesianSVM   | ✔  | (dev) | ✖ | ✖  |
 | LogisticSoftMaxLikelihood   | ✔  | ✔  | ✖ | (dev)  |
 | SoftMaxLikelihood   | ✖  |  ✖  | ✖  | (dev)  |
