@@ -50,7 +50,7 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
         end
     end
     if model.verbose > 0
-      println("Training ended after $local_iter iterations. Total number of iterations $(model.inference.nIter)")
+      println("Training ended after $(local_iter-1) iterations. Total number of iterations $(model.inference.nIter)")
     end
     computeMatrices!(model) #Compute final version of the matrices for prediction
     post_process!(model)
@@ -70,35 +70,37 @@ end
 function update_parameters!(model::SVGP)
     if model.inference.Stochastic
         model.inference.MBIndices = StatsBase.sample(1:model.inference.nSamples,model.inference.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
+        model.inference.x = view(model.X,model.inference.MBIndices,:)
+        model.inference.y = view.(model.y,[model.inference.MBIndices])
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
 end
 
-function computeMatrices!(model::GP{<:Likelihood,<:Inference,T}) where {T<:Real}
+function computeMatrices!(model::GP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
         model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) )
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn.+ model.likelihood.ϵ.*[I])))
     end
 end
 
-function computeMatrices!(model::VGP{<:Likelihood,<:Inference,T}) where {T<:Real}
+function computeMatrices!(model::VGP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
         model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
     end
 end
 
-function computeMatrices!(model::SVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
+function computeMatrices!(model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
         model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*T(jitter)*I),model.Z,model.kernel)
         model.invKmm .= Symmetric.(inv.(cholesky.(model.Kmm)))
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
-        KernelModule.kernelmatrix!.(model.Knm,[model.X[model.inference.MBIndices,:]],model.Z,model.kernel)
+        KernelModule.kernelmatrix!.(model.Knm,[model.inference.x],model.Z,model.kernel)
         model.κ .= model.Knm.*model.invKmm
-        model.K̃ .= kerneldiagmatrix.([model.X[model.inference.MBIndices,:]],model.kernel) .+ [T(jitter)*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
+        model.K̃ .= kerneldiagmatrix.([model.inference.x],model.kernel) .+ [T(jitter)*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     end
     model.inference.HyperParametersUpdated=false

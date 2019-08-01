@@ -37,7 +37,7 @@ using .PGSampler
 using GradDescent
 export Optimizer, Adam, VanillaGradDescent, ALRSVI, InverseDecay
 using DataFrames, LinearAlgebra
-using StatsBase, StatsFuns, SpecialFunctions, Expectations, Random, Distributions
+using StatsBase, StatsFuns, SpecialFunctions, Expectations, Random, Distributions, FastGaussQuadrature
 using ProgressMeter
 import Base: convert, show, copy
 #Exported modules
@@ -51,7 +51,7 @@ export kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 export setvalue!,getvalue,setfixed!,setfree!,getvariance,getlengthscales,setoptimizer!
 export opt_diag, opt_trace
-export rand
+export covariance, diag_covariance, prior_mean, kernel
 export KMeansInducingPoints
 
 # Main classes

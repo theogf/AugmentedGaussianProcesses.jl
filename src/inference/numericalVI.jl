@@ -70,108 +70,77 @@ function init_inference(inference::NumericalVI{T},nLatent::Integer,nFeatures::In
     inference.MBIndices = 1:nSamplesUsed
     inference.ρ = nSamples/nSamplesUsed
     inference.HyperParametersUpdated = true
-    inference.optimizer_η₁ = [copy(inference.optimizer_η₁[1]) for _ in 1:nLatent]
-    inference.optimizer_η₂ = [copy(inference.optimizer_η₂[1]) for _ in 1:nLatent]
+    inference.optimizer = [copy(inference.optimizer[1]) for _ in 1:nLatent]
     inference.∇η₁ = [zeros(T,nFeatures) for _ in 1:nLatent];
     inference.∇η₂ = [Symmetric(Diagonal(ones(T,nFeatures))) for _ in 1:nLatent]
-    inference.∇μE = [zeros(T,nSamplesUsed) for _ in 1:nLatent];
-    inference.∇ΣE = [zeros(T,nSamplesUsed) for _ in 1:nLatent]
+    inference.ν = [zeros(T,nSamplesUsed) for _ in 1:nLatent];
+    inference.λ = [zeros(T,nSamplesUsed) for _ in 1:nLatent]
     return inference
 end
 
-function variational_updates!(model::VGP{<:Likelihood,<:NumericalVI})
+∇E_μ(model::AbstractGP{T,L,<:NumericalVI}) where {T,L} = -model.inference.ν
+∇E_μ(model::AbstractGP{T,L,<:NumericalVI},i::Int) where {T,L} = -model.inference.ν[i]
+∇E_Σ(model::AbstractGP{T,L,<:NumericalVI}) where {T,L} = 0.5.*model.inference.λ
+∇E_Σ(model::AbstractGP{T,L,<:NumericalVI},i::Int) where {T,L} = 0.5.*model.inference.λ[i]
+
+
+function variational_updates!(model::VGP{T,L,<:NumericalVI}) where {T,L}
     compute_grad_expectations!(model)
     natural_gradient!(model)
     global_update!(model)
 end
 
-function variational_updates!(model::SVGP{<:Likelihood,<:NumericalVI}) where {L<:Likelihood,T}
+function variational_updates!(model::SVGP{T,L,<:NumericalVI}) where {T,L}
     compute_grad_expectations!(model)
     natural_gradient!(model)
     global_update!(model)
 end
 
-function natural_gradient!(model::VGP{<:Likelihood,<:NumericalVI})
-    model.inference.∇η₁ .= model.Σ.*(model.inference.∇μE .- model.invKnn.*model.μ)
-    model.inference.∇η₂ .= Symmetric.(Diagonal.(model.inference.∇ΣE).-0.5.*model.invKnn .- model.η₂)
+function natural_gradient!(model::VGP{T,L,<:NumericalVI}) where {T,L}
+    model.inference.∇η₂ .= Symmetric.(Diagonal.(∇E_Σ(model)) .- 0.5.*model.invKnn .- model.η₂)
+    model.inference.∇η₁ .= ∇E_μ(model) .- model.invKnn.*(model.μ.-model.μ₀) - 2 .*model.inference.∇η₂.*model.μ
 end
 
-function natural_gradient!(model::SVGP{<:Likelihood,<:NumericalVI})
-    model.inference.∇η₁ .= model.Σ.*(model.inference.ρ.*transpose.(model.κ).*model.inference.∇μE .- model.invKmm.*model.μ)
-    model.inference.∇η₂ .= Symmetric.(model.inference.ρ.*transpose.(model.κ).*Diagonal.(model.inference.∇ΣE).*model.κ.-0.5.*model.invKmm .- model.η₂)
+function natural_gradient!(model::SVGP{T,L,<:NumericalVI}) where {T,L}
+    model.inference.∇η₂ .= Symmetric.(model.inference.ρ.*transpose.(model.κ).*Diagonal.(∇E_Σ(model)).*model.κ.-0.5.*model.invKmm .- model.η₂)
+    model.inference.∇η₁ .= model.inference.ρ.*transpose.(model.κ).*∇E_μ(model) .- model.invKmm.*(model.μ.-model.μ₀) - 2 .*model.inference.∇η₂.*model.μ
 end
 
-function global_update!(model::AbstractGP{<:Likelihood,<:NumericalVI})
-    model.η₁ .= model.η₁ .+ update.(model.inference.optimizer_η₁,model.inference.∇η₁)
+function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
+    # model.η₁ .= model.η₁ .+ update.(model.inference.optimizer_η₁,model.inference.∇η₁)
     for k in 1:model.nLatent
-        Δ = update(model.inference.optimizer_η₂[k],model.inference.∇η₂[k])
+        Δ = update(model.inference.optimizer[k],vcat(model.inference.∇η₁[1],model.inference.∇η₂[k][:]))
+        Δ₁ = Δ[1:model.nFeatures]
+        Δ₂ = reshape(Δ[model.nFeatures+1:end],model.nFeatures,model.nFeatures)
+        # Δ = update(model.inference.optimizer_η₂[k],model.inference.∇η₂[k])
         α=1.0
-        while true
-            try
-                @assert isposdef(-(model.η₂[k]+α*Δ))
-                model.η₂[k] = Symmetric(model.η₂[k]+α*Δ)
-                model.η₁[k] .+= update(model.inference.optimizer_η₁[k],model.inference.∇η₁[k])
-                break;
-            catch e
-                if isa(e,AssertionError)
-                    println("Error, results not pos def with α=$α")
-                    α *= 0.5
-                    if α < 1e-6
-                        @error "α too small, stopping loop"
-                        rethrow()
-                    end
-                else
-                    rethrow()
-                end
-            end
+        # Loop to verify update keeps positive definiteness
+        while !isposdef(-(model.η₂[k] + α*Δ₂)) &&  α > 1e-6
+            α *= 0.1
         end
-        if isa(model.inference.optimizer_η₂[k],Adam)
-            model.inference.optimizer_η₂[k].α = min(model.inference.optimizer_η₂[k].α*α*2.0,1.0)
-            # model.inference.optimizer_η₁[k].α = min(model.inference.optimizer_η₁[k].α*α*2.0,1.0)
-        elseif isa(model.inference.optimizer_η₂[k],VanillaGradDescent)
-            # model.inference.optimizer_η₂[k].η = min(model.inference.optimizer_η₂[k].η*α*2.0,1.0)
-            # model.inference.optimizer_η₁[k].η = min(model.inference.optimizer_η₁[k].η*α*2.0,1.0)
-        elseif isa(model.inference.optimizer_η₂[k],ALRSVI)
-        elseif isa(model.inference.optimizer_η₂[k],InverseDecay)
+        if α <= 1e-6
+            @error "α too small, postive definiteness could not be achieved"
+        end
+        model.η₂[k] = Symmetric(model.η₂[k] + α*Δ₂)
+        model.η₁[k] = model.η₁[k] + α*Δ₁
+        if isa(model.inference.optimizer[k],Adam)
+            model.inference.optimizer[k].α = min(model.inference.optimizer_η₂[k].α * α*2.0,1.0)
+        elseif isa(model.inference.optimizer[k],Union{VanillaGradDescent,Momentum,RMSprop})
+            # model.inference.optimizer[k].η = min(model.inference.optimizer[k].η*α*2.0,1.0)
+        elseif isa(model.inference.optimizer[k],ALRSVI)
+        elseif isa(model.inference.optimizer[k],InverseDecay)
         end
     end
     model.Σ .= -0.5.*inv.(model.η₂)
-    model.μ .= model.η₁
-    # model.μ .= model.Σ.*model.η₁
-end
-
-function ELBO(model::AbstractGP{<:Likelihood,<:NumericalVI})
-    return expecLogLikelihood(model) - GaussianKL(model)
-end
-
-function expec_μ(model::AbstractGP{<:Likelihood,<:NumericalVI},index::Integer)
-    return model.inference.∇μE[index]
-end
-
-function expec_μ(model::AbstractGP{<:Likelihood,<:NumericalVI})
-    return model.inference.∇μE
-end
-
-
-function expec_Σ(model::AbstractGP{<:Likelihood,<:NumericalVI},index::Integer)
-    return model.inference.∇ΣE[index]
-end
-
-function expec_Σ(model::AbstractGP{<:Likelihood,<:NumericalVI})
-    return model.inference.∇ΣE
-end
-
-function global_update!(model::SVGP{L,NumericalVI{T}}) where {L<:Likelihood,T}
-    if model.inference.Stochastic
-    else
-        model.η₁ .= model.inference.∇η₁ .+ model.η₁
-        model.η₂ .= Symmetric.(model.inference.∇η₂ .+ model.η₂)
-    end
-    model.Σ .= inv.(model.η₂)*(-0.5)
+    # model.μ .= model.η₁
     model.μ .= model.Σ.*model.η₁
 end
 
-function convert(::Type{T1},x::T2) where {T1<:VGP{<:Likelihood,T3} where {T3<:NumericalVI},T2<:VGP{<:Likelihood,<:AnalyticVI}}
+function ELBO(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
+    return expecLogLikelihood(model) - GaussianKL(model)
+end
+
+function convert(::Type{T1},x::T2) where {T1<:VGP{<:Likelihood,T3} where {T3<:NumericalVI},T2<:VGP{<:Real,<:Likelihood,<:AnalyticVI}}
     #TODO Check if likelihood is compatible
     inference = T3(x.inference.ϵ,x.inference.nIter,x.inference.optimizer,defaultn(T3),x.inference.Stochastic,x.inference.nSamples,x.inference.nSamplesUsed,x.inference.MBIndices,x.inference.ρ,x.inference.HyperParametersUpdated,x.inference.∇η₁,x.inference.∇η₂,copy(expec_μ(x)),copy(expec_Σ(x)))
     likelihood =isaugmented(x.likelihood) ? remove_augmentation(x.likelihood) : likelihood

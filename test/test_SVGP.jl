@@ -28,7 +28,7 @@ event_likelihood = ["PoissonLikelihood"]
 likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood,event_likelihood]
 likelihood_names = ["Regression","Classification","MultiClass","Event"]
 stochastic = [true,false]
-inferences = ["AnalyticVI","GibbsSampling"]#,"QuadratureVI","MCIntegrationVI"]
+inferences = ["AnalyticVI","GibbsSampling","QuadratureVI"]#,"MCIntegrationVI"]
 floattypes = [Float64]
 @testset "SVGP" begin
     for (likelihoods,l_names) in zip(likelihood_types,likelihood_names)
@@ -40,7 +40,7 @@ floattypes = [Float64]
                             @testset "$(string(stoch(s,inference)))" begin
                                 if in(stoch(s,inference),methods_implemented_SVGP[l])
                                     for floattype in floattypes
-                                        @test typeof(SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*addiargument(s,inference)*")")),m)) <: SVGP{eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*"}")),floattype,Vector{floattype}}
+                                        @test typeof(SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*addiargument(s,inference)*")")),m)) <: SVGP{floattype,eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*"}")),Vector{floattype}}
                                         model = SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*(addiargument(s,inference))*")")),m,verbose=2)
                                         @test train!(model,iterations=50)
                                         @test testconv(model,l_names,X,y[l_names])

@@ -28,7 +28,7 @@ Argument list :
  - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct GP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: AbstractGP{L,I,T,V}
+mutable struct GP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},V<:AbstractVector{T}} <: AbstractGP{T,TLikelihood,TInference,V}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
@@ -41,8 +41,8 @@ mutable struct GP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: Ab
     Knn::LatentArray{Symmetric{T,Matrix{T}}}
     invKnn::LatentArray{Symmetric{T,Matrix{T}}}
     kernel::LatentArray{Kernel{T}}
-    likelihood::Likelihood{T}
-    inference::Inference{T}
+    likelihood::TLikelihood
+    inference::TInference
     verbose::Int64 #Level of printing information
     optimizer::Union{Optimizer,Nothing}
     atfrequency::Int64
@@ -83,7 +83,7 @@ function GP(X::AbstractArray{T1,N1}, y::AbstractArray{T2,N2}, kernel::Union{Kern
             likelihood = init_likelihood(likelihood,inference,nLatent,nSample,nFeatures)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
 
-            model = GP{GaussianLikelihood{T1},Analytic{T1},T1,ArrayType{T1}}(X,y,
+            model = GP{T1,GaussianLikelihood{T1},Analytic{T1},ArrayType{T1}}(X,y,
                     nFeatures, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,
                     μ₀,Knn,invKnn,kernel,likelihood,inference,
@@ -93,6 +93,6 @@ function GP(X::AbstractArray{T1,N1}, y::AbstractArray{T2,N2}, kernel::Union{Kern
             return model
 end
 
-function Base.show(io::IO,model::GP{<:Likelihood,<:Inference,T}) where T
+function Base.show(io::IO,model::GP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end

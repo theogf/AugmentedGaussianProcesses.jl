@@ -2,6 +2,7 @@
 module PGSampler
 
 using Distributions
+using SpecialFunctions
 const __TRUNC = 0.64;
 const __TRUNC_RECIP = 1.0 / __TRUNC;
 export PolyaGammaDist, draw
@@ -23,6 +24,10 @@ function PolyaGammaDist(;trunc::Int=200)
 	PolyaGammaDist{Float64}(trunc)
 end
 
+
+function Distributions.pdf(d::PolyaGammaDist,x,b,c,nmax::Int=10)
+	cosh(c/2)^b*2.0^(b-1)/gamma(b)*sum(((-1)^n)*gamma(n+b)/gamma(n+1)*(2*n+b)/(sqrt(2*pi*x^3))*exp(-(2*n+b)^2/(8*x)-c^2/2*x) for n in 0:nmax)
+end
 ## Utility
 
 function set_trunc(pg::PolyaGammaDist{T},trunc::Int64) where {T<:Real}
@@ -106,7 +111,6 @@ end
 # ////////////////////////////////////////////////////////////////////////////////
 # 				  // Sample //
 # ////////////////////////////////////////////////////////////////////////////////
-
 
 function draw(pg::PolyaGammaDist{T},n::Real, z::Real) where {T<:Real}
   if n == 0

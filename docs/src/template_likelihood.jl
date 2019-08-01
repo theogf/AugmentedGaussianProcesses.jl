@@ -52,50 +52,50 @@ end
 
 ### Local Updates Section ###
 
-function local_updates!(model::VGP{<:TemplateLikelihood,<:AnalyticVI})
+function local_updates!(model::VGP{T,<:TemplateLikelihood,<:AnalyticVI}) where {T}
 end
 
-function local_updates!(model::SVGP{<:TemplateLikelihood,<:AnalyticVI})
+function local_updates!(model::SVGP{T,<:TemplateLikelihood,<:AnalyticVI}) where {T}
 end
 
-function sample_local!(model::VGP{<:TemplateLikelihood,<:GibbsSampling})
+function sample_local!(model::VGP{T,<:TemplateLikelihood,<:GibbsSampling}) where {T}
     return nothing
 end
 
 ### Natural Gradient Section ###
 
-function expec_μ(model::VGP{<:TemplateLikelihood,<:AnalyticVI},index::Integer)
+function expec_μ(model::VGP{T,<:TemplateLikelihood,<:AnalyticVI},index::Integer) where {T}
 end
 
-function ∇μ(model::VGP{<:TemplateLikelihood})
+function ∇μ(model::VGP{T,<:TemplateLikelihood}) where {T}
 end
 
-function expec_μ(model::SVGP{<:TemplateLikelihood,<:AnalyticVI},index::Integer)
+function expec_μ(model::SVGP{T,<:TemplateLikelihood,<:AnalyticVI},index::Integer) where {T}
 end
 
-function ∇μ(model::SVGP{<:TemplateLikelihood})
+function ∇μ(model::SVGP{T,<:TemplateLikelihood}) where {T}
 end
 
-function expec_Σ(model::AbstractGP{<:TemplateLikelihood,<:AnalyticVI},index::Integer)
+function expec_Σ(model::AbstractGP{T,<:TemplateLikelihood,<:AnalyticVI},index::Integer) where {T}
     return model.likelihood.θ[index]
 end
 
-function ∇Σ(model::AbstractGP{<:TemplateLikelihood})
+function ∇Σ(model::AbstractGP{T,<:TemplateLikelihood}) where {T}
     return model.likelihood.θ
 end
 
 ### ELBO Section ###
 
-function ELBO(model::AbstractGP{<:TemplateLikelihood,<:AnalyticVI})
+function ELBO(model::AbstractGP{T,<:TemplateLikelihood,<:AnalyticVI}) where {T}
     return expecLogLikelihood(model) - GaussianKL(model)
 end
 
-function expecLogLikelihood(model::VGP{<:TemplateLikelihood,<:AnalyticVI})
+function expecLogLikelihood(model::VGP{T,<:TemplateLikelihood,<:AnalyticVI}) where {T}
     tot = 0.0
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{<:TemplateLikelihood,<:AnalyticVI})
+function expecLogLikelihood(model::SVGP{T,<:TemplateLikelihood,<:AnalyticVI}) wher {T}
     tot = 0.0
     return model.inference.ρ*tot
 end

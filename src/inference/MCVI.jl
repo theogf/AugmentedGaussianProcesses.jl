@@ -1,8 +1,7 @@
 mutable struct MCIntegrationVI{T<:Real} <: NumericalVI{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    optimizer_η₁::AbstractVector{Optimizer} #Learning rate for stochastic updates
-    optimizer_η₂::AbstractVector{Optimizer} #Learning rate for stochastic updates
+    optimizer::LatentArray{Optimizer} #Learning rate for stochastic updates
     nMC::Int64 #Number of samples for MC Integrations
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64 #Number of samples of the data
@@ -12,8 +11,10 @@ mutable struct MCIntegrationVI{T<:Real} <: NumericalVI{T}
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     ∇η₁::AbstractVector{AbstractVector}
     ∇η₂::AbstractVector{AbstractArray}
-    ∇μE::AbstractVector{AbstractVector}
-    ∇ΣE::AbstractVector{AbstractVector}
+    ν::AbstractVector{AbstractVector}
+    λ::AbstractVector{AbstractVector}
+    x::SubArray{T,2,Matrix{T},Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
+    y::LatentArray{SubArray}
     function MCIntegrationVI{T}(ϵ::T,nMC::Integer,nIter::Integer,optimizer::Opt,Stochastic::Bool,nSamplesUsed::Integer=1) where {T<:Real,Opt<:Optimizer}
         return new{T}(ϵ,nIter,[optimizer],[optimizer],nMC,Stochastic,1,nSamplesUsed)
     end
@@ -29,7 +30,7 @@ Constructor for Variational Inference via MC Integration approximation.
     - `nMC::Int` : Number of samples per data point for the integral evaluation
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
-function MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
+function MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Momentum(η=0.01)) where {T<:Real}
     MCIntegrationVI{T}(ϵ,nMC,0,optimizer,false,1)
 end
 
@@ -47,11 +48,11 @@ Constructor for Stochastic Variational Inference via MC integration approximatio
     - `nMC::Int` : Number of samples per data point for the integral evaluation
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
-function MCIntegrationSVI(nMinibatch::Integer;ϵ::T=1e-5,nMC::Integer=200,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
+function MCIntegrationSVI(nMinibatch::Integer;ϵ::T=1e-5,nMC::Integer=200,optimizer::Optimizer=Momentum(η=0.001)) where {T<:Real}
     MCIntegrationVI{T}(ϵ,nMC,0,optimizer,true,nMinibatch)
 end
 
-function compute_grad_expectations!(model::VGP{<:Likelihood,<:MCIntegrationVI})
+function compute_grad_expectations!(model::VGP{T,L,<:MCIntegrationVI}) where {T,L}
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     for i in 1:model.nSample
@@ -60,7 +61,7 @@ function compute_grad_expectations!(model::VGP{<:Likelihood,<:MCIntegrationVI})
     end
 end
 
-function compute_grad_expectations!(model::SVGP{<:Likelihood,<:MCIntegrationVI})
+function compute_grad_expectations!(model::SVGP{T,L,<:MCIntegrationVI}) where {T,L}
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     Σ = opt_diag.(model.κ.*model.Σ,model.κ)
@@ -71,7 +72,7 @@ function compute_grad_expectations!(model::SVGP{<:Likelihood,<:MCIntegrationVI})
     end
 end
 
-function compute_log_expectations(model::VGP{<:Likelihood,<:MCIntegrationVI})
+function compute_log_expectations(model::VGP{T,L,<:MCIntegrationVI}) where {T,L}
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     loglike = 0.0
@@ -83,7 +84,7 @@ function compute_log_expectations(model::VGP{<:Likelihood,<:MCIntegrationVI})
 end
 
 
-function compute_log_expectations(model::SVGP{<:Likelihood,<:MCIntegrationVI})
+function compute_log_expectations(model::SVGP{T,L,<:MCIntegrationVI}) where {T,L}
     raw_samples = randn(model.inference.nMC,model.nLatent)
     samples = similar(raw_samples)
     loglike = 0.0

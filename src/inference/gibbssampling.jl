@@ -24,6 +24,8 @@ mutable struct GibbsSampling{T<:Real} <: Inference{T}
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     sample_store::AbstractVector{AbstractVector{AbstractVector{T}}}
+    x::SubArray{T,2,Matrix{T},Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
+    y::LatentArray{SubArray}
     function GibbsSampling{T}(nBurnin::Int,samplefrequency::Int,ϵ::T,nIter::Integer,Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
         return new{T}(nBurnin,samplefrequency,ϵ,nIter,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag)
     end
@@ -45,7 +47,7 @@ function init_inference(inference::GibbsSampling{T},nLatent::Integer,nFeatures::
     return inference
 end
 
-function variational_updates!(model::VGP{L,GibbsSampling{T}}) where {L<:Likelihood,T}
+function variational_updates!(model::VGP{T,L,GibbsSampling{T}}) where {T,L}
     sample_local!(model)
     sample_global!(model)
     if model.inference.nIter > model.inference.nBurnin && (model.inference.nIter-model.inference.nBurnin)%model.inference.samplefrequency==0
@@ -55,17 +57,17 @@ function variational_updates!(model::VGP{L,GibbsSampling{T}}) where {L<:Likeliho
     end
 end
 
-function ELBO(model::AbstractGP{<:Likelihood,<:GibbsSampling})
+function ELBO(model::AbstractGP{T,<:Likelihood,<:GibbsSampling}) where {T}
     return NaN
 end
 
-function sample_global!(model::VGP{<:Likelihood,<:GibbsSampling})
-    model.Σ .= inv.(Symmetric.(Diagonal.(∇Σ(model)).+model.invKnn))
-    model.μ .= rand.(MvNormal.(model.Σ.*∇μ(model),model.Σ))
+function sample_global!(model::VGP{T,<:Likelihood,<:GibbsSampling}) where {T}
+    model.Σ .= inv.(Symmetric.(Diagonal.(2.0.*∇E_Σ(model)).+model.invKnn))
+    model.μ .= rand.(MvNormal.(model.Σ.*∇E_μ(model),model.Σ))
     return nothing
 end
 
-function post_process!(model::AbstractGP{<:Likelihood,<:GibbsSampling})
+function post_process!(model::AbstractGP{T,<:Likelihood,<:GibbsSampling}) where {T}
     for k in 1:model.nLatent
         model.μ[k] = vec(mean(hcat(model.inference.sample_store[k]...),dims=2))
         model.Σ[k] = Symmetric(cov(hcat(model.inference.sample_store[k]...),dims=2))

@@ -23,7 +23,7 @@ function makie1D!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100,nσ::Int=2
     return makie1D!(scene,model,x_grid,nσ)
 end
 
-function makie1D!(scene::Scene,model::AbstractGP{<:RegressionLikelihood},x_grid::AbstractVector,nσ::Int)
+function makie1D!(scene::Scene,model::AbstractGP{T,<:RegressionLikelihood},x_grid::AbstractVector,nσ::Int) where {T}
     μ_grid,σ²_grid = proba_y(model,x_grid)
     if model.nLatent == 1
         Makie.scatter!(scene,model.X[:,1],model.y[1],markersize=0.01,color=:black)
@@ -42,7 +42,7 @@ function makie1D!(scene::Scene,model::AbstractGP{<:RegressionLikelihood},x_grid:
     end
 end
 
-function makie1D!(scene::Makie.Scene,model::AbstractGP{<:ClassificationLikelihood},x_grid::AbstractVector)
+function makie1D!(scene::Makie.Scene,model::AbstractGP{T,<:ClassificationLikelihood},x_grid::AbstractVector) where {T}
     μ_grid,σ²_grid = predict_f(model,x_grid,covf=true)
     py_grid = proba_y(model,x_grid)
     if model.nLatent == 1
@@ -70,7 +70,7 @@ function makie2D!(scene::Makie.Scene,model::AbstractGP;nGrid::Int=100,nσ::Int=2
     makie2D!(scene,model,x1_grid,x2_grid,X_grid,nσ)
 end
 
-function makie2D!(scene::Makie.Scene,model::AbstractGP{<:RegressionLikelihood},x1_grid::AbstractVector,x2_grid::AbstractVector,X_grid::AbstractMatrix,nσ::Int)
+function makie2D!(scene::Makie.Scene,model::AbstractGP{T,<:RegressionLikelihood},x1_grid::AbstractVector,x2_grid::AbstractVector,X_grid::AbstractMatrix,nσ::Int) where {T}
     μ_grid,σ²_grid = predict_f(model,X_grid,covf=true)
     scatter!(scene,model.X[:,1],model.X[:,2],model.y[1],markersize=0.01,color=:black)
     surface!(scene,x1_grid,x2_grid,reshape(μ_grid,length(x1_grid),length(x2_grid))')
@@ -79,7 +79,7 @@ function makie2D!(scene::Makie.Scene,model::AbstractGP{<:RegressionLikelihood},x
     return scene
 end
 
-function makie2D!(scene::Makie.Scene,model::AbstractGP{<:ClassificationLikelihood},x1_grid::AbstractVector,x2_grid::AbstractVector,X_grid::AbstractMatrix,nσ::Int)
+function makie2D!(scene::Makie.Scene,model::AbstractGP{T,<:ClassificationLikelihood},x1_grid::AbstractVector,x2_grid::AbstractVector,X_grid::AbstractMatrix,nσ::Int) where {T}
     y_p = proba_y(model,X_grid)
     scatter!(scene,model.X[:,1],model.X[:,2],model.y[1],markersize=0.01,color=:black)
     surface!(scene,x1_grid,x2_grid,reshape(y_p,length(x1_grid),length(x2_grid))')

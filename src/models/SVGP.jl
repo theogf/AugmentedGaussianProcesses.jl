@@ -28,7 +28,7 @@ Argument list :
  - `optimizer` : Optimizer for inducing point locations (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: AbstractGP{L,I,T,V}
+mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,V<:AbstractVector{T}} <: AbstractGP{T,TLikelihood,TInference,V}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
@@ -49,8 +49,8 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: 
     κ::LatentArray{Matrix{T}}
     K̃::LatentArray{V}
     kernel::LatentArray{Kernel{T}}
-    likelihood::Likelihood{T}
-    inference::Inference{T}
+    likelihood::TLikelihood
+    inference::TInference
     verbose::Int64
     optimizer::Union{Optimizer,Nothing}
     atfrequency::Int64
@@ -59,11 +59,11 @@ mutable struct SVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: 
 end
 
 function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
-            likelihood::LikelihoodType,inference::InferenceType, nInducingPoints::Int;
+            likelihood::TLikelihood,inference::TInference, nInducingPoints::Int;
             verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true,Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
-            ArrayType::UnionAll=Vector) where {T1<:Real,T2,LikelihoodType<:Likelihood,InferenceType<:Inference}
+            ArrayType::UnionAll=Vector) where {T1<:Real,T2,TLikelihood<:Likelihood,TInference<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(:SVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
@@ -112,19 +112,22 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed,nFeatures)
             inference = init_inference(inference,nLatent,nFeatures,nSample,nSamplesUsed)
-            model = SVGP{LikelihoodType,InferenceType,T1,ArrayType{T1}}(X,y,
+            inference.x = view(X,:,:)
+            inference.y = view.(y,:)
+
+            model = SVGP{T1,TLikelihood,TInference,ArrayType{T1}}(X,y,
                     nSample, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,
                     Z,μ,Σ,η₁,η₂,
                     μ₀,Kmm,invKmm,Knm,κ,K̃,
                     kernel,likelihood,inference,
                     verbose,optimizer,atfrequency,Zoptimizer,false)
-            if isa(inference.optimizer_η₁[1],ALRSVI)
+            if isa(inference.optimizer[1],ALRSVI)
                 init!(model.inference,model)
             end
             return model
 end
 
-function Base.show(io::IO,model::SVGP{<:Likelihood,<:Inference,T}) where T
+function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end

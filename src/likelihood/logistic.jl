@@ -64,17 +64,17 @@ end
 
 ### Local Updates Section ###
 
-function local_updates!(model::VGP{<:LogisticLikelihood,<:AnalyticVI})
+function local_updates!(model::VGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(Σ+abs2.(μ)),model.μ,diag.(model.Σ))
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end
 
-function local_updates!(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
+function local_updates!(model::SVGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
     model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),model.μ,model.Σ,model.K̃,model.κ)
     model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
 end
 
-function sample_local!(model::VGP{<:LogisticLikelihood,<:GibbsSampling})
+function sample_local!(model::VGP{T,<:LogisticLikelihood,<:GibbsSampling}) where {T}
     pg = PolyaGammaDist()
     model.likelihood.θ .= broadcast((μ::AbstractVector{<:Real})->draw.([pg],[1.0],μ),model.μ)
     return nothing
@@ -82,58 +82,47 @@ end
 
 ### Natural Gradient Section ###
 
-function cond_mean(model::VGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
-    return 0.5*model.y[index]
-end
-
-function ∇μ(model::VGP{<:LogisticLikelihood})
-    return 0.5*model.y
-end
-
-function cond_mean(model::SVGP{<:LogisticLikelihood,<:AnalyticVI},index::Integer)
-    return 0.5.*model.y[index][model.inference.MBIndices]
-end
-
-function ∇μ(model::SVGP{<:LogisticLikelihood})
-    return 0.5.*getindex.(model.y,[model.inference.MBIndices])
-end
-
-function ∇Σ(model::AbstractGP{<:LogisticLikelihood})
-    return model.likelihood.θ
-end
+@inline ∇E_μ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI}) where {T} = 0.5*model.inference.y
+@inline ∇E_μ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5*model.inference.y[i]
+@inline ∇E_Σ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI}) where {T} = 0.5*model.likelihood.θ
+@inline ∇E_Σ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5*model.likelihood.θ[i]
 
 ### ELBO Section ###
 
-function ELBO(model::AbstractGP{<:LogisticLikelihood,<:AnalyticVI})
+function ELBO(model::AbstractGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
     return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
 end
 
-function expecLogLikelihood(model::VGP{<:LogisticLikelihood,<:AnalyticVI})
+function expecLogLikelihood(model::VGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
     tot = -model.nLatent*(0.5*model.nSample*logtwo)
     tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-dot(θ,Σ+abs2.(μ))),
                         model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{<:LogisticLikelihood,<:AnalyticVI})
+function expecLogLikelihood(model::SVGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
     tot = -model.nLatent*(0.5*model.inference.nSamplesUsed*logtwo)
-    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y[model.inference.MBIndices])-dot(θ,K̃+κΣκ+abs2.(κμ))),
-                        model.κ.*model.μ,model.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
+    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y)-dot(θ,K̃+κΣκ+abs2.(κμ))),
+                        model.κ.*model.μ,model.inference.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
     return model.inference.ρ*tot
 end
 
-function PolyaGammaKL(model::AbstractGP{<:LogisticLikelihood})
+function PolyaGammaKL(model::AbstractGP{T,<:LogisticLikelihood}) where {T}
     model.inference.ρ*sum(broadcast(PolyaGammaKL,[ones(length(model.likelihood.c[1]))],model.likelihood.c,model.likelihood.θ))
 end
 
 ### Gradient Section ###
 
+@inline grad_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T} = y*logistic(-y*f)
+
 function gradpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
-    σ=y*f
+    σ=logistic(y*f)
     σ*(one(T)-σ)
 end
 
+@inline hessian_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T<:Real} = -exp(y*f)/logistic(-y*f)^2
+
 function hessiandiagpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
-    σ=y*f
+    σ=logistic(y*f)
     σ*(one(T)-2σ + abs2(σ))
 end
