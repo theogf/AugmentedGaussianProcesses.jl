@@ -6,7 +6,7 @@
 
 AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development for **Data Augmented Sparse Gaussian Processes**. It contains a collection of models for different **gaussian and non-gaussian likelihoods**, which are transformed via data augmentation into **conditionally conjugate likelihood** allowing for **extremely fast inference** via block coordinate updates. There are also more options to use more traditional **variational inference** via quadrature or Monte Carlo integration.
 
-**Note that you can use the package in Python via [PyJulia](https://github.com/JuliaPy/pyjulia)**
+### You can also use the package in Python via [PyJulia](https://github.com/JuliaPy/pyjulia)!
 
 # Packages models :
 

@@ -36,7 +36,7 @@ svmpred = (proba_y(svmmodel,X_test).-0.5).*2
 # y1 = AugmentedGaussianProcesses.svmlikelihood(svmfstar)
 # y2 = AugmentedGaussianProcesses.svmlikelihood(-svmfstar)
 # plot(X_test,y1+y2)
-
+##
 default(legendfontsize=14.0,xtickfontsize=10.0,ytickfontsize=10.0)
 p = plot(X,y,t=:scatter,lab="Training Points")
 plot!(X_test,logitpred,lab="Logistic Prediction",lw=7.0)
