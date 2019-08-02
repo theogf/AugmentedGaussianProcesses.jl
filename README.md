@@ -4,7 +4,9 @@
 [![Build Status](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl.svg?branch=master)](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl)
 [![Coverage Status](https://coveralls.io/repos/github/theogf/AugmentedGaussianProcesses.jl/badge.svg?branch=master)](https://coveralls.io/github/theogf/AugmentedGaussianProcesses.jl?branch=master)
 
-AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development for **Data Augmented Sparse Gaussian Processes**. It contains a collection of models for different **gaussian and non-gaussian likelihoods**, which are transformed via data augmentation into **conditionally conjugate likelihood** allowing for **extremely fast inference** via block coordinate updates.
+AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development for **Data Augmented Sparse Gaussian Processes**. It contains a collection of models for different **gaussian and non-gaussian likelihoods**, which are transformed via data augmentation into **conditionally conjugate likelihood** allowing for **extremely fast inference** via block coordinate updates. There are also more options to use more traditional **variational inference** via quadrature or Monte Carlo integration.
+
+### You can also use the package in Python via [PyJulia](https://github.com/JuliaPy/pyjulia)!
 
 # Packages models :
 
@@ -22,19 +24,19 @@ AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development 
   - **StudentT** : The standard Gaussian Process regression with a Student-t likelihood (the degree of freedom ν is not optimizable for the moment) [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20StudentT.ipynb)/[Reference][jmlrstudentt]
   - **Laplace** : Gaussian Process regression with a Laplace likelihood [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20Laplace.ipynb)/(No reference at the moment)
   - **Heteroscedastic** : Regression with non-stationary noise, given by an additional GP. (no reference at the moment)
-  
+
 <p align=center>
    <img src="docs/src/assets/Regression.png">
  </p>
- 
+
 ---
 ## One Multi-Class Classification Likelihood
   - **Logistic-SoftMax** : A modified version of the softmax where the exponential is replaced by the logistic function [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/MultiClass%20-%20LogisticSoftMax.ipynb)/[Reference][uaimulticlass]
-  
+
  <p align=center>
    <img src="docs/src/assets/final3D.png">
  </p>
-  
+
 ## More models in development
   - **Poisson** : For point process estimation
   - **Heteroscedastic** : Non stationary noise
