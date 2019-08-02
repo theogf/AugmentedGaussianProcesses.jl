@@ -56,7 +56,8 @@ function compute_proba(l::LogisticLikelihood{T},μ::AbstractVector{T},σ²::Abst
         if σ²[i] <= 0.0
             pred[i] = logistic(μ[i])
         else
-            pred[i] =  expectation(logistic,Normal(μ[i],sqrt(σ²[i])))
+            nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
+            pred[i] = dot(pred_weights,logistic.(nodes))
         end
     end
     return pred

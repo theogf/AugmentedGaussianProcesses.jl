@@ -135,7 +135,8 @@ end
 function proba_y(model::SVGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T}
     μf, σ²f = predict_f(model,X_test,covf=true)
     μg, σ²g = _predict_f.(model.likelihood.μ,model.likelihood.Σ,model.likelihood.invK,model.likelihood.kernel,[X_test],model.Z,covf=true)
-    return μf,σ²f.+broadcast((λ,μ,σ)->expectation.(x->inv(λ*logistic(x)),Normal.(μ,sqrt.(σ))),model.likelihood.λ,μg,σ²g)
+
+    return μf,σ²f.+broadcast((λ,μ,σ)->dot.([pred_weights],eachcol(inv.(λ*logistic.(pred_nodes.*sqrt2*sqrt.(σ)'.+μ')))),model.likelihood.λ,μg,σ²g)
 end
 
 function ELBO(model::AbstractGP{T,HeteroscedasticLikelihood{T},<:AnalyticVI}) where {T}

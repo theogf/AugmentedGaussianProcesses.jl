@@ -67,7 +67,8 @@ function expecLogLikelihood(model::VGP{T,L,<:QuadratureVI}) where {T,L}
     tot = 0.0
     for k in 1:model.nLatent
         for i in 1:model.nSample
-            expectation(x->logpdf(model.likelihood,model.y[k][i],x),Normal(model.μ[k][i],sqrt(model.Σ[k][i,i])))
+            nodes = model.inference.nodes*sqrt2*sqrt(model.Σ[k][i,i]) .+ model.μ[k][i]
+            tot += dot(model.inference.weights,logpdf.(model.likelihood,model.y[k][i],nodes))
         end
     end
     return tot
@@ -80,7 +81,8 @@ function expecLogLikelihood(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
         μ = model.κ[k_correct]*model.μ[k]
         Σ = opt_diag(model.κ[k_correct]*model.Σ[k],model.κ[k_correct])
         for i in 1:model.nSample
-            expectation(x->logpdf(model.likelihood,model.y[k][i],x),Normal(μ[i],sqrt(Σ[i])))
+            nodes = model.inference.nodes*sqrt2*sqrt(Σ[i]) .+ μ[i]
+            tot += dot(model.inference.weights,logpdf.(model.likelihood,model.y[k][i],nodes))
         end
     end
     return tot

@@ -56,32 +56,7 @@ function Base.show(io::IO,model::StudentTLikelihood{T}) where T
 end
 
 function compute_proba(l::StudentTLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
-    N = length(μ)
-    st = TDist(l.ν)
-    nSamples = 2000
-    μ_pred = zeros(T,N)
-    σ²_pred = zeros(T,N)
-    temp_array = zeros(T,nSamples)
-    for i in 1:N
-        # e = expectation(Normal(μ[i],sqrt(σ²[i])))
-        # μ_pred[i] = μ[i]
-        #
-        # σ²_pred[i] = e(x->pdf(LocationScale(x,1.0,st))^2) - e(x->pdf(LocationScale(x,1.0,st)))^2
-        if σ²[i] <= 1e-3
-            pyf =  LocationScale(μ[i],sqrt(l.σ),st)
-            for j in 1:nSamples
-                temp_array[j] = rand(pyf)
-            end
-        else
-            d = Normal(μ[i],sqrt(σ²[i]))
-            for j in 1:nSamples
-                temp_array[j] = rand(LocationScale(rand(d),sqrt(l.σ),st))
-            end
-        end
-        μ_pred[i] = μ[i];
-        σ²_pred[i] = cov(temp_array)
-    end
-    return μ_pred,σ²_pred
+    return μ,max.(σ²,0.0).+0.5*l.ν*l.σ/(0.5*l.ν-1)
 end
 
 ## Local Updates ##
@@ -118,14 +93,14 @@ end
 
 function expecLogLikelihood(model::VGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
     tot = -0.5*model.nLatent*model.nSample*(log(twoπ*model.likelihood.σ))
-    tot += -0.5.*sum(broadcast(β->sum(model.nSample*digamma(model.likelihood.α).-log.(β)),model.likelihood.β))
+    tot += -0.5.*sum(broadcast((α,β)->sum(digamma(α).-log.(β)), model.likelihood.α,model.likelihood.β))
     tot += -0.5.*sum(broadcast((θ,Σ,μ,y)->dot(θ,Σ+abs2.(μ)-2.0*μ.*y-abs2.(y)),model.likelihood.θ,diag.(model.Σ),model.μ,model.y))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
     tot = -0.5*model.nLatent*model.inference.nSamplesUsed*(log(twoπ*model.likelihood.σ))
-    tot += -0.5.*sum(broadcast(β->sum(model.inference.nSamplesUsed*digamma(model.likelihood.α).-log.(β)),model.likelihood.β))
+    tot += -0.5.*sum(broadcast(β->sum(digamma(model.likelihood.α).-log.(β)),model.likelihood.β))
     tot += -0.5.*sum(broadcast((θ,K̃,κ,Σ,κμ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κμ)-2.0*(κμ).*y-abs2.(y))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.κ.*model.μ,model.inference.y))
     return model.inference.ρ*tot
 end

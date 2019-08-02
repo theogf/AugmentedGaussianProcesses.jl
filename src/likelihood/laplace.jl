@@ -55,30 +55,7 @@ function Base.show(io::IO,model::LaplaceLikelihood{T}) where T
 end
 
 function compute_proba(l::LaplaceLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
-    N = length(μ)
-    nSamples = 2000
-    μ_pred = zeros(T,N)
-    σ²_pred = zeros(T,N)
-    temp_array = zeros(T,nSamples)
-    for i in 1:N
-        # e = expectation(Normal(μ[i],sqrt(β²[i])))
-        # μ_pred[i] = μ[i]
-        #
-        # β²_pred[i] = e(x->pdf(LocationScale(x,1.0,st))^2) - e(x->pdf(LocationScale(x,1.0,st)))^2
-        if σ²[i] <= 1e-3
-            for j in 1:nSamples
-                temp_array[j] = rand(Laplace(μ[i],l.β[1])) #WARNING Multiouput invalid
-            end
-        else
-            d = Normal(μ[i],sqrt(σ²[i]))
-            for j in 1:nSamples
-                temp_array[j] = rand(Laplace(rand(d),l.β[1])) #WARNING multioutput invalid
-            end
-        end
-        μ_pred[i] = μ[i];
-        σ²_pred[i] = cov(temp_array)
-    end
-    return μ_pred,σ²_pred
+    return μ,max.(σ²,0.0).+ 2*l.β[1]^2
 end
 
 ## Local Updates ##

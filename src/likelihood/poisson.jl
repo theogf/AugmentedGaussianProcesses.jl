@@ -39,7 +39,8 @@ function compute_proba(l::PoissonLikelihood{T},μ::Vector{T},σ²::Vector{T}) wh
         if σ²[i] <= 0.0
             pred[i] = l.λ[1]*logistic(μ[i]) #WARNING Not valid for multioutput
         else
-            pred[i] =  expectation(x->l.λ[1]*logistic(x),Normal(μ[i],sqrt(σ²[i]))) #WARNING not valid for multioutput
+            nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
+            pred[i] =  dot(pred_weights,l.λ[1].*logistic.(nodes)) #WARNING not valid for multioutput
         end
     end
     return pred
