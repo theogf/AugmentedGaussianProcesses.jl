@@ -92,14 +92,16 @@ function ELBO(model::AbstractGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
 end
 
 function expecLogLikelihood(model::VGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
-    tot = -0.5*model.nLatent*model.nSample*(log(twoπ*model.likelihood.σ))
+    # model.likelihood.β .= broadcast((Σ,μ,y)->0.5*(Σ+abs2.(μ-y).+model.likelihood.σ^2*model.likelihood.ν),diag.(model.Σ),model.μ,model.y)
+    # model.likelihood.θ .= broadcast(β->model.likelihood.α./β,model.likelihood.β)
+    tot = -0.5*model.nLatent*model.nSample*(log(twoπ*model.likelihood.σ^2))
     tot += -sum(broadcast((α,β)->sum(log.(β).-digamma(α)), model.likelihood.α,model.likelihood.β))
     tot += -0.5.*sum(broadcast((θ,Σ,μ,y)->dot(θ,Σ+abs2.(μ)-2.0*μ.*y+abs2.(y)),model.likelihood.θ,diag.(model.Σ),model.μ,model.y))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
-    tot = -0.5*model.nLatent*model.inference.nSamplesUsed*(log(twoπ*model.likelihood.σ))
+    tot = -0.5*model.nLatent*model.inference.nSamplesUsed*(log(twoπ*model.likelihood.σ^2))
     tot += -sum(broadcast(β->sum(digamma(model.likelihood.α).-log.(β)),model.likelihood.β))
     tot += -0.5.*sum(broadcast((θ,K̃,κ,Σ,κμ,y)->dot(θ,(K̃+opt_diag(κ*Σ,κ)+abs2.(κμ)-2.0*(κμ).*y+abs2.(y))),model.likelihood.θ,model.K̃,model.κ,model.Σ,model.κ.*model.μ,model.inference.y))
     return model.inference.ρ*tot

@@ -80,9 +80,9 @@ function expecLogLikelihood(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
         k_correct = model.nLatent == 1 ? 1 : k
         μ = model.κ[k_correct]*model.μ[k]
         Σ = opt_diag(model.κ[k_correct]*model.Σ[k],model.κ[k_correct])
-        for i in 1:model.nSample
+        for i in 1:model.inference.nSamplesUsed
             nodes = model.inference.nodes*sqrt2*sqrt(Σ[i]) .+ μ[i]
-            tot += dot(model.inference.weights,logpdf.(model.likelihood,model.y[k][i],nodes))
+            tot += dot(model.inference.weights,logpdf.(model.likelihood,model.inference.y[k][i],nodes))
         end
     end
     return tot
@@ -113,12 +113,4 @@ function grad_quad(likelihood::Likelihood{T},y::Real,μ::Real,σ²::Real,inferen
     Edlogpdf = dot(inference.weights,grad_log_pdf.(likelihood,y,nodes))
     Ed²logpdf = dot(inference.weights,hessian_log_pdf.(likelihood,y,nodes))
     return -Edlogpdf::T, Ed²logpdf::T
-end
-
-
-function compute_log_expectations(model::VGP{T,L,<:QuadratureVI}) where {T,L}
-end
-
-
-function compute_log_expectations(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
 end
