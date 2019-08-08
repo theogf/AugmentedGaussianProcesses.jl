@@ -2,7 +2,7 @@ include("regression.jl")
 include("classification.jl")
 include("multiclass.jl")
 include("event.jl")
-
+include("generic_likelihood.jl")
 function pdf(l::Likelihood{T},y::Real,f::Real) where T
     @error "pdf not implemented"
 end

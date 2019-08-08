@@ -76,6 +76,6 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
             return false
         end
     else
-        return false
+        return true
     end
 end
