@@ -95,8 +95,8 @@ function ELBO(model::AbstractGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
 end
 
 function expecLogLikelihood(model::VGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
-    tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-dot(θ,Σ+abs2.(μ))),
+    tot = -model.nLatent*(model.nSample*logtwo)
+    tot += 0.5*sum(broadcast((μ,y,θ,Σ)->dot(μ,y)-dot(θ,Σ)-dot(θ,abs2.(μ)),
                         model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
     return tot
 end

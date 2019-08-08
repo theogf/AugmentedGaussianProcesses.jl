@@ -80,7 +80,7 @@ end
 ## Global Gradients ##
 
 @inline ∇E_μ(model::AbstractGP{T,<:StudentTLikelihood,<:GibbsorVI}) where {T} = hadamard.(model.likelihood.θ,model.inference.y)
-@inline ∇E_μ(model::AbstractGP{T,<:StudentTLikelihood,<:GibbsorVI},i::Int) where {T} = model.likelihood.θ[i].*model.inference.y[i]
+@inline ∇E_μ(model::AbstractGP{T,<:StudentTLikelihood,<:GibbsorVI},i::Int) where {T} = hadamard(model.likelihood.θ[i],model.inference.y[i])
 
 @inline ∇E_Σ(model::AbstractGP{T,<:StudentTLikelihood,<:GibbsorVI}) where {T} = 0.5.*model.likelihood.θ
 @inline ∇E_Σ(model::AbstractGP{T,<:StudentTLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5.*model.likelihood.θ[i]
@@ -96,7 +96,7 @@ function expecLogLikelihood(model::VGP{T,<:StudentTLikelihood,<:AnalyticVI}) whe
     # model.likelihood.θ .= broadcast(β->model.likelihood.α./β,model.likelihood.β)
     tot = -0.5*model.nLatent*model.nSample*(log(twoπ*model.likelihood.σ^2))
     tot += -sum(broadcast((α,β)->sum(log.(β).-digamma(α)), model.likelihood.α,model.likelihood.β))
-    tot += -0.5.*sum(broadcast((θ,Σ,μ,y)->dot(θ,Σ+abs2.(μ)-2.0*μ.*y+abs2.(y)),model.likelihood.θ,diag.(model.Σ),model.μ,model.y))
+    tot += -0.5.*sum(broadcast((θ,Σ,μ,y)->dot(θ,Σ)+dot(θ,abs2.(μ))-2.0*dot(θ,μ.*y)+dot(θ,abs2.(y)),model.likelihood.θ,diag.(model.Σ),model.μ,model.y))
     return tot
 end
 
