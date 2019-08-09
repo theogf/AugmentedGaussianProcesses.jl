@@ -3,26 +3,95 @@ macro augmodel()
 end
 
 """
-**$(local sname) Likelihood**
-
+** Likelihood**
 Template file for likelihood creation
 
+
 ```julia
-$(local lname)()
+()
 ```
 See all functions you need to implement
 ---
 
 
 """
+
+check_model_name(name::Symbol) = !isnothing(match(r"[a-zA-Z]*",string(name)))
+function check_likelihoodtype(ltype::Symbol)
+    if ltype == :Regression || ltype == :Classification || ltype == :Event
+        return true
+    else
+        return false
+    end
+end
+
+function treat_likelihood(likelihood::Expr)
+
+end
+
+function treat_params(params)
+
+end
+
+function correct_parenthesis(text::AbstractString)
+    replace(text,r"(?=[()*+-.])"=>"\\")
+end
+
 const AGP=AugmentedGaussianProcesses
-macro augmodel(name::String,LikelihoodType::String,C::Symbol,g::Symbol,α::Symbol,β::Symbol,γ::Symbol,φ::Symbol,∇φ::Symbol)
+
+macro augmodel(name::Symbol,likelihoodtype::Symbol,likelihood::Expr,params)
+    latent = :x
+    @assert occursin(r"p\(y\s*|\s*\w\)",string(likelihood)) "Likelihood should be of the form p(y|x) = C*exp(g(y)*x)*φ(α(y)-β(y)*x+γ(y)*x^2), replacing all functions by 0 if necessary"
+    pdf_string = string(likelihood.args[2].args[2])
+    # @show pdfexpr = Meta.parse(pdfstring)
+    C_string = match(r".*?(?= (\* exp\(.*x\)))",pdf_string).match
+    G_string_f = match(Regex("(?<=$(AGP.correct_parenthesis(C_string)) \\* exp\\().*(?=x\\) \\*)"),pdf_string).match
+    G_string = deepcopy(G_string_f)
+    while last(G_string) == ' ' || last(G_string) == '*'
+        G_string = G_string[1:end-1]
+    end
+    phi_h_string = match(Regex("(?<=$(AGP.correct_parenthesis(G_string_f))x\\) \\* ).*"),pdf_string).match
+    loc_x² = findfirst("x ^ 2",phi_h_string)
+    count_parenthesis = 1
+    loc_start = loc_x²[1]
+    while count_parenthesis != 0
+        loc_start = loc_start - 1
+        if phi_h_string[loc_start] == ')'
+            count_parenthesis += 1
+        elseif phi_h_string[loc_start] == '('
+            count_parenthesis -= 1
+        end
+    end
+    h_string = phi_h_string[(loc_start+1):loc_x²[end]]
+    phi_string = phi_h_string[1:loc_start]*"r"*phi_h_string[(loc_x²[end]+1):end]
+    @show alpha_string = match(r"[^(][^-]*",h_string).match[1:end-1]
+    gamma_string = match(r"(?<=\+ )[^x]*(?=x \^ 2)",h_string).match
+    gamma_string = gamma_string == "" ? "1.0" : gamma_string
+    while last(gamma_string) == ' ' || last(gamma_string) == '*'
+        gamma_string = gamma_string[1:end-1]
+    end
+    beta_string = match(Regex("(?<=$(AGP.correct_parenthesis(alpha_string)) -  )[^( x )]*(?= x)"),h_string).match
+    while last(beta_string) == ' ' || last(beta_string) == '*'
+        beta_string = beta_string[1:end-1]
+    end
+    return (C_string,G_string,phi_string,alpha_string,beta_string,gamma_string)
+    # treat_params(params)
+    # C,g,α,β,γ,φ = treat_likelihood(likelihood)
+end
+
+macro augmodel(name::Symbol,likelihoodtype::Symbol,likelihood::Expr)
+
+end
+
+
+macro augmodel(name::Symbol,likelihoodtype::Symbol,C::Symbol,g::Symbol,α::Symbol,β::Symbol,γ::Symbol,φ::Symbol,∇φ::Symbol)
     #### Check args here
     #Check name has no space
-    #Check LikelihoodType exists
+    @assert check_model_name(name) "Please only use alphabetic characters for the name of the likelihood"
+    @assert checkl_likelihoodtype(likelihoodtype) "Please use a correct likelihood type : Regression, Classification or Event"
     #Find gradient with AD if needed
     #In a later stage try to find structure automatically
-    esc(_augmodel(Symbol(name),Symbol(name,"Likelihood"),Symbol(name,"Likelihood{T}"),Symbol(LikelihoodType*"Likelihood"),C,g,α,β,γ,φ,∇φ))
+    esc(_augmodel(name,Symbol(name,"Likelihood"),Symbol(name,"Likelihood{T}"),Symbol(LikelihoodType*"Likelihood"),C,g,α,β,γ,φ,∇φ))
 end
 function _augmodel(name,lname,lnameT,ltype,C,g,α,β,γ,φ,∇φ)
     quote begin
@@ -74,19 +143,23 @@ function _augmodel(name,lname,lnameT,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function φ(l::$(lname),r::T) where {T}
-            φ.(r)
+            φ(r)
         end
 
         function ∇φ(l::$(lname),r::T) where {T}
-            ∇φ.(r)
+            ∇φ(r)
+        end
+
+        function ∇²φ(l::$(lname),r::T) where {T}
+            ForwardDiff.gradient(x->∇φ(l,x[1]),r)[1]
         end
 
         function pdf(l::$(lname),y::Real,f::Real)
-            C()*exp(g(y)*f)*φ(α(y)-β(y)*f-α(y)*f)
+            C()*exp(g(y)*f)*φ(α(y)-β(y)*f+α(y)*f)
         end
 
         function Base.show(io::IO,model::$(lname){T}) where {T}
-            print(io,"$(name) Likelihood")
+            print(io,"Generic Likelihood")#WARNING TODO, to be fixed!
         end
 
         function AGP.compute_proba(l::$(lname){T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
@@ -161,10 +234,15 @@ function _augmodel(name,lname,lnameT,ltype,C,g,α,β,γ,φ,∇φ)
 
         ### Gradient Section ###
 
-        function gradpdf(::$(lname),y::Int,f::T) where {T<:Real}
+        @inline function grad_log_pdf(l::$(lname){T},y::Real,f::Real) where {T<:Real}
+            h² = α(l,y) - β(l,y)*f + γ(l,y)*f^2
+            g(l,y)+(-β(l,y)+2*γ(l,y))*∇φ(l,h²)/φ(l,h²)
         end
 
-        function hessiandiagpdf(::$(lname),y::Int,f::T) where {T<:Real}
+        @inline function hessian_log_pdf(l::$(lname){T},y::Real,f::Real) where {T<:Real}
+            h² = α(l,y) - β(l,y)*f + γ(l,y)*f^2
+            ϕ = φ(l,h²); ∇ϕ = ∇φ(l,h²); ∇²ϕ = ∇²φ(l,h²)
+            2*γ(l,y)*∇ϕ/ϕ-(-β(l,y)+2*γ(l,y)*f^2)*∇ϕ^2/ϕ^2+(-β(l,y)+2*γ(l,y)*f^2)^2*∇²ϕ/ϕ
         end
 
     end
