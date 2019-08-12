@@ -9,14 +9,14 @@ doPlots=  true
 verbose = 2
 using Plots
 pyplot()
-N_data = 200
-N_test = 100
+N_data = 1000
+N_test = 1000
 N_dim = 1
 noise = 1e-16
 minx=-1.0
 maxx=1.0
 μ_0 = -1
-l= sqrt(0.1); vf = 2.0;vg=1.0; α = 1.0;n_sig = 2
+l= sqrt(0.1); vf = 2.0;vg=1.0; α = 0.1;n_sig = 2
 kernel = RBFKernel(0.3,variance = vf); m = 40
 kernel_g = RBFKernel(0.3,variance = vg)
 autotuning = false
@@ -71,7 +71,7 @@ end
 
 # if fullm
 println("Testing the full model")
-t_full = @elapsed global model = VGP(X,y,kernel,AGP.HeteroscedasticLikelihood(kernel_g,AGP.ConstantMean(float(μ_0))),AnalyticVI(),verbose=verbose,Autotuning=false)
+t_full = @elapsed global model = VGP(X,y,kernel,AGP.HeteroscedasticLikelihood(kernel_g,AGP.ConstantMean(float(μ_0))),AnalyticVI(),verbose=verbose,optimizer=false)
 # model.μ = copy(y_m[1:model.nSamples])
 t_full += @elapsed train!(model,iterations=10)#,callback=callback)
 global y_full,sig_full = proba_y(model,X_test); rmse_full = rmse(y_full,y_test);
@@ -84,75 +84,32 @@ if doPlots
 
     push!(ps,p1)
 end
-##
-println("Testing the alternative model")
-t_alt = @elapsed global altmodel = VGP(X,y,kernel,AGP.AltHeteroscedasticLikelihood(kernel_g,AGP.ConstantMean(float(μ_0))),AnalyticVI(),verbose=verbose,Autotuning=false)
-# model.μ = copy(y_m[1:model.nSamples])
-t_alt += @elapsed train!(altmodel,iterations=100)#,callback=callback)
-global y_alt,sig_alt = proba_y(altmodel,X_test); rmse_alt = rmse(y_alt,y_test);
-# global y_fullg, sig_fullg = proba_y(model,X_test)
-
-if doPlots
-    # p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="StudentT")
-    p2=plot(x_test,y_full,lab="",title="Alt-Heteroscedastic",ylim=(miny,maxy))
-    plot!(p2,X_test,y_alt+n_sig*sqrt.(sig_alt),fill=(y_alt-n_sig*sqrt.(sig_alt)),alpha=0.3,lab="Alt-Heteroscedastic GP")
-    # plot!(twinx(),X_test,y_fullg,lab="Latent g")
-
-    push!(ps,p2)
-end
 # end
 ##
-if sparsem
-    println("Testing the sparse model")
-    t_sparse = @elapsed global sparsemodel = AugmentedGaussianProcesses.SparseStudentT(X,y,Stochastic=false,Autotuning=autotuning,verbose=verbose,m=m,noise=noise,kernel=kernel,ν=ν)
-    t_sparse += @elapsed sparsemodel.train(iterations=1000)
-    _ =  sparsemodel.predict(X_test)
-    y_sparse = sparsemodel.predict(X_test); rmse_sparse = norm(y_sparse-y_test,2)/sqrt(length(y_test))
-    if doPlots
-        p2=plot(x_test,x_test,reshape(y_sparse,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="Sparse StudentT")
-        plot!(sparsemodel.inducingPoints[:,1],sparsemodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
-        push!(ps,p2)
-    end
-end
 
-if stochm
-    println("Testing the sparse stochastic model")
-    t_stoch = @elapsed stochmodel = AugmentedGaussianProcesses.SparseStudentT(X,y,Stochastic=true,batchsize=20,Autotuning=autotuning,verbose=verbose,m=m,noise=noise,kernel=kernel,ν=ν)
-    t_stoch += @elapsed stochmodel.train(iterations=1000)
-    _ =  stochmodel.predict(X_test)
-    y_stoch = stochmodel.predict(X_test); rmse_stoch = norm(y_stoch-y_test,2)/sqrt(length(y_test))
-    if doPlots
-        p3=plot(x_test,x_test,reshape(y_stoch,N_test,N_test),t=:contour,fill=true,cbar=true,clims=(minx*1.1,maxx*1.1),lab="",title="Stoch. Sparse StudentT")
-        plot!(stochmodel.inducingPoints[:,1],stochmodel.inducingPoints[:,2],t=:scatter,lab="inducing points")
-        push!(ps,p3)
-    end
-end
 
 println("Basic GP")
 gpmodel = GP(X,y,kernel,noise=1.0)
 t_gp = @elapsed train!(gpmodel,iterations=10)
 y_gp,sig_gp = proba_y(gpmodel,X_test); rmse_gp = rmse(y_gp,y_test)
 if doPlots
-    p4=plot(x_test,y_gp,lab="",title="Non-Heteroscedastic",ylim=(miny,maxy))
-    plot!(p4,X_test,y_gp+n_sig*sqrt.(sig_gp),fill=(y_gp-n_sig*sqrt.(sig_gp)),alpha=0.3,lab="Non-Heteroscedastic GP")
+    p4=plot(x_test,y_gp,lab="",title="Homoscedastic",ylim=(miny,maxy))
+    plot!(p4,X_test,y_gp+n_sig*sqrt.(sig_gp),fill=(y_gp-n_sig*sqrt.(sig_gp)),alpha=0.3,lab="Homoscedastic GP")
     push!(ps,p4)
 end
+##
 
-
-t_full != 0 ? println("Full model : RMSE=$(rmse_full), time=$t_full") : nothing
-t_alt != 0 ? println("Alt model : RMSE=$(rmse_alt), time=$t_alt") : nothing
-t_sparse != 0 ? println("Sparse model : RMSE=$(rmse_sparse), time=$t_sparse") : nothing
-t_stoch != 0 ? println("Stoch. Sparse model : RMSE=$(rmse_stoch), time=$t_stoch") : nothing
-t_gp != 0 ? println("GP model : RMSE=$(rmse_gp),time=$t_gp") : nothing
+t_full != 0 ? println("Heteroscedastic model : RMSE=$(rmse_full), time=$t_full") : nothing
+t_gp != 0 ? println("Homoscedastic model : RMSE=$(rmse_gp),time=$t_gp") : nothing
 
 if doPlots
     y_nonoise = y_m[N_data+1:end]
     y_gnoise = y_noise[N_data+1:end]
     noise_ytest = h_noise[N_data+1:end]
-    ptrue=plot(X,y,t=:scatter,lab="Training points")
-    plot!(ptrue,x_test,y_test,t=:scatter,lab="Test points",title="Truth")
+    ptrue=plot(X,y,t=:scatter,lab="Training points",alpha=0.3,markerstrokewidth=0.0,color=:black)
+    # plot!(ptrue,x_test,y_test,t=:scatter,lab="Test points",title="Truth")
     plot!(ptrue,x_test,y_nonoise,ylim=(miny,maxy),lab="Noiseless")
-    plot!(ptrue,x_test,y_nonoise+n_sig*noise_ytest,fill=y_nonoise-n_sig*noise_ytest,alpha=0.3,lab="")
+    plot!(ptrue,x_test,y_nonoise+n_sig*noise_ytest,fill=y_nonoise-n_sig*noise_ytest,alpha=0.5,lab="")
     plot!(twinx(),x_test,y_gnoise,lab="")
     # plot!(twinx(),x_test,noise_ytest,lab="")
     # ptrue=plot(x_test,x_test,reshape(latent(X_test),N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="")
@@ -163,9 +120,7 @@ end
 
 p_mu = plot(X[s],y_noise[1:N_data][s],lab="true g")
 plot!(X[s],model.likelihood.μ[1][s],lab="μ_g")
-plot!(X[s],altmodel.likelihood.μ[1][s],lab="alt_μ_g")
-p_sig = plot(X[s],h.(y_noise[1:N_data][s]),lab="sig(true_g)")
-plot!(X[s],model.likelihood.λ[1]*model.likelihood.σg[1][s],lab="sig(μ_g)")
-plot!(X[s],altmodel.likelihood.λ[1]*altmodel.likelihood.σg[1][s],lab="sig(alt_μ_g)")
+p_sig = plot(X[s],h.(y_noise[1:N_data][s]),lab="λsig(true g)")
+plot!(X[s],model.likelihood.λ[1]*model.likelihood.σg[1][s],lab="λsig(μ_g)")
 plot(p_mu,p_sig)
 # return true
