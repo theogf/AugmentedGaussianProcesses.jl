@@ -16,7 +16,7 @@ See all functions you need to implement
 
 """
 
-check_model_name(name::Symbol) = !isnothing(match(r"[a-zA-Z]*",string(name)))
+check_model_name(name::Symbol) = !isnothing(match(r"[^\w]*",string(name)))
 function check_likelihoodtype(ltype::Symbol)
     if ltype == :Regression || ltype == :Classification || ltype == :Event
         return true
@@ -84,16 +84,16 @@ macro augmodel(name::Symbol,likelihoodtype::Symbol,likelihood::Expr)
 end
 
 
-macro augmodel(name::Symbol,likelihoodtype::Symbol,C::Symbol,g::Symbol,α::Symbol,β::Symbol,γ::Symbol,φ::Symbol,∇φ::Symbol)
+macro augmodel(name,ltype,C::Symbol,g::Symbol,α::Symbol,β::Symbol,γ::Symbol,φ::Symbol,∇φ::Symbol)
     #### Check args here
     #Check name has no space
     @assert check_model_name(name) "Please only use alphabetic characters for the name of the likelihood"
-    @assert checkl_likelihoodtype(likelihoodtype) "Please use a correct likelihood type : Regression, Classification or Event"
+    @assert check_likelihoodtype(ltype) "Please use a correct likelihood type : Regression, Classification or Event"
     #Find gradient with AD if needed
     #In a later stage try to find structure automatically
-    esc(_augmodel(name,Symbol(name,"Likelihood"),Symbol(name,"Likelihood{T}"),Symbol(LikelihoodType*"Likelihood"),C,g,α,β,γ,φ,∇φ))
+    esc(_augmodel(string(name),Symbol(name,"Likelihood"),Symbol(ltype,"Likelihood"),C,g,α,β,γ,φ,∇φ))
 end
-function _augmodel(name,lname,lnameT,ltype,C,g,α,β,γ,φ,∇φ)
+function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
     quote begin
         # struct $(Symbol(name,"{T<:Real}"))# <: $(ltype)
         struct $(lname){T<:Real} <: AGP.$(ltype){T}
@@ -122,6 +122,10 @@ function _augmodel(name,lname,lnameT,ltype,C,g,α,β,γ,φ,∇φ)
             end
         end
 
+        function AGP.pdf(l::$(lname),y::Real,f::Real)
+            C()*exp(g(y)*f)*φ(α(y)-β(y)*f+γ(y)*f^2)
+        end
+
         function C(l::$(lname){T}) where {T}
             C()
         end
@@ -143,19 +147,15 @@ function _augmodel(name,lname,lnameT,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function φ(l::$(lname),r::T) where {T}
-            φ(r)
+            φ.(r)
         end
 
         function ∇φ(l::$(lname),r::T) where {T}
-            ∇φ(r)
+            ∇φ.(r)
         end
 
         function ∇²φ(l::$(lname),r::T) where {T}
-            ForwardDiff.gradient(x->∇φ(l,x[1]),r)[1]
-        end
-
-        function pdf(l::$(lname),y::Real,f::Real)
-            C()*exp(g(y)*f)*φ(α(y)-β(y)*f+α(y)*f)
+            Zygote.gradient(x->sum(∇φ(x)),r)[1]
         end
 
         function Base.show(io::IO,model::$(lname){T}) where {T}
@@ -172,8 +172,8 @@ function _augmodel(name,lname,lnameT,ltype,C,g,α,β,γ,φ,∇φ)
                     if σ²[i] <= 0.0
                         pred[i] = pdf(likelihood,μ[i])
                     else
-                        nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
-                        pred[i] = dot(pred_weights,logistic.(nodes))
+                        nodes = AGP.pred_nodes.*AGP.sqrt2.*sqrt.(σ²[i]).+μ[i]
+                        pred[i] = dot(AGP.pred_weights,AGP.logistic.(nodes))
                     end
                 end
                 return pred
@@ -209,11 +209,11 @@ function _augmodel(name,lname,lnameT,ltype,C,g,α,β,γ,φ,∇φ)
         ### ELBO Section ###
 
         function AGP.ELBO(model::AbstractGP{T,<:$(lname),<:AnalyticVI}) where {T}
-            return expecLogLikelihood(model) - GaussianKL(model) - AugmentedKL(model)
+            return AGP.expecLogLikelihood(model) - AGP.GaussianKL(model) - AugmentedKL(model)
         end
 
         function AGP.expecLogLikelihood(model::VGP{T,<:$(lname),<:AnalyticVI}) where {T}
-            tot = model.nLatent*model.nSamples*log(C(model.likelihood))
+            tot = model.nLatent*model.nSample*log(C(model.likelihood))
             tot += sum(broadcast((y,μ)->dot(g(model.likelihood,y),μ),model.inference.y,model.μ))
             tot += -sum(broadcast((θ,y,μ,Σ)->dot(θ,α(model.likelihood,y))
                                             - dot(θ,β(model.likelihood,y).*μ)
@@ -224,25 +224,34 @@ function _augmodel(name,lname,lnameT,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function AGP.expecLogLikelihood(model::SVGP{T,<:$(lname),<:AnalyticVI}) where {T}
-            tot = 0.0
+            tot = model.nLatent*model.nSamplesUsed*log(C(model.likelihood))
+            tot += sum(broadcast((y,κμ)->dot(g(model.likelihood,y),κμ),model.inference.y,model.κ.*model.μ))
+            tot += -sum(broadcast((θ,y,κμ,κΣκ)->dot(θ,α(model.likelihood,y))
+                                            - dot(θ,β(model.likelihood,y).*κμ)
+                                            + dot(θ,γ(model.likelihood,y).*(abs2.(κμ)+κΣκ)),
+                                            model.likelihood.θ,model.inference.y,
+                                            model.κ.*model.μ,opt_diag.(model.κ.*model.Σ,model.κ)))
             return model.inference.ρ*tot
         end
 
         function AugmentedKL(model::AbstractGP{T,<:$(lname),<:AnalyticVI}) where {T}
-            model.inference.ρ*sum(broadcast((c²,θ)->-sum(c².*θ)-sum(log,φ.(model.likelihood,c²)),model.likelihood.c²,model.likelihood,θ))
+            AGP.local_updates!(model)
+            model.inference.ρ*sum(broadcast((c²,θ)->-dot(c²,θ)-sum(log,φ.(model.likelihood,c²)),model.likelihood.c²,model.likelihood.θ))
         end
 
         ### Gradient Section ###
 
-        @inline function grad_log_pdf(l::$(lname){T},y::Real,f::Real) where {T<:Real}
-            h² = α(l,y) - β(l,y)*f + γ(l,y)*f^2
-            g(l,y)+(-β(l,y)+2*γ(l,y))*∇φ(l,h²)/φ(l,h²)
+        @inline function AGP.grad_log_pdf(l::$(lname){T},y::Real,f::Real) where {T<:Real}
+            h² = α(y) - β(y)*f + γ(y)*f^2
+            g(y)+(-β(y)+2*γ(y)*f)*∇φ(h²)/φ(h²)
         end
 
-        @inline function hessian_log_pdf(l::$(lname){T},y::Real,f::Real) where {T<:Real}
-            h² = α(l,y) - β(l,y)*f + γ(l,y)*f^2
+        @inline function AGP.hessian_log_pdf(l::$(lname){T},y::Real,f::Real) where {T<:Real}
+            h² = α(y) - β(y)*f + γ(y)*f^2
             ϕ = φ(l,h²); ∇ϕ = ∇φ(l,h²); ∇²ϕ = ∇²φ(l,h²)
-            2*γ(l,y)*∇ϕ/ϕ-(-β(l,y)+2*γ(l,y)*f^2)*∇ϕ^2/ϕ^2+(-β(l,y)+2*γ(l,y)*f^2)^2*∇²ϕ/ϕ
+            return (2*γ(y)*∇ϕ/ϕ
+                    -((-β(y)+2*γ(y)*f)*∇ϕ/ϕ)^2
+                    +(-β(y)+2*γ(y)*f)^2*∇²ϕ/ϕ)
         end
 
     end

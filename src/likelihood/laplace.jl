@@ -116,10 +116,12 @@ end
 ## PDF and Log PDF Gradients ##
 
 function grad_quad(likelihood::LaplaceLikelihood{T},y::Real,μ::Real,σ²::Real,inference::Inference) where {T<:Real}
-    # -0.5*(-one(T)+erf((y-μ)/sqrt(2σ²)))/likelihood.β[1],Distributions.pdf(Normal(μ,sqrt(σ²)),y)/likelihood.β[1]^2
-    p = Normal(μ,sqrt(σ²))
-    -(2*Distributions.cdf(p,y)-one(T))/likelihood.β[1],zero(T)#Distributions.pdf(p,y)/likelihood.β[1]^2
+    nodes = inference.nodes*sqrt2*sqrt(σ²) .+ μ
+    Edlogpdf = dot(inference.weights,grad_log_pdf.(likelihood,y,nodes))
+    Ed²logpdf =  (1/sqrt(twoπ*σ²))/(l.β[1]^2)
+    return -Edlogpdf::T, Ed²logpdf::T
 end
+
 
 @inline grad_log_pdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real} = sign(y-f)./l.β[1]
 
