@@ -15,6 +15,8 @@ end
 function update!(μ::ZeroMean{T},grad::AbstractVector{T}) where {T<:Real}
 end
 
+array(μ::ZeroMean{T},length::Int) where {T<:Real} = zeros(T,length)
+
 Base.:+(x::Real,y::ZeroMean{<:Real}) = x
 Base.:+(x::AbstractVector{<:Real},y::ZeroMean{<:Real}) = x
 Base.:+(x::ZeroMean{<:Real},y::Real) = y

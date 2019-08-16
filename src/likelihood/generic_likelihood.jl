@@ -155,7 +155,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function ∇²φ(l::$(lname),r::T) where {T}
-            Zygote.gradient(x->sum(∇φ(x)),r)[1]
+            Zygote.gradient(x->∇φ(x),r)[1]
         end
 
         function Base.show(io::IO,model::$(lname){T}) where {T}
@@ -168,15 +168,18 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
             elseif typeof(l) <: ClassificationLikelihood
                 N = length(μ)
                 pred = zeros(T,N)
+                sig_pred = zeros(T,N)
                 for i in 1:N
                     if σ²[i] <= 0.0
-                        pred[i] = pdf(likelihood,μ[i])
+                        pred[i] = pdf(l,1.0,μ[i])
+                        sig_pred[i] = 0.0
                     else
                         nodes = AGP.pred_nodes.*AGP.sqrt2.*sqrt.(σ²[i]).+μ[i]
-                        pred[i] = dot(AGP.pred_weights,AGP.logistic.(nodes))
+                        pred[i] = dot(AGP.pred_weights,AGP.pdf.(l,1,nodes))
+                        sig_pred[i] = dot(AGP.pred_weights,AGP.pdf.(l,1,nodes).^2) - pred[i]^2
                     end
                 end
-                return pred
+                return pred,sig_pred
             else
                 @error "Prediction not implemented yet"
             end
@@ -194,8 +197,12 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
             model.likelihood.θ .= broadcast(c²->-∇φ.(model.likelihood,c²)./φ.(model.likelihood,c²),model.likelihood.c²)
         end
 
+        function pω(::$(lname),f)
+            @error "You cannot use Gibbs sampling from your likelihood unless you define pω(likelihood,f)"
+        end
+
         function AGP.sample_local!(model::VGP{T,<:$(lname),<:GibbsSampling}) where {T}
-            return nothing
+            model.likelihood.θ .= broadcast((y,μ)->pω.(model.likelihood,α(model.likelihood,model.likelihood,y)-β(model.likelihood,y).*μ+γ(model.likelihood,y).*(μ.^2)),model.inference.y,model.μ)
         end
 
         ### Natural Gradient Section ###
@@ -235,7 +242,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function AugmentedKL(model::AbstractGP{T,<:$(lname),<:AnalyticVI}) where {T}
-            AGP.local_updates!(model)
+            # AGP.local_updates!(model)
             model.inference.ρ*sum(broadcast((c²,θ)->-dot(c²,θ)-sum(log,φ.(model.likelihood,c²)),model.likelihood.c²,model.likelihood.θ))
         end
 

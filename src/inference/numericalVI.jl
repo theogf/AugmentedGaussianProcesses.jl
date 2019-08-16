@@ -119,14 +119,14 @@ function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
             α *= 0.1
         end
         if α <= 1e-6
-            @error "α too small, postive definiteness could not be achieved"
+            @error "α too small, positive definiteness could not be achieved"
         end
         model.η₂[k] = Symmetric(model.η₂[k] + α*Δ₂)
         model.η₁[k] = model.η₁[k] + α*Δ₁
         if isa(model.inference.optimizer[k],Adam)
             model.inference.optimizer[k].α = min(model.inference.optimizer_η₂[k].α * α*2.0,1.0)
         elseif isa(model.inference.optimizer[k],Union{VanillaGradDescent,Momentum,RMSprop})
-            # model.inference.optimizer[k].η = min(model.inference.optimizer[k].η*α*2.0,1.0)
+            model.inference.optimizer[k].η = min(model.inference.optimizer[k].η*α*1.1,1.0)
         elseif isa(model.inference.optimizer[k],ALRSVI)
         elseif isa(model.inference.optimizer[k],InverseDecay)
         end
