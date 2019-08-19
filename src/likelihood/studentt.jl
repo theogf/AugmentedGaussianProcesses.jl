@@ -118,17 +118,7 @@ function grad_log_pdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
     (one(T)+l.ν) * (y-f) / ((f-y)^2 + l.σ^2*l.ν)
 end
 
-function gradpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
-    grad_log_pdf_μ(l,y,f)*pdf(l,y,f)
-end
-
 function hessian_log_pdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
     v = l.ν * l.σ^2; Δ² = (f-y)^2
     (one(T)+l.ν) * (-v + Δ²) / (v+Δ²)^2
-end
-
-
-function hessiandiagpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
-    v = l.ν * l.σ^2; Δ² = (f-y)^2
-    pdf(l,y,f) * (one(T)+l.ν) * (-v + (2*one(T) + l.ν) * Δ²) / (v+Δ²)^2
 end

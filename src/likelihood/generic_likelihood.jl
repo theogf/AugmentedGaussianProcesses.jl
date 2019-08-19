@@ -162,9 +162,14 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
             print(io,"Generic Likelihood")#WARNING TODO, to be fixed!
         end
 
+        function Statistics.var(l::$(lname){T}) where {T}
+            @warn "The variance of the likelihood is not implemented : returnin 0.0"
+            return 0.0
+        end
+
         function AGP.compute_proba(l::$(lname){T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
             if typeof(l) <: RegressionLikelihood
-                return μ,max.(σ²,0.0).+ 1.0/(C())^2 #TODO Mamene
+                return μ,max.(σ²,0.0).+var(l)
             elseif typeof(l) <: ClassificationLikelihood
                 N = length(μ)
                 pred = zeros(T,N)
@@ -202,7 +207,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function AGP.sample_local!(model::VGP{T,<:$(lname),<:GibbsSampling}) where {T}
-            model.likelihood.θ .= broadcast((y,μ)->pω.(model.likelihood,α(model.likelihood,model.likelihood,y)-β(model.likelihood,y).*μ+γ(model.likelihood,y).*(μ.^2)),model.inference.y,model.μ)
+            model.likelihood.θ .= broadcast((y,μ)->pω.(sqrt.(0.5*(model.likelihood,α(model.likelihood,model.likelihood,y)-β(model.likelihood,y).*μ+γ(model.likelihood,y).*(μ.^2)))),model.inference.y,model.μ)
         end
 
         ### Natural Gradient Section ###

@@ -4,14 +4,14 @@
 Variational Inference solver by approximating gradients via numerical integration via Quadrature
 
 ```julia
-QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))
+QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Momentum(η=0.0001))
 ```
 
 **Keyword arguments**
 
     - `ϵ::T` : convergence criteria
     - `nGaussHermite::Int` : Number of points for the integral estimation
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Adam()`
+    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Momentum(η=0.0001)`
 """
 mutable struct QuadratureVI{T<:Real} <: NumericalVI{T}
     ϵ::T #Convergence criteria
@@ -20,6 +20,7 @@ mutable struct QuadratureVI{T<:Real} <: NumericalVI{T}
     nPoints::Int64 #Number of points for the quadrature
     nodes::Vector{T}
     weights::Vector{T}
+    clipping::T
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64 #Number of samples of the data
     nSamplesUsed::Int64 #Size of mini-batches
@@ -32,14 +33,14 @@ mutable struct QuadratureVI{T<:Real} <: NumericalVI{T}
     λ::LatentArray{Vector{T}} #Derivative  <d²V/dx²>_qm
     x::SubArray{T,2,Matrix{T},Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
     y::LatentArray{SubArray}
-    function QuadratureVI{T}(ϵ::T,nPoints::Integer,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,nSamplesUsed::Integer=1) where T
+    function QuadratureVI{T}(ϵ::T,nPoints::Integer,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,clipping::Real,nSamplesUsed::Integer=1) where T
         gh = gausshermite(nPoints)
-        return new{T}(ϵ,nIter,[optimizer],nPoints,gh[1],gh[2]./sqrtπ,Stochastic,1,nSamplesUsed)
+        return new{T}(ϵ,nIter,[optimizer],nPoints,gh[1],gh[2]./sqrtπ,clipping,Stochastic,1,nSamplesUsed)
     end
 end
 
-function QuadratureVI(;ϵ::T=1e-5,nGaussHermite::Integer=1000,optimizer::Optimizer=Momentum(η=0.001)) where {T<:Real}
-    QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false)
+function QuadratureVI(;ϵ::T=1e-5,nGaussHermite::Integer=1000,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
+    QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false,clipping)
 end
 
 
@@ -57,10 +58,10 @@ QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer
 
     - `ϵ::T` : convergence criteria, which can be user defined
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Adam()`
+    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Momentum(η=0.001)`
 """
-function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Momentum(η=0.001)) where {T<:Real}
-    QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false,nMinibatch)
+function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
+    QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,true,clipping,nMinibatch)
 end
 
 function expecLogLikelihood(model::VGP{T,L,<:QuadratureVI}) where {T,L}
@@ -108,9 +109,15 @@ function compute_grad_expectations!(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
     end
 end
 
+#Compute the first and second derivative of the log-likelihood using the quadrature nodes
 function grad_quad(likelihood::Likelihood{T},y::Real,μ::Real,σ²::Real,inference::Inference) where {T<:Real}
     nodes = inference.nodes*sqrt2*sqrt(σ²) .+ μ
     Edlogpdf = dot(inference.weights,grad_log_pdf.(likelihood,y,nodes))
     Ed²logpdf = dot(inference.weights,hessian_log_pdf.(likelihood,y,nodes))
-    return -Edlogpdf::T, Ed²logpdf::T
+    if inference.clipping != 0
+        return (abs(Edlogpdf) > inference.clipping ? sign(Edlogpdf)*inference.clipping : -Edlogpdf::T,
+                abs(Ed²logpdf) > inference.clipping ? sign(Ed²logpdf)*inference.clipping : -Ed²logpdf::T)
+    else
+        return -Edlogpdf::T, Ed²logpdf::T
+    end
 end

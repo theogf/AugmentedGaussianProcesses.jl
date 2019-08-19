@@ -19,6 +19,7 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
     # model.evol_conv = [] #Array to check on the evolution of convergence
     local_iter::Int64 = 1; conv = Inf;
     p = Progress(iterations,dt=0.2,desc="Training Progress: ")
+    prev_elbo = -Inf
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             update_parameters!(model) #Update all the variational parameters
@@ -31,12 +32,13 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
             end
             ### Print out informations about the convergence
             if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
-                # print("Iteration : $local_iter ")
-                 # print("ELBO is : $(ELBO(model))")
-                 # print("\n")
-            elbo=ELBO(model)
-             next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
-             end
+                if isa(model.inference,GibbsSampling)
+                    next!(p; showvalues = [(:samples, local_iter)])
+                else
+                    elbo=ELBO(model)
+                    next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
+                end
+            end
             local_iter += 1; model.inference.nIter += 1
             (local_iter <= iterations) || break; #Verify if the number of maximum iterations has been reached
             # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken

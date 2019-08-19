@@ -24,7 +24,7 @@ General constructor for Variational Inference via numerical approximation.
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
-function NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
+function NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer::Optimizer=Momentum(η=1e-5)) where {T<:Real}
     if integration_technique == :quad
         QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false)
     elseif integration_technique == :mc
@@ -50,7 +50,7 @@ General constructor for Stochastic Variational Inference via numerical approxima
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
-function NumericalSVI(nMinibatch::Integer,integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1)) where {T<:Real}
+function NumericalSVI(nMinibatch::Integer,integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimizer::Optimizer=Momentum(η=1e-5)) where {T<:Real}
     if integration_technique == :quad
         QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,true,nMinibatch)
     elseif integration_technique == :mc
@@ -82,7 +82,6 @@ end
 ∇E_μ(model::AbstractGP{T,L,<:NumericalVI},i::Int) where {T,L} = -model.inference.ν[i]
 ∇E_Σ(model::AbstractGP{T,L,<:NumericalVI}) where {T,L} = 0.5.*model.inference.λ
 ∇E_Σ(model::AbstractGP{T,L,<:NumericalVI},i::Int) where {T,L} = 0.5.*model.inference.λ[i]
-
 
 function variational_updates!(model::VGP{T,L,<:NumericalVI}) where {T,L}
     compute_grad_expectations!(model)
@@ -124,15 +123,14 @@ function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
         model.η₂[k] = Symmetric(model.η₂[k] + α*Δ₂)
         model.η₁[k] = model.η₁[k] + α*Δ₁
         if isa(model.inference.optimizer[k],Adam)
-            model.inference.optimizer[k].α = min(model.inference.optimizer_η₂[k].α * α*2.0,1.0)
+            model.inference.optimizer[k].α = min(model.inference.optimizer_η₂[k].α * α*2.0,0.1)
         elseif isa(model.inference.optimizer[k],Union{VanillaGradDescent,Momentum,RMSprop})
-            model.inference.optimizer[k].η = min(model.inference.optimizer[k].η*α*1.1,1.0)
+            model.inference.optimizer[k].η = min(model.inference.optimizer[k].η*α*1.01,0.1)
         elseif isa(model.inference.optimizer[k],ALRSVI)
         elseif isa(model.inference.optimizer[k],InverseDecay)
         end
     end
     model.Σ .= -0.5.*inv.(model.η₂)
-    # model.μ .= model.η₁
     model.μ .= model.Σ.*model.η₁
 end
 
