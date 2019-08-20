@@ -25,12 +25,12 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
             update_parameters!(model) #Update all the variational parameters
             model.Trained = true
             if callback != 0
-                callback(model,model.inference.nIter) #Use a callback method if put by user
+                callback(model,model.inference.nIter) #Use a callback method if set by user
             end
             if !isnothing(model.optimizer) && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
-            ### Print out informations about the convergence
+            # Print out informations about the convergence
             if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
                 if isa(model.inference,GibbsSampling)
                     next!(p; showvalues = [(:samples, local_iter)])

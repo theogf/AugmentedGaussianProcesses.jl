@@ -2,6 +2,8 @@
 Solve any non-conjugate likelihood using Variational Inference
 by making a numerical approximation (quadrature or MC integration)
 of the expected log-likelihood ad its gradients
+Gradients are computed as in "The Variational Gaussian Approximation
+Revisited" by Opper and Archambeau 2009
 """
 abstract type NumericalVI{T<:Real} <: Inference{T} end
 
