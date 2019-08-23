@@ -79,6 +79,12 @@ function update_parameters!(model::SVGP)
     variational_updates!(model);
 end
 
+function update_parameters!(model::VStP)
+    computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    local_prior_updates!(model);
+    variational_updates!(model);
+end
+
 function computeMatrices!(model::GP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
         model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) )
@@ -106,4 +112,14 @@ function computeMatrices!(model::SVGP{T,<:Likelihood,<:Inference}) where {T}
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     end
     model.inference.HyperParametersUpdated=false
+end
+
+
+function computeMatrices!(model::VStP{T,<:Likelihood,<:Inference}) where {T}
+    if model.inference.HyperParametersUpdated
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
+        model.invL .= inv.(getproperty.(cholesky.(model.Knn),:L))
+        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
+        # model.invKnn .= Symmetric.(model.invL.*transpose.(model.invL))
+    end
 end

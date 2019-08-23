@@ -40,6 +40,10 @@ function Base.show(io::IO,model::GaussianLikelihood{T}) where T
     print(io,"Gaussian likelihood")
 end
 
+function compute_proba(l::GaussianLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
+    return μ,max.(σ²,0.0).+ l.ϵ[1]
+end
+
 function init_likelihood(likelihood::GaussianLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where {T<:Real}
     if length(likelihood.ϵ) ==1 && length(likelihood.ϵ) != nLatent
         return GaussianLikelihood{T}([likelihood.ϵ[1] for _ in 1:nLatent],[fill(inv(likelihood.ϵ[1]),nSamplesUsed) for _ in 1:nLatent])
@@ -69,10 +73,15 @@ function local_updates!(model::SVGP{T,<:GaussianLikelihood}) where {T}
     model.likelihood.θ .= broadcast(ϵ->fill(inv(ϵ),model.inference.nSamplesUsed),model.likelihood.ϵ)
 end
 
-@inline ∇E_μ(model::SVGP{T,<:GaussianLikelihood,<:AnalyticVI}) where {T} = model.inference.y./model.likelihood.ϵ
-@inline ∇E_μ(model::SVGP{T,<:GaussianLikelihood,<:AnalyticVI},i::Int) where {T} = model.inference.y[i]./model.likelihood.ϵ[i]
-@inline ∇E_Σ(model::SVGP{T,<:GaussianLikelihood,<:AnalyticVI}) where {T} = 0.5*model.likelihood.θ
-@inline ∇E_Σ(model::SVGP{T,<:GaussianLikelihood,<:AnalyticVI},i::Int) where {T} = 0.5*model.likelihood.θ[i]
+function local_updates!(model::VStP{T,<:GaussianLikelihood}) where {T}
+    model.likelihood.ϵ .= 1.0/model.inference.nSamples *broadcast((y,μ,Σ)->sum(abs2,y-μ)+Σ,model.y,model.μ,tr.(model.Σ))
+    model.likelihood.θ .= broadcast(ϵ->fill(inv(ϵ),model.inference.nSamplesUsed),model.likelihood.ϵ)
+end
+
+@inline ∇E_μ(model::AbstractGP{T,<:GaussianLikelihood,<:AnalyticVI}) where {T} = model.inference.y./model.likelihood.ϵ
+@inline ∇E_μ(model::AbstractGP{T,<:GaussianLikelihood,<:AnalyticVI},i::Int) where {T} = model.inference.y[i]./model.likelihood.ϵ[i]
+@inline ∇E_Σ(model::AbstractGP{T,<:GaussianLikelihood,<:AnalyticVI}) where {T} = 0.5*model.likelihood.θ
+@inline ∇E_Σ(model::AbstractGP{T,<:GaussianLikelihood,<:AnalyticVI},i::Int) where {T} = 0.5*model.likelihood.θ[i]
 
 
 

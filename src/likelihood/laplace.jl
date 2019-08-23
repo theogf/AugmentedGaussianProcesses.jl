@@ -60,7 +60,7 @@ end
 
 ## Local Updates ##
 
-function local_updates!(model::VGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {T}
+function local_updates!(model::Union{VGP{T,<:LaplaceLikelihood,<:AnalyticVI},VStP{T,<:LaplaceLikelihood,<:AnalyticVI}}) where {T}
     model.likelihood.b .= broadcast((Σ,μ,y)->(Σ+abs2.(μ-y)),diag.(model.Σ),model.μ,model.y)
     model.likelihood.θ .= broadcast((a,b)->sqrt(a)./sqrt.(b),model.likelihood.a,model.likelihood.b)
 end

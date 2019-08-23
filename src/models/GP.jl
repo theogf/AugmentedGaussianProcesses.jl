@@ -96,3 +96,6 @@ end
 function Base.show(io::IO,model::GP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
+
+@inline invK(model::GP) = model.invKnn
+@inline invK(model::GP,i::Integer) = model.invKnn[i]
