@@ -24,7 +24,7 @@ Compute the mean of the predicted latent distribution of `f` on `X_test` for the
 
 Return also the variance if `covf=true` and the full covariance if `fullcov=true`
 """
-function predict_f(model::VGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where T
+function predict_f(model::Union{VGP,VStP},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where T
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
     μf = k_star.*model.invKnn.*model.μ
     if !covf

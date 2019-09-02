@@ -60,7 +60,7 @@ end
 
 ## Local Updates ##
 
-function local_updates!(model::VGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {T}
+function local_updates!(model::Union{VGP{T,<:LaplaceLikelihood,<:AnalyticVI},VStP{T,<:LaplaceLikelihood,<:AnalyticVI}}) where {T}
     model.likelihood.b .= broadcast((Σ,μ,y)->(Σ+abs2.(μ-y)),diag.(model.Σ),model.μ,model.y)
     model.likelihood.θ .= broadcast((a,b)->sqrt(a)./sqrt.(b),model.likelihood.a,model.likelihood.b)
 end
@@ -71,7 +71,8 @@ function local_updates!(model::SVGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {
 end
 
 function sample_local!(model::VGP{T,<:LaplaceLikelihood,<:GibbsSampling}) where {T}
-    model.likelihood.ω .= NaN
+    model.likelihood.b .= broadcast((μ,y,β)->rand.(GeneralizedInverseGaussian.(1/β^2,abs2.(μ-y),0.5)),model.μ,model.inference.y,model.likelihood.β)
+    model.likelihood.θ .= broadcast(b->1.0./b,model.likelihood.b)
     return nothing
 end
 
@@ -116,10 +117,12 @@ end
 ## PDF and Log PDF Gradients ##
 
 function grad_quad(likelihood::LaplaceLikelihood{T},y::Real,μ::Real,σ²::Real,inference::Inference) where {T<:Real}
-    # -0.5*(-one(T)+erf((y-μ)/sqrt(2σ²)))/likelihood.β[1],Distributions.pdf(Normal(μ,sqrt(σ²)),y)/likelihood.β[1]^2
-    p = Normal(μ,sqrt(σ²))
-    -(2*Distributions.cdf(p,y)-one(T))/likelihood.β[1],zero(T)#Distributions.pdf(p,y)/likelihood.β[1]^2
+    nodes = inference.nodes*sqrt2*sqrt(σ²) .+ μ
+    Edlogpdf = dot(inference.weights,grad_log_pdf.(likelihood,y,nodes))
+    Ed²logpdf =  (1/sqrt(twoπ*σ²))/(likelihood.β[1]^2)
+    return -Edlogpdf::T, Ed²logpdf::T
 end
+
 
 @inline grad_log_pdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real} = sign(y-f)./l.β[1]
 

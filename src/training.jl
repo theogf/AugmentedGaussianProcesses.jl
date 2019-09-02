@@ -19,24 +19,26 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
     # model.evol_conv = [] #Array to check on the evolution of convergence
     local_iter::Int64 = 1; conv = Inf;
     p = Progress(iterations,dt=0.2,desc="Training Progress: ")
+    prev_elbo = -Inf
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             update_parameters!(model) #Update all the variational parameters
             model.Trained = true
             if callback != 0
-                callback(model,model.inference.nIter) #Use a callback method if put by user
+                callback(model,model.inference.nIter) #Use a callback method if set by user
             end
             if !isnothing(model.optimizer) && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
-            ### Print out informations about the convergence
+            # Print out informations about the convergence
             if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
-                # print("Iteration : $local_iter ")
-                 # print("ELBO is : $(ELBO(model))")
-                 # print("\n")
-            elbo=ELBO(model)
-             next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
-             end
+                if isa(model.inference,GibbsSampling)
+                    next!(p; showvalues = [(:samples, local_iter)])
+                else
+                    elbo=ELBO(model)
+                    next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
+                end
+            end
             local_iter += 1; model.inference.nIter += 1
             (local_iter <= iterations) || break; #Verify if the number of maximum iterations has been reached
             # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
@@ -77,6 +79,12 @@ function update_parameters!(model::SVGP)
     variational_updates!(model);
 end
 
+function update_parameters!(model::VStP)
+    computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    local_prior_updates!(model);
+    variational_updates!(model);
+end
+
 function computeMatrices!(model::GP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
         model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) )
@@ -104,4 +112,14 @@ function computeMatrices!(model::SVGP{T,<:Likelihood,<:Inference}) where {T}
         @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
     end
     model.inference.HyperParametersUpdated=false
+end
+
+
+function computeMatrices!(model::VStP{T,<:Likelihood,<:Inference}) where {T}
+    if model.inference.HyperParametersUpdated
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
+        model.invL .= inv.(getproperty.(cholesky.(model.Knn),:L))
+        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
+        # model.invKnn .= Symmetric.(model.invL.*transpose.(model.invL))
+    end
 end

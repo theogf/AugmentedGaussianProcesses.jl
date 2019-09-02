@@ -52,15 +52,17 @@ end
 function compute_proba(l::LogisticLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
     N = length(μ)
     pred = zeros(T,N)
+    sig_pred = zeros(T,N)
     for i in 1:N
         if σ²[i] <= 0.0
             pred[i] = logistic(μ[i])
         else
-            nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
             pred[i] = dot(pred_weights,logistic.(nodes))
+            sig_pred[i] = dot(pred_weights,logistic.(nodes).^2)-pred[i]^2
+            nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
         end
     end
-    return pred
+    return pred, sig_pred
 end
 
 ### Local Updates Section ###
@@ -95,8 +97,8 @@ function ELBO(model::AbstractGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
 end
 
 function expecLogLikelihood(model::VGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
-    tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((μ,y,θ,Σ)->0.5.*(sum(μ.*y)-dot(θ,Σ+abs2.(μ))),
+    tot = -model.nLatent*(model.nSample*logtwo)
+    tot += 0.5*sum(broadcast((μ,y,θ,Σ)->dot(μ,y)-dot(θ,Σ)-dot(θ,abs2.(μ)),
                         model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
     return tot
 end

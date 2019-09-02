@@ -14,7 +14,7 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
     if isa(likelihood,GaussianLikelihood)
         if model == :GP && inference isa Analytic
             return true
-        elseif model == :SVGP && inference isa AnalyticVI
+        elseif (model == :SVGP || model == :VStP) && inference isa AnalyticVI
             return true
         else
             return false
@@ -29,6 +29,8 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
         end
     elseif likelihood isa LaplaceLikelihood
         if inference isa AnalyticVI || inference isa QuadratureVI
+            return true
+        elseif model == :VGP && inference isa GibbsSampling
             return true
         else
             return false
@@ -76,6 +78,6 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
             return false
         end
     else
-        return false
+        return true
     end
 end

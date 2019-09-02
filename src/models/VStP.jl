@@ -1,9 +1,9 @@
 """
-Class for variational Gaussian Processes models (non-sparse)
+Class for variational Student-T Processes models (non-sparse)
 
 ```julia
-VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
-    likelihood::LikelihoodType,inference::InferenceType;
+VStP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+    likelihood::LikelihoodType,inference::InferenceType,ν::T1;
     verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
     IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
@@ -18,6 +18,7 @@ Argument list :
  - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
  - `likelihood` : likelihood of the model, currently implemented : Gaussian, Bernoulli (with logistic link), Multiclass (softmax or logistic-softmax) see [`Likelihood Types`](@ref likelihood_user)
  - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the [`Compatibility Table`](@ref compat_table)
+ - `ν` : Number of degrees of freedom
 
 **Keyword arguments**
 
@@ -28,9 +29,12 @@ Argument list :
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},V<:AbstractVector{T}} <: AbstractGP{T,TLikelihood,TInference,V}
+mutable struct VStP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},V<:AbstractVector{T}} <: AbstractGP{T,TLikelihood,TInference,V}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
+    ν::T # Number of degrees of freedom
+    l²::LatentArray{T} # Expectation of ||L^{-1}(f-μ⁰)||₂²
+    χ::LatentArray{T} # Expectation of σ
     nSample::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
@@ -43,6 +47,7 @@ mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},V
     η₂::LatentArray{Symmetric{T,Matrix{T}}}
     μ₀::LatentArray{PriorMean{T}}
     Knn::LatentArray{Symmetric{T,Matrix{T}}}
+    invL::LatentArray{LowerTriangular{T,Matrix{T}}}
     invKnn::LatentArray{Symmetric{T,Matrix{T}}}
     kernel::LatentArray{Kernel{T}}
     likelihood::TLikelihood
@@ -54,28 +59,23 @@ mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},V
 end
 
 
-function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
-            likelihood::TLikelihood,inference::TInference;
+function VStP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+            likelihood::TLikelihood,inference::TInference,ν::T1;
             verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2,TLikelihood<:Likelihood,TInference<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
-            @assert check_implementation(:VGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
-
+            @assert check_implementation(:VStP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
+            @assert ν > 1 "ν should be positive"
             nPrior = IndependentPriors ? nLatent : 1
             nFeatures = nSample = size(X,1); nDim = size(X,2);
             if isa(optimizer,Bool)
                 optimizer = optimizer ? Adam(α=0.01) : nothing
             end
-            if !isnothing(optimizer) && isa(inference,GibbsSampling)
-                @warn "Hyperparameter optimization is not available with Gibbs Sampling, disabling it"
-                optimizer = nothing
-            end
             if !isnothing(optimizer)
                 setoptimizer!(kernel,optimizer)
             end
-
             kernel = ArrayType([deepcopy(kernel) for _ in 1:nPrior])
 
             μ = LatentArray([zeros(T1,nFeatures) for _ in 1:nLatent]); η₁ = deepcopy(μ)
@@ -90,22 +90,32 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
                 μ₀ = [mean for _ in 1:nPrior]
             end
             Knn = LatentArray([deepcopy(Σ[1]) for _ in 1:nPrior]);
+            L = LatentArray([LowerTriangular(rand(T1,nSample,nSample)) for _ in 1:nPrior])
             invKnn = copy(Knn)
+
+            l² = LatentArray(rand(T1,nLatent))
+            χ = LatentArray(rand(T1,nLatent))
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSample,nFeatures)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
             inference.x = view(X,:,:)
             inference.y = view.(y,:)
-            VGP{T1,TLikelihood,TInference,ArrayType{T1}}(X,y,
-                    nFeatures, nDim, nFeatures, nLatent,
+            VStP{T1,TLikelihood,TInference,ArrayType{T1}}(X,y,ν,
+                    l² ,χ, nFeatures, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,μ,Σ,η₁,η₂,
-                    μ₀,Knn,invKnn,kernel,likelihood,inference,
+                    μ₀,Knn,L,invKnn,kernel,likelihood,inference,
                     verbose,optimizer,atfrequency,false)
 end
 
-function Base.show(io::IO,model::VGP{T,<:Likelihood,<:Inference}) where {T}
-    print(io,"Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
+function Base.show(io::IO,model::VStP{T,<:Likelihood,<:Inference}) where {T}
+    print(io,"Variational Student-T Process with a $(model.likelihood) infered by $(model.inference) ")
 end
 
-@inline invK(model::VGP) = model.invKnn
-@inline invK(model::VGP,i::Integer) = model.invKnn[i]
+
+@inline invK(model::VStP) = inv.(model.χ).*model.invKnn
+@inline invK(model::VStP,i::Integer) = inv(model.χ[i])*model.invKnn[i]
+
+function local_prior_updates!(model::VStP)
+    model.l² .= broadcast((ν,μ,Σ,μ₀,invK)->0.5*(ν+model.nSample+dot(μ-μ₀,invK*(μ-μ₀))+opt_trace(invK,Σ)),model.ν,model.μ,model.Σ,model.μ₀,model.invKnn)
+    model.χ .= (model.ν.+model.nSample)./(model.ν.+model.l²)
+end

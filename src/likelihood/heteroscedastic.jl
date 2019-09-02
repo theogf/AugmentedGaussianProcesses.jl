@@ -81,13 +81,13 @@ function local_updates!(model::VGP{T,HeteroscedasticLikelihood{T}}) where {T}
     model.likelihood.ϕ .= broadcast((μ,Σ,y)->0.5*(abs2.(μ-y)+Σ),model.μ,diag.(model.Σ),model.y)
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(Σ+abs2.(μ)),model.likelihood.μ,diag.(model.likelihood.Σ))
     model.likelihood.γ .= broadcast((λ,ϕ,μ,c)->0.5*λ*ϕ.*safe_expcosh.(-0.5*μ,0.5*c),model.likelihood.λ,model.likelihood.ϕ,model.likelihood.μ,model.likelihood.c)
-    model.likelihood.θ .= broadcast((γ,c)->0.5*(one(T).+γ)./c.*tanh.(0.5*c),model.likelihood.γ,model.likelihood.c)
+    model.likelihood.θ .= broadcast((γ,c)->0.5*(0.5.+γ)./c.*tanh.(0.5*c),model.likelihood.γ,model.likelihood.c)
     model.likelihood.K .= broadcast(kernel->Symmetric(kernelmatrix(model.X,kernel)+getvariance(kernel)*T(jitter)*I),model.likelihood.kernel)
     model.likelihood.invK .= inv.(model.likelihood.K)
     model.likelihood.Σ .= broadcast((θ,invK)->Symmetric(inv(Diagonal(θ)+invK)),model.likelihood.θ,model.likelihood.invK)
-    model.likelihood.μ .= broadcast((Σ,invK,μ₀,γ)->Σ*(invK*μ₀+0.5*(one(T).-γ)),model.likelihood.Σ,model.likelihood.invK,model.likelihood.μ₀,model.likelihood.γ)
+    model.likelihood.μ .= broadcast((Σ,invK,μ₀,γ)->Σ*(invK*μ₀+0.5*(0.5.-γ)),model.likelihood.Σ,model.likelihood.invK,model.likelihood.μ₀,model.likelihood.γ)
     model.likelihood.σg .=  broadcast((μ,Σ)->expectation.(logistic,Normal.(μ,sqrt.(diag(Σ)))),model.likelihood.μ,model.likelihood.Σ)
-    model.likelihood.λ .= broadcast((ϕ,σg)->model.inference.nSamples/dot(ϕ,σg),model.likelihood.ϕ,model.likelihood.σg)
+    model.likelihood.λ .= 0.5*broadcast((ϕ,σg)->model.inference.nSamples/dot(ϕ,σg),model.likelihood.ϕ,model.likelihood.σg)
 end
 
 function local_autotuning!(model::VGP{T,<:HeteroscedasticLikelihood}) where {T}
@@ -108,16 +108,16 @@ function local_updates!(model::SVGP{T,HeteroscedasticLikelihood{T}}) where {T}
     model.likelihood.ϕ .= broadcast((κ,μ,Σ,y,K̃)->0.5*(abs2.(κ*μ-y)+opt_diag(κ*Σ,κ)+K̃),model.κ,model.μ,diag.(model.Σ),model.inference.y,model.K̃)
     model.likelihood.c .= broadcast((κ,μ,Σ,K̃)->sqrt.(opt_diag(κ*Σ,κ)+abs2.(κ*μ)+K̃),model.likelihood.κ,model.likelihood.μ,diag.(model.likelihood.Σ),model.likelihood.K̃)
     model.likelihood.γ .= broadcast((λ,ϕ,κμ,c)->0.5*λ*ϕ.*safe_expcosh.(-0.5*μ,0.5*c),model.likelihood.λ,model.likelihood.ϕ,model.likelihood.κ.*model.likelihood.μ,model.likelihood.c)
-    model.likelihood.θ .= broadcast((γ,c)->0.5*(one(T).+γ)./c.*tanh.(0.5*c),model.likelihood.γ,model.likelihood.c)
+    model.likelihood.θ .= broadcast((γ,c)->0.5*(0.5.+γ)./c.*tanh.(0.5*c),model.likelihood.γ,model.likelihood.c)
     model.likelihood.K .= broadcast(kernel->Symmetric(kernelmatrix(model.Z,kernel)+getvariance(kernel)*T(jitter)*I),model.likelihood.kernel)
     model.likelihood.invK .= inv.(model.likelihood.K)
     model.likelihood.Knm .= broadcast(kernel->kernelmatrix(model.inference.x,model.Z,kernel),model.likelihood.kernel)
     model.likelihood.κ .= model.likelihood.Knm.*model.invK
     model.likelihood.K̃ .=  broadcast(kernel->kerneldiagmatrix(model.inference.x,kernel),model.likelihood.kernel)
     model.likelihood.Σ .= broadcast((θ,κ,invK)->Symmetric(inv(model.inference.ρ*transpose(κ)*Diagonal(θ)*κ+invK)),model.likelihood.θ,model.likelihood.κ,model.likelihood.invK)
-    model.likelihood.μ .= broadcast((Σ,invK,μ₀,γ)->Σ*(invK*μ₀+0.5*transpose(κ)*(one(T).-γ)),model.likelihood.Σ,model.likelihood.invK,model.likelihood.μ₀,model.likelihood.γ)
+    model.likelihood.μ .= broadcast((Σ,invK,μ₀,γ)->Σ*(invK*μ₀+0.5*transpose(κ)*(0.5.-γ)),model.likelihood.Σ,model.likelihood.invK,model.likelihood.μ₀,model.likelihood.γ)
     model.likelihood.σg .=  broadcast((μ,Σ)->expectation.(logistic,Normal.(μ,sqrt.(diag(Σ)))),model.likelihood.μ,model.likelihood.Σ)
-    model.likelihood.λ .= broadcast((ϕ,σg)->model.inference.nSamples/dot(ϕ,σg),model.likelihood.ϕ,model.likelihood.σg)
+    model.likelihood.λ .= 0.5*broadcast((ϕ,σg)->model.inference.nSamples/dot(ϕ,σg),model.likelihood.ϕ,model.likelihood.σg)
 end
 
 @inline ∇E_μ(model::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI}) where {T} = 0.5*hadamard.(model.inference.y,model.likelihood.λ.*model.likelihood.σg)
@@ -145,8 +145,8 @@ end
 
 
 function expecLogLikelihood(model::VGP{T,HeteroscedasticLikelihood{T}}) where {T}
-    tot = model.nFeatures*(sum(log,model.likelihood.λ)-model.nLatent*(log(4*sqrt(twoπ))))
-    tot += 0.5*sum(broadcast((μ,γ,Σ,θ)->dot(μ,(1.0 .- γ)) - dot(abs2.(μ),θ)-dot(Σ,θ),model.likelihood.μ,model.likelihood.γ,diag.(model.likelihood.Σ),model.likelihood.θ))
+    tot = model.nFeatures*(0.5*sum(log,model.likelihood.λ)-model.nLatent*(log(2*sqrt(twoπ))))
+    tot += 0.5*sum(broadcast((μ,γ,Σ,θ)->dot(μ,(0.5 .- γ)) - dot(abs2.(μ),θ)-dot(Σ,θ),model.likelihood.μ,model.likelihood.γ,diag.(model.likelihood.Σ),model.likelihood.θ))
     return tot
 end
 
@@ -161,5 +161,5 @@ function PoissonKL(model::VGP{T,<:HeteroscedasticLikelihood}) where {T}
 end
 
 function PolyaGammaKL(model::VGP{T,<:HeteroscedasticLikelihood}) where {T}
-    sum(broadcast(PolyaGammaKL,broadcast(γ->1.0.+γ,model.likelihood.γ),model.likelihood.c,model.likelihood.θ))
+    sum(broadcast(PolyaGammaKL,broadcast(γ->0.5.+γ,model.likelihood.γ),model.likelihood.c,model.likelihood.θ))
 end

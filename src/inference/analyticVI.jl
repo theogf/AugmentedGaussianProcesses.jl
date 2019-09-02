@@ -81,13 +81,13 @@ function variational_updates!(model::AbstractGP{T,L,AnalyticVI{T}}) where {T,L}
     global_update!(model)
 end
 
-"""Coordinate ascent updates on the natural parameters"""
-function natural_gradient!(model::VGP{T,L,AnalyticVI{T}}) where {T,L}
-    model.η₁ .= ∇E_μ(model) .+ model.invKnn.*model.μ₀
-    model.η₂ .= -Symmetric.(Diagonal{T}.(∇E_Σ(model)).+0.5.*model.invKnn)
+#Coordinate ascent updates on the natural parameters
+function natural_gradient!(model::Union{VGP{T,L,AnalyticVI{T}},VStP{T,L,AnalyticVI{T}}}) where {T,L}
+    model.η₁ .= ∇E_μ(model) .+ invK(model).*model.μ₀
+    model.η₂ .= -Symmetric.(Diagonal{T}.(∇E_Σ(model)).+0.5.*invK(model))
 end
 
-"""Computation of the natural gradient for the natural parameters"""
+#Computation of the natural gradient for the natural parameters
 function natural_gradient!(model::SVGP{T,L,AnalyticVI{T}}) where {T,L}
     model.inference.∇η₁ .= ∇η₁.(∇E_μ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.μ₀,model.η₁)
     model.inference.∇η₂ .= ∇η₂.(∇E_Σ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂)
@@ -101,13 +101,13 @@ function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},invK
     -(ρκdiagθκ(ρ,κ,θ)+0.5.*invKmm) - η₂
 end
 
-"""Conversion from natural to standard distribution parameters"""
-function global_update!(model::VGP{T,L,AnalyticVI{T}}) where {T,L}
+#Conversion from natural to standard distribution parameters
+function global_update!(model::Union{VGP{T,L,AnalyticVI{T}},VStP{T,L,AnalyticVI{T}}}) where {T,L}
     model.Σ .= -0.5.*inv.(model.η₂)
     model.μ .= model.Σ.*model.η₁
 end
 
-"""Update of the natural parameters and conversion from natural to standard distribution parameters"""
+#Update of the natural parameters and conversion from natural to standard distribution parameters
 function global_update!(model::SVGP{T,L,AnalyticVI{T}}) where {T,L}
     if model.inference.Stochastic
         for k in 1:model.nLatent

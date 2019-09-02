@@ -70,7 +70,7 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 | --- | :-: | :-: | :-: | :-: |
 | GaussianLikelihood   | ✔  | ✖  | ✖ | ✖  |
 | StudentTLikelihood   | ✔  | ✔ | ✔ | ✖  |
-| LaplaceLikelihood   | ✔ | (dev) | ✔ | ✖ |
+| LaplaceLikelihood   | ✔ | ✔ | ✔ | ✖ |
 | HeteroscedasticLikelihood   | ✔ | (dev)  | (dev)  | ✖ |
 | LogisticLikelihood   | ✔  | ✔  | ✔ | ✖  |
 | BayesianSVM   | ✔  | (dev) | ✖ | ✖  |

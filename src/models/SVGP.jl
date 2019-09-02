@@ -131,3 +131,6 @@ end
 function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
+
+@inline invK(model::SVGP) = model.invKmm
+@inline invK(model::SVGP,i::Integer) = model.invKmm[i]
