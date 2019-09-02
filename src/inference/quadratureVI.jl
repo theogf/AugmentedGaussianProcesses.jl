@@ -31,7 +31,7 @@ mutable struct QuadratureVI{T<:Real} <: NumericalVI{T}
     ∇η₂::LatentArray{Symmetric{T,Matrix{T}}}
     ν::LatentArray{Vector{T}} #Derivative -<dv/dx>_qn
     λ::LatentArray{Vector{T}} #Derivative  <d²V/dx²>_qm
-    x::SubArray{T,2,Matrix{T},Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
+    x::SubArray{T,2,Matrix{T}}#,Tuple{UnitRange{Int64},Base.Slice{Base.OneTo{Int64}}},false}#SubArray{T,2,Matrix{T},Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
     y::LatentArray{SubArray}
     function QuadratureVI{T}(ϵ::T,nPoints::Integer,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,clipping::Real,nSamplesUsed::Integer=1) where T
         gh = gausshermite(nPoints)
@@ -103,8 +103,8 @@ function compute_grad_expectations!(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
         k_correct = model.nLatent == 1 ? 1 : k
         μ = model.κ[k_correct]*model.μ[k]
         Σ = opt_diag(model.κ[k_correct]*model.Σ[k],model.κ[k_correct])
-        for i in 1:model.nSample
-            model.inference.ν[k][i], model.inference.λ[k][i] = grad_quad(model.likelihood, model.y[k][i], μ[i], Σ[i], model.inference)
+        for i in 1:model.inference.nSamplesUsed
+            model.inference.ν[k][i], model.inference.λ[k][i] = grad_quad(model.likelihood, model.inference.y[k][i], μ[i], Σ[i], model.inference)
         end
     end
 end

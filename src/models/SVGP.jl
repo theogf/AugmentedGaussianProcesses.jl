@@ -112,7 +112,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed,nFeatures)
             inference = init_inference(inference,nLatent,nFeatures,nSample,nSamplesUsed)
-            inference.x = view(X,:,:)
+            inference.x = view(X,1:nSample,:)
             inference.y = view.(y,:)
 
             model = SVGP{T1,TLikelihood,TInference,ArrayType{T1}}(X,y,
