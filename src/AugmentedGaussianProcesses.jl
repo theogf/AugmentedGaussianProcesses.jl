@@ -22,6 +22,7 @@ export BatchGPRegression, SparseGPRegression, MultiClass, SparseMultiClass, Batc
 include("kernels/KernelModule.jl")
 include("kmeans/KMeansModule.jl")
 include("functions/PGSampler.jl")
+include("functions/GIGSampler.jl")
 #include("functions/PerturbativeCorrection.jl")
 # include("functions/GPAnalysisTools.jl")
 # include("functions/IO_model.jl")
@@ -29,6 +30,7 @@ include("functions/PGSampler.jl")
 using .KernelModule
 using .KMeansModule
 using .PGSampler
+using .GIGSampler
 # using .PerturbativeCorrection
 # using .GPAnalysisTools
 # using .IO_model

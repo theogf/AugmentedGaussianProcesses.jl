@@ -20,7 +20,8 @@ $$k(x,x') = \sigma\frac{2^{1-\nu}}{\Gamma(\nu)}\(\sqrt{2\nu}\frac{d}{\rho}\right
 
 More are coming, check the [github projects](https://github.com/theogf/AugmentedGaussianProcesses.jl/projects/1) for updates .
 
-However the module for kernels should be replaced soon by [MLKernels.jl](https://github.com/trthatcher/MLKernels.jl)
+However the module for kernels should be replaced in the future by [KernelFunctions.jl](https://github.com/theogf/KernelFunctions.jl)
+
 ## Hyperparameter optimization
 
 The advantage of Gaussian Processes is that it is possible to optimize all the hyperparameters of the model by optimizing the lower bound on the loglikelihood. One can compute the gradient of it and apply a classical gradient descent algorithm.

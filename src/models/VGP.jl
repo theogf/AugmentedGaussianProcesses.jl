@@ -68,9 +68,14 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
             if isa(optimizer,Bool)
                 optimizer = optimizer ? Adam(α=0.01) : nothing
             end
+            if !isnothing(optimizer) && isa(inference,GibbsSampling)
+                @warn "Hyperparameter optimization is not available with Gibbs Sampling, disabling it"
+                optimizer = nothing
+            end
             if !isnothing(optimizer)
                 setoptimizer!(kernel,optimizer)
             end
+
             kernel = ArrayType([deepcopy(kernel) for _ in 1:nPrior])
 
             μ = LatentArray([zeros(T1,nFeatures) for _ in 1:nLatent]); η₁ = deepcopy(μ)
