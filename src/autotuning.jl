@@ -1,5 +1,5 @@
 ## Update all hyperparameters for the full batch GP models ##
-function  update_hyperparameters!(model::Union{VGP,GP})
+function  update_hyperparameters!(model::Union{GP,VGP,VStP})
     Jnn = kernelderivativematrix.([model.X],model.kernel)
     f_l,f_v,f_μ₀ = hyperparameter_gradient_function(model)
     grads_l = map(compute_hyperparameter_gradient,model.kernel,fill(f_l,model.nPrior),Jnn,1:model.nPrior)
@@ -31,6 +31,7 @@ function update_hyperparameters!(model::SVGP{T}) where {T<:Real}
     update!.(model.μ₀,grads_μ₀)
     model.inference.HyperParametersUpdated = true
 end
+
 
 ## Return the derivative of the KL divergence between the posterior and the GP prior ##
 function hyperparameter_KL_gradient(J::AbstractMatrix{T},A::AbstractMatrix{T}) where {T<:Real}
@@ -106,6 +107,31 @@ function hyperparameter_gradient_function(model::SVGP{T}) where {T<:Real}
                 end,
                 function(index)
                     return -sum(model.invKmm.*(model.μ₀.-model.μ))
+                end)
+    end
+end
+
+function hyperparameter_gradient_function(model::VStP{T}) where {T<:Real}
+    A = ([Diagonal{T}(I,model.nFeatures)].-invK(model).*(model.Σ.+(model.µ.-model.μ₀).*transpose.(model.μ.-model.μ₀))).*invK(model)
+    if model.IndependentPriors
+        return (function(Jnn,index)
+                    return -hyperparameter_KL_gradient(Jnn,A[index])
+                end,
+                function(kernel,index)
+                    return -1.0/getvariance(kernel)*hyperparameter_KL_gradient(model.Knn[index].*model.χ[index],A[index])
+                end,
+                function(index)
+                    return -invK(model,index)*(model.μ₀[index]-model.μ[index])
+                end)
+    else
+        return (function(Jnn,index)
+            return -sum(hyperparameter_KL_gradient.([Jnn],A))
+                end,
+                function(kernel,index)
+                    return -1.0/getvariance(kernel)*sum(hyperparameter_KL_gradient.(model.Knn[index].*model.χ[index],A) for index in 1:model.nPrior)
+                end,
+                function(index)
+                    return -sum(invK(model).*(model.μ₀.-model.μ))
                 end)
     end
 end
