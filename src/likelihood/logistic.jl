@@ -60,6 +60,7 @@ function compute_proba(l::LogisticLikelihood{T},μ::AbstractVector{T},σ²::Abst
             nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
             pred[i] = dot(pred_weights,logistic.(nodes))
             sig_pred[i] = dot(pred_weights,logistic.(nodes).^2)-pred[i]^2
+            nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
         end
     end
     return pred, sig_pred
