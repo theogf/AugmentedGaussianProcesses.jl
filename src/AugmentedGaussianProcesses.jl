@@ -6,8 +6,8 @@ General Framework for the data augmented Gaussian Processes
 module AugmentedGaussianProcesses
 
 export AbstractGP, GP, VGP, SVGP, VStP
-export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
-export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood
+export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood, EventLikelihood
+export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood, Matern3_2Likelihood, MaternLikelihood
 export LogisticLikelihood, BayesianSVM
 export SoftMaxLikelihood, LogisticSoftMaxLikelihood
 export PoissonLikelihood
