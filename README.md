@@ -1,10 +1,12 @@
 ![AugmentedGaussianProcesses.jl](docs/src/assets/banner.png)
+
 [![Docs Latest](https://img.shields.io/badge/docs-dev-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/dev)
 [![Docs Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable)
 [![Build Status](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl.svg?branch=master)](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl)
 [![Coverage Status](https://coveralls.io/repos/github/theogf/AugmentedGaussianProcesses.jl/badge.svg?branch=master)](https://coveralls.io/github/theogf/AugmentedGaussianProcesses.jl?branch=master)
+[![DOI](https://zenodo.org/badge/118922202.svg)](https://zenodo.org/badge/latestdoi/118922202)
 
-AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development for **Data Augmented Sparse Gaussian Processes**. It contains a collection of models for different **gaussian and non-gaussian likelihoods**, which are transformed via data augmentation into **conditionally conjugate likelihood** allowing for **extremely fast inference** via block coordinate updates. There are also more options to use more traditional **variational inference** via quadrature or Monte Carlo integration.
+AugmentedGaussianProcesses.jl is a Julia package in development for **Data Augmented Sparse Gaussian Processes**. It contains a collection of models for different **gaussian and non-gaussian likelihoods**, which are transformed via data augmentation into **conditionally conjugate likelihood** allowing for **extremely fast inference** via block coordinate updates. There are also more options to use more traditional **variational inference** via quadrature or Monte Carlo integration.
 
 ### You can also use the package in Python via [PyJulia](https://github.com/JuliaPy/pyjulia)!
 
@@ -19,7 +21,7 @@ AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development 
 </p>
 
 ---
-## Three GP Regression likelihood
+## Four GP Regression likelihood
   - **Gaussian** : The standard Gaussian Process regression model with a Gaussian Likelihood (no data augmentation was needed here) [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20Gaussian.ipynb)/[Reference][arxivgpbigdata]
   - **StudentT** : The standard Gaussian Process regression with a Student-t likelihood (the degree of freedom ν is not optimizable for the moment) [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20StudentT.ipynb)/[Reference][jmlrstudentt]
   - **Laplace** : Gaussian Process regression with a Laplace likelihood [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/Regression%20-%20Laplace.ipynb)/(No reference at the moment)
@@ -39,29 +41,27 @@ AugmentedGaussianProcesses! (previously OMGP) is a Julia package in development 
 
 ## More models in development
   - **Poisson** : For point process estimation
-  - **Heteroscedastic** : Non stationary noise
   - **Probit** : A Classifier with a Bernoulli likelihood with the probit link
   - **Online** : Allowing for all algorithms to work online as well
-  - **Numerical solving** : Allow for a more general class of likelihoods by applying numerical solving (like GPFlow)
 
 ## Install the package
 
-The package requires Julia 1.1
-Run in `Julia` press `]` and type `add AugmentedGaussianProcesses`, it will install the package and all its requirements
+The package requires at least [Julia 1.1](https://julialang.org/)
+Run `julia`, press `]` and type `add AugmentedGaussianProcesses`, it will install the package and all its dependencies.
 
 ## Use the package
 
-A complete documentation is currently being written, for now you can use this very basic example where `X_train` is a matrix ``N x D`` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs (or matrix independent multi-output).
+A complete documentation is available [in the docs](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable). For a short start now you can use this very basic example where `X_train` is a matrix ``N x D`` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs (or matrix of independent outputs).
 
 ```julia
 using AugmentedGaussianProcesses
 model = SVGP(X_train,Y_train,RBFKernel(1.0),LogisticLikelihood(),AnalyticSVI(100),64)
 train!(model,iterations=100)
 Y_predic = predict_y(model,X_test) #For getting the label directly
-Y_predic_prob = proba_y(model,X_test) #For getting the likelihood of predicting class 1
+Y_predic_prob, Y_predic_prob_var = proba_y(model,X_test) #For getting the likelihood (and likelihood uncertainty) of predicting class 1
 ```
 
-Both [documentation](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable/) and [examples](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/tree/master/examples/) are available.
+Both [documentation](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable/) and [examples/tutorials](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/tree/master/examples/) are available.
 
 ## References :
 
