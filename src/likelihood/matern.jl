@@ -1,4 +1,4 @@
-abstract type MaternLikelihood{T<:Real} <: RegressionLikelihood{T}
+abstract type MaternLikelihood{T<:Real} <: RegressionLikelihood{T} end
 
 
 """
@@ -52,6 +52,11 @@ function pdf(l::Matern3_2Likelihood{T},y::Real,f::Real) where {T}
     4*l.ρ/sqrt(3)*(one(T)+u)*exp(-u)
 end
 
+function logpdf(l::Matern3_2Likelihood{T},y::Real,f::Real) where {T}
+    u = sqrt(3)*abs(y-f)/l.ρ
+    log(4*l.ρ/sqrt(3)) + log(one(T)+u) - u
+end
+
 function Base.show(io::IO,model::Matern3_2Likelihood{T}) where T
     print(io,"Matern 3/2 likelihood")
 end
@@ -63,12 +68,12 @@ end
 ## Local Updates ##
 function local_updates!(model::VGP{T,<:Matern3_2Likelihood,<:AnalyticVI}) where {T}
     model.likelihood.c² .= broadcast((Σ,μ,y)->Σ+abs2.(μ-y),diag.(model.Σ),model.μ,model.y)
-    model.likelihood.θ .= broadcast(c²->3.0./(2.0.*sqrt.(3*c²)*model.likelihood.ρ+2*model.likelihood.ρ^2),model.likelihood.c²)
+    model.likelihood.θ .= broadcast(c²->3.0./(2.0.*sqrt.(3*c²)*model.likelihood.ρ.+2*model.likelihood.ρ^2),model.likelihood.c²)
 end
 
 function local_updates!(model::SVGP{T,<:Matern3_2Likelihood,<:AnalyticVI}) where {T}
-    model.likelihood.c² .= broadcast((Σ,μ,y)->(K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y),diag.(model.Σ),model.K̃,model.κ,model.Σ,model.μ,model.inference.y)
-    model.likelihood.θ .= broadcast(c²->3.0./(2.0.*sqrt.(3*c²)*model.likelihood.ρ+2*model.likelihood.ρ^2),model.likelihood.c²)
+    model.likelihood.c² .= broadcast((Σ,μ,y)->K̃ + opt_diag(κ*Σ,κ) + abs2.(κ*μ-y),diag.(model.Σ),model.K̃,model.κ,model.Σ,model.μ,model.inference.y)
+    model.likelihood.θ .= broadcast(c²->3.0./(2.0.*sqrt.(3*c²)*model.likelihood.ρ.+2*model.likelihood.ρ^2),model.likelihood.c²)
 end
 
 function sample_local!(model::VGP{T,<:Matern3_2Likelihood,<:GibbsSampling}) where {T}
@@ -116,7 +121,7 @@ end
 ## PDF and Log PDF Gradients ## (verified gradients)
 
 function grad_log_pdf(l::Matern3_2Likelihood{T},y::Real,f::Real) where {T<:Real}
-    3.0 * (y-f) / (l.ρ*(l.ρ*abs(f-y)*sqrt(3)+l.ρ))
+    3.0 * (y-f) / (l.ρ*(abs(f-y)*sqrt(3)+l.ρ))
 end
 
 function hessian_log_pdf(l::Matern3_2Likelihood{T},y::Real,f::Real) where {T<:Real}

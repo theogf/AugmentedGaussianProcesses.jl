@@ -41,6 +41,14 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
         else
             return false
         end
+    elseif likelihood isa HeteroscedasticLikelihood
+        if inference isa AnalyticVI || inference isa QuadratureVI
+            return true
+        elseif model == :VGP && inference isa GibbsSampling
+            return true
+        else
+            return false
+        end
     elseif likelihood isa LogisticLikelihood
         if inference isa AnalyticVI || inference isa QuadratureVI
             return true
