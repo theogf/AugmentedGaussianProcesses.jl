@@ -2,7 +2,7 @@
 Class for variational Gaussian Processes models (non-sparse)
 
 ```julia
-VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+VGP(X::AbstractArray{T₁,N₁},y::AbstractArray{T₂,N₂},kernel::Union{Kernel,AbstractVector{<:Kernel}},
     likelihood::LikelihoodType,inference::InferenceType;
     verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
@@ -22,7 +22,7 @@ Argument list :
 **Keyword arguments**
 
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
-- `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
+- `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl)) or set it to `false` to keep hyperparameters fixed
 - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
 - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
@@ -54,11 +54,11 @@ mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},V
 end
 
 
-function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+function VGP(X::AbstractArray{T₁,N₁},y::AbstractArray{T₂,N₂},kernel::Union{Kernel,AbstractVector{<:Kernel}},
             likelihood::TLikelihood,inference::TInference;
             verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-            IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2,TLikelihood<:Likelihood,TInference<:Inference}
+            IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T₁<:Real,T₂,N₁,N₂,TLikelihood<:Likelihood,TInference<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(:VGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
@@ -78,8 +78,8 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
 
             kernel = ArrayType([deepcopy(kernel) for _ in 1:nPrior])
 
-            μ = LatentArray([zeros(T1,nFeatures) for _ in 1:nLatent]); η₁ = deepcopy(μ)
-            Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeatures))) for _ in 1:nLatent]);
+            μ = LatentArray([zeros(T₁,nFeatures) for _ in 1:nLatent]); η₁ = deepcopy(μ)
+            Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T₁)*I,nFeatures))) for _ in 1:nLatent]);
             η₂ = -0.5*inv.(Σ);
             μ₀ = []
             if typeof(mean) <: Real
@@ -96,7 +96,7 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
             inference.x = view(X,:,:)
             inference.y = view.(y,:)
-            VGP{T1,TLikelihood,TInference,ArrayType{T1}}(X,y,
+            VGP{T₁,TLikelihood,TInference,ArrayType{T₁}}(X,y,
                     nFeatures, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,μ,Σ,η₁,η₂,
                     μ₀,Knn,invKnn,kernel,likelihood,inference,

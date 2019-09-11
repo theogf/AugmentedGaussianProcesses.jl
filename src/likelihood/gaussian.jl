@@ -8,6 +8,7 @@ GaussianLikelihood(ϵ::T=1e-3) #ϵ is the variance
 ```
 
 There is no augmentation needed for this likelihood which is already conjugate
+Note that the variable ϵ is optimized over time!
 """
 struct GaussianLikelihood{T<:Real} <: RegressionLikelihood{T}
     ϵ::LatentArray{T}
@@ -66,7 +67,6 @@ function local_updates!(model::SVGP{T,<:GaussianLikelihood}) where {T}
         #TODO make it a moving average
         ρ = inv(sqrt(1+model.inference.nIter))
         model.likelihood.ϵ .= (1-ρ)*model.likelihood.ϵ + ρ/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.inference.y,model.κ,model.μ,model.Σ,model.K̃)
-        model.likelihood.ϵ
     else
         model.likelihood.ϵ .= 1.0/model.inference.nSamplesUsed *broadcast((y,κ,μ,Σ,K̃)->sum(abs2.(y-κ*μ))+opt_trace(κ*Σ,κ)+sum(K̃),model.y,model.κ,model.μ,model.Σ,model.K̃)
     end

@@ -2,7 +2,7 @@
 Class for sparse variational Gaussian Processes
 
 ```julia
-SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+SVGP(X::AbstractArray{T₁},y::AbstractArray{T₂},kernel::Union{Kernel,AbstractVector{<:Kernel}},
     likelihood::LikelihoodType,inference::InferenceType, nInducingPoints::Int;
     verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
@@ -21,7 +21,7 @@ Argument list :
  - `nInducingPoints` : number of inducing points
 **Optional arguments**
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
+ - `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl)) or set it to `false` to keep hyperparameters fixed
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
  - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
@@ -58,12 +58,12 @@ mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,V<:
     Trained::Bool
 end
 
-function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+function SVGP(X::AbstractArray{T₁},y::AbstractArray{T₂},kernel::Union{Kernel,AbstractVector{<:Kernel}},
             likelihood::TLikelihood,inference::TInference, nInducingPoints::Int;
             verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true,Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
-            ArrayType::UnionAll=Vector) where {T1<:Real,T2,TLikelihood<:Likelihood,TInference<:Inference}
+            ArrayType::UnionAll=Vector) where {T₁<:Real,T₂,TLikelihood<:Likelihood,TInference<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(:SVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
@@ -85,12 +85,12 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
             nFeatures = nInducingPoints
 
 
-            μ = LatentArray([zeros(T1,nFeatures) for _ in 1:nLatent]); η₁ = deepcopy(μ);
-            Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeatures))) for _ in 1:nLatent]);
+            μ = LatentArray([zeros(T₁,nFeatures) for _ in 1:nLatent]); η₁ = deepcopy(μ);
+            Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T₁)*I,nFeatures))) for _ in 1:nLatent]);
             η₂ = -0.5*inv.(Σ);
-            κ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample, nFeatures) for _ in 1:nPrior])
+            κ = LatentArray([zeros(T₁,inference.Stochastic ? inference.nSamplesUsed : nSample, nFeatures) for _ in 1:nPrior])
             Knm = deepcopy(κ)
-            K̃ = LatentArray([zeros(T1,inference.Stochastic ? inference.nSamplesUsed : nSample) for _ in 1:nPrior])
+            K̃ = LatentArray([zeros(T₁,inference.Stochastic ? inference.nSamplesUsed : nSample) for _ in 1:nPrior])
             Kmm = LatentArray([similar(Σ[1]) for _ in 1:nPrior]); invKmm = similar.(Kmm)
             μ₀ = []
             if typeof(mean) <: Real
@@ -115,7 +115,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
             inference.x = view(X,1:nSample,:)
             inference.y = view.(y,:)
 
-            model = SVGP{T1,TLikelihood,TInference,ArrayType{T1}}(X,y,
+            model = SVGP{T₁,TLikelihood,TInference,ArrayType{T₁}}(X,y,
                     nSample, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,
                     Z,μ,Σ,η₁,η₂,

@@ -2,7 +2,7 @@
 Class for Gaussian Processes models
 
 ```julia
-GP(X::AbstractArray{T1,N1}, y::AbstractArray{T2,N2}, kernel::Union{Kernel,AbstractVector{<:Kernel}};
+GP(X::AbstractArray{T₁,N₁}, y::AbstractArray{T₂,N₂}, kernel::Union{Kernel,AbstractVector{<:Kernel}};
     noise::Real=1e-5, opt_noise::Bool=true, verbose::Int=0,
     optimizer::Bool=Adam(α=0.01),atfrequency::Int=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
@@ -22,7 +22,7 @@ Argument list :
  - `opt_noise` : Flag for optimizing the noise σ=Σ(y-f)^2/N
  - `mean` : Option for putting a prior mean
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
+ - `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl)) or set it to `false` to keep hyperparameters fixed
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
  - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
@@ -51,11 +51,11 @@ mutable struct GP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},V<
 end
 
 
-function GP(X::AbstractArray{T1,N1}, y::AbstractArray{T2,N2}, kernel::Union{Kernel,AbstractVector{<:Kernel}};
+function GP(X::AbstractArray{T₁,N₁}, y::AbstractArray{T₁,N₂}, kernel::Union{Kernel,AbstractVector{<:Kernel}};
                 noise::Real=1e-5, opt_noise::Bool=true, verbose::Int=0,
                 optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
                 mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-                IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2}
+                IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T₁<:Real,T₂,N₁,N₂}
             likelihood = GaussianLikelihood(noise)
             inference = Analytic()
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
