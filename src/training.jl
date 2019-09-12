@@ -31,12 +31,17 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
                 update_hyperparameters!(model) #Update the hyperparameters
             end
             # Print out informations about the convergence
-            if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
+            if model.verbose > 1
                 if isa(model.inference,GibbsSampling)
                     next!(p; showvalues = [(:samples, local_iter)])
                 else
-                    elbo=ELBO(model)
-                    next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
+                    if (model.verbose > 2  || local_iter%10==0)
+                        elbo = ELBO(model)
+                        prev_elbo = elbo
+                        next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
+                    else
+                        next!(p; showvalues = [(:iter, local_iter),(:ELBO,prev_elbo)])
+                    end
                 end
             end
             local_iter += 1; model.inference.nIter += 1
@@ -56,7 +61,7 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
     end
     computeMatrices!(model) #Compute final version of the matrices for prediction
     post_process!(model)
-    model.Trained = true
+    return model.Trained = true
 end
 
 function update_parameters!(model::GP)

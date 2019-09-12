@@ -53,7 +53,7 @@ export kerneldiagmatrix, kerneldiagmatrix!, kernelmatrix, kernelmatrix!
 export fstar, multiclasspredictproba, multiclasspredictprobamcmc, multiclasspredict, ELBO
 export setvalue!,getvalue,setfixed!,setfree!,getvariance,getlengthscales,setoptimizer!
 export opt_diag, opt_trace
-export covariance, diag_covariance, prior_mean, kernel
+export covariance, diag_covariance, prior_mean
 export KMeansInducingPoints
 
 # Main classes
