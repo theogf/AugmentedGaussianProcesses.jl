@@ -92,14 +92,14 @@ end
 
 function computeMatrices!(model::GP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) )
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.inference.x],model.kernel) )
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn.+ model.likelihood.ϵ.*[I])))
     end
 end
 
 function computeMatrices!(model::VGP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.inference.x],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
     end
 end
@@ -122,7 +122,7 @@ end
 
 function computeMatrices!(model::VStP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.inference.x],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
         model.invL .= inv.(getproperty.(cholesky.(model.Knn),:L))
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
         # model.invKnn .= Symmetric.(model.invL.*transpose.(model.invL))

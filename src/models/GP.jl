@@ -82,7 +82,8 @@ function GP(X::AbstractArray{T₁,N₁}, y::AbstractArray{T₁,N₂}, kernel::Un
             end
             likelihood = init_likelihood(likelihood,inference,nLatent,nSample,nFeatures)
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
-
+            inference.x = view(X,:,:)
+            inference.y = view.(y,:)
             model = GP{T1,GaussianLikelihood{T1},Analytic{T1},ArrayType{T1}}(X,y,
                     nFeatures, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,

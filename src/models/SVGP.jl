@@ -106,7 +106,9 @@ function SVGP(X::AbstractArray{T₁},y::AbstractArray{T₂},kernel::Union{Kernel
                 @assert inference.nSamplesUsed > 0 && inference.nSamplesUsed < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
                 nSamplesUsed = inference.nSamplesUsed
                 opt = kernel[1].fields.variance.opt
-                opt.α = opt.α*0.1
+                if isa(opt,Adam)
+                    opt.α = opt.α*0.1
+                end
                 setoptimizer!.(kernel,[copy(opt) for _ in 1:nLatent])
             end
 

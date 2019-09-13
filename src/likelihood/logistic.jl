@@ -44,6 +44,10 @@ function pdf(l::LogisticLikelihood,y::Real,f::Real)
     logistic(y*f)
 end
 
+function logpdf(l::LogisticLikelihood,y::T,f::T) where {T<:Real}
+    -log(one(T)+exp(-y*f))
+end
+
 function Base.show(io::IO,model::LogisticLikelihood{T}) where T
     print(io,"Bernoulli Likelihood with Logistic Link")
 end
@@ -124,7 +128,7 @@ function gradpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
     σ*(one(T)-σ)
 end
 
-@inline hessian_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T<:Real} = -exp(y*f)/logistic(-y*f)^2
+@inline hessian_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T<:Real} = -exp(y*f)*logistic(-y*f)^2
 
 function hessiandiagpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
     σ=logistic(y*f)

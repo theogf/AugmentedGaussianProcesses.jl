@@ -8,6 +8,8 @@ mutable struct Analytic{T<:Real} <: Inference{T}
     MBIndices::Vector{Int64} #Indices of the minibatch
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
+    x::SubArray{T,2,Matrix{T}}#,Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
+    y::LatentArray{SubArray}
     function Analytic{T}(ϵ::T,nIter::Integer,Stochastic::Bool,nSamples::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
         return new{T}(ϵ,nIter,Stochastic,nSamples,nSamples,MBIndices,ρ,flag)
     end

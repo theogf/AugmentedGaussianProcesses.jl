@@ -39,7 +39,7 @@ mutable struct QuadratureVI{T<:Real} <: NumericalVI{T}
     end
 end
 
-function QuadratureVI(;ϵ::T=1e-5,nGaussHermite::Integer=1000,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
+function QuadratureVI(;ϵ::T=1e-5,nGaussHermite::Integer=100,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
     QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false,clipping)
 end
 

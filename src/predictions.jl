@@ -25,7 +25,7 @@ Compute the mean of the predicted latent distribution of `f` on `X_test` for the
 Return also the variance if `covf=true` and the full covariance if `fullcov=true`
 """
 function predict_f(model::Union{VGP,VStP},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where T
-    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
+    k_star = kernelmatrix.([X_test],[model.inference.x],model.kernel)
     μf = k_star.*model.invKnn.*model.μ
     if !covf
         return model.nLatent == 1 ? μf[1] : μf
@@ -64,7 +64,7 @@ function predict_f(model::SVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov
 end
 
 function predict_f(model::VGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
-    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
+    k_star = kernelmatrix.([X_test],[model.inference.x],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
     μf =  [vec(mean(hcat(f[k]...),dims=2)) for k in 1:model.nLatent]
     if !covf
@@ -151,7 +151,7 @@ end
 
 function proba_y(model::VGP{T,<:Union{<:RegressionLikelihood{T},<:ClassificationLikelihood{T}},<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
     N_test = size(X_test,1)
-    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
+    k_star = kernelmatrix.([X_test],[model.inference.x],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
     K̃ = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+ [zeros(size(X_test,1)) for i in 1:model.nLatent]
@@ -171,7 +171,7 @@ function proba_y(model::VGP{T,<:Union{<:RegressionLikelihood{T},<:Classification
 end
 
 function proba_y(model::VGP{T,<:MultiClassLikelihood{T},<:GibbsSampling{T}},X_test::AbstractMatrix{T};nSamples::Int=200) where {T}
-    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
+    k_star = kernelmatrix.([X_test],[model.inference.x],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
     K̃ = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+ [zeros(size(X_test,1)) for i in 1:model.nLatent]

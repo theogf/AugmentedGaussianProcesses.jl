@@ -86,8 +86,8 @@ end
 
 
 function predict_f(model::GP{T,GaussianLikelihood{T},Analytic{T}},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
-    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
-    μf = k_star.*model.invKnn.*model.y
+    k_star = kernelmatrix.([X_test],[model.inference.x],model.kernel)
+    μf = k_star.*model.invKnn.*model.inference.y
     if !covf
         return model.nLatent == 1 ? μf[1] : μf
     end
@@ -135,7 +135,7 @@ function ELBO(model::SVGP{T,GaussianLikelihood{T}}) where {T}
 end
 
 function expecLogLikelihood(model::SVGP{T,GaussianLikelihood{T}}) where {T}
-    return -0.5*model.inference.ρ*sum(broadcast((y,ϵ,κ,Σ,μ,K̃)->1.0/ϵ*(sum(abs2.(y[model.inference.MBIndices]-κ*μ))+sum(K̃)+opt_trace(κ*Σ,κ))+model.inference.nSamplesUsed*(log(twoπ)+log(ϵ)),model.y,model.likelihood.ϵ,model.κ,model.Σ,model.μ,model.K̃))
+    return -0.5*model.inference.ρ*sum(broadcast((y,ϵ,κ,Σ,μ,K̃)->(sum(abs2,y-κ*μ)+sum(K̃)+opt_trace(κ*Σ,κ))/ϵ+model.inference.nSamplesUsed*(log(twoπ)+log(ϵ)),model.inference.y,model.likelihood.ϵ,model.κ,model.Σ,model.μ,model.K̃))
 end
 
 function hyperparameter_gradient_function(model::GP{T,GaussianLikelihood{T}}) where {T}
