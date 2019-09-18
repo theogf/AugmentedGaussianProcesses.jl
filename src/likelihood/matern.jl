@@ -32,7 +32,7 @@ struct Matern3_2Likelihood{T<:Real} <: MaternLikelihood{T}
     end
 end
 
-function Matern3_2Likelihood(ρ::T) where {T<:Real}
+function Matern3_2Likelihood(ρ::T=1.0) where {T<:Real}
     Matern3_2Likelihood{T}(ρ)
 end
 

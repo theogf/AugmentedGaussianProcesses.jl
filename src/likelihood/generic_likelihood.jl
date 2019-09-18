@@ -123,39 +123,39 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function AGP.pdf(l::$(lname),y::Real,f::Real)
-            C()*exp(g(y)*f)*φ(α(y)-β(y)*f+γ(y)*f^2)
+            $(C)()*exp($(g)(y)*f)*$(φ)($(α)(y)-$(β)(y)*f+$(γ)(y)*f^2)
         end
 
         function C(l::$(lname){T}) where {T}
-            C()
+            $(C)()
         end
 
         function g(l::$(lname),y::AbstractVector{T}) where {T}
-            g.(y)
+            $(g).(y)
         end
 
         function α(l::$(lname),y::AbstractVector{T}) where {T}
-            α.(y)
+            $(α).(y)
         end
 
         function β(l::$(lname),y::AbstractVector{T}) where {T}
-            β.(y)
+            $(β).(y)
         end
 
         function γ(l::$(lname),y::AbstractVector{T}) where {T}
-            γ.(y)
+            $(γ).(y)
         end
 
         function φ(l::$(lname),r::T) where {T}
-            φ.(r)
+            $(φ).(r)
         end
 
         function ∇φ(l::$(lname),r::T) where {T}
-            ∇φ.(r)
+            $(∇φ).(r)
         end
 
         function ∇²φ(l::$(lname),r::T) where {T}
-            Zygote.gradient(x->∇φ(x),r)[1]
+            Zygote.gradient(x->$(∇φ)(x),r)[1]
         end
 
         function Base.show(io::IO,model::$(lname){T}) where {T}
@@ -198,16 +198,16 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function AGP.local_updates!(model::SVGP{T,<:$(lname),<:AnalyticVI}) where {T}
-            model.likelihood.c² .= broadcast((y,κ,μ,Σ)->α.(model.likelihood,y)-β.(model.likelihood,y).*(κ*μ)+γ.(model.likelihood,y).*(abs2.(κ*μ)+AGP.opt_diag(κ*Σ,κ)),model.inference.y,model.κ,model.μ,model.Σ)
+            model.likelihood.c² .= broadcast((y,κ,μ,Σ)->α(model.likelihood,y)-β(model.likelihood,y).*(κ*μ)+γ(model.likelihood,y).*(abs2.(κ*μ)+AGP.opt_diag(κ*Σ,κ)),model.inference.y,model.κ,model.μ,model.Σ)
             model.likelihood.θ .= broadcast(c²->-∇φ.(model.likelihood,c²)./φ.(model.likelihood,c²),model.likelihood.c²)
         end
 
-        function pω(::$(lname),f)
-            @error "You cannot use Gibbs sampling from your likelihood unless you define pω(likelihood,f)"
+        function sample_omega(::$(lname),f)
+            @error "You cannot use Gibbs sampling from your likelihood unless you define sample_omega(likelihood,f)"
         end
 
         function AGP.sample_local!(model::VGP{T,<:$(lname),<:GibbsSampling}) where {T}
-            model.likelihood.θ .= broadcast((y,μ)->pω.(sqrt.(0.5*(model.likelihood,α(model.likelihood,model.likelihood,y)-β(model.likelihood,y).*μ+γ(model.likelihood,y).*(μ.^2)))),model.inference.y,model.μ)
+            model.likelihood.θ .= broadcast((y,μ)->pω.(model.likelihood,sqrt.(α(model.likelihood,model.likelihood,y)-β(model.likelihood,y).*μ+γ(model.likelihood,y).*(μ.^2))),model.inference.y,model.μ)
         end
 
         ### Natural Gradient Section ###
@@ -227,7 +227,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         function AGP.expecLogLikelihood(model::VGP{T,<:$(lname),<:AnalyticVI}) where {T}
             tot = model.nLatent*model.nSample*log(C(model.likelihood))
             tot += sum(broadcast((y,μ)->dot(g(model.likelihood,y),μ),model.inference.y,model.μ))
-            tot += -sum(broadcast((θ,y,μ,Σ)->dot(θ,α(model.likelihood,y))
+            tot += -sum(broadcast((θ,y,μ,Σ)-> dot(θ,α(model.likelihood,y))
                                             - dot(θ,β(model.likelihood,y).*μ)
                                             + dot(θ,γ(model.likelihood,y).*(abs2.(μ)+Σ)),
                                             model.likelihood.θ,model.inference.y,
@@ -236,7 +236,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function AGP.expecLogLikelihood(model::SVGP{T,<:$(lname),<:AnalyticVI}) where {T}
-            tot = model.nLatent*model.nSamplesUsed*log(C(model.likelihood))
+            tot = model.nLatent*model.inference.nSamplesUsed*log(C(model.likelihood))
             tot += sum(broadcast((y,κμ)->dot(g(model.likelihood,y),κμ),model.inference.y,model.κ.*model.μ))
             tot += -sum(broadcast((θ,y,κμ,κΣκ)->dot(θ,α(model.likelihood,y))
                                             - dot(θ,β(model.likelihood,y).*κμ)
