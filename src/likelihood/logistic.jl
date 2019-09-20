@@ -84,7 +84,7 @@ end
 
 function sample_local!(model::VGP{T,<:LogisticLikelihood,<:GibbsSampling}) where {T}
     pg = PolyaGammaDist()
-    model.likelihood.θ .= broadcast((μ::AbstractVector{<:Real})->draw.([pg],[1.0],μ),model.μ)
+    model.likelihood.θ .= broadcast((μ::AbstractVector{<:Real})->draw.([pg],[1.0],μ),model.μ) #Sample from ω
     return nothing
 end
 

@@ -72,8 +72,8 @@ function local_updates!(model::SVGP{T,<:StudentTLikelihood,<:AnalyticVI}) where 
 end
 
 function sample_local!(model::VGP{T,<:StudentTLikelihood,<:GibbsSampling}) where {T}
-    model.likelihood.β .= broadcast((μ::AbstractVector{<:Real},y)->rand.(InverseGamma.(model.likelihood.α,0.5*(abs2.(μ-y).+model.likelihood.σ^2*model.likelihood.ν))),model.μ,model.y)
-    model.likelihood.θ .= broadcast(β->1.0./β,model.likelihood.β)
+    model.likelihood.β .= broadcast((μ::AbstractVector{<:Real},y)->rand.(InverseGamma.(model.likelihood.α,0.5*(abs2.(μ-y).+model.likelihood.σ^2*model.likelihood.ν))),model.μ,model.y) #Sample from ω
+    model.likelihood.θ .= broadcast(β->1.0./β,model.likelihood.β) #Return 1/ω
     return nothing
 end
 

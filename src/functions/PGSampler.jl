@@ -112,6 +112,8 @@ end
 # 				  // Sample //
 # ////////////////////////////////////////////////////////////////////////////////
 
+
+# sample from PG(b,c)
 function draw(pg::PolyaGammaDist{T},n::Real, z::Real) where {T<:Real}
   if n == 0
     # @warn "draw(PolyaGamma): n < 1.  Set n = 1." maxlog=1

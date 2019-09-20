@@ -71,8 +71,8 @@ function local_updates!(model::SVGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {
 end
 
 function sample_local!(model::VGP{T,<:LaplaceLikelihood,<:GibbsSampling}) where {T}
-    model.likelihood.b .= broadcast((μ,y,β)->rand.(GeneralizedInverseGaussian.(1/β^2,abs2.(μ-y),0.5)),model.μ,model.inference.y,model.likelihood.β)
-    model.likelihood.θ .= broadcast(b->1.0./b,model.likelihood.b)
+    model.likelihood.b .= broadcast((μ,y,β)->rand.(GeneralizedInverseGaussian.(1/β^2,abs2.(μ-y),0.5)),model.μ,model.inference.y,model.likelihood.β) #Sample from ω
+    model.likelihood.θ .= broadcast(b->1.0./b,model.likelihood.b) #Return inverse of ω
     return nothing
 end
 

@@ -62,8 +62,8 @@ function ELBO(model::AbstractGP{T,<:Likelihood,<:GibbsSampling}) where {T}
 end
 
 function sample_global!(model::VGP{T,<:Likelihood,<:GibbsSampling}) where {T}
-    model.Σ .= inv.(Symmetric.(Diagonal.(2.0.*∇E_Σ(model)).+model.invKnn))
-    model.μ .= rand.(MvNormal.(model.Σ.*(∇E_μ(model).+model.invKnn.*model.μ₀),model.Σ))
+    model.Σ .= inv.(Symmetric.(Diagonal.(2.0.*∇E_Σ(model)).+model.invKnn)) # Definition of covariance for full conditional
+    model.μ .= rand.(MvNormal.(model.Σ.*(∇E_μ(model).+model.invKnn.*model.μ₀),model.Σ)) # Sampling of f
     return nothing
 end
 
