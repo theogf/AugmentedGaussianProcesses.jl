@@ -81,7 +81,7 @@ function predict_f(model::VGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMa
     return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 end
 
-function predict_f(model::AbstractGP,X_test::AbstractVector{T};covf::Bool=false,fullcov::Bool=false) where T
+function predict_f(model::AbstractGP,X_test::AbstractVector{T};covf::Bool=true,fullcov::Bool=false) where T
     predict_f(model,reshape(X_test,length(X_test),1),covf=covf,fullcov=fullcov)
 end
 

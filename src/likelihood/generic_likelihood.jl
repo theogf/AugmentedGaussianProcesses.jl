@@ -86,7 +86,6 @@ end
 
 macro augmodel(name,ltype,C::Symbol,g::Symbol,α::Symbol,β::Symbol,γ::Symbol,φ::Symbol,∇φ::Symbol)
     #### Check args here
-    #Check name has no space
     @assert check_model_name(name) "Please only use alphabetic characters for the name of the likelihood"
     @assert check_likelihoodtype(ltype) "Please use a correct likelihood type : Regression, Classification or Event"
     #Find gradient with AD if needed
@@ -98,9 +97,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         # struct $(Symbol(name,"{T<:Real}"))# <: $(ltype)
         struct $(lname){T<:Real} <: AGP.$(ltype){T}
             # b::T
-            # c²::AGP.LatentArray{Vector}
             c²::AGP.LatentArray{Vector{T}}
-            # θ::AGP.LatentArray{Vector}
             θ::AGP.LatentArray{Vector{T}}
             function $(lname){T}() where {T<:Real}
                 new{T}()
@@ -126,36 +123,36 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
             $(C)()*exp($(g)(y)*f)*$(φ)($(α)(y)-$(β)(y)*f+$(γ)(y)*f^2)
         end
 
-        function C(l::$(lname){T}) where {T}
+        function _gen_C(l::$(lname){T}) where {T}
             $(C)()
         end
 
-        function g(l::$(lname),y::AbstractVector{T}) where {T}
+        function _gen_g(l::$(lname),y::AbstractVector{T}) where {T}
             $(g).(y)
         end
 
-        function α(l::$(lname),y::AbstractVector{T}) where {T}
+        function _gen_α(l::$(lname),y::AbstractVector{T}) where {T}
             $(α).(y)
         end
 
-        function β(l::$(lname),y::AbstractVector{T}) where {T}
+        function _gen_β(l::$(lname),y::AbstractVector{T}) where {T}
             $(β).(y)
         end
 
-        function γ(l::$(lname),y::AbstractVector{T}) where {T}
+        function _gen_γ(l::$(lname),y::AbstractVector{T}) where {T}
             $(γ).(y)
         end
 
-        function φ(l::$(lname),r::T) where {T}
+        function _gen_φ(l::$(lname),r::T) where {T}
             $(φ).(r)
         end
 
-        function ∇φ(l::$(lname),r::T) where {T}
+        function _gen_∇φ(l::$(lname),r::T) where {T}
             $(∇φ).(r)
         end
 
-        function ∇²φ(l::$(lname),r::T) where {T}
-            Zygote.gradient(x->$(∇φ)(x),r)[1]
+        function _gen_∇²φ(l::$(lname),r::T) where {T}
+            Zygote.gradient(x->$(_gen_∇φ)(x),r)[1]
         end
 
         function Base.show(io::IO,model::$(lname){T}) where {T}
@@ -193,13 +190,13 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         ### Local Updates Section ###
 
         function AGP.local_updates!(model::VGP{T,<:$(lname),<:AnalyticVI}) where {T}
-            model.likelihood.c² .= broadcast((y,μ,Σ)->α(model.likelihood,y)-β(model.likelihood,y).*μ+γ(model.likelihood,y).*(abs2.(μ)+Σ),model.inference.y,model.μ,AGP.diag.(model.Σ))
-            model.likelihood.θ .= broadcast(c²->-∇φ(model.likelihood,c²)./φ(model.likelihood,c²),model.likelihood.c²)
+            model.likelihood.c² .= broadcast((y,μ,Σ)->_gen_α(model.likelihood,y)-_gen_β(model.likelihood,y).*μ+_gen_γ(model.likelihood,y).*(abs2.(μ)+Σ),model.inference.y,model.μ,AGP.diag.(model.Σ))
+            model.likelihood.θ .= broadcast(c²->-_gen_∇φ(model.likelihood,c²)./_gen_φ(model.likelihood,c²),model.likelihood.c²)
         end
 
         function AGP.local_updates!(model::SVGP{T,<:$(lname),<:AnalyticVI}) where {T}
-            model.likelihood.c² .= broadcast((y,κ,μ,Σ)->α(model.likelihood,y)-β(model.likelihood,y).*(κ*μ)+γ(model.likelihood,y).*(abs2.(κ*μ)+AGP.opt_diag(κ*Σ,κ)),model.inference.y,model.κ,model.μ,model.Σ)
-            model.likelihood.θ .= broadcast(c²->-∇φ.(model.likelihood,c²)./φ.(model.likelihood,c²),model.likelihood.c²)
+            model.likelihood.c² .= broadcast((y,κ,μ,Σ,K̃)->_gen_α(model.likelihood,y)-_gen_β(model.likelihood,y).*(κ*μ)+_gen_γ(model.likelihood,y).*(abs2.(κ*μ)+AGP.opt_diag(κ*Σ,κ)+K̃),model.inference.y,model.κ,model.μ,model.Σ,model.K̃)
+            model.likelihood.θ .= broadcast(c²->-_gen_∇φ.(model.likelihood,c²)./_gen_φ.(model.likelihood,c²),model.likelihood.c²)
         end
 
         function sample_omega(::$(lname),f)
@@ -207,16 +204,16 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function AGP.sample_local!(model::VGP{T,<:$(lname),<:GibbsSampling}) where {T}
-            model.likelihood.θ .= broadcast((y,μ)->pω.(model.likelihood,sqrt.(α(model.likelihood,model.likelihood,y)-β(model.likelihood,y).*μ+γ(model.likelihood,y).*(μ.^2))),model.inference.y,model.μ)
+            model.likelihood.θ .= broadcast((y,μ)->pω.(model.likelihood,sqrt.(α(model.likelihood,model.likelihood,y)-_gen_β(model.likelihood,y).*μ+_gen_γ(model.likelihood,y).*(μ.^2))),model.inference.y,model.μ)
         end
 
         ### Natural Gradient Section ###
 
-        @inline AGP.∇E_μ(model::AbstractGP{T,<:$(lname),<:AGP.GibbsorVI}) where {T} = broadcast((y,θ)->g(model.likelihood,y)+θ.*β(model.likelihood,y),model.inference.y,model.likelihood.θ)
-        @inline AGP.∇E_μ(model::AbstractGP{T,<:$(lname),<:AGP.GibbsorVI},i::Int) where {T} =  g(model.likelihood,model.inference.y[i])+model.likelihood.θ[i].*β(model.likelihood,model.inference.y[i])
+        @inline AGP.∇E_μ(model::AbstractGP{T,<:$(lname),<:AGP.GibbsorVI}) where {T} = broadcast((y,θ)->_gen_g(model.likelihood,y)+θ.*_gen_β(model.likelihood,y),model.inference.y,model.likelihood.θ)
+        @inline AGP.∇E_μ(model::AbstractGP{T,<:$(lname),<:AGP.GibbsorVI},i::Int) where {T} =  _gen_g(model.likelihood,model.inference.y[i])+model.likelihood.θ[i].*_gen_β(model.likelihood,model.inference.y[i])
         @inline AGP.∇E_Σ(model::AbstractGP{T,<:$(lname),<:AGP.GibbsorVI}) where {T} =
-        broadcast((y,θ)->θ.*γ(model.likelihood,y),model.inference.y,model.likelihood.θ)
-        @inline AGP.∇E_Σ(model::AbstractGP{T,<:$(lname),<:AGP.GibbsorVI},i::Int) where {T} = model.likelihood.θ[i].*γ(model.likelihood,model.inference.y[i])
+        broadcast((y,θ)->θ.*_gen_γ(model.likelihood,y),model.inference.y,model.likelihood.θ)
+        @inline AGP.∇E_Σ(model::AbstractGP{T,<:$(lname),<:AGP.GibbsorVI},i::Int) where {T} = model.likelihood.θ[i].*_gen_γ(model.likelihood,model.inference.y[i])
 
         ### ELBO Section ###
 
@@ -225,45 +222,45 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function AGP.expecLogLikelihood(model::VGP{T,<:$(lname),<:AnalyticVI}) where {T}
-            tot = model.nLatent*model.nSample*log(C(model.likelihood))
-            tot += sum(broadcast((y,μ)->dot(g(model.likelihood,y),μ),model.inference.y,model.μ))
-            tot += -sum(broadcast((θ,y,μ,Σ)-> dot(θ,α(model.likelihood,y))
-                                            - dot(θ,β(model.likelihood,y).*μ)
-                                            + dot(θ,γ(model.likelihood,y).*(abs2.(μ)+Σ)),
+            tot = model.nLatent*model.nSample*log(_gen_C(model.likelihood))
+            tot += sum(broadcast((y,μ)->dot(_gen_g(model.likelihood,y),μ),model.inference.y,model.μ))
+            tot += -sum(broadcast((θ,y,μ,Σ)-> dot(θ,_gen_α(model.likelihood,y))
+                                            - dot(θ,_gen_β(model.likelihood,y).*μ)
+                                            + dot(θ,_gen_γ(model.likelihood,y).*(abs2.(μ)+Σ)),
                                             model.likelihood.θ,model.inference.y,
                                             model.μ,diag.(model.Σ)))
             return tot
         end
 
         function AGP.expecLogLikelihood(model::SVGP{T,<:$(lname),<:AnalyticVI}) where {T}
-            tot = model.nLatent*model.inference.nSamplesUsed*log(C(model.likelihood))
-            tot += sum(broadcast((y,κμ)->dot(g(model.likelihood,y),κμ),model.inference.y,model.κ.*model.μ))
-            tot += -sum(broadcast((θ,y,κμ,κΣκ)->dot(θ,α(model.likelihood,y))
-                                            - dot(θ,β(model.likelihood,y).*κμ)
-                                            + dot(θ,γ(model.likelihood,y).*(abs2.(κμ)+κΣκ)),
+            tot = model.nLatent*model.inference.nSamplesUsed*log(_gen_C(model.likelihood))
+            tot += sum(broadcast((y,κμ)->dot(_gen_g(model.likelihood,y),κμ),model.inference.y,model.κ.*model.μ))
+            tot += -sum(broadcast((θ,y,κμ,κΣκ,K̃)->dot(θ,_gen_α(model.likelihood,y))
+                                            - dot(θ,_gen_β(model.likelihood,y).*κμ)
+                                            + dot(θ,_gen_γ(model.likelihood,y).*(abs2.(κμ)+κΣκ+K̃)),
                                             model.likelihood.θ,model.inference.y,
-                                            model.κ.*model.μ,opt_diag.(model.κ.*model.Σ,model.κ)))
+                                            model.κ.*model.μ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
             return model.inference.ρ*tot
         end
 
         function AugmentedKL(model::AbstractGP{T,<:$(lname),<:AnalyticVI}) where {T}
             # AGP.local_updates!(model)
-            model.inference.ρ*sum(broadcast((c²,θ)->-dot(c²,θ)-sum(log,φ.(model.likelihood,c²)),model.likelihood.c²,model.likelihood.θ))
+            model.inference.ρ*sum(broadcast((c²,θ)->-dot(c²,θ)-sum(log,_gen_φ.(model.likelihood,c²)),model.likelihood.c²,model.likelihood.θ))
         end
 
         ### Gradient Section ###
 
         @inline function AGP.grad_log_pdf(l::$(lname){T},y::Real,f::Real) where {T<:Real}
-            h² = α(y) - β(y)*f + γ(y)*f^2
-            g(y)+(-β(y)+2*γ(y)*f)*∇φ(h²)/φ(h²)
+            h² = _gen_α(y) - _gen_β(y)*f + _gen_γ(y)*f^2
+            _gen_g(y)+(-_gen_β(y)+2*_gen_γ(y)*f)*_gen_∇φ(h²)/_gen_φ(h²)
         end
 
         @inline function AGP.hessian_log_pdf(l::$(lname){T},y::Real,f::Real) where {T<:Real}
-            h² = α(y) - β(y)*f + γ(y)*f^2
-            ϕ = φ(l,h²); ∇ϕ = ∇φ(l,h²); ∇²ϕ = ∇²φ(l,h²)
-            return (2*γ(y)*∇ϕ/ϕ
-                    -((-β(y)+2*γ(y)*f)*∇ϕ/ϕ)^2
-                    +(-β(y)+2*γ(y)*f)^2*∇²ϕ/ϕ)
+            h² = _gen_α(y) - _gen_β(y)*f + _gen_γ(y)*f^2
+            φ = _gen_φ(l,h²); ∇φ = _gen_∇φ(l,h²); ∇²φ = _gen_∇²φ(l,h²)
+            return (2*_gen_γ(y)*∇φ/φ
+                    -((-_gen_β(y)+2*_gen_γ(y)*f)*∇φ/φ)^2
+                    +(-_gen_β(y)+2*_gen_γ(y)*f)^2*∇²φ/φ)
         end
 
     end

@@ -69,7 +69,7 @@ function Random.rand(dist::LaplaceTransformDistribution,n::Int)
     @error "Sampler failed to converge"
 end
 
-function apply_f(dist::LaplaceTransformDistribution,t)
+@inline function apply_f(dist::LaplaceTransformDistribution,t)
     if t==0
         return zero(t)
     else
@@ -77,7 +77,7 @@ function apply_f(dist::LaplaceTransformDistribution,t)
     end
 end
 
-function apply_F(dist::LaplaceTransformDistribution,t)
+@inline function apply_F(dist::LaplaceTransformDistribution,t)
     #Take care of the spe
     if t == 0
         return zero(t)
