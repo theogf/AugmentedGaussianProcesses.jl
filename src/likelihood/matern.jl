@@ -77,8 +77,8 @@ function local_updates!(model::SVGP{T,<:Matern3_2Likelihood,<:AnalyticVI}) where
 end
 
 function sample_local!(model::VGP{T,<:Matern3_2Likelihood,<:GibbsSampling}) where {T}
-    model.likelihood.c² .= broadcast((μ,y,β)->rand.(GeneralizedInverseGaussian.(3/(2*model.likelihood.ρ^2),2.0.*abs2.(μ-y),1.5)),model.μ,model.inference.y,model.likelihood.β)
-    model.likelihood.θ .= broadcast(b->b,model.likelihood.b)
+    model.likelihood.c² .= broadcast((μ,y,ρ)->rand.(GeneralizedInverseGaussian.(3/(2*ρ^2),2.0.*abs2.(μ-y),1.5)),model.μ,model.inference.y,model.likelihood.ρ)
+    model.likelihood.θ .= broadcast(c²->c²,model.likelihood.c²)
     return nothing
 end
 

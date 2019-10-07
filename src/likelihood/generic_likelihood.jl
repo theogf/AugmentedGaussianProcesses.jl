@@ -152,7 +152,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function _gen_∇²φ(l::$(lname),r::T) where {T}
-            Zygote.gradient(x->$(_gen_∇φ)(x),r)[1]
+            Zygote.gradient(x->$(∇φ)(x),r)[1]
         end
 
         function Base.show(io::IO,model::$(lname){T}) where {T}
