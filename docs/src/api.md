@@ -34,6 +34,7 @@ BayesianSVM
 SoftMaxLikelihood
 LogisticSoftMaxLikelihood
 PoissonLikelihood
+NegBinomialLikelihood
 ```
 
 ## Inference Types
