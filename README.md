@@ -45,7 +45,7 @@ AugmentedGaussianProcesses.jl is a Julia package in development for **Data Augme
   - **Logistic-SoftMax** : A modified version of the softmax where the exponential is replaced by the logistic function [IJulia example](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/blob/master/examples/MultiClass%20-%20LogisticSoftMax.ipynb)/[Reference][uaimulticlass]
 
  <p align=center>
-   <img src="docs/src/assets/final3D.png">
+   <img src="docs/src/assets/final3D.png" width=400px>
  </p>
 
 ## More models in development
