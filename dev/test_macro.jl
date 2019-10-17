@@ -12,8 +12,15 @@ g(y) = 0.0
 ll(y,x) = 0.5*exp(0.5*y*x)*sech(0.5*sqrt(x^2))
 
 ##
-formula = :(p(y|x)=exp(0.5*y*x)*sech(0.5*sqrt(y^2 - 2*y*x + x^2)))
+strformula = "p(y|x)=exp(0.5*y*x)*sech(0.5*sqrt(y^2 - 2*y*x + x^2))"
+Meta.parse(strformula)
+formula = :(p(y|x)=sin(0.5)*exp(0.5*y*x)sech(0.5*sqrt(y^2 - 2*y*x + x^2)))
+# formula = :(p(y|x)=exp(0.5*y*x)*sech(0.5*sqrt(y^2 - 2*y*x + x^2)))
 # formula = :(p(y,x)=exp(0.5*y*x)*sech(0.5*sqrt(0.0 - 0.0*x + x^2)))
+strform = string(formula)
+M = match(r"sin",strform)
+length(M.match)
+##
 formula.args[2].args[2].args
 
 topargs = formula.args[2].args[2].args

@@ -15,15 +15,12 @@ See all functions you need to implement
 
 
 """
+const InputSymbol = Union{Symbol,Expr,Real}
+
 
 check_model_name(name::Symbol) = !isnothing(match(r"[^\w]*",string(name)))
-function check_likelihoodtype(ltype::Symbol)
-    if ltype == :Regression || ltype == :Classification || ltype == :Event
-        return true
-    else
-        return false
-    end
-end
+
+check_likelihoodtype(ltype::Symbol) = Symbol(ltype) == :Regression || Symbol(ltype) == :Classification || Symbol(ltype) == :Event
 
 function treat_likelihood(likelihood::Expr)
 
@@ -83,17 +80,22 @@ macro augmodel(name::Symbol,likelihoodtype::Symbol,likelihood::Expr)
 
 end
 
-
-macro augmodel(name,ltype,C::Symbol,g::Symbol,α::Symbol,β::Symbol,γ::Symbol,φ::Symbol,∇φ::Symbol)
+macro augmodel(name,ltype,C::InputSymbol,g::InputSymbol,α::InputSymbol,β::InputSymbol,γ::InputSymbol,φ::InputSymbol,∇φ::InputSymbol,args...)
+    add_variables = []; default_values = [];
+    for input in args
+        @assert input.head == :(=) "Additional variables should be given a default value, for example `b=1`"
+        push!(add_variables,input.args[1])
+        push!(default_values,input.args[1])
+    end
     #### Check args here
     @assert check_model_name(name) "Please only use alphabetic characters for the name of the likelihood"
     @assert check_likelihoodtype(ltype) "Please use a correct likelihood type : Regression, Classification or Event"
     #Find gradient with AD if needed
-    #In a later stage try to find structure automatically
-    esc(_augmodel(string(name),Symbol(name,"Likelihood"),Symbol(ltype,"Likelihood"),C,g,α,β,γ,φ,∇φ))
+    esc(_augmodel(string(name),name,Symbol(ltype,"Likelihood"),C,g,α,β,γ,φ,∇φ))
 end
 function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
     quote begin
+        using Statistics
         # struct $(Symbol(name,"{T<:Real}"))# <: $(ltype)
         struct $(lname){T<:Real} <: AGP.$(ltype){T}
             # b::T
@@ -102,7 +104,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
             function $(lname){T}() where {T<:Real}
                 new{T}()
             end
-            function $(lname){T}(c²::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
+            function $(lname){T}($(add_variables) c²::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
                 new{T}(c²,θ)
             end
         end
@@ -120,35 +122,35 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function AGP.pdf(l::$(lname),y::Real,f::Real)
-            $(C)()*exp($(g)(y)*f)*$(φ)($(α)(y)-$(β)(y)*f+$(γ)(y)*f^2)
+            $(C)*exp(($(g))*f)*$(φ)(($(α))-($(β))*f+($(γ))*f^2)
         end
 
         function _gen_C(l::$(lname){T}) where {T}
-            $(C)()
+            $(C)
         end
 
         function _gen_g(l::$(lname),y::AbstractVector{T}) where {T}
-            $(g).(y)
+            $(g)
         end
 
         function _gen_α(l::$(lname),y::AbstractVector{T}) where {T}
-            $(α).(y)
+            $(α)
         end
 
         function _gen_β(l::$(lname),y::AbstractVector{T}) where {T}
-            $(β).(y)
+            $(β)
         end
 
         function _gen_γ(l::$(lname),y::AbstractVector{T}) where {T}
-            $(γ).(y)
+            $(γ)
         end
 
         function _gen_φ(l::$(lname),r::T) where {T}
-            $(φ).(r)
+            $(φ)
         end
 
         function _gen_∇φ(l::$(lname),r::T) where {T}
-            $(∇φ).(r)
+            $(∇φ)
         end
 
         function _gen_∇²φ(l::$(lname),r::T) where {T}
@@ -156,7 +158,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         end
 
         function Base.show(io::IO,model::$(lname){T}) where {T}
-            print(io,"Generic Likelihood")#WARNING TODO, to be fixed!
+            print(io,"$(:($lname))")
         end
 
         function Statistics.var(l::$(lname){T}) where {T}
