@@ -25,14 +25,14 @@ function init_likelihood(likelihood::PoissonLikelihood{T},inference::Inference{T
 end
 
 function pdf(l::PoissonLikelihood,y::Real,f::Real)
-    pdf(Poisson(_get_p(l,l.λ[1],f)),y) #WARNING not valid for multioutput
+    pdf(Poisson(get_p(l,l.λ[1],f)),y) #WARNING not valid for multioutput
 end
 
-function get_p(l::PoissonLikelihood,μ::AbstractVector{<:AbstractVector})
-    _get_p(model.likelihood,model.likelihood.λ,μ)
+function expec_count(l::PoissonLikelihood,μ::AbstractVector{<:AbstractVector})
+    get_p(model.likelihood,model.likelihood.λ,μ)
 end
 
-function _get_p(::PoissonLikelihood,λ::Real,μ)
+function get_p(::PoissonLikelihood,λ::Real,μ)
     λ*logistic.(μ)
 end
 
@@ -48,7 +48,7 @@ function compute_proba(l::PoissonLikelihood{T},μ::Vector{T},σ²::Vector{T}) wh
             pred[i] = l.λ[1]*logistic(μ[i]) #WARNING Not valid for multioutput
         else
             nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
-            pred[i] =  dot(pred_weights,l.λ[1].*logistic.(nodes)) #WARNING not valid for multioutput
+            pred[i] =  dot(pred_weights,get_p(l,l.λ[1],nodes)) #WARNING not valid for multioutput
         end
     end
     return pred

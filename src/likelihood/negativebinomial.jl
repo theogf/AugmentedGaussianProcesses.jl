@@ -23,14 +23,14 @@ function init_likelihood(likelihood::NegBinomialLikelihood{T},inference::Inferen
 end
 
 function pdf(l::NegBinomialLikelihood,y::Real,f::Real)
-    pdf(NegativeBinomial(l.r[1],_get_p(l,f)),y) #WARNING not valid for multioutput
+    pdf(NegativeBinomial(l.r[1],get_p(l,f)),y) #WARNING not valid for multioutput
 end
 
-function get_p(l::NegBinomialLikelihood,μ::AbstractVector{<:AbstractVector})
-    _get_p.(model.likelihood,μ)
+function expec_count(l::NegBinomialLikelihood,μ::AbstractVector{<:AbstractVector})
+    broadcast((p,r)->p*r./(1.0.-p) ,get_p.(model.likelihood,μ),l.r)
 end
 
-function _get_p(::NegBinomialLikelihood,μ)
+function get_p(::NegBinomialLikelihood,μ)
     logistic.(μ)
 end
 
@@ -45,8 +45,8 @@ function compute_proba(l::NegBinomialLikelihood{T},μ::Vector{T},σ²::Vector{T}
         if σ²[i] <= 0.0
             pred[i] = logistic(μ[i]) #WARNING Not valid for multioutput
         else
-            nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
-            pred[i] =  dot(pred_weights,logistic.(nodes)) #WARNING not valid for multioutput
+            nodes = (pred_nodes.*sqrt2*sqrt(σ²[i])).+μ[i]
+            pred[i] =  dot(pred_weights,get_p(l,nodes)) #WARNING not valid for multioutput
         end
     end
     return pred

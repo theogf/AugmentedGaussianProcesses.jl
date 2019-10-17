@@ -8,6 +8,8 @@ methods_implemented["BayesianSVM"] = ["AnalyticVI","AnalyticSVI"]
 methods_implemented["LogisticSoftMaxLikelihood"] = ["AnalyticVI","AnalyticSVI"]# "NumericalVI","NumericalSVI"]
 methods_implemented["SoftMaxLikelihood"] = ["MCIntegrationVI","MCIntegrationSVI"]
 methods_implemented["PoissonLikelihood"] = ["AnalyticVI","AnalyticSVI"]
+methods_implemented["NegBinomialLikelihood"] = ["AnalyticVI","AnalyticSVI"]
+
 
 methods_implemented_VGP = deepcopy(methods_implemented)
 push!(methods_implemented_VGP["StudentTLikelihood"],"GibbsSampling")
@@ -24,6 +26,8 @@ addiargument(s::Bool,inference::String) = inference == "GibbsSampling" ? "nBurni
 addlargument(likelihood::String) = begin
     if (likelihood == "StudentTLikelihood")
         return "ν"
+    if (likelihood == "NegBinomialLikelihood")
+        return "r"
     else
         return ""
     end
@@ -45,7 +49,7 @@ function testconv(model::AbstractGP,problem_type::String,X::AbstractArray,y::Abs
         err = mean(y_pred.!=y)
         @info "Multiclass Error" err
         return err < 0.5
-    elseif problem_type == "Event"
+    elseif problem_type == "Poisson" || problem_type == "NegBinomial"
         err = mean(abs.(y_pred-y))
         @info "Event Error" err
         return err < 1.0

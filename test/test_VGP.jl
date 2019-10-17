@@ -9,6 +9,7 @@ include("testingtools.jl")
 nData = 100; nDim = 2
 k = AGP.RBFKernel(0.1)
 ν = 5.0
+r = 10
 K = 4
 X = rand(nData,nDim)
 f = ones(nData)
@@ -18,14 +19,14 @@ end
 width = maximum(f)-minimum(f)
 normf = (f.-minimum(f))/width*K
 
-y = Dict("Regression"=>f,"Classification"=>sign.(f),"MultiClass"=>floor.(Int64,normf),"Event"=>rand.(Poisson.(2.0*AGP.logistic.(f))))
+y = Dict("Regression"=>f,"Classification"=>sign.(f),"MultiClass"=>floor.(Int64,normf),"Poisson"=>rand.(Poisson.(2.0*AGP.logistic.(f))),"NegBinomial"=>rand.(NegativeBinomial.(r,AGP.logistic.(f))))
 reg_likelihood = ["GaussianLikelihood","StudentTLikelihood","LaplaceLikelihood","HeteroscedasticLikelihood"]
-# reg_likelihood = ["LaplaceLikelihood"]
 class_likelihood = ["BayesianSVM","LogisticLikelihood"]
 multiclass_likelihood = ["LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
-event_likelihood = ["PoissonLikelihood"]
-likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood,event_likelihood]
-likelihood_names = ["Regression","Classification","MultiClass","Event"]
+poisson_likelihood = ["PoissonLikelihood"]
+negbin_likelihood = ["NegBinomialLikelihood"]
+likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood,poisson_likelihood,negbin_likelihood]
+likelihood_names = ["Regression","Classification","MultiClass","Poisson","NegBinomial"]
 # likelihood_names = ["Regression"]
 # inferences = ["GibbsSampling"]#,"NumericalInference"]
 inferences = ["AnalyticVI","GibbsSampling","QuadratureVI"]#,"NumericalInference"]
