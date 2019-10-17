@@ -20,13 +20,14 @@ end
 width = maximum(f)-minimum(f)
 normf = (f.-minimum(f))/width*K
 
-y = Dict("Regression"=>f,"Classification"=>sign.(f),"MultiClass"=>floor.(Int64,normf),"Event"=>rand.(Poisson.(2.0*AGP.logistic.(f))))
+y = Dict("Regression"=>f,"Classification"=>sign.(f),"MultiClass"=>floor.(Int64,normf),"Poisson"=>rand.(Poisson.(2.0*AGP.logistic.(f))),"NegBinomial"=>rand.(NegativeBinomial.(r,AGP.logistic.(f))))
 reg_likelihood = ["GaussianLikelihood","StudentTLikelihood","LaplaceLikelihood"]
 class_likelihood = ["BayesianSVM","LogisticLikelihood"]
 multiclass_likelihood = ["LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
-event_likelihood = ["PoissonLikelihood"]
-likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood,event_likelihood]
-likelihood_names = ["Regression","Classification","MultiClass","Event"]
+poisson_likelihood = ["PoissonLikelihood"]
+negbin_likelihood = ["NegBinomialLikelihood"]
+likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood,poisson_likelihood,negbin_likelihood]
+likelihood_names = ["Regression","Classification","MultiClass","Poisson","NegBinomial"]
 stochastic = [true,false]
 inferences = ["AnalyticVI","GibbsSampling","QuadratureVI"]#,"MCIntegrationVI"]
 floattypes = [Float64]

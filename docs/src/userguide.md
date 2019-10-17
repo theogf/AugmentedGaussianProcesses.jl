@@ -41,6 +41,12 @@ For **classification** one can select among
 - The [`LogisticLikelihood`](@ref) : a Bernoulli likelihood with a [**logistic link**](https://en.wikipedia.org/wiki/Logistic_function)
 - The [`BayesianSVM`](@ref) likelihood based on the [**frequentist SVM**](https://en.wikipedia.org/wiki/Support_vector_machine#Bayesian_SVM), equivalent to use a hinge loss.
 
+#### Event Likelihoods
+
+For likelihoods such as Poisson or Negative Binomial, we approximate a parameter by `σ(f)`. Two Likelihoods are implemented :
+- The [`PoissonLikelihood`](@ref) : A discrete [Poisson process](https://en.wikipedia.org/wiki/Poisson_distribution) (one parameter per point) with the scale parameter defined as `λσ(f)`
+- The [`NegBinomialLikelihood`](@ref) : The [Negative Binomial likelihood](https://en.wikipedia.org/wiki/Negative_binomial_distribution) where `r` is fixed and we define the success probability `p` as `σ(f)`
+
 #### Multi-class classification
 
 There is two available likelihoods for multi-class classification:
@@ -77,7 +83,8 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 | LogisticSoftMaxLikelihood   | ✔  | ✔  | ✖ | (dev)  |
 | SoftMaxLikelihood   | ✖  |  ✖  | ✖  | (dev)  |
 | Poisson   | ✔ | (dev) | ✖  |  ✖ |
-
+| NegBinomialLikelihood   | ✔ | (dev) | ✖  |  ✖ |
+|   |   |   |   |   |
 (dev) means that the feature is possible and may be developped and tested but is not available yet. All contributions or requests are very welcome!
 
 ### Additional Parameters

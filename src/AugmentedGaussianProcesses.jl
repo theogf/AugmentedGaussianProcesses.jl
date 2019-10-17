@@ -10,7 +10,7 @@ export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLi
 export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood
 export LogisticLikelihood, BayesianSVM
 export SoftMaxLikelihood, LogisticSoftMaxLikelihood
-export PoissonLikelihood
+export PoissonLikelihood, NegBinomialLikelihood
 export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI
 export NumericalVI, NumericalSVI
 export PriorMean, ZeroMean, ConstantMean, EmpiricalMean

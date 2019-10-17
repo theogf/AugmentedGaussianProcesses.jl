@@ -25,7 +25,15 @@ function init_likelihood(likelihood::PoissonLikelihood{T},inference::Inference{T
 end
 
 function pdf(l::PoissonLikelihood,y::Real,f::Real)
-    pdf(Poisson(l.λ[1]*logistic(f)),y) #WARNING not valid for multioutput
+    pdf(Poisson(get_p(l,l.λ[1],f)),y) #WARNING not valid for multioutput
+end
+
+function expec_count(l::PoissonLikelihood,μ)
+    get_p(l,l.λ[1],μ)
+end
+
+function get_p(::PoissonLikelihood,λ::Real,μ)
+    λ*logistic.(μ)
 end
 
 function Base.show(io::IO,model::PoissonLikelihood{T}) where T
@@ -40,7 +48,7 @@ function compute_proba(l::PoissonLikelihood{T},μ::Vector{T},σ²::Vector{T}) wh
             pred[i] = l.λ[1]*logistic(μ[i]) #WARNING Not valid for multioutput
         else
             nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
-            pred[i] =  dot(pred_weights,l.λ[1].*logistic.(nodes)) #WARNING not valid for multioutput
+            pred[i] =  dot(pred_weights,get_p(l,l.λ[1],nodes)) #WARNING not valid for multioutput
         end
     end
     return pred
@@ -90,8 +98,6 @@ function expecLogLikelihood(model::SVGP{T,<:PoissonLikelihood,<:AnalyticVI}) whe
 end
 
 function PoissonKL(model::AbstractGP{T,<:PoissonLikelihood}) where {T}
-    return NaN
-    #TODO replace with correct expectations
     model.inference.ρ*sum(broadcast(PoissonKL,model.likelihood.γ,model.likelihood.λ))
 end
 
