@@ -127,7 +127,7 @@ Return the expected number of events for the locations `X_test`
 function predict_y(model::AbstractGP{T,<:EventLikelihood},X_test::AbstractMatrix) where {T}
     n = size(X_test,1)
     μ_f = predict_f(model,X_test,covf=false)
-    return model.likelihood.λ.*((x->logistic.(x)).(μ_f))
+    get_p(model.likelihood,μ_f)
 end
 
 ## Wrapper to return proba on vectors

@@ -23,7 +23,15 @@ function init_likelihood(likelihood::NegBinomialLikelihood{T},inference::Inferen
 end
 
 function pdf(l::NegBinomialLikelihood,y::Real,f::Real)
-    pdf(NegativeBinomial(l.r[1],logistic(f)),y) #WARNING not valid for multioutput
+    pdf(NegativeBinomial(l.r[1],_get_p(l,f)),y) #WARNING not valid for multioutput
+end
+
+function get_p(l::NegBinomialLikelihood,μ::AbstractVector{<:AbstractVector})
+    _get_p.(model.likelihood,μ)
+end
+
+function _get_p(::NegBinomialLikelihood,μ)
+    logistic.(μ)
 end
 
 function Base.show(io::IO,model::NegBinomialLikelihood{T}) where T
