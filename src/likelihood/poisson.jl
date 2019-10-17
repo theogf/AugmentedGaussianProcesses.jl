@@ -28,8 +28,8 @@ function pdf(l::PoissonLikelihood,y::Real,f::Real)
     pdf(Poisson(get_p(l,l.λ[1],f)),y) #WARNING not valid for multioutput
 end
 
-function expec_count(l::PoissonLikelihood,μ::AbstractVector{<:AbstractVector})
-    get_p(model.likelihood,model.likelihood.λ,μ)
+function expec_count(l::PoissonLikelihood,μ)
+    get_p(l,l.λ[1],μ)
 end
 
 function get_p(::PoissonLikelihood,λ::Real,μ)

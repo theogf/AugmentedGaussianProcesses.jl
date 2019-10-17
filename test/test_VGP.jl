@@ -26,10 +26,11 @@ multiclass_likelihood = ["LogisticSoftMaxLikelihood","SoftMaxLikelihood"]
 poisson_likelihood = ["PoissonLikelihood"]
 negbin_likelihood = ["NegBinomialLikelihood"]
 likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood,poisson_likelihood,negbin_likelihood]
+# likelihood_types = [negbin_likelihood]
 likelihood_names = ["Regression","Classification","MultiClass","Poisson","NegBinomial"]
-# likelihood_names = ["Regression"]
+# likelihood_names = ["NegBinomial"]
 # inferences = ["GibbsSampling"]#,"NumericalInference"]
-inferences = ["AnalyticVI","GibbsSampling","QuadratureVI"]#,"NumericalInference"]
+inferences = ["AnalyticVI","GibbsSampling","QuadratureVI"]
 floattypes = [Float64]
 @testset "VGP" begin
     for (likelihoods,l_names) in zip(likelihood_types,likelihood_names)

@@ -30,6 +30,15 @@ AugmentedGaussianProcesses.jl is a Julia package in development for **Data Augme
 <p align=center>
    <img src="docs/src/assets/Regression.png">
  </p>
+---
+## Two GP event counting likelihoods
+
+ - **Discrete Poisson Process** : Estimating a the Poisson parameter λ at every point (as λ₀σ(f)). (no reference at the moment)
+ - **Negative Binomial** : Estimating the success probability at every point for a negative binomial distribution (no reference at the miment)
+
+ <p align=center>
+    <img src="docs/src/assets/Events.png">
+  </p>
 
 ---
 ## One Multi-Class Classification Likelihood
@@ -40,7 +49,6 @@ AugmentedGaussianProcesses.jl is a Julia package in development for **Data Augme
  </p>
 
 ## More models in development
-  - **Poisson** : For point process estimation
   - **Probit** : A Classifier with a Bernoulli likelihood with the probit link
   - **Online** : Allowing for all algorithms to work online as well
 

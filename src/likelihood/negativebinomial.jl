@@ -26,8 +26,8 @@ function pdf(l::NegBinomialLikelihood,y::Real,f::Real)
     pdf(NegativeBinomial(l.r[1],get_p(l,f)),y) #WARNING not valid for multioutput
 end
 
-function expec_count(l::NegBinomialLikelihood,μ::AbstractVector{<:AbstractVector})
-    broadcast((p,r)->p*r./(1.0.-p) ,get_p.(model.likelihood,μ),l.r)
+function expec_count(l::NegBinomialLikelihood,μ)
+    broadcast((p,r)->p*r./(1.0.-p) ,get_p.(l,μ),l.r[1])
 end
 
 function get_p(::NegBinomialLikelihood,μ)
@@ -56,18 +56,18 @@ end
 
 function local_updates!(model::VGP{T,<:NegBinomialLikelihood,<:AnalyticVI}) where {T}
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(abs2.(μ) + Σ) ,model.μ,diag.(model.Σ))
-    model.likelihood.θ .= broadcast((y,r,c)->(r+y)./c.*tanh.(0.5*c),model.y,model.likelihood.r,model.likelihood.c)
+    model.likelihood.θ .= broadcast((y,r,c)->(r.+y)./c.*tanh.(0.5*c),model.y,model.likelihood.r,model.likelihood.c)
 end
 
 function local_updates!(model::SVGP{T,<:NegBinomialLikelihood,<:AnalyticVI}) where {T}
     model.likelihood.c .= broadcast((κ,μ,Σ,K̃)->sqrt.(abs2.(κ*μ) + opt_diag(κ*Σ,κ) + K̃),model.κ,model.μ,model.Σ,model.K̃)
-    model.likelihood.θ .= broadcast((y,r,c)->(y+r)./c.*tanh.(0.5*c),model.inference.y,model.likelihood.r,model.likelihood.c)
+    model.likelihood.θ .= broadcast((y,r,c)->(r.+y)./c.*tanh.(0.5*c),model.inference.y,model.likelihood.r,model.likelihood.c)
 end
 
 ## Global Updates ##
 
-@inline ∇E_μ(model::AbstractGP{T,<:NegBinomialLikelihood,<:GibbsorVI}) where {T} = 0.5.*(model.inference.y.-model.likelihood.r)
-@inline ∇E_μ(model::AbstractGP{T,<:NegBinomialLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5*(model.inference.y[i]-model.likelihood.r[i])
+@inline ∇E_μ(model::AbstractGP{T,<:NegBinomialLikelihood,<:GibbsorVI}) where {T} = broadcast((y,r)->0.5*(y.-r),model.inference.y,model.likelihood.r)
+@inline ∇E_μ(model::AbstractGP{T,<:NegBinomialLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5*(model.inference.y[i].-model.likelihood.r[i])
 @inline ∇E_Σ(model::AbstractGP{T,<:NegBinomialLikelihood,<:GibbsorVI}) where {T} = 0.5.*model.likelihood.θ
 @inline ∇E_Σ(model::AbstractGP{T,<:NegBinomialLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5*model.likelihood.θ[i]
 
@@ -77,24 +77,28 @@ function ELBO(model::AbstractGP{T,<:NegBinomialLikelihood,<:AnalyticVI}) where {
     return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
 end
 
+function logabsbinomial(n,k)
+    log(binomial(n,k))
+end
+
 function expecLogLikelihood(model::VGP{T,<:NegBinomialLikelihood,<:AnalyticVI}) where {T}
     model.likelihood.c .= broadcast((μ,Σ)->sqrt.(abs2.(μ) + Σ) ,model.μ,diag.(model.Σ))
-    tot = sum(broadcast((y,r)->sum(logabsbinomial(y+r-1,y))-log(2.0)*sum((y+r)),model.y,model.likelihood.r))
-    tot += sum(broadcast((μ,y,r,c,θ)->0.5*dot(μ,(y-r))-0.5*dot(c.^2,θ),model.μ,model.inference.y,model.likelihood.r,model.likelihood.c,model.likelihood.θ))
+    tot = sum(broadcast((y,r)->sum(logabsbinomial.(y.+(r-1),y))-log(2.0)*sum((y.+r)),model.y,model.likelihood.r))
+    tot += sum(broadcast((μ,y,r,c,θ)->0.5*dot(μ,(y.-r))-0.5*dot(c.^2,θ),model.μ,model.inference.y,model.likelihood.r,model.likelihood.c,model.likelihood.θ))
     return tot
 end
 
 function expecLogLikelihood(model::SVGP{T,<:NegBinomialLikelihood,<:AnalyticVI}) where {T}
     model.likelihood.c .= broadcast((κ,μ,Σ,K̃)->sqrt.(abs2.(κ*μ) + opt_diag(κ*Σ,κ) + K̃),model.κ,model.μ,model.Σ,model.K̃)
-    tot = sum(broadcast((y,r)->sum(logabsbinomial(y+r-1,y))-log(2.0)*sum((y+r)),model.inference.y,model.likelihood.r))
-    tot += sum(broadcast((κμ,y,r,c,θ)->0.5*dot(κμ,(y-r))-0.5*dot(c.^2,θ),model.κ.*model.μ,model.inference.y,model.likelihood.r,model.likelihood.c,model.likelihood.θ))
+    tot = sum(broadcast((y,r)->sum(logabsbinomial.(y.+(r-1),y))-log(2.0)*sum((y.+r)),model.inference.y,model.likelihood.r))
+    tot += sum(broadcast((κμ,y,r,c,θ)->0.5*dot(κμ,(y.-r))-0.5*dot(c.^2,θ),model.κ.*model.μ,model.inference.y,model.likelihood.r,model.likelihood.c,model.likelihood.θ))
     return model.inference.ρ*tot
 end
 
 function PolyaGammaKL(model::VGP{T,<:NegBinomialLikelihood}) where {T}
-    sum(broadcast(PolyaGammaKL,model.y.+model.likelihood.r,model.likelihood.c,model.likelihood.θ))
+    sum(broadcast(PolyaGammaKL,[y.+r for (y,r) in zip(model.y,model.likelihood.r)],model.likelihood.c,model.likelihood.θ))
 end
 
 function PolyaGammaKL(model::SVGP{T,<:NegBinomialLikelihood}) where {T}
-    model.inference.ρ*sum(broadcast(PolyaGammaKL,model.inference.y.+model.likelihood.r,model.likelihood.c,model.likelihood.θ))
+    model.inference.ρ*sum(broadcast(PolyaGammaKL,[y.+r for (y,r) in zip(model.inference.y,model.likelihood.r)],model.likelihood.c,model.likelihood.θ))
 end

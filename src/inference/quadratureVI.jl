@@ -111,7 +111,7 @@ end
 
 #Compute the first and second derivative of the log-likelihood using the quadrature nodes
 function grad_quad(likelihood::Likelihood{T},y::Real,μ::Real,σ²::Real,inference::Inference) where {T<:Real}
-    nodes = inference.nodes*sqrt2*sqrt(σ²) .+ μ
+    nodes = inference.nodes*sqrt2*sqrt(max(σ²,zero(T))) .+ μ
     Edlogpdf = dot(inference.weights,grad_log_pdf.(likelihood,y,nodes))
     Ed²logpdf = dot(inference.weights,hessian_log_pdf.(likelihood,y,nodes))
     if inference.clipping != 0
