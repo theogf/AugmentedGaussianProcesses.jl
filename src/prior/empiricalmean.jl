@@ -19,6 +19,12 @@ function update!(μ::EmpiricalMean{T},grad::AbstractVector{T}) where {T<:Real}
     μ.C .+= update!(μ.opt,grad)
 end
 
+function (μ::EmpiricalMean{T})(x::AbstractVector) where {T<:Real}
+    @assert length(x)==length(μ)
+    return μ.C
+end
+
+Base.length(μ::EmpiricalMean) = length(μ.C)
 Base.:+(x::Real,y::EmpiricalMean{<:Real}) = x.+y.C
 Base.:+(x::AbstractVector{<:Real},y::EmpiricalMean{<:Real}) = x+y.C
 Base.:+(x::EmpiricalMean{<:Real},y::Real) = y.+x.C

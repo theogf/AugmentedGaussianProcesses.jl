@@ -1,5 +1,5 @@
 
-""" `train!(model::AbstractGP;iterations::Integer=100,callback=0,conv_function=0)`
+""" `train!(model::AbstractGP;iterations::Integer=100,callback=0,convergence=0)`
 
 Function to train the given GP `model`.
 
@@ -8,23 +8,23 @@ Function to train the given GP `model`.
 there are options to change the number of max iterations,
 - `iterations::Int` : Number of iterations (not necessarily epochs!)for training
 - `callback::Function` : Callback function called at every iteration. Should be of type `function(model,iter) ...  end`
-- `conv_function::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
+- `convergence::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
-function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence=0)
+function train!(model::AbstractGP,iterations::Integer=100;callback::Union{Nothing,Function}=nothing,convergence::Union{Nothing,Function}=nothing)
     if model.verbose > 0
-      println("Starting training $model with $(model.nSample) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))# using the "*model.Name*" model")
+      println("Starting training $model with $(model.nSample) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))
     end
 
     @assert iterations > 0  "Number of iterations should be positive"
     # model.evol_conv = [] #Array to check on the evolution of convergence
-    local_iter::Int64 = 1; conv = Inf;
+    local_iter = 1; conv = Inf;
     p = Progress(iterations,dt=0.2,desc="Training Progress: ")
     prev_elbo = -Inf
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             update_parameters!(model) #Update all the variational parameters
             model.Trained = true
-            if callback != 0
+            if !isnothing(callback)
                 callback(model,model.inference.nIter) #Use a callback method if set by user
             end
             if !isnothing(model.optimizer) && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3

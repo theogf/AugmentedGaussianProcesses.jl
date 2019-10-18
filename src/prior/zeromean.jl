@@ -17,6 +17,9 @@ end
 
 array(μ::ZeroMean{T},length::Int) where {T<:Real} = zeros(T,length)
 
+(μ::ZeroMean{T})(x::Real) where {T<:Real} = zero(T)
+(μ::ZeroMean{T})(x::AbstractVector) where {T<:Real} = zeros(T,length(x))
+
 Base.:+(x::Real,y::ZeroMean{<:Real}) = x
 Base.:+(x::AbstractVector{<:Real},y::ZeroMean{<:Real}) = x
 Base.:+(x::ZeroMean{<:Real},y::Real) = y

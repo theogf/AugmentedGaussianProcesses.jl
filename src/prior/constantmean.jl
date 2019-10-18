@@ -20,6 +20,10 @@ function update!(μ::ConstantMean{T},grad::AbstractVector{T}) where {T<:Real}
     μ.C += update(μ.opt,sum(grad))
 end
 
+(μ::ConstantMean{T})(x::Real) where {T<:Real} = μ.C
+(μ::ConstantMean{T})(x::AbstractVector) where {T<:Real} = μ.C*ones(T,length(x))
+
+
 Base.:+(x::Real,y::ConstantMean{<:Real}) = x+y.C
 Base.:+(x::AbstractVector{<:Real},y::ConstantMean{<:Real}) = x.+y.C
 Base.:+(x::ConstantMean{<:Real},y::Real) = y+x.C

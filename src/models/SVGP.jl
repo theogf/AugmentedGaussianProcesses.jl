@@ -35,26 +35,19 @@ mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,V<:
     nDim::Int64 # Number of covariates per data point
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
+    GP::LatentArray{_SVGP}
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
-    Z::LatentArray{Matrix{T}} #Inducing points locations
-    μ::LatentArray{V}
-    Σ::LatentArray{Symmetric{T,Matrix{T}}}
-    η₁::LatentArray{V}
-    η₂::LatentArray{Symmetric{T,Matrix{T}}}
-    μ₀::LatentArray{PriorMean{T}}
     Kmm::LatentArray{Symmetric{T,Matrix{T}}}
     invKmm::LatentArray{Symmetric{T,Matrix{T}}}
     Knm::LatentArray{Matrix{T}}
     κ::LatentArray{Matrix{T}}
     K̃::LatentArray{V}
-    kernel::LatentArray{Kernel{T}}
-    likelihood::TLikelihood
+    likelihood::LatentArray{TLikelihood}
     inference::TInference
     verbose::Int64
     optimizer::Union{Optimizer,Nothing}
     atfrequency::Int64
-    Zoptimizer::Union{Optimizer,Nothing}
     Trained::Bool
 end
 
