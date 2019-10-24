@@ -33,7 +33,7 @@ function pdf(l::GaussianLikelihood,y::Real,f::Real)
 end
 
 function logpdf(l::GaussianLikelihood,y::Real,f::Real)
-    logpdf(Normal(y,l.ϵ[1]),f) #WARNING multioutput invalid
+    Distributions.logpdf(Normal(y,l.ϵ[1]),f) #WARNING multioutput invalid
 end
 
 function Base.show(io::IO,model::GaussianLikelihood{T}) where T
