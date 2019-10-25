@@ -18,12 +18,12 @@ where ``\\omega \\sim \\text{PG}(\\omega\\mid 1, 0)``, and PG is the Polya-Gamma
 See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383)
 """
 struct LogisticLikelihood{T<:Real} <: ClassificationLikelihood{T}
-    c::AbstractVector{AbstractVector{T}}
-    θ::AbstractVector{AbstractVector{T}}
+    c::AbstractVector{T}
+    θ::AbstractVector{T}
     function LogisticLikelihood{T}() where {T<:Real}
         new{T}()
     end
-    function LogisticLikelihood{T}(c::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
+    function LogisticLikelihood{T}(c::AbstractVector{<:Real},θ::AbstractVector{<:Real}) where {T<:Real}
         new{T}(c,θ)
     end
 end
@@ -34,7 +34,7 @@ end
 
 function init_likelihood(likelihood::LogisticLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
-        LogisticLikelihood{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
+        LogisticLikelihood{T}(abs.(rand(T,nSamplesUsed)),zeros(T,nSamplesUsed))
     else
         LogisticLikelihood{T}()
     end
@@ -68,51 +68,36 @@ end
 
 ### Local Updates Section ###
 
-function local_updates!(model::VGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
-    model.likelihood.c .= broadcast((μ,Σ)->sqrt.(Σ+abs2.(μ)),model.μ,diag.(model.Σ))
-    model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
+function local_updates!(l::LogisticLikelihood,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+    l.c .= sqrt.(diag_cov+abs2.(μ))
+    l.θ .= 0.5*tanh.(0.5.*l.c)./l.c
 end
 
-function local_updates!(model::SVGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
-    model.likelihood.c .= broadcast((μ,Σ,K̃,κ)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),model.μ,model.Σ,model.K̃,model.κ)
-    model.likelihood.θ .= broadcast(c->0.5*tanh.(0.5*c)./c,model.likelihood.c)
-end
-
-function sample_local!(model::VGP{T,<:LogisticLikelihood,<:GibbsSampling}) where {T}
+function sample_local!(l::LogisticLikelihood,y::AbstractVector,f::AbstractVector) where {T}
     pg = PolyaGammaDist()
-    model.likelihood.θ .= broadcast((μ::AbstractVector{<:Real})->draw.([pg],[1.0],μ),model.μ)
+    l.θ .= draw.([pg],[1.0],f)
     return nothing
 end
 
 ### Natural Gradient Section ###
 
-@inline ∇E_μ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI}) where {T} = 0.5*model.inference.y
-@inline ∇E_μ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5*model.inference.y[i]
-@inline ∇E_Σ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI}) where {T} = 0.5*model.likelihood.θ
-@inline ∇E_Σ(model::AbstractGP{T,<:LogisticLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5*model.likelihood.θ[i]
+@inline ∇E_μ(gp::Abstract_GP{T},l::LogisticLikelihood,y::AbstractVector) where {T} = 0.5*y
+@inline ∇E_Σ(gp::Abstract_GP{T},l::LogisticLikelihood,y::AbstractVector) where {T} = 0.5*l.θ
 
 ### ELBO Section ###
 
 function ELBO(model::AbstractGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
-    return expecLogLikelihood(model) - GaussianKL(model) - PolyaGammaKL(model)
+    return model.inference.ρ*expecLogLikelihood(model.likelihood, get_y(model), mean_f(model), diag_cov_f(model)) - GaussianKL(model) - model.inference.ρ*PolyaGammaKL(model.likelihood)
 end
 
-function expecLogLikelihood(model::VGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
-    tot = -model.nLatent*(model.nSample*logtwo)
-    tot += 0.5*sum(broadcast((μ,y,θ,Σ)->dot(μ,y)-dot(θ,Σ)-dot(θ,abs2.(μ)),
-                        model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
+function expecLogLikelihood(l::LogisticLikelihood,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+    tot = -(0.5*length(y)*logtwo)
+    tot += 0.5.*(dot(μ,y)-dot(l.θ,diag_cov)-dot(l.θ,μ))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
-    tot = -model.nLatent*(0.5*model.inference.nSamplesUsed*logtwo)
-    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->0.5.*(sum(κμ.*y)-dot(θ,K̃+κΣκ+abs2.(κμ))),
-                        model.κ.*model.μ,model.inference.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
-    return model.inference.ρ*tot
-end
-
-function PolyaGammaKL(model::AbstractGP{T,<:LogisticLikelihood}) where {T}
-    model.inference.ρ*sum(broadcast(PolyaGammaKL,[ones(length(model.likelihood.c[1]))],model.likelihood.c,model.likelihood.θ))
+function PolyaGammaKL(l::LogisticLikelihood{T}) where {T}
+    mapreduce(PolyaGammaKL,+,ones(T,length(l.c)),l.c,l.θ)
 end
 
 ### Gradient Section ###

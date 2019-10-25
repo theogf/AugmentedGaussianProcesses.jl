@@ -2,7 +2,7 @@
 Class for variational Gaussian Processes models (non-sparse)
 
 ```julia
-VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+MCGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
     likelihood::LikelihoodType,inference::InferenceType;
     verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
@@ -28,7 +28,7 @@ Argument list :
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},TGP<:Abstract_GP{T}} <: AbstractGP{T,TLikelihood,TInference,TGP}
+mutable struct MCGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},TGP<:Abstract_GP{T}} <: AbstractGP{T,TLikelihood,TInference,TGP}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points
@@ -37,7 +37,7 @@ mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},T
     nLatent::Int64 # Number pf latent GPs
     IndependentPriors::Bool # Use of separate priors for each latent GP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
-    f::Vector{TGP} # Vector of latent GPs
+    f::NTuple{N,Vector{T}} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64 #Level of printing information
@@ -47,14 +47,14 @@ mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},T
 end
 
 
-function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+function MCGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
             likelihood::TLikelihood,inference::TInference;
             verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2,TLikelihood<:Likelihood,TInference<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
-            @assert check_implementation(:VGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
+            @assert check_implementation(:MCGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
 
             nPrior = IndependentPriors ? nLatent : 1
             nFeatures = nSample = size(X,1); nDim = size(X,2);
@@ -89,16 +89,16 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
             inference = init_inference(inference,nLatent,nSample,nSample,nSample)
             inference.x = view(X,:,:)
             inference.y = view.(y,:)
-            VGP{T1,TLikelihood,TInference,ArrayType{T1}}(X,y,
+            MCGP{T1,TLikelihood,TInference,ArrayType{T1}}(X,y,
                     nFeatures, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,μ,Σ,η₁,η₂,
                     μ₀,Knn,invKnn,kernel,likelihood,inference,
                     verbose,optimizer,atfrequency,false)
 end
 
-function Base.show(io::IO,model::VGP{T,<:Likelihood,<:Inference}) where {T}
+function Base.show(io::IO,model::MCGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
 
-@inline invK(model::VGP) = model.invKnn
-@inline invK(model::VGP,i::Integer) = model.invKnn[i]
+@inline invK(model::MCGP) = model.invKnn
+@inline invK(model::MCGP,i::Integer) = model.invKnn[i]

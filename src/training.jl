@@ -73,7 +73,7 @@ function update_parameters!(model::SVGP)
     if model.inference.Stochastic
         model.inference.MBIndices = StatsBase.sample(1:model.inference.nSamples,model.inference.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
         model.inference.x = view(model.X,model.inference.MBIndices,:)
-        model.inference.y = view.(model.y,[model.inference.MBIndices])
+        model.inference.y = view(model.y,model.inference.MBIndices)
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
@@ -94,22 +94,18 @@ end
 
 function computeMatrices!(model::VGP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
-        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
+        compute_K!.(model.f,[model.X],T(jitter))
     end
+    model.inference.HyperParametersUpdated=false
 end
 
 function computeMatrices!(model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
-        model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*T(jitter)*I),model.Z,model.kernel)
-        model.invKmm .= Symmetric.(inv.(cholesky.(model.Kmm)))
+        compute_K!.(model.f,T(jitter))
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
-        KernelModule.kernelmatrix!.(model.Knm,[model.inference.x],model.Z,model.kernel)
-        model.κ .= model.Knm.*model.invKmm
-        model.K̃ .= kerneldiagmatrix.([model.inference.x],model.kernel) .+ [T(jitter)*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
-        @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
+        compute_κ!.(model.f,[model.inference.x],T(jitter))
     end
     model.inference.HyperParametersUpdated=false
 end

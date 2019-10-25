@@ -110,7 +110,7 @@ end
 function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     # model.η₁ .= model.η₁ .+ update.(model.inference.optimizer_η₁,model.inference.∇η₁)
     for k in 1:model.nLatent
-        Δ = update(model.inference.optimizer[k],vcat(model.inference.∇η₁[1],model.inference.∇η₂[k][:]))
+        Δ = update(model.inference.optimizer[k],vcat(model.inference.∇η₁[k],model.inference.∇η₂[k][:]))
         Δ₁ = Δ[1:model.nFeatures]
         Δ₂ = reshape(Δ[model.nFeatures+1:end],model.nFeatures,model.nFeatures)
         # Δ = update(model.inference.optimizer_η₂[k],model.inference.∇η₂[k])

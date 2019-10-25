@@ -1,16 +1,10 @@
-"""Compute the KL Divergence between the GP Prior and the variational distribution for the variational full batch model"""
-function GaussianKL(model::VGP)
-    return sum(broadcast(GaussianKL,model.μ,model.μ₀,model.Σ,model.invKnn))
-end
+"""Compute the KL Divergence between the GP Prior and the variational distribution"""
+GaussianKL(model::AbstractGP) = sum(GaussianKL,model.f)
 
-"""Compute the KL Divergence between the Sparse GP Prior and the variational distribution for the sparse variational model"""
-function GaussianKL(model::SVGP)
-    return sum(broadcast(GaussianKL,model.μ,model.μ₀,model.Σ,model.invKmm))
-end
+GaussianKL(gp::Abstract_GP) = GaussianKL(gp.μ,gp.μ₀,gp.Σ,gp.K)
 
-
-function GaussianKL(μ::AbstractVector{T},μ₀::PriorMean,Σ::Symmetric{T,Matrix{T}},invK::Symmetric{T,Matrix{T}}) where {T<:Real}
-    0.5*(-logdet(Σ)-logdet(invK)+opt_trace(invK,Σ)+dot(μ-μ₀,invK*(μ-μ₀))-length(μ))
+function GaussianKL(μ::AbstractVector{T},μ₀::PriorMean,Σ::Matrix{T},K::PDMat{T,Matrix{T}}) where {T<:Real}
+    0.5*(-logdet(Σ)+logdet(K)+tr(K\Σ)+invquad(K,μ-μ₀)-length(μ))
 end
 
 """

@@ -15,12 +15,12 @@ p(y|f,\\omega) = \\frac{1}{\\sqrt{2\\pi\\omega}}\\exp\\left(-\\frac{1}{2}\\frac{
 where ``\\omega\\sim 1_{[0,\\infty]}`` has an improper prior (his posterior is however has a valid distribution (Generalized Inverse Gaussian)). For reference [see this paper](http://ecmlpkdd2017.ijs.si/papers/paperID502.pdf)
 """
 struct BayesianSVM{T<:Real} <: ClassificationLikelihood{T}
-    ω::AbstractVector{AbstractVector{T}}
-    θ::AbstractVector{AbstractVector{T}}
+    ω::AbstractVector{T}
+    θ::AbstractVector{T}
     function BayesianSVM{T}() where {T<:Real}
         new{T}()
     end
-    function BayesianSVM{T}(ω::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
+    function BayesianSVM{T}(ω::AbstractVector{<:Real},θ::AbstractVector{<:Real}) where {T<:Real}
         new{T}(ω,θ)
     end
 end
@@ -30,7 +30,7 @@ function BayesianSVM()
 end
 
 function init_likelihood(likelihood::BayesianSVM{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer,nFeatures::Integer) where T
-    BayesianSVM{T}([abs.(rand(T,nSamplesUsed)) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
+    BayesianSVM{T}(abs.(rand(T,nSamplesUsed)),zeros(T,nSamplesUsed))
 end
 function pdf(l::BayesianSVM,y::Real,f::Real)
     svmlikelihood(y*f)
@@ -71,14 +71,9 @@ end
 ###############################################################################
 
 
-function local_updates!(model::VGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
-    model.likelihood.ω .= broadcast((μ,Σ,y)->abs2.(one(T) .- y.*μ) + Σ ,model.μ,diag.(model.Σ),model.y)
-    model.likelihood.θ .= broadcast(b->one(T)./sqrt.(b),model.likelihood.ω)
-end
-
-function local_updates!(model::SVGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
-    model.likelihood.ω .= broadcast((κ,μ,Σ,y,K̃)->abs2.(one(T) .- y.*(κ*μ)) + opt_diag(κ*Σ,κ) + K̃,model.κ,model.μ,model.Σ,model.inference.y,model.K̃)
-    model.likelihood.θ .= broadcast(b->one(T)./sqrt.(b),model.likelihood.ω)
+function local_updates!(l::BayesianSVM{T},y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+    l.ω .= abs2.(one(T) .- y.*μ) + diag_cov
+    l.θ .= one(T)./sqrt.(l.ω)
 end
 
 @inline ∇E_μ(model::AbstractGP{T,<:BayesianSVM, <:GibbsorVI}) where {T} = broadcast((y,θ)->y.*(θ.+one(T)),model.inference.y,model.likelihood.θ)

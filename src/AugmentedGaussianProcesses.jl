@@ -34,10 +34,9 @@ using .GIGSampler
 # using .IO_model
 #General modules
 using LinearAlgebra, Random
-
+using GradDescent
 using KernelFunctions
 using PDMats
-using Flux: Optimise
 using DataFrames
 using StatsBase, StatsFuns, SpecialFunctions, Distributions, FastGaussQuadrature
 using ProgressMeter
@@ -53,9 +52,11 @@ export covariance, diag_covariance, prior_mean
 # Main classes
 abstract type Inference{T<:Real} end
 abstract type Likelihood{T<:Real} end
+abstract type Abstract_GP{T<:Real} end
 
 const LatentArray = Vector #For future optimization : How collection of latent GP parameters and local variables are stored
 include("prior/priormean.jl")
+include("models/inducing_points.jl")
 
 include("models/AbstractGP.jl")
 include("models/GP_base.jl")

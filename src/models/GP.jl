@@ -28,7 +28,7 @@ Argument list :
  - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct GP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},V<:AbstractVector{T}} <: AbstractGP{T,TLikelihood,TInference,V}
+mutable struct GP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},V<:AbstractVector{T},N} <: AbstractGP{T,TLikelihood,TInference,V,N}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSample::Int64 # Number of data points

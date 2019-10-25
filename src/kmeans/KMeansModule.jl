@@ -7,8 +7,7 @@ using Distributions
 using StatsBase
 using LinearAlgebra
 using Clustering
-using AugmentedGaussianProcesses.KernelModule
-
+using KernelFunctions
 export KMeansInducingPoints
 
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
