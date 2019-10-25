@@ -81,8 +81,8 @@ end
 
 ### Natural Gradient Section ###
 
-@inline ∇E_μ(gp::Abstract_GP{T},l::LogisticLikelihood,y::AbstractVector) where {T} = 0.5*y
-@inline ∇E_Σ(gp::Abstract_GP{T},l::LogisticLikelihood,y::AbstractVector) where {T} = 0.5*l.θ
+@inline ∇E_μ(l::LogisticLikelihood,y::AbstractVector) where {T} = 0.5*y
+@inline ∇E_Σ(l::LogisticLikelihood,y::AbstractVector) where {T} = 0.5*l.θ
 
 ### ELBO Section ###
 
@@ -97,7 +97,7 @@ function expecLogLikelihood(l::LogisticLikelihood,y::AbstractVector,μ::Abstract
 end
 
 function PolyaGammaKL(l::LogisticLikelihood{T}) where {T}
-    mapreduce(PolyaGammaKL,+,ones(T,length(l.c)),l.c,l.θ)
+    sum(broadcast(PolyaGammaKL,ones(T,length(l.c)),l.c,l.θ))
 end
 
 ### Gradient Section ###

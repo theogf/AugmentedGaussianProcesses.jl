@@ -36,6 +36,7 @@ using .GIGSampler
 using LinearAlgebra, Random
 using GradDescent
 using KernelFunctions
+using ForwardDiff
 using PDMats
 using DataFrames
 using StatsBase, StatsFuns, SpecialFunctions, Distributions, FastGaussQuadrature

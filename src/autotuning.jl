@@ -1,34 +1,60 @@
-## Update all hyperparameters for the full batch GP models ##
-function update_hyperparameters!(model::Union{GP,VGP,VStP})
-    Jnn = kernelderivativematrix.([model.X],model.kernel)
-    f_l,f_v,f_μ₀ = hyperparameter_gradient_function(model)
-    grads_l = map(compute_hyperparameter_gradient,model.kernel,fill(f_l,model.nPrior),Jnn,1:model.nPrior)
-    grads_v = map(f_v,model.kernel,1:model.nPrior)
-    grads_μ₀ = map(f_μ₀,1:model.nPrior)
+function kernelderivative(kernel::Kernel{T,<:ScaleTransform},X) where {T}
+    p = get_params(kernel)
+    J = reshape(ForwardDiff.jacobian(x->kernelmatrix(typeof(kernel)(x),X,obsdim=1),p),size(X,1),size(X,1),length(p))
+    return [J[:,:,i] for i in 1:length(p)]
+end
 
-    apply_gradients_lengthscale!.(model.kernel,grads_l) #Send the derivative of the matrix to the specific gradient of the model
-    apply_gradients_variance!.(model.kernel,grads_v) #Send the derivative of the matrix to the specific gradient of the model
-    update!.(model.μ₀,grads_μ₀)
+function kernelderivative(kernel::Kernel{T,<:ScaleTransform},X,Y) where {T}
+    p = get_params(kernel)
+    J = reshape(ForwardDiff.jacobian(x->kernelmatrix(typeof(kernel)(x),X,Y,obsdim=1),p),size(X,1),size(Y,1),length(p))
+    return [J[:,:,i] for i in 1:length(p)]
+end
+
+function kerneldiagderivative(kernel::Kernel{T,<:ScaleTransform},X)
+    p = get_params(kernel)
+    J = reshape(ForwardDiff.jacobian(x->kerneldiagmatrix(typeof(kernel)(x),X,obsdim=1),p),size(X,1),length(p))
+    return [J[:,i] for i in 1:length(p)]
+end
+
+function update_hyperparameters!(model::VGP)
+    update_hyperparameters!.(model.f,model.X,model.opt_ρ,model.opt_σ,model.opt_μ₀)
+end
+
+function update_hyperparameters!(model::SVGP)
+    update_hyperparameters!.(model.f,model.inference.X,model.opt_ρ,model.opt_σ,model.opt_μ₀,model.likelihood,[get_y(model)],model.inference)
+end
+
+## Update all hyperparameters for the full batch GP models ##
+function update_hyperparameters!(gp::_VGP{T},X::AbstractMatrix,opt_ρ::Optimizer,opt_σ_k::Optimizer,opt_μ₀::Optimizer) where {T}
+    Jnn = kernelderivative(gp.kernel,X)
+    f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp)
+    grads_ρ = compute_hyperparameter_gradient(gp.kernel,f_l,Jnn)
+    grads_σ_k = f_v(gp.kernel,gp.σ_k)
+    grads_μ₀ = f_μ₀()
+
+    apply_gradients_lengthscale!(opt_ρ,gp.kernel,grads_ρ) #Send the derivative of the matrix to the specific gradient of the model
+    apply_gradients_variance!(opt_σ_k,gp,grads_σ_k) #Send the derivative of the matrix to the specific gradient of the model
+    apply_gradients_mean_prior!(opt_μ₀,gp.μ₀,grads_μ₀)
 
     model.inference.HyperParametersUpdated = true
 end
 
 ## Update all hyperparameters for the sparse variational GP models ##
-function update_hyperparameters!(model::SVGP{T}) where {T<:Real}
-    Jmm = kernelderivativematrix.(model.Z,model.kernel)
-    Jnm = kernelderivativematrix.([model.inference.x],model.Z,model.kernel)
-    Jnn = kernelderivativediagmatrix.([model.inference.x],model.kernel)
-    f_l,f_v,f_μ₀ = hyperparameter_gradient_function(model)
-    grads_l = map(compute_hyperparameter_gradient,model.kernel,fill(f_l,model.nPrior),Jmm,Jnm,Jnn,collect(1:model.nPrior))
-    grads_v = map(f_v,model.kernel,1:model.nPrior)
-    if !isnothing(model.Zoptimizer)
+function update_hyperparameters!(model::_SVGP{T},,opt_ρ::Optimizer,opt_σ_k::Optimizer,opt_μ₀::Optimizer,l::Likelihood,y::AbstractVector) where {T}
+    Jmm = kernelderivative(gp.kernel,gp.Z)
+    Jnm = kernelderivative(gp.kernel,X,gp.Z)
+    Jnn = kerneldiagderivative(gp.kernel,X)
+    f_ρ,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
+    grads_l = compute_hyperparameter_gradient(gp.kernel,f_l,Jmm,Jnm,Jnn,l,y)
+    grads_v = f_v(gp.kernel,gp.σ_k)
+    grads_μ₀ = f_μ₀()
+    if !isnothing(gp.Z.opt)
         Z_gradients = inducingpoints_gradient(model) #Compute the gradient given the inducing points location
-        model.Z += GradDescent.update(model.Zoptimizer,Z_gradients) #Apply the gradients on the location
+        gp.Z.Z += GradDescent.update(gp.Z.opt,Z_gradients) #Apply the gradients on the location
     end
-    grads_μ₀ = map(f_μ₀,1:model.nPrior)
-    apply_gradients_lengthscale!.(model.kernel,grads_l)
-    apply_gradients_variance!.(model.kernel,grads_v)
-    update!.(model.μ₀,grads_μ₀)
+    apply_gradients_lengthscale!(opt_ρ,gp.kernel,grads_l)
+    apply_gradients_variance!(opt_σ_k,gp.kernel,grads_v)
+    apply_gradients_mean_prior!(opt_μ₀,gp.μ₀,grads_μ₀)
     model.inference.HyperParametersUpdated = true
 end
 
@@ -40,29 +66,17 @@ end
 
 
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model ##
-function hyperparameter_gradient_function(model::VGP{T}) where {T<:Real}
-    A = ([Diagonal{T}(I,model.nFeatures)].-model.invKnn.*(model.Σ.+(model.µ.-model.μ₀).*transpose.(model.μ.-model.μ₀))).*model.invKnn
-    if model.IndependentPriors
-        return (function(Jnn,index)
-                    return -hyperparameter_KL_gradient(Jnn,A[index])
-                end,
-                function(kernel,index)
-                    return -1.0/getvariance(kernel)*hyperparameter_KL_gradient(model.Knn[index],A[index])
-                end,
-                function(index)
-                    return -model.invKnn[index]*(model.μ₀[index]-model.μ[index])
-                end)
-    else
-        return (function(Jnn,index)
-            return -sum(hyperparameter_KL_gradient.([Jnn],A))
-                end,
-                function(kernel,index)
-                    return -1.0/getvariance(kernel)*sum(hyperparameter_KL_gradient.(model.Knn,A))
-                end,
-                function(index)
-                    return -sum(model.invKnn.*(model.μ₀.-model.μ))
-                end)
-    end
+function hyperparameter_gradient_function(gp::_VGP{T}) where {T<:Real}
+    A = ([Diagonal{T}(I,gp.dim)]-gp.K\(gp.Σ+(gp.µ-gp.μ₀)*transpose(gp.μ-gp.μ₀)))/gp.K
+    return (function(Jnn)
+                return -hyperparameter_KL_gradient(Jnn,A)
+            end,
+            function(kernel,σ_k)
+                return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K,A)
+            end,
+            function()
+                return -gp.K\(gp.μ₀-gp.μ)
+            end)
 end
 
 function hyperparameter_local_gradient_function(model::VGP{T}) where {T<:Real}
@@ -79,36 +93,21 @@ function hyperparameter_local_gradient_function(model::VGP{T}) where {T<:Real}
 end
 
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model ##
-function hyperparameter_gradient_function(model::SVGP{T}) where {T<:Real}
-    A = ([Diagonal{T}(I,model.nFeatures)].-model.invKmm.*(model.Σ.+model.µ.*transpose.(model.μ))).*model.invKmm
-    ι = Matrix{T}(undef,model.inference.nSamplesUsed,model.nFeatures) #Empty container to save data allocation
-    κΣ = model.κ.*model.Σ
-    if model.IndependentPriors
-        return (function(Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Int)
-                    return (hyperparameter_expec_gradient(model,ι,κΣ[index],Jmm,Jnm,Jnn,index)-hyperparameter_KL_gradient(Jmm,A[index]))
-                end,
-                function(kernel::Kernel{T},index::Int)
-                    return 1.0/getvariance(kernel)*(
-                            - model.inference.ρ*dot(∇E_Σ(model,index),model.K̃[index])
-                            - hyperparameter_KL_gradient(model.Kmm[index],A[index]))
-                end,
-                function(index)
-                    return -model.invKmm[index]*(model.μ₀[index]-model.μ[index])
-                end)
-    else
-        return (function(Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Int)
-                    return  (hyperparameter_expec_gradient(model,ι,κΣ,Jmm,Jnm,Jnn)
-                           - sum(hyperparameter_KL_gradient.([Jmm],A)))
-                end,
-                function(kernel::Kernel{T},index::Int)
-                    return 1.0/getvariance(kernel)*(model.inference.ρ*sum(
-                            -dot(∇E_Σ(model,i),model.K̃[1]) for i in 1:model.nLatent)
-                            - sum(hyperparameter_KL_gradient.(model.Kmm,A)))
-                end,
-                function(index)
-                    return -sum(model.invKmm.*(model.μ₀.-model.μ))
-                end)
-    end
+function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
+    A = (Diagonal{T}(I,gp.dim).-gp.K\(gp.Σ.+(gp.µ-gp.μ₀)*transpose(gp.μ-gp.μ₀)))/gp.K
+    ι = similar(gp.κ) #Empty container to save data allocation
+    κΣ = gp.κ*gp.Σ
+    return (function(Jmm,Jnm,Jnn,l,y,i)
+                return (hyperparameter_expec_gradient(gp,ι,κΣ,Jmm,Jnm,Jnn,l,y,i)-hyperparameter_KL_gradient(Jmm,A))
+            end,
+            function(kernel::Kernel,σ_k::Real,l,y,i)
+                return one(T)/σ_k*(
+                        - i.ρ*dot(∇E_Σ(l,y),gp.K̃)
+                        - hyperparameter_KL_gradient(gp.K,A))
+            end,
+            function()
+                return -gp.K\(gp.μ₀-gp.μ)
+            end)
 end
 
 function hyperparameter_gradient_function(model::VStP{T}) where {T<:Real}
@@ -137,42 +136,23 @@ function hyperparameter_gradient_function(model::VStP{T}) where {T<:Real}
 end
 
 ## Gradient with respect to hyperparameter with independent priors for analytical VI ##
-function hyperparameter_expec_gradient(model::SVGP{T,<:Likelihood,<:AnalyticVI},ι::Matrix{T},κΣ::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Integer) where {T<:Real}
-    mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[index])
-    Jnn .-= opt_diag(ι,model.Knm[index]) + opt_diag(model.κ[index],Jnm)
-    dμ = dot(∇E_μ(model,index),ι*model.μ[index])
-    dΣ =  -dot(∇E_Σ(model,index),Jnn)
-    dΣ += -dot(∇E_Σ(model,index),2.0*(opt_diag(ι*model.Σ[index],model.κ[index])))
-    dΣ += -dot(∇E_Σ(model,index),2.0*(ι*model.μ[index]).*(model.κ[index]*model.μ[index]))
-    return model.inference.ρ*(dμ+dΣ)
-end
-
-## Gradient with respect to hyperparameter with independent priors for numerical VI ##
-function hyperparameter_expec_gradient(model::SVGP{T,<:Likelihood,<:NumericalVI},ι::Matrix{T},κΣ::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},index::Integer) where {T<:Real}
-    mul!(ι,(Jnm-model.κ[index]*Jmm),model.invKmm[index])
-    Jnn .-= opt_diag(ι,model.Knm[index]) + opt_diag(model.κ[index],Jnm)
-    dμ = dot(∇E_μ(model,index),ι*model.μ[index])
-    dΣ = dot(∇E_Σ(model,index),Jnn+2.0*(opt_diag(ι*model.Σ[index],model.κ[index])))
-    return model.inference.ρ*(dμ+dΣ)
-end
-
-## Gradient with respect to hyperparameter with shared priors for analytical VI ##
-function hyperparameter_expec_gradient(model::SVGP{T,<:Likelihood,<:AnalyticVI},ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
-    mul!(ι,(Jnm-model.κ[1]*Jmm),model.invKmm[1])
-    Jnn .-= opt_diag(ι,model.Knm[1]) + opt_diag(model.κ[1],Jnm)
-    dμ = sum(dot(∇E_μ(model,i),ι*model.μ[i]) for i in 1:model.nLatent)
-    dΣ = -0.5*sum(dot(∇E_Σ(model,i),Jnn+2.0*opt_diag(ι,κΣ[i])) for i in 1:model.nLatent)
-    dΣ += -0.5*sum(dot(∇E_Σ(model,i),2.0*(ι*model.μ[i]).*(model.κ[1]*model.μ[i])) for i in 1:model.nLatent)
-    return model.inference.ρ*(dμ+dΣ)
+function hyperparameter_expec_gradient(gp::_SVGP{T},ι::Matrix{T},κΣ::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T},l::Likelihood,i::AnalyticVI,y::AbstractVector) where {T<:Real}
+    ι .= (Jnm-gp.κ*Jmm)/gp.K
+    Jnn .-= opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm)
+    dμ = dot(∇E_μ(l,y),ι*gp.μ)
+    dΣ = -dot(∇E_Σ(l,y),Jnn)
+    dΣ += -dot(∇E_Σ(l,y),2.0*(opt_diag(ι,κΣ)))
+    dΣ += -dot(∇E_Σ(l,y),2.0*(ι*gp.μ).*(gp.κ*gp.μ))
+    return i.ρ*(dμ+dΣ)
 end
 
 ## Gradient with respect to hyperparameter with shared priors for numerical VI ##
-function hyperparameter_expec_gradient(model::SVGP{T,<:Likelihood,<:NumericalVI},ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
-    mul!(ι,(Jnm-model.κ[1]*Jmm),model.invKmm[1])
-    Jnn .-= opt_diag(ι,model.Knm[1]) + opt_diag(model.κ[1],Jnm)
-    dμ = sum(dot(∇E_μ(model,i),ι*model.μ[i]) for i in 1:model.nLatent)
-    dΣ = sum(dot(∇E_Σ(model,i),Jnn+2.0*opt_diag(ι,κΣ[i])) for i in 1:model.nLatent)
-    return model.inference.ρ*(dμ+dΣ)
+function hyperparameter_expec_gradient(model::_SVGP{T},ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Matrix{T},Jnm::Matrix{T},Jnn::Vector{T},l::Likelihood,i::NumericalVI,y::AbstractVector) where {T<:Real}
+    ι .= (Jnm-gp.κ*Jmm)/gp.K
+    Jnn .-= opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm)
+    dμ = dot(∇E_μ(i),ι*gp.μ)
+    dΣ = dot(∇E_Σ(i),Jnn+2.0*opt_diag(ι,κΣ))
+    return i.ρ*(dμ+dΣ)
 end
 
 
