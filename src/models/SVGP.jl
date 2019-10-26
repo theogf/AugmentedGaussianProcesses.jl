@@ -41,7 +41,6 @@ mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,TGP
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64
-    optimizer::Union{Optimizer,Nothing}
     atfrequency::Int64
     Trained::Bool
 end
@@ -84,7 +83,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
                 nSamplesUsed = inference.nSamplesUsed
             end
 
-            latentf = ntuple(_->_SVGP{T1}(nFeatures,nSamplesUsed,Z,kernel,mean,variance),nLatent)
+            latentf = ntuple(_->_SVGP{T1}(nFeatures,nSamplesUsed,Z,kernel,mean,variance,optimizer),nLatent)
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed,nFeatures)
             inference = init_inference(inference,nLatent,nFeatures,nSample,nSamplesUsed)

@@ -5,7 +5,7 @@ using KernelFunctions
 X,f = noisy_function(sinc,range(-3,3,length=100))
 y = sign.(f)
 
-M = VGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),optimizer=false)
+M = VGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),optimizer=true)
 train!(M)
 
 m = SVGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),10,optimizer=false,verbose=3)
