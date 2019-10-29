@@ -10,7 +10,7 @@ there are options to change the number of max iterations,
 - `callback::Function` : Callback function called at every iteration. Should be of type `function(model,iter) ...  end`
 - `convergence::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
-function train!(model::AbstractGP,iterations::Integer=100;callback::Union{Nothing,Function}=nothing,convergence::Union{Nothing,Function}=nothing)
+function train!(model::AbstractGP{T,TLike,TInf},iterations::Integer=100;callback::Union{Nothing,Function}=nothing,convergence::Union{Nothing,Function}=nothing) where {T,TLike<:Likelihood,Tinf<:Inference}
     if model.verbose > 0
       println("Starting training $model with $(model.nSample) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))
     end
@@ -27,12 +27,12 @@ function train!(model::AbstractGP,iterations::Integer=100;callback::Union{Nothin
             if !isnothing(callback)
                 callback(model,model.inference.nIter) #Use a callback method if set by user
             end
-            if !isnothing(model.optimizer) && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
+            if (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
             # Print out informations about the convergence
             if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
-                if isa(model.inference,GibbsSampling)
+                if isa(TInf,GibbsSampling)
                     next!(p; showvalues = [(:samples, local_iter)])
                 else
                     elbo=ELBO(model)
@@ -71,9 +71,9 @@ end
 
 function update_parameters!(model::SVGP)
     if model.inference.Stochastic
-        model.inference.MBIndices = StatsBase.sample(1:model.inference.nSamples,model.inference.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
-        model.inference.x = view(model.X,model.inference.MBIndices,:)
-        model.inference.y = view(model.y,model.inference.MBIndices)
+        model.inference.MBIndices .= StatsBase.sample(1:model.inference.nSamples,model.inference.nMinibatch,replace=false)
+        model.inference.xview = view(model.y,model.inference.MBIndices)
+        inference.yview = view(model.y,model.inference.MBIndices)
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
@@ -94,7 +94,7 @@ end
 
 function computeMatrices!(model::VGP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
-        compute_K!.(model.f,[model.X],T(jitter))
+        compute_K!.(model.f,[model.xview],T(jitter))
     end
     model.inference.HyperParametersUpdated=false
 end
@@ -105,7 +105,7 @@ function computeMatrices!(model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
-        compute_κ!.(model.f,[model.inference.x],T(jitter))
+        compute_κ!.(model.f,[model.xview],T(jitter))
     end
     model.inference.HyperParametersUpdated=false
 end

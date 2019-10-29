@@ -1,6 +1,6 @@
 #File treating all the prediction functions
 
-const pred_nodes,pred_weights = gausshermite(300) |> x->(x[1],x[2]./sqrtπ)
+const pred_nodes,pred_weights = gausshermite(100) |> x->(x[1],x[2]./sqrtπ.*sqrt2)
 
 function _predict_f(μ::Vector{T},Σ::Symmetric{T,Matrix{T}},invK::Symmetric{T,Matrix{T}},kernel::Kernel,X_test::AbstractMatrix{T₁},X::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T,T₁<:Real}
     k_star = kernelmatrix(X_test,X,kernel)
@@ -24,22 +24,22 @@ Compute the mean of the predicted latent distribution of `f` on `X_test` for the
 
 Return also the variance if `covf=true` and the full covariance if `fullcov=true`
 """
-function predict_f(model::AbstractGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
+function predict_f(model::AbstractGP1,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = get_σ_k(model)*kernelmatrix(model.f[1].kernel,X_test,get_X(model),obsdim=1)
     μf = k_star*(get_K(model)\get_μ(model))
     if !covf
         return μf
     end
-    A = get_K(model)\(I-get_K(model)\get_Σ(model))
-    σ²f = []
+    A = get_K(model)\(I-get_Σ(model)/get_K(model))
     if fullcov
-        k_starstar = get_σ_k(model)*kernelmatrix(model.f[1].kernel,X_test,obsdim=1)+T(jitter)*I
+        k_starstar = get_σ_k(model)*(kernelmatrix(model.f[1].kernel,X_test,obsdim=1)+T(jitter)*I)
         σ²f = Symmetric(k_starstar - k_star*A*transpose(k_star))
+        return μf,σ²f
     else
-        k_starstar = get_σ_k(model)*kerneldiagmatrix(model.f[1].kernel,X_test,obsdim=1).+T(jitter)
+        k_starstar = get_σ_k(model)*(kerneldiagmatrix(model.f[1].kernel,X_test,obsdim=1).+T(jitter))
         σ²f = k_starstar - opt_diag(k_star*A,k_star)
+        return μf,σ²f
     end
-    return μf,σ²f
 end
 
 # function predict_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
@@ -125,7 +125,7 @@ Return the probability distribution p(y_test|model,X_test) :
 """
 function proba_y(model::AbstractGP,X_test::AbstractMatrix)
     μ_f,Σ_f = predict_f(model,X_test,covf=true)
-    compute_proba(model.likelihood,μ_f,Σ_f)
+    μ_p, σ²_p = compute_proba(model.likelihood,μ_f,Σ_f)
 end
 
 function proba_y(model::VGP{T,<:Union{<:RegressionLikelihood{T},<:ClassificationLikelihood{T}},<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}

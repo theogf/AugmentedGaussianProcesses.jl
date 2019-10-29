@@ -8,8 +8,8 @@ mutable struct _VGP{T} <: Abstract_GP{T}
     σ_k::Float64
     μ₀::PriorMean{T}
     K::PDMat{T,Matrix{T}}
-    opt_ρ::Optimizer
-    opt_σ::Optimizer
+    opt_ρ::Union{Optimizer,Nothing}
+    opt_σ::Union{Optimizer,Nothing}
 end
 
 function _VGP{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real,opt_ρ::Optimizer=Adam(α=0.01),opt_σ=deepcopy(opt_ρ)) where {T<:Real}
@@ -40,14 +40,14 @@ mutable struct _SVGP{T} <: Abstract_GP{T}
     Knm::Matrix{T}
     κ::Matrix{T}
     K̃::Vector{T}
-    opt_ρ::Optimizer
-    opt_σ::Optimizer
+    opt_ρ::Union{Optimizer,Nothing}
+    opt_σ::Union{Optimizer,Nothing}
 end
 
 function _SVGP{T}(  dim::Int,nSamplesUsed::Int,
                     Z::Union{AbstractMatrix,InducingPoints},
                     kernel::Kernel,mean::PriorMean,σ_k::Real,
-                    opt_ρ::Optimizer=Adam(α=0.01),opt_σ::Optimizer=opt_ρ
+                    opt_ρ::Union{Optimizer,Nothing}=Adam(α=0.01),opt_σ::Union{Optimizer,Nothing}=opt_ρ
                  ) where {T<:Real}
     _SVGP{T}(dim,
             zeros(T,dim),

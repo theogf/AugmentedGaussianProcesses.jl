@@ -14,6 +14,8 @@ end
 
 update!(μ::ZeroMean{T},grad::AbstractVector{T}) where {T<:Real} = nothing
 
+get_opt(μ::ZeroMean) = nothing
+
 array(μ::ZeroMean{T},length::Int) where {T<:Real} = zeros(T,length)
 
 (μ::ZeroMean{T})(x::Real) where {T<:Real} = zero(T)

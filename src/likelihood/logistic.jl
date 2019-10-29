@@ -52,18 +52,17 @@ end
 function compute_proba(l::LogisticLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
     N = length(μ)
     pred = zeros(T,N)
-    sig_pred = zeros(T,N)
+    σ²_pred = zeros(T,N)
     for i in 1:N
         if σ²[i] <= 0.0
             pred[i] = logistic(μ[i])
         else
             nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
             pred[i] = dot(pred_weights,logistic.(nodes))
-            sig_pred[i] = dot(pred_weights,logistic.(nodes).^2)-pred[i]^2
-            nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
+            σ²_pred[i] = dot(pred_weights,logistic.(nodes).^2)-pred[i]^2
         end
     end
-    return pred, sig_pred
+    return pred, σ²_pred
 end
 
 ### Local Updates Section ###
@@ -81,16 +80,16 @@ end
 
 ### Natural Gradient Section ###
 
-@inline ∇E_μ(l::LogisticLikelihood,y::AbstractVector) where {T} = 0.5*y
-@inline ∇E_Σ(l::LogisticLikelihood,y::AbstractVector) where {T} = 0.5*l.θ
+@inline ∇E_μ(l::LogisticLikelihood,::AVIOptimizer,y::AbstractVector) where {T} = 0.5*y
+@inline ∇E_Σ(l::LogisticLikelihood,::AVIOptimizer,y::AbstractVector) where {T} = 0.5*l.θ
 
 ### ELBO Section ###
 
 function ELBO(model::AbstractGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
-    return model.inference.ρ*expecLogLikelihood(model.likelihood, get_y(model), mean_f(model), diag_cov_f(model)) - GaussianKL(model) - model.inference.ρ*PolyaGammaKL(model.likelihood)
+    return model.inference.ρ*expec_logpdf(model.likelihood, get_y(model), mean_f(model), diag_cov_f(model)) - GaussianKL(model) - model.inference.ρ*PolyaGammaKL(model.likelihood)
 end
 
-function expecLogLikelihood(l::LogisticLikelihood,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+function expec_logpdf(l::LogisticLikelihood,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     tot = -(0.5*length(y)*logtwo)
     tot += 0.5.*(dot(μ,y)-dot(l.θ,diag_cov)-dot(l.θ,μ))
     return tot
@@ -102,16 +101,16 @@ end
 
 ### Gradient Section ###
 
-@inline grad_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T} = y*logistic(-y*f)
+@inline grad_logpdf(::LogisticLikelihood{T},y::Real,f::Real) where {T} = y*logistic(-y*f)
 
-function gradpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
+function grad_pdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
     σ=logistic(y*f)
     σ*(one(T)-σ)
 end
 
-@inline hessian_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T<:Real} = -exp(y*f)/logistic(-y*f)^2
+@inline hessian_logpdf(::LogisticLikelihood{T},y::Real,f::Real) where {T<:Real} = -exp(y*f)/logistic(-y*f)^2
 
-function hessiandiagpdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
+function hessiandiag_pdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
     σ=logistic(y*f)
     σ*(one(T)-2σ + abs2(σ))
 end

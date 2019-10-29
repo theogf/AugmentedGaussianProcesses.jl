@@ -11,32 +11,36 @@ AnalyticVI(;ϵ::T=1e-5)
 
     - `ϵ::T` : convergence criteria
 """
-mutable struct AnalyticVI{T<:Real} <: Inference{T}
+
+
+
+
+
+mutable struct AnalyticVI{T<:Real,N} <: Inference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    optimizer::Optimizer #Learning rate for stochastic updates
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64
-    nSamplesUsed::Int64 #Size of mini-batches
-    MBIndices::Vector{Int64} #Indices of the minibatch
+    nMinibatch::Int64 #Size of mini-batches
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
-    ∇η₁::Vector{T}
-    ∇η₂::Matrix{T} #Stored as a matrix since symmetric sums do not help for the moment WARNING
-    x::SubArray{T,2,Matrix{T}}#,Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
-    y::SubArray
-    function AnalyticVI{T}(ϵ::T,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
-        return new{T}(ϵ,nIter,optimizer,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag)
+    vi_opt::NTuple{N,AVIOptimizer}
+    MBIndices::Vector{Int64} #Indices of the minibatch
+    xview::SubArray{T,2,Matrix{T}}#,Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
+    yview::SubArray
+
+    function AnalyticVI{T}(ϵ::T,optimizer::Optimizer,Stochastic::Bool) where T
+        return new{T,1}(ϵ,0,Stochastic,0,0,1.0,false,MBIndices,ρ,true,(AVIOptimizer(0,optimizer)))
     end
-    function AnalyticVI{T}(ϵ::T,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool,∇η₁::AbstractVector,
-    ∇η₂::AbstractMatrix) where T
-        return new{T}(ϵ,nIter,optimizer,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag,∇η₁,∇η₂)
+    function AnalyticVI{T}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer)
+        vi_opts = ntuple(_->AVIOptimizer{T}(nFeatures,optimizer))
+        new{T,nLatent}(ϵ,0,Stochastic,nSamples,nMinibatch,nSamples/nMinibatch,true,vi_opts,collect(1:nMinibatch))
     end
 end
 
 
 function AnalyticVI(;ϵ::T=1e-5) where {T<:Real}
-    AnalyticVI{Float64}(ϵ,0,VanillaGradDescent(η=1.0),false,1,1,[1],1.0,true)
+    AnalyticVI{Float64}(ϵ,VanillaGradDescent(η=1.0),false)
 end
 
 """
@@ -54,7 +58,7 @@ AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay())
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `InverseDecay()` (ρ=(τ+iter)^-κ)
 """
 function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay()) where {T<:Real}
-    AnalyticVI{T}(ϵ,0,optimizer,true,1,nMinibatch,1:nMinibatch,1.0,true)
+    AnalyticVI{T}(ϵ,optimizer,true)
 end
 
 function Base.show(io::IO,inference::AnalyticVI{T}) where T
@@ -63,37 +67,27 @@ end
 
 
 """Initialize the final version of the inference object"""
-function init_inference(inference::AnalyticVI{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {T<:Real}
-    inference.nSamples = nSamples
-    inference.nSamplesUsed = nSamplesUsed
-    inference.MBIndices = 1:nSamplesUsed
-    inference.ρ = nSamples/nSamplesUsed
-    inference.∇η₁ = zeros(T,nFeatures);
-    inference.∇η₂ = Matrix{T}(undef,nFeatures,nFeatures)
-    return inference
+function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nMinibatch::Integer) where {TInf <: AnalyticVI{T} where T
+    return TInf(i.ϵ,i.Stochastic,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimizer)
 end
 
 """Generic method for variational updates using analytical formulas"""
 function variational_updates!(model::AbstractGP{T,L,AnalyticVI{T}}) where {T,L}
     local_updates!(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
-    natural_gradient!(get_y(model),model.likelihood,model.inference,model.f...)
+    natural_gradient!.(model.likelihood,model.inference,model.inference.vi_opt,[get_y(model)],model.f)
     global_update!(model)
 end
 
 #Coordinate ascent updates on the natural parameters
-function natural_gradient!(y::AbstractVector,l::Likelihood,i::AnalyticVI,gp::_VGP{T}) where {T,L}
-    gp.η₁ .= ∇E_μ(gp,l,y) .+ gp.K \ gp.μ₀
-    gp.η₂ .= -Symmetric(Diagonal{T}(∇E_Σ(gp,l,y)).+0.5.*inv(gp.K))
+function natural_gradient!(l::Likelihood,i::AnalyticVI,opt::AVIOptimizer,y::AbstractVector,gp::_VGP{T}) where {T,L}
+    gp.η₁ .= ∇E_μ(l,opt,y) .+ gp.K \ gp.μ₀
+    gp.η₂ .= -Symmetric(Diagonal{T}(∇E_Σ(l,opt,y)).+0.5.*inv(gp.K))
 end
 
-function natural_gradient!(y::AbstractVector,l::Likelihood,i::AnalyticVI,gps::Vararg{_VGP{T},N}) where {T,N}
-
-end
 #Computation of the natural gradient for the natural parameters
-
-function natural_gradient!(y::AbstractVector,l::Likelihood,i::AnalyticVI,gp::_SVGP{T}) where {T,L}
-    i.∇η₁ .= ∇η₁(∇E_μ(gp,l,y),i.ρ,gp.κ,gp.K,gp.μ₀,gp.η₁)
-    i.∇η₂ .= ∇η₂(∇E_Σ(gp,l,y),i.ρ,gp.κ,gp.K,gp.η₂)
+function natural_gradient!(l::Likelihood,i::AnalyticVI,opt::AVIOptimizer,y::AbstractVector,gp::_SVGP{T}) where {T,L}
+    opt.∇η₁ .= ∇η₁(∇E_μ(l,opt,y),i.ρ,gp.κ,gp.K,gp.μ₀,gp.η₁)
+    opt.∇η₂ .= ∇η₂(∇E_Σ(l,opt,y),i.ρ,gp.κ,gp.K,gp.η₂)
 end
 
 function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},K::PDMat{T,Matrix{T}},μ₀::PriorMean,η₁::AbstractVector{T}) where {T <: Real}
@@ -117,17 +111,15 @@ end
 #Update of the natural parameters and conversion from natural to standard distribution parameters
 function global_update!(model::SVGP{T,L,<:AnalyticVI}) where {T,L}
     if model.inference.Stochastic
-        for f in model.f
-            Δ = GradDescent.update(model.inference.optimizer,vcat(model.inference.∇η₁,model.inference.∇η₂[:]))
+        for (f,vi_opt) in zip(model.f,model.inference.vi_opt)
+            Δ = GradDescent.update(vi_opt.optimizer,vcat(vi_opt.∇η₁,vi_opt.∇η₂[:]))
             f.η₁ .+= Δ[1:model.nFeatures]
             f.η₂ .= Symmetric(f.η₂ + reshape(Δ[(model.nFeatures+1):end],model.nFeatures,model.nFeatures))
-            # model.η₁ .= model.η₁ .+ GradDescent.update.(model.inference.optimizer_η₁,model.inference.∇η₁)
-            # model.η₂ .= Symmetric.(model.η₂ .+ GradDescent.update.(model.inference.optimizer_η₂,model.inference.∇η₂))
         end
     else
-        for f in model.f
-            f.η₁ .+= model.inference.∇η₁
-            f.η₂ .= Symmetric(model.inference.∇η₂ .+ f.η₂)
+        for f,vi_opt in zip(model.f,model.inference.vi_opt)
+            f.η₁ .+= vi_opt.∇η₁
+            f.η₂ .= Symmetric(vi_opt.∇η₂ .+ f.η₂)
         end
     end
     global_update!.(model.f)

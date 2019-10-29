@@ -39,7 +39,7 @@ mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,TGP
     nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
     f::NTuple{N,TGP}
     likelihood::TLikelihood
-    inference::TInference
+    inference::NTuple{N,TInference}
     verbose::Int64
     atfrequency::Int64
     Trained::Bool
@@ -66,7 +66,9 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
 
             @assert nInducingPoints > 0 && nInducingPoints < nSample "The number of inducing points is incorrect (negative or bigger than number of samples)"
             Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10)
-            Zoptimizer = !Zoptimizer ? nothing : Zoptimizer
+            if isa(Zoptimizer,Bool)
+                Zoptimizer = Zoptimizer ? Adam(α=0.01) : nothing
+            end
             Z = InducingPoints(Z,Zoptimizer)
 
             nFeatures = nInducingPoints
@@ -83,7 +85,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
                 nSamplesUsed = inference.nSamplesUsed
             end
 
-            latentf = ntuple(_->_SVGP{T1}(nFeatures,nSamplesUsed,Z,kernel,mean,variance,optimizer),nLatent)
+            latentf = ntuple( _ -> _SVGP{T1}(nFeatures,nSamplesUsed,Z,kernel,mean,variance,optimizer),nLatent)
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed,nFeatures)
             inference = init_inference(inference,nLatent,nFeatures,nSample,nSamplesUsed)
@@ -94,7 +96,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
                     nSample, nDim, nFeatures, nLatent,
                     IndependentPriors,nPrior,
                     latentf,likelihood,inference,
-                    verbose,optimizer,atfrequency,false)
+                    verbose,atfrequency,false)
             if isa(inference.optimizer,ALRSVI)
                 init!(model.inference,model)
             end

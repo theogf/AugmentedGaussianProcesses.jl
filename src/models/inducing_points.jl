@@ -1,4 +1,4 @@
-struct InducingPoints{M,O}
+struct InducingPoints{M,O<:Union{Optimizer,Nothing}}
     Z::M
     opt::O
 end

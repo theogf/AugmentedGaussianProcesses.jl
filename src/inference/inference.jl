@@ -10,4 +10,10 @@ function post_process!(model::AbstractGP{T,<:Likelihood,<:Inference}) where {T}
     nothing
 end
 
+Base.length(::Inference) = 1
+
+Base.iterate(l::Inference) = (l,nothing)
+Base.iterate(l::Inference, ::Any) = nothing
+
+
 const GibbsorVI = Union{<:GibbsSampling,<:AnalyticVI}

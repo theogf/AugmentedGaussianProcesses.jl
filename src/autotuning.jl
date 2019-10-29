@@ -1,43 +1,71 @@
+include("autotuning_utils.jl")
 function update_hyperparameters!(model::VGP)
-    update_hyperparameters!.(model.f,model.X)
+    update_hyperparameters!.(model.f,[model.X])
+    model.inference.HyperParametersUpdated = true
 end
 
 function update_hyperparameters!(model::SVGP)
-    update_hyperparameters!.(model.f,model.inference.x,model.likelihood,model.inference,[get_y(model)])
+    update_hyperparameters!.(model.f,[model.inference.x],model.likelihood,model.inference,[get_y(model)])
+    model.inference.HyperParametersUpdated = true
 end
 
 ## Update all hyperparameters for the full batch GP models ##
 function update_hyperparameters!(gp::_VGP{T},X) where {T}
-    Jnn = kernelderivative(gp.kernel,X)
-    f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp)
-    grads_ρ = compute_hyperparameter_gradient(gp.kernel,f_l,Jnn)
-    grads_σ_k = f_v(gp.kernel,gp.σ_k)
-    grads_μ₀ = f_μ₀()
+    if !isnothing(gp.opt_ρ) || !isnothing(gp.opt_σ) || !isnothing(get_opt(gp.μ₀))
+        f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp)
+        if !isnothing(gp.opt_ρ)
+            Jnn = kernelderivative(gp.kernel,X)
+            grads_ρ = compute_hyperparameter_gradient(gp.kernel,f_l,Jnn)
+        end
+        if !isnothing(gp.opt_σ)
+            grads_σ_k = f_v(gp.kernel,gp.σ_k)
+        end
+        if !isnothing(get_opt(gp.μ₀))
+            grads_μ₀ = f_μ₀()
+        end
 
-    apply_gradients_lengthscale!(gp.opt_ρ,gp.kernel,grads_ρ) #Send the derivative of the matrix to the specific gradient of the model
-    apply_gradients_variance!(gp,grads_σ_k) #Send the derivative of the matrix to the specific gradient of the model
-    apply_gradients_mean_prior!(gp.μ₀,grads_μ₀)
-
-    model.inference.HyperParametersUpdated = true
+        if !isnothing(gp.opt_ρ)
+            apply_gradients_lengthscale!(gp.opt_ρ,gp.kernel,grads_ρ) #Send the derivative of the matrix to the specific gradient of the model
+        end
+        if !isnothing(gp.opt_σ)
+            apply_gradients_variance!(gp,grads_σ_k) #Send the derivative of the matrix to the specific gradient of the model
+        end
+        if !isnothing(get_opt(gp.μ₀))
+            apply_gradients_mean_prior!(gp.μ₀,grads_μ₀)
+        end
+    end
 end
 
 ## Update all hyperparameters for the sparse variational GP models ##
 function update_hyperparameters!(gp::_SVGP{T},X,l::Likelihood,i::Inference,y::AbstractVector) where {T}
-    Jmm = kernelderivative(gp.kernel,gp.Z)
-    Jnm = kernelderivative(gp.kernel,X,gp.Z)
-    Jnn = kerneldiagderivative(gp.kernel,X)
-    f_ρ,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
-    grads_l = compute_hyperparameter_gradient(gp.kernel,f_l,Jmm,Jnm,Jnn,l,i,y)
-    grads_v = f_v(gp.kernel,gp.σ_k)
-    grads_μ₀ = f_μ₀()
-    if !isnothing(gp.Z.opt)
-        Z_gradients = inducingpoints_gradient(gp,X,l,i,y) #Compute the gradient given the inducing points location
-        gp.Z.Z += GradDescent.update(gp.Z.opt,Z_gradients) #Apply the gradients on the location
+    if !isnothing(gp.opt_ρ) || !isnothing(gp.opt_σ) || !isnothing(get_opt(gp.μ₀))
+        f_ρ,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
+        if !isnothing(gp.opt_ρ)
+            Jmm = kernelderivative(gp.kernel,gp.Z.Z)
+            Jnm = kernelderivative(gp.kernel,X,gp.Z.Z)
+            Jnn = kerneldiagderivative(gp.kernel,X)
+            grads_l = compute_hyperparameter_gradient(gp.kernel,f_ρ,Jmm,Jnm,Jnn,l,i,y)
+        end
+        if !isnothing(gp.opt_σ)
+            grads_σ_k = f_σ_k(gp.kernel,gp.σ_k,l,i,y)
+        end
+        if !isnothing(get_opt(gp.μ₀))
+            grads_μ₀ = f_μ₀()
+        end
+        if !isnothing(gp.Z.opt)
+            Z_gradients = inducingpoints_gradient(gp,X,l,i,y) #Compute the gradient given the inducing points location
+            gp.Z.Z .+= GradDescent.update(gp.Z.opt,Z_gradients) #Apply the gradients on the location
+        end
+        if !isnothing(gp.opt_ρ)
+            apply_gradients_lengthscale!(gp.opt_ρ,gp.kernel,grads_l)
+        end
+        if !isnothing(gp.opt_σ)
+            apply_gradients_variance!(gp,grads_σ_k)
+        end
+        if !isnothing(get_opt(gp.μ₀))
+            apply_gradients_mean_prior!(gp.μ₀,grads_μ₀)
+        end
     end
-    apply_gradients_lengthscale!(gp.opt_ρ,gp.kernel,grads_l)
-    apply_gradients_variance!(gp.kernel,grads_v)
-    apply_gradients_mean_prior!(gp.μ₀,grads_μ₀)
-    model.inference.HyperParametersUpdated = true
 end
 
 
@@ -49,7 +77,7 @@ end
 
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model ##
 function hyperparameter_gradient_function(gp::_VGP{T}) where {T<:Real}
-    A = ([Diagonal{T}(I,gp.dim)]-gp.K\(gp.Σ+(gp.µ-gp.μ₀)*transpose(gp.μ-gp.μ₀)))/gp.K
+    A = (Diagonal{T}(I,gp.dim)-gp.K\(gp.Σ+(gp.µ-gp.μ₀)*transpose(gp.μ-gp.μ₀)))/gp.K
     return (function(Jnn)
                 return -hyperparameter_KL_gradient(Jnn,A)
             end,
@@ -79,7 +107,7 @@ function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
     A = (Diagonal{T}(I,gp.dim).-gp.K\(gp.Σ.+(gp.µ-gp.μ₀)*transpose(gp.μ-gp.μ₀)))/gp.K
     ι = similar(gp.κ) #Empty container to save data allocation
     κΣ = gp.κ*gp.Σ
-    return (function(Jmm,Jnm,Jnn,l,y,i)
+    return (function(Jmm,Jnm,Jnn,l,i,y)
                 return (hyperparameter_expec_gradient(gp,l,i,y,ι,κΣ,Jmm,Jnm,Jnn)-hyperparameter_KL_gradient(Jmm,A))
             end,
             function(kernel::Kernel,σ_k::Real,l,i,y)
@@ -118,7 +146,7 @@ function hyperparameter_gradient_function(model::VStP{T}) where {T<:Real}
 end
 
 ## Gradient with respect to hyperparameter with independent priors for analytical VI ##
-function hyperparameter_expec_gradient(gp::_SVGP{T},l::Likelihood,i::AnalyticVI,y::AbstractVector,ι::Matrix{T},κΣ::Matrix{T},Jmm::Symmetric{T,Matrix{T}},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
+function hyperparameter_expec_gradient(gp::_SVGP{T},l::Likelihood,i::AnalyticVI,y::AbstractVector,ι::AbstractMatrix{T},κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{T},Jnm::AbstractMatrix{T},Jnn::AbstractVector{T}) where {T<:Real}
     ι .= (Jnm-gp.κ*Jmm)/gp.K
     Jnn .-= opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm)
     dμ = dot(∇E_μ(l,i,y),ι*gp.μ)
@@ -129,7 +157,7 @@ function hyperparameter_expec_gradient(gp::_SVGP{T},l::Likelihood,i::AnalyticVI,
 end
 
 ## Gradient with respect to hyperparameter with shared priors for numerical VI ##
-function hyperparameter_expec_gradient(gp::_SVGP{T},l::Likelihood,i::NumericalVI,y::AbstractVector,ι::Matrix{T},κΣ::Vector{Matrix{T}},Jmm::Matrix{T},Jnm::Matrix{T},Jnn::Vector{T}) where {T<:Real}
+function hyperparameter_expec_gradient(gp::_SVGP{T},l::Likelihood,i::NumericalVI,y::AbstractVector,ι::AbstractMatrix{T},κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{T},Jnm::AbstractMatrix{T},Jnn::AbstractVector{T}) where {T<:Real}
     ι .= (Jnm-gp.κ*Jmm)/gp.K
     Jnn .-= opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm)
     dμ = dot(∇E_μ(l,i,y),ι*gp.μ)
@@ -141,10 +169,11 @@ end
 ## Return a function computing the gradient of the ELBO given the inducing point locations ##
 function inducingpoints_gradient(gp::_SVGP{T},X,l::Likelihood,i::Inference,y::AbstractVector) where {T<:Real}
     gradient_inducing_points = similar(gp.Z.Z)
-    A = (I.-gp.K\(gp.Σ+gp.µ*transpose(gp.μ)))/gp.K
+    A = (I-gp.K\(gp.Σ+gp.µ*transpose(gp.μ)))/gp.K
     #preallocation
     ι = similar(gp.κ)
-    Jnm,Jmm = indpoint_derivative(gp.kernel,gp.Z),indpoint_derivative(gp.kernel,X,gp.Z)
+    Jmm,Jnm = indpoint_derivative(gp.kernel,gp.Z),indpoint_derivative(gp.kernel,X,gp.Z)
+    κΣ = gp.κ*gp.Σ
     for j in 1:gp.dim #Iterate over the points
         for k in 1:size(gp.Z,2) #iterate over the dimensions
             @views ι = (Jnm[:,:,j,k]-gp.κ*Jmm[:,:,j,k])/gp.K

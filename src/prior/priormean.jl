@@ -13,3 +13,5 @@ end
 function Base.convert(::Type{PriorMean},x::AbstractVector{T}) where {T<:Real}
     EmpiricalMean(x)
 end
+
+get_opt(μ::PriorMean) = μ.opt

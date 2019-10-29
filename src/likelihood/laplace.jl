@@ -117,7 +117,7 @@ end
 ## PDF and Log PDF Gradients ##
 
 function grad_quad(likelihood::LaplaceLikelihood{T},y::Real,μ::Real,σ²::Real,inference::Inference) where {T<:Real}
-    nodes = inference.nodes*sqrt2*sqrt(σ²) .+ μ
+    nodes = inference.nodes*sqrt(σ²) .+ μ
     Edlogpdf = dot(inference.weights,grad_log_pdf.(likelihood,y,nodes))
     Ed²logpdf =  (1/sqrt(twoπ*σ²))/(likelihood.β[1]^2)
     return -Edlogpdf::T, Ed²logpdf::T
