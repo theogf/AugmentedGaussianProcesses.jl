@@ -56,9 +56,9 @@ function cb(model,iter)
 end
 M = VGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),optimizer=true,verbose=3)
 # cb(model,iter) = @info "L = $(ELBO(model)), k_l = $(get_params(model.f[1].kernel)), σ = $(model.f[1].σ_k)"
-# train!(M,1000,callback=cb)
+train!(M,1000,callback=cb)
 using GradDescent
-m = SVGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),10,optimizer=false,verbose=3,Zoptimizer=nothing)
+m = SVGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),10,optimizer=true,verbose=3,Zoptimizer=nothing)
 # m.f[1].Z.opt = Adam(α=0.01)
 
 train!(m,1000,callback=cb)

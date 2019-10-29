@@ -66,11 +66,11 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
 
             latentf = ntuple(_->_VGP{T1}(nFeatures,kernel,mean,variance,optimizer),nLatent)
 
-            likelihood = init_likelihood(likelihood,inference,nLatent,nSample,nFeatures)
-            inference = tuple_inference(inference,nLatent,nSample,nSample,nSample)
+            likelihood = init_likelihood(likelihood,inference,nLatent,nSamples,nFeatures)
+            inference = tuple_inference(inference,nLatent,nSamples,nSamples,nSamples)
             inference.xview = view(X,:,:)
             inference.yview = view(y,:)
-            inference.MBIndices = collect(1:nSample)
+            inference.MBIndices = collect(1:nSamples)
             VGP{T1,TLikelihood,TInference,_VGP{T1},nLatent}(X,y,
                     nFeatures, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
