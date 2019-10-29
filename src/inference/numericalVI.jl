@@ -5,7 +5,7 @@ of the expected log-likelihood ad its gradients
 Gradients are computed as in "The Variational Gaussian Approximation
 Revisited" by Opper and Archambeau 2009
 """
-abstract type NumericalVI{T<:Real,N} <: Inference{T,N} end
+abstract type NumericalVI{T<:Real} <: Inference{T} end
 
 include("quadratureVI.jl")
 include("MCVI.jl")
@@ -66,8 +66,8 @@ function Base.show(io::IO,inference::NumericalVI{T}) where T
     print(io,"$(inference.Stochastic ? "Stochastic numerical" : "Numerical") inference by $(isa(inference,MCIntegrationVI) ? "Monte Carlo Integration" : "Quadrature")")
 end
 
-∇E_μ(::Likelihood,i::NVIOptimizer,::AbstractVector) = -i.ν
-∇E_Σ(::Likelihood,i::NVIOptimizer,::AbstractVector) = 0.5.*i.λ
+∇E_μ(::Likelihood,i::Union{<:NVIOptimizer,<:NumericalVI},::AbstractVector) = -i.ν
+∇E_Σ(::Likelihood,i::Union{<:NVIOptimizer,<:NumericalVI},::AbstractVector) = 0.5.*i.λ
 
 function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     compute_grad_expectations!(model)
@@ -87,10 +87,10 @@ end
 
 function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     # model.η₁ .= model.η₁ .+ update.(model.inference.optimizer_η₁,model.inference.∇η₁)
-    for (gp,vi_opt) in zip(model.f,model.inference.vi_opt)
+    for (gp,opt) in zip(model.f,model.inference.vi_opt)
         Δ = update(opt.optimizer,vcat(opt.∇η₁,vec(opt.∇η₂)))
         Δ₁ = Δ[1:model.nFeatures]
-        Δ₂ = Δ[model.nFeatures+1:end]
+        Δ₂ = reshape(Δ[model.nFeatures+1:end],model.nFeatures,model.nFeatures)
         # global C = Matrix(cholesky(-gp.η₂).L)
         # global Lk = eliminate_matrix(gp.dim)
         # global Kk = commute_transpose(gp.dim)

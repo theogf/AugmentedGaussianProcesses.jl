@@ -28,7 +28,7 @@ Argument list :
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T,N},TGP<:Abstract_GP{T},N} <: AbstractGP{T,TLikelihood,TInference,TGP,N}
+mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},TGP<:Abstract_GP{T},N} <: AbstractGP{T,TLikelihood,TInference,TGP,N}
     X::Matrix{T} #Feature vectors
     y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSamples::Int64 # Number of data points
@@ -52,7 +52,7 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
 
             X, y, nLatent, likelihood = check_data!(X, y, likelihood)
             @assert check_implementation(:VGP, likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
-            nFeatures = nSample = size(X,1); nDim = size(X,2);
+            nFeatures = nSamples = size(X,1); nDim = size(X,2);
 
             if isa(optimizer,Bool)
                 optimizer = optimizer ? Adam(α=0.01) : nothing
@@ -62,8 +62,6 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
                 mean = ConstantMean(mean)
             elseif typeof(mean) <: AbstractVector{<:Real}
                 mean = EmpiricalMean(mean)
-            else
-                mean = mean
             end
 
             latentf = ntuple(_->_VGP{T1}(nFeatures,kernel,mean,variance,optimizer),nLatent)

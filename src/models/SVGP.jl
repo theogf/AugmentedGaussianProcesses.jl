@@ -31,15 +31,13 @@ Argument list :
 mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,TGP<:Abstract_GP{T},N} <: AbstractGP{T,TLikelihood,TInference,TGP,N}
     X::Matrix{T} #Feature vectors
     y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSample::Int64 # Number of data points
+    nSamples::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
-    IndependentPriors::Bool # Use of separate priors for each latent GP
-    nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
     f::NTuple{N,TGP}
     likelihood::TLikelihood
-    inference::NTuple{N,TInference}
+    inference::TInference
     verbose::Int64
     atfrequency::Int64
     Trained::Bool
@@ -49,22 +47,18 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
             likelihood::TLikelihood,inference::TInference, nInducingPoints::Int;
             verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
-            IndependentPriors::Bool=true,Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
+            Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
             ArrayType::UnionAll=Vector) where {T1<:Real,T2,TLikelihood<:Likelihood,TInference<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(:SVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
 
-            nPrior = IndependentPriors ? nLatent : 1
-            nSample = size(X,1); nDim = size(X,2);
+            nSamples = size(X,1); nDim = size(X,2);
             if isa(optimizer,Bool)
                 optimizer = optimizer ? Adam(α=0.01) : nothing
             end
-            # if !isnothing(optimizer)
-                # setoptimizer!(kernel,optimizer)
-            # end
 
-            @assert nInducingPoints > 0 && nInducingPoints < nSample "The number of inducing points is incorrect (negative or bigger than number of samples)"
+            @assert nInducingPoints > 0 && nInducingPoints < nSamples "The number of inducing points is incorrect (negative or bigger than number of samples)"
             Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10)
             if isa(Zoptimizer,Bool)
                 Zoptimizer = Zoptimizer ? Adam(α=0.01) : nothing
@@ -79,28 +73,27 @@ function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,Abs
                 mean = EmpiricalMean(mean)
             end
 
-            nSamplesUsed = nSample
+            nMinibatch = nSamples
             if inference.Stochastic
-                @assert inference.nSamplesUsed > 0 && inference.nSamplesUsed < nSample "The size of mini-batch is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
-                nSamplesUsed = inference.nSamplesUsed
+                @assert inference.nMinibatch > 0 && inference.nMinibatch < nSample "The size of mini-batch $(inference.nMinibatch) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
+                nMinibatch = inference.nMinibatch
             end
 
-            latentf = ntuple( _ -> _SVGP{T1}(nFeatures,nSamplesUsed,Z,kernel,mean,variance,optimizer),nLatent)
+            latentf = ntuple( _ -> _SVGP{T1}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimizer),nLatent)
 
-            likelihood = init_likelihood(likelihood,inference,nLatent,nSamplesUsed,nFeatures)
-            inference = init_inference(inference,nLatent,nFeatures,nSample,nSamplesUsed)
-            inference.x = view(X,1:nSample,:)
-            inference.y = view(y,:)
+            likelihood = init_likelihood(likelihood,inference,nLatent,nMinibatch,nFeatures)
+            inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
+            inference.xview = view(X,1:nMinibatch,:)
+            inference.yview = view(y,1:nMinibatch)
 
             model = SVGP{T1,TLikelihood,TInference,_SVGP{T1},nLatent}(X,y,
-                    nSample, nDim, nFeatures, nLatent,
-                    IndependentPriors,nPrior,
+                    nSamples, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
                     verbose,atfrequency,false)
-            if isa(inference.optimizer,ALRSVI)
-                init!(model.inference,model)
-            end
-            return model
+            # if isa(inference.optimizer,ALRSVI)
+                # init!(model.inference,model)
+            # end
+            # return model
 end
 
 function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}
@@ -109,5 +102,5 @@ end
 
 const SVGP1 = SVGP{<:Real,<:Likelihood,<:Inference,<:Abstract_GP,1}
 
-get_y(model::SVGP) = model.inference.y
+get_y(model::SVGP) = model.inference.yview
 get_X(model::SVGP1) = model.f[1].Z.Z

@@ -51,7 +51,7 @@ export fstar, ELBO
 export covariance, diag_covariance, prior_mean
 
 # Main classes
-abstract type Inference{T<:Real,N} end
+abstract type Inference{T<:Real} end
 abstract type Likelihood{T<:Real} end
 abstract type Abstract_GP{T<:Real} end
 

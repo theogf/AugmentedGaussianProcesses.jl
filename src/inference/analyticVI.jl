@@ -11,12 +11,7 @@ AnalyticVI(;ϵ::T=1e-5)
 
     - `ϵ::T` : convergence criteria
 """
-
-
-
-
-
-mutable struct AnalyticVI{T<:Real,N} <: Inference{T}
+mutable struct AnalyticVI{T,N} <: Inference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
     Stochastic::Bool #Use of mini-batches
@@ -29,11 +24,11 @@ mutable struct AnalyticVI{T<:Real,N} <: Inference{T}
     xview::SubArray{T,2,Matrix{T}}#,Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
     yview::SubArray
 
-    function AnalyticVI{T}(ϵ::T,optimizer::Optimizer,Stochastic::Bool) where T
-        return new{T,1}(ϵ,0,Stochastic,0,0,1.0,false,MBIndices,ρ,true,(AVIOptimizer(0,optimizer)))
+    function AnalyticVI{T}(ϵ::T,optimizer::Optimizer,Stochastic::Bool) where {T}
+        return new{T,1}(ϵ,0,Stochastic,0,0,1.0,true,(AVIOptimizer(0,optimizer),))
     end
-    function AnalyticVI{T}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer)
-        vi_opts = ntuple(_->AVIOptimizer{T}(nFeatures,optimizer))
+    function AnalyticVI{T}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer) where {T}
+        vi_opts = ntuple(_->AVIOptimizer{T}(nFeatures,optimizer),nLatent)
         new{T,nLatent}(ϵ,0,Stochastic,nSamples,nMinibatch,nSamples/nMinibatch,true,vi_opts,collect(1:nMinibatch))
     end
 end
@@ -67,7 +62,7 @@ end
 
 
 """Initialize the final version of the inference object"""
-function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nMinibatch::Integer) where {TInf <: AnalyticVI{T} where T
+function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nMinibatch::Integer) where {TInf <: AnalyticVI}
     return TInf(i.ϵ,i.Stochastic,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimizer)
 end
 
@@ -117,7 +112,7 @@ function global_update!(model::SVGP{T,L,<:AnalyticVI}) where {T,L}
             f.η₂ .= Symmetric(f.η₂ + reshape(Δ[(model.nFeatures+1):end],model.nFeatures,model.nFeatures))
         end
     else
-        for f,vi_opt in zip(model.f,model.inference.vi_opt)
+        for (f,vi_opt) in zip(model.f,model.inference.vi_opt)
             f.η₁ .+= vi_opt.∇η₁
             f.η₂ .= Symmetric(vi_opt.∇η₂ .+ f.η₂)
         end

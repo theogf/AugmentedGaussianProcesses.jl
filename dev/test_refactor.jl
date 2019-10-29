@@ -4,41 +4,41 @@ using KernelFunctions
 
 X,f = noisy_function(sinc,range(-3,3,length=100))
 y = sign.(f)
+#
+# function train_and_ELBO(vals)
+#     # m = SVGP(X,y,SqExponentialKernel(l),LogisticLikelihood(),AnalyticVI(),10,optimizer=false)
+#     AGP.expec_logpdf(QuadratureVI(),LogisticLikelihood(),vals.μ,vals.Σ,y)
+# end
+#
+# using Zygote
+#
+# struct gpstore
+#     μ
+#     Σ
+# end
+# v = gpstore(zeros(Float64,length(y)),diagm(ones(Float64,length(y))))
+# train_and_ELBO(v)
+# AGP.expec_logpdf(QuadratureVI(),LogisticLikelihood(),v.μ,v.Σ,y)
+# AGP.apply_quad(y[1],v.μ[1],v.Σ[1,1],QuadratureVI(),LogisticLikelihood())
+# Zygote.refresh()
+# Zygote.gradient(train_and_ELBO,v)
+#
+# nodes,weights = AGP.gausshermite(100)
+# y = rand(100)
+# using Distributions
+# function bar(gh,m,y)
+#     x = gh[1] .+ m
+#     dot(gh[2],exp.(y.*x))
+# end
+# function foo(v)
+#     Zygote.@showgrad w = bar.([(nodes,weights)],v,y)
+#     sum(w)
+# end
+# foo(rand(100))
+# Zygote.refresh()
+# Zygote.gradient(foo,rand(100))
 
-function train_and_ELBO(vals)
-    # m = SVGP(X,y,SqExponentialKernel(l),LogisticLikelihood(),AnalyticVI(),10,optimizer=false)
-    AGP.expec_logpdf(QuadratureVI(),LogisticLikelihood(),vals.μ,vals.Σ,y)
-end
-
-using Zygote
-
-struct gpstore
-    μ
-    Σ
-end
-v = gpstore(zeros(Float64,length(y)),diagm(ones(Float64,length(y))))
-train_and_ELBO(v)
-AGP.expec_logpdf(QuadratureVI(),LogisticLikelihood(),v.μ,v.Σ,y)
-AGP.apply_quad(y[1],v.μ[1],v.Σ[1,1],QuadratureVI(),LogisticLikelihood())
-Zygote.refresh()
-Zygote.gradient(train_and_ELBO,v)
-
-nodes,weights = AGP.gausshermite(100)
-y = rand(100)
-using Distributions
-function bar(gh,m,y)
-    x = gh[1] .+ m
-    dot(gh[2],exp.(y.*x))
-end
-function foo(v)
-    Zygote.@showgrad w = bar.([(nodes,weights)],v,y)
-    sum(w)
-end
-foo(rand(100))
-Zygote.refresh()
-Zygote.gradient(foo,rand(100))
-
-
+##
 using Plots
 function cb(model,iter)
     if iter%50 != 0
@@ -54,11 +54,11 @@ function cb(model,iter)
     plot!(X,proba_x)
     display(p)
 end
-M = VGP(X,y,SqExponentialKernel(),LogisticLikelihood(),QuadratureVI(),optimizer=true,verbose=3)
+M = VGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),optimizer=true,verbose=3)
 # cb(model,iter) = @info "L = $(ELBO(model)), k_l = $(get_params(model.f[1].kernel)), σ = $(model.f[1].σ_k)"
-train!(M,1000,callback=cb)
+# train!(M,1000,callback=cb)
 using GradDescent
-m = SVGP(X,y,SqExponentialKernel(),LogisticLikelihood(),QuadratureVI(),10,optimizer=false,verbose=3,Zoptimizer=nothing)
+m = SVGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),10,optimizer=false,verbose=3,Zoptimizer=nothing)
 # m.f[1].Z.opt = Adam(α=0.01)
 
 train!(m,1000,callback=cb)
