@@ -86,6 +86,7 @@ function update_parameters!(model::MOSVGP)
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
+    update_A!(model)
 end
 
 function update_parameters!(model::VStP)

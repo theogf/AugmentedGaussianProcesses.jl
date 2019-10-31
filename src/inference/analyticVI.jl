@@ -73,33 +73,30 @@ function variational_updates!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
     natural_gradient!.(
         ∇E_μ.(model.likelihood,model.inference.vi_opt,get_y(model)),
         ∇E_Σ.(model.likelihood,model.inference.vi_opt,get_y(model)),
-        model.inference,model.inference.vi_opt,
-        [get_y(model)],model.f)
+        model.inference,model.inference.vi_opt,model.f)
     global_update!(model)
 end
 
 function variational_updates!(model::MOSVGP{T,L,<:AnalyticVI}) where {T,L}
-    local_updates!.(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
+    local_updates!.(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model)) # Compute the local updates given the expectations of f
     natural_gradient!.(
-        ∇E_μ(model),
-        ∇E_Σ(model),
-        model.inference,model.inference.vi_opt,
-        model.f)
-    global_update!(model)
+        ∇E_μ(model), ∇E_Σ(model), model.inference,
+        model.inference.vi_opt, model.f) # Compute the natural gradients of u given the weighted sum of the gradient of f
+    global_update!(model) # Update η₁ and η₂
 end
 
 local_updates!(l::Likelihood,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = local_updates!(l,y,μ[1],Σ[1])
 
 ## Coordinate ascent updates on the natural parameters ##
-function natural_gradient!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,i::AnalyticVI,opt::AVIOptimizer,y::AbstractVector,gp::_VGP{T}) where {T,L}
+function natural_gradient!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,i::AnalyticVI,opt::AVIOptimizer,gp::_VGP{T}) where {T,L}
     gp.η₁ .= ∇E_μ .+ gp.K \ gp.μ₀
-    gp.η₂ .= -Symmetric(Diagonal(∇E_Σ).+0.5.*inv(gp.K))
+    gp.η₂ .= -Symmetric(Diagonal(∇E_Σ) .+ 0.5 .* inv(gp.K))
 end
 
 #Computation of the natural gradient for the natural parameters
 function natural_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,gp::_SVGP{T}) where {T<:Real,L}
-    opt.∇η₁ .= ∇η₁(∇E_μ,i.ρ,gp.κ,gp.K,gp.μ₀,gp.η₁)
-    opt.∇η₂ .= ∇η₂(∇E_Σ,i.ρ,gp.κ,gp.K,gp.η₂)
+    opt.∇η₁ .= ∇η₁(∇E_μ, i.ρ, gp.κ, gp.K, gp.μ₀, gp.η₁)
+    opt.∇η₂ .= ∇η₂(∇E_Σ, i.ρ, gp.κ, gp.K, gp.η₂)
 end
 
 function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},K::PDMat{T,Matrix{T}},μ₀::PriorMean,η₁::AbstractVector{T}) where {T <: Real}
@@ -107,7 +104,7 @@ function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},K::PDM
 end
 
 function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},K::PDMat{T,Matrix{T}},η₂::Symmetric{T,Matrix{T}}) where {T<:Real}
-    -(ρκdiagθκ(ρ,κ,θ)+0.5.*inv(K)) - η₂
+    -(ρκdiagθκ(ρ,κ,θ) + 0.5 .* inv(K)) - η₂
 end
 
 function global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L}

@@ -93,7 +93,7 @@ function MOSVGP(
 
             latent_f = ntuple( _ -> _SVGP{T1}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimizer),nLatent)
 
-            A = randn(nTask,nf_per_task[1],nLatent)
+            A = rand(nTask,nf_per_task[1],nLatent)
 
             likelihoods .= init_likelihood.(likelihoods,inference,nLatent,nMinibatch,nFeatures)
             inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
@@ -156,9 +156,26 @@ function ∇E_μ(model::MOSVGP{T}) where {T}
     ∇ = [zeros(T,model.inference.nMinibatch) for _ in 1:model.nLatent]
     ∇Es = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
     for i in 1:model.nLatent
-        ∇[i] = sum(vec(model.A[:,:,i]).*∇Es)
+        ∇[i] .= sum(vec(model.A[:,:,i]).*∇Es)
     end
     return ∇
 end
 
 get_X(model::MOSVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
+
+
+function update_A!(model::MOSVGP)
+    μ = mean_f.(model.f)
+    Σ = diag_cov_f.(model.f)
+    ∇Eμ = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
+    ∇EΣ = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
+    for i in 1:model.nTask
+        for j in 1:model.nf_per_task[i]
+            for q in 1:model.nLatent
+                x1 = dot(∇Eμ[sum(model.nf_per_task[1:(i-1)])+j],μ[q])
+                x2 = dot(∇EΣ[sum(model.nf_per_task[1:(i-1)])+j],abs2.(μ[q])+Σ[q])
+                model.A[i,j,q] = x1/(2*x2)
+            end
+        end
+    end
+end

@@ -70,13 +70,13 @@ function predict_f(model::MOSVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullc
     A = get_K(model).\([I].-get_Σ(model)./get_K(model))
     if fullcov
         k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
-        Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
-        Σf = [[sum(vec(model.A[i,j,:]).^2 .*Σf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
+        Σf = - k_star.*A.*transpose.(k_star)
+        Σf = [[sum(k_starstar.+vec(model.A[i,j,:]).^2 .*Σf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
         return μf,Σf
     else
         k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1).+[T(jitter)*ones(T,size(X_test,1))])
-        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
-        σ²f = [[sum(vec(model.A[i,j,:]).^2 .*σ²f) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
+        σ²f = - opt_diag.(k_star.*A,k_star)
+        σ²f = [[sum(k_starstar.+vec(model.A[i,j,:]).^2 .*σ²f) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
         return μf,σ²f
     end
 end
@@ -130,7 +130,7 @@ predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:Real}) = sign.(μ)
 predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:AbstractVector}) = sign.(first(μ))
 predict_y(l::MultiClassLikelihood,μs::AbstractVector{<:AbstractVector}) = [l.class_mapping[argmax([μ[i] for μ in μs])] for i in 1:length(μs[1])]
 predict_y(l::EventLikelihood,μ::AbstractVector{<:Real}) = expec_count(l,μ)
-predict_y(l::EventLikelihood,μ::AbstractVector{<:AbstractVector}) = expec_count(l,μ)
+predict_y(l::EventLikelihood,μ::AbstractVector{<:AbstractVector}) = expec_count(l,first(μ))
 
 ## Wrapper to return proba on vectors ##
 proba_y(model::AbstractGP,X_test::AbstractVector) = proba_y(model,reshape(X_test,:,1))
@@ -153,6 +153,8 @@ function proba_y(model::MOSVGP,X_test::AbstractMatrix)
     μ_f,Σ_f = predict_f(model,X_test,covf=true)
     μ_p, σ²_p = compute_proba.(model.likelihood,μ_f,Σ_f)
 end
+
+compute_proba(l::Likelihood,μ::AbstractVector{<:AbstractVector},σ²::AbstractVector{<:AbstractVector}) = compute_proba(l,first(μ),first(σ²))
 
 function proba_y(model::VGP{T,<:Union{<:RegressionLikelihood{T},<:ClassificationLikelihood{T}},<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
     N_test = size(X_test,1)
