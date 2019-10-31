@@ -15,3 +15,5 @@ Base.length(::Likelihood) = 1
 
 Base.iterate(l::Likelihood) = (l,nothing)
 Base.iterate(l::Likelihood, ::Any) = nothing
+
+Base.setindex!(veclike::NTuple{N,L},l::Likelihood,i::Int) where {N,L<:Likelihood} = veclike[i] = l

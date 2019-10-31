@@ -57,9 +57,9 @@ function compute_proba(l::BayesianSVM{T},μ::Vector{T},σ²::Vector{T}) where {T
     pred = zeros(T,N)
     sig_pred = zeros(T,N)
     for i in 1:N
-        nodes = pred_nodes.*sqrt(max(σ²[i],zero(T)).+μ[i]
-        pred[i] =  dot(pred_weights,svmlikelihood.(nodes))
-        sig_pred[i] = dot(pred_weights,svmlikelihood.(nodes).^2)-pred[i]^2
+        x = pred_nodes.*sqrt(max(σ²[i],zero(T))).+μ[i]
+        pred[i] =  dot(pred_weights,svmlikelihood.(x))
+        sig_pred[i] = dot(pred_weights,svmlikelihood.(x).^2)-pred[i]^2
     end
     return pred, sig_pred
 end

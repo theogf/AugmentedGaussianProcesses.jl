@@ -68,28 +68,18 @@ function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},inference::Inf
     end
 end
 
-## Local Updates Section ##
+get_y(model) = view.(model.likelihood.Y,[model.inferences.MBIndices])
 
-function local_updates!(model::VGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI,V}) where {T,V}
-    model.likelihood.c .= broadcast((Σ::V,μ::V)->sqrt.(Σ.+abs2.(μ)),diag.(model.Σ),model.μ)
+## Local Updates##
+function local_updates!(l::LogisticSoftMaxLikelihood,y,μ::NTuple{N,<:AbstractVector},Σ::NTuple{N,<:AbstractVector}) where {T,V,N}
+    l.c .= broadcast((Σ,μ)->sqrt.(Σ+abs2.(μ)),Σ,μ)
     for _ in 1:2
-        model.likelihood.γ .= broadcast((c::V,μ::V,ψα::V)->0.5/(model.likelihood.β[1])*exp.(ψα).*safe_expcosh.(-0.5*μ,0.5*c),
-                                    model.likelihood.c,model.μ,[digamma.(model.likelihood.α)])
-        model.likelihood.α .= 1.0.+(model.likelihood.γ...)
+        l.γ .= broadcast(
+            (β,c,μ,ψα)->0.5 / β * exp.(ψα) .* safe_expcosh.(-0.5*μ, 0.5*c),                                    l.β,l.c,μ,[digamma.(l.α)])
+        l.α .= 1.0.+(l.γ...)
     end
-    model.likelihood.θ .= broadcast((y::BitVector,γ::V,c::V)->0.5*(y.+γ)./c.*tanh.(0.5*c),model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
-end
-
-function local_updates!(model::SVGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI,V}) where {T,V}
-    model.likelihood.c .= broadcast((μ::V,Σ::Symmetric{T,Matrix{T}},κ::Matrix{T},K̃::V)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
-                                    model.μ,model.Σ,model.κ,model.K̃)
-    for _ in 1:5
-        model.likelihood.γ .= broadcast((c::V,κμ::V,ψα::V)->(0.5/(model.likelihood.β[1]))*exp.(ψα).*safe_expcosh.(-0.5*κμ,0.5*c),
-                                    model.likelihood.c,model.κ.*model.μ,[digamma.(model.likelihood.α)])
-        model.likelihood.α .= 1.0.+(model.likelihood.γ...)
-    end
-    model.likelihood.θ .= broadcast((y::BitVector,γ::V,c::V)->0.5*(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5.*c),
-                                    model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
+    l.θ .= broadcast((y,γ::V,c::V)->0.5*(y+γ)./c.*tanh.(0.5.*c),
+                                    y,l.γ,l.c)
     return nothing
 end
 
@@ -103,12 +93,8 @@ end
 
 ## Global Gradient Section ##
 
-@inline ∇E_μ(model::VGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI}) where {T} = 0.5.*(model.likelihood.Y.-model.likelihood.γ)
-@inline ∇E_μ(model::VGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5.*(model.likelihood.Y.-model.likelihood.γ)
-@inline ∇E_μ(model::SVGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI}) where {T} = 0.5.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
-@inline ∇E_μ(model::SVGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5.*(model.likelihood.Y[i][model.inference.MBIndices]-model.likelihood.γ[i])
-@inline ∇E_Σ(model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI}) where {T} = 0.5.*model.likelihood.θ
-@inline ∇E_Σ(model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5.*model.likelihood.θ[i]
+@inline ∇E_μ(l::LogisticSoftMaxLikelihood,::AVIOptimizer,y) where {T} = 0.5.*(y.-l.γ)
+@inline ∇E_Σ(l::LogisticSoftMaxLikelihood,::AVIOptimizer,y) where {T} = 0.5.*l.θ
 
 ## ELBO Section ##
 

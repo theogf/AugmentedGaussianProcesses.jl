@@ -104,3 +104,4 @@ const SVGP1 = SVGP{<:Real,<:Likelihood,<:Inference,<:Abstract_GP,1}
 
 get_y(model::SVGP) = model.inference.yview
 get_X(model::SVGP1) = model.f[1].Z.Z
+get_X(model::SVGP) = getproperty.(getproperty.(model.f,:Z),:Z)

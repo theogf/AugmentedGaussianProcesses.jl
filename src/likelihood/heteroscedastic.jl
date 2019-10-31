@@ -25,7 +25,6 @@ end
 
 function HeteroscedasticLikelihood(λ::T=1.0) where {T<:Real}
         HeteroscedasticLikelihood{T}(λ)
-    end
 end
 
 function pdf(l::HeteroscedasticLikelihood,y::Real,f::Real,g::Real)
@@ -131,6 +130,6 @@ function PoissonKL(l::HeteroscedasticLikelihood{T},y::AbstractVector,μ::Abstrac
     return PoissonKL(l.γ,0.5*l.λ*(abs2.(y-μ)+Σ),log.(0.5*l.λ*(abs2.(μ-y)+Σ)))
 end
 
-function PolyaGammaKL(l::HeteroscedasticLikelihood}) where {T}
+function PolyaGammaKL(l::HeteroscedasticLikelihood{T}) where {T}
     PolyaGammaKL(0.5.+l.γ,l.c,l.θ)
 end

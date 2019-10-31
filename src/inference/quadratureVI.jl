@@ -92,8 +92,8 @@ function expec_logpdf(i::QuadratureVI,l::Likelihood,μ::AbstractVector,Σ::Abstr
     sum(apply_quad.(y,μ,diag(Σ),i,l))
 end
 
-function apply_quad(y::Real,μ::Real,σ²::T,i::QuadratureVI,l::Likelihood) where {T}
-    x = i.nodes*sqrt(max(σ²,zero(T)) .+ μ
+function apply_quad(y::Real,μ::Real,σ²::Real,i::QuadratureVI,l::Likelihood) where {T}
+    x = i.nodes*sqrt(max(σ², zero(σ²))) .+ μ
     return dot(i.weights,x)
     # return dot(i.weights,logpdf.(l,y,x))
 end

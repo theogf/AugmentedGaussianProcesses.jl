@@ -66,44 +66,40 @@ function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::I
     return TInf(i.ϵ,i.Stochastic,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimizer)
 end
 
+
 ## Generic method for variational updates using analytical formulas ##
 function variational_updates!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
     local_updates!(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
-    natural_gradient!.(model.likelihood,model.inference,model.inference.vi_opt,[get_y(model)],model.f)
+    natural_gradient!.(
+        ∇E_μ.(model.likelihood,model.inference.vi_opt,get_y(model)),
+        ∇E_Σ.(model.likelihood,model.inference.vi_opt,get_y(model)),
+        model.inference,model.inference.vi_opt,
+        [get_y(model)],model.f)
     global_update!(model)
 end
 
 function variational_updates!(model::MOSVGP{T,L,<:AnalyticVI}) where {T,L}
     local_updates!.(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
     natural_gradient!.(
-        ∇E_μ.(model.likelihood,[AVIOptimizer(0)],get_y(model)),
-        ∇E_Σ.(model.likelihood,[AVIOptimizer(0)],get_y(model)),
+        ∇E_μ(model),
+        ∇E_Σ(model),
         model.inference,model.inference.vi_opt,
-        [get_y(model)],vec.(eachslice(model.A,3)),model.latent_f)
+        model.f)
     global_update!(model)
 end
 
+local_updates!(l::Likelihood,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = local_updates!(l,y,μ[1],Σ[1])
+
 ## Coordinate ascent updates on the natural parameters ##
-function natural_gradient!(l::Likelihood,i::AnalyticVI,opt::AVIOptimizer,y::AbstractVector,gp::_VGP{T}) where {T,L}
-    gp.η₁ .= ∇E_μ(l,opt,y) .+ gp.K \ gp.μ₀
-    gp.η₂ .= -Symmetric(Diagonal{T}(∇E_Σ(l,opt,y)).+0.5.*inv(gp.K))
+function natural_gradient!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,i::AnalyticVI,opt::AVIOptimizer,y::AbstractVector,gp::_VGP{T}) where {T,L}
+    gp.η₁ .= ∇E_μ .+ gp.K \ gp.μ₀
+    gp.η₂ .= -Symmetric(Diagonal(∇E_Σ).+0.5.*inv(gp.K))
 end
 
 #Computation of the natural gradient for the natural parameters
-function natural_gradient!(l::Likelihood,i::AnalyticVI,opt::AVIOptimizer,y::AbstractVector,gp::_SVGP{T}) where {T,L}
-    opt.∇η₁ .= ∇η₁(∇E_μ(l,opt,y),i.ρ,gp.κ,gp.K,gp.μ₀,gp.η₁)
-    opt.∇η₂ .= ∇η₂(∇E_Σ(l,opt,y),i.ρ,gp.κ,gp.K,gp.η₂)
-end
-
-function natural_gradient!(
-    ∇E_μ::AbstractVector{<:AbstractVector},
-    ∇E_Σ::AbstractVector{<:AbstractVector},
-    i::Inference,
-    opt::AVIOptimizer,
-    A::AbstractVector,
-    gp::_SVPG)
-    opt.∇η₁ .= ∇η₁(sum(A.*∇E_μ),i.ρ,gp.κ,gp.K,gp.μ₀,gp.η₁)
-    opt.∇η₂ .= ∇η₂(sum(A.^2.*∇E_Σ),i.ρ,gp.κ,gp.K,gp.η₂)
+function natural_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,gp::_SVGP{T}) where {T<:Real,L}
+    opt.∇η₁ .= ∇η₁(∇E_μ,i.ρ,gp.κ,gp.K,gp.μ₀,gp.η₁)
+    opt.∇η₂ .= ∇η₂(∇E_Σ,i.ρ,gp.κ,gp.K,gp.η₂)
 end
 
 function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},K::PDMat{T,Matrix{T}},μ₀::PriorMean,η₁::AbstractVector{T}) where {T <: Real}
@@ -119,7 +115,7 @@ function global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L}
 end
 
 #Update of the natural parameters and conversion from natural to standard distribution parameters
-function global_update!(model::SVGP{T,L,<:AnalyticVI}) where {T,L}
+function global_update!(model::Union{SVGP{T,L,TInf},MOSVGP{T,L,TInf}}) where {T,L,TInf<:AnalyticVI}
     global_update!.(model.f,model.inference.vi_opt,model.inference)
 end
 

@@ -78,27 +78,37 @@ function update_parameters!(model::SVGP)
     variational_updates!(model);
 end
 
+function update_parameters!(model::MOSVGP)
+    if model.inference.Stochastic
+        model.inference.MBIndices .= StatsBase.sample(1:model.inference.nSamples,model.inference.nMinibatch,replace=false)
+        model.inference.xview = view(model.y,model.inference.MBIndices)
+        inference.yview = view.(model.y,[model.inference.MBIndices])
+    end
+    computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    variational_updates!(model);
+end
+
 function update_parameters!(model::VStP)
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     local_prior_updates!(model);
     variational_updates!(model);
 end
 
-function computeMatrices!(model::GP{T,<:Likelihood,<:Inference}) where {T}
+function computeMatrices!(model::GP{T}) where {T}
     if model.inference.HyperParametersUpdated
         model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) )
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn.+ model.likelihood.ϵ.*[I])))
     end
 end
 
-function computeMatrices!(model::VGP{T,<:Likelihood,<:Inference}) where {T}
+function computeMatrices!(model::VGP{T}) where {T}
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,[model.inference.xview],T(jitter))
     end
     model.inference.HyperParametersUpdated=false
 end
 
-function computeMatrices!(model::SVGP{T,<:Likelihood,<:Inference}) where {T}
+function computeMatrices!(model::Union{SVGP{T},MOSVGP{T}}) where {T}
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,T(jitter))
     end

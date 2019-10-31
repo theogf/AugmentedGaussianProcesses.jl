@@ -42,6 +42,44 @@ function predict_f(model::AbstractGP1,X_test::AbstractMatrix{T};covf::Bool=true,
     end
 end
 
+function predict_f(model::AbstractGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
+    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_X(model),obsdim=1)
+    μf = k_star.*(get_K(model).\get_μ(model))
+    if !covf
+        return μf
+    end
+    A = get_K(model).\([I].-get_Σ(model)./get_K(model))
+    if fullcov
+        k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
+        σ²f = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
+        return μf,σ²f
+    else
+        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter))
+        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
+        return μf,σ²f
+    end
+end
+
+function predict_f(model::MOSVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
+    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_X(model),obsdim=1)
+    μf = k_star.*(get_K(model).\get_μ(model))
+    μf = [[sum(vec(model.A[i,j,:]).*μf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
+    if !covf
+        return μf
+    end
+    A = get_K(model).\([I].-get_Σ(model)./get_K(model))
+    if fullcov
+        k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
+        Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
+        Σf = [[sum(vec(model.A[i,j,:]).^2 .*Σf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
+        return μf,Σf
+    else
+        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1).+[T(jitter)*ones(T,size(X_test,1))])
+        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
+        σ²f = [[sum(vec(model.A[i,j,:]).^2 .*σ²f) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
+        return μf,σ²f
+    end
+end
 # function predict_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
 #     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
 #     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
@@ -69,50 +107,33 @@ function predict_y(model::AbstractGP,X_test::AbstractVector)
     return predict_y(model,reshape(X_test,:,1))
 end
 
-"""
-`predict_y(model::AbstractGP{T,<:RegressionLikelihood},X_test::AbstractMatrix)`
 
-Return the predictive mean of `X_test`
+
+"""
+`predict_y(model::AbstractGP,X_test::AbstractMatrix)`
+
+Return
+    - the predictive mean of `X_test` for regression
+    - the sign of `X_test` for classification
+    - the most likely class for multi-class classification
+    - the expected number of events for an event likelihood
 """
 function predict_y(model::AbstractGP{T,<:RegressionLikelihood},X_test::AbstractMatrix) where {T}
-    return predict_f(model,X_test,covf=false)
+    return predict_y(model.likelihood,predict_f(model,X_test,covf=false))
 end
 
-"""
-`predict_y(model::AbstractGP{T,<:ClassificationLikelihood},X_test::AbstractMatrix)`
+predict_y(model::MOSVGP,X_test::AbstractMatrix) = predict_y.(model.likelihood,predict_f(model,X_test,covf=false))
 
-Return the predicted most probable sign of `X_test`
-"""
-function predict_y(model::AbstractGP{T,<:ClassificationLikelihood},X_test::AbstractMatrix) where {T}
-    return sign.(predict_f(model,X_test,covf=false))
-end
+predict_y(l::RegressionLikelihood,μ::AbstractVector{<:Real}) = μ
+predict_y(l::RegressionLikelihood,μ::AbstractVector{<:AbstractVector})= first(μ)
+predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:Real}) = sign.(μ)
+predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:AbstractVector}) = sign.(first(μ))
+predict_y(l::MultiClassLikelihood,μs::AbstractVector{<:AbstractVector}) = [l.class_mapping[argmax([μ[i] for μ in μs])] for i in 1:length(μs[1])]
+predict_y(l::EventLikelihood,μ::AbstractVector{<:Real}) = expec_count(l,μ)
+predict_y(l::EventLikelihood,μ::AbstractVector{<:AbstractVector}) = expec_count(l,μ)
 
-"""
-`predict_y(model::AbstractGP{T,<:MultiClassLikelihood},X_test::AbstractMatrix)`
-
-Return the predicted most probable class of `X_test`
-"""
-function predict_y(model::AbstractGP{T,<:MultiClassLikelihood},X_test::AbstractMatrix) where {T}
-    n = size(X_test,1)
-    μ_f = predict_f(model,X_test,covf=false)
-    return [model.likelihood.class_mapping[argmax([μ[i] for μ in μ_f])] for i in 1:n]
-end
-
-"""
-`predict_y(model::AbstractGP{T,<:EventLikelihood},X_test::AbstractMatrix)`
-
-Return the expected number of events for the locations `X_test`
-"""
-function predict_y(model::AbstractGP{T,<:EventLikelihood},X_test::AbstractMatrix) where {T}
-    n = size(X_test,1)
-    μ_f = predict_f(model,X_test,covf=false)
-    expec_count(model.likelihood,μ_f)
-end
-
-## Wrapper to return proba on vectors
-function proba_y(model::AbstractGP,X_test::AbstractVector{T}) where {T<:Real}
-    return proba_y(model,reshape(X_test,:,1))
-end
+## Wrapper to return proba on vectors ##
+proba_y(model::AbstractGP,X_test::AbstractVector) = proba_y(model,reshape(X_test,:,1))
 
 """
 `proba_y(model::AbstractGP,X_test::AbstractMatrix)`
@@ -126,6 +147,11 @@ Return the probability distribution p(y_test|model,X_test) :
 function proba_y(model::AbstractGP,X_test::AbstractMatrix)
     μ_f,Σ_f = predict_f(model,X_test,covf=true)
     μ_p, σ²_p = compute_proba(model.likelihood,μ_f,Σ_f)
+end
+
+function proba_y(model::MOSVGP,X_test::AbstractMatrix)
+    μ_f,Σ_f = predict_f(model,X_test,covf=true)
+    μ_p, σ²_p = compute_proba.(model.likelihood,μ_f,Σ_f)
 end
 
 function proba_y(model::VGP{T,<:Union{<:RegressionLikelihood{T},<:ClassificationLikelihood{T}},<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
@@ -187,12 +213,9 @@ end
 #     end
 # end
 
-function compute_proba(l::Likelihood{T},μ::AbstractVector{<:AbstractVector{T}},σ²::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
-    compute_proba.(l,μ,σ²)
-end
-
-### TODO Think about a better solution (general multi-likelihood problem)
-
+# function compute_proba(l::Likelihood{T},μ::AbstractVector{<:AbstractVector{T}},σ²::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
+#     compute_proba.(l,μ,σ²)
+# end
 
 function compute_proba(l::Likelihood{T},μ::AbstractVector{T},σ²::AbstractVector{}) where {T<:Real}
     @error "Non implemented for the likelihood $l"

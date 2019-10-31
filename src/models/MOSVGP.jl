@@ -37,8 +37,8 @@ mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,T
     nLatent::Int64 # Number of latent GPs
     nTask::Int64
     nf_per_task::Vector{Int64}
-    latent_f::NTuple{Q,TGP}
-    likelihood::NTuple{N,TLikelihood}
+    f::NTuple{Q,TGP}
+    likelihood::Vector{TLikelihood}
     inference::TInference
     A::Array{T,3}
     verbose::Int64
@@ -57,10 +57,10 @@ function MOSVGP(
             ArrayType::UnionAll=Vector) where {T1<:Real,T2,TLikelihood<:Likelihood,TInference<:Inference}
 
             @assert length(y) > 0 "y should not be an empty vector"
-            n_task = length(y)
-            likelihoods = ntuple(_->copy(likelihood),n_task)
-            nf_per_task = zeros(n_task)
-            for i in 1:n_task
+            nTask = length(y)
+            likelihoods = [deepcopy(likelihood) for _ in 1:nTask]
+            nf_per_task = zeros(Int64,nTask)
+            for i in 1:nTask
                 X,y[i],nf_per_task[i],likelihoods[i] = check_data!(X,y[i],likelihoods[i])
             end
             @assert check_implementation(:SVGP,likelihoods[1],inference) "The $likelihood is not compatible or implemented with the $inference"
@@ -100,8 +100,9 @@ function MOSVGP(
             inference.xview = view(X,1:nMinibatch,:)
             inference.yview = view(y,:)
 
-            model = MOSVGP{T1,TLikelihood,TInference,_MOSVGP{T1},n_task,nLatent}(X,y,
-                    nSamples, nDim, nFeatures, nLatent, nf_per_task,
+            model = MOSVGP{T1,TLikelihood,typeof(inference),_SVGP{T1},nTask,nLatent}(X,y,
+                    nSamples, nDim, nFeatures, nLatent,
+                    nTask, nf_per_task,
                     latent_f,likelihoods,inference,A,
                     verbose,atfrequency,false)
             # if isa(inference.optimizer,ALRSVI)
@@ -114,30 +115,50 @@ function Base.show(io::IO,model::MOSVGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Multioutput Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
 
-const MOSVGP1 = MOSVGP{<:Real,<:Likelihood,<:Inference,<:Abstract_GP,1}
-
 function mean_f(model::MOSVGP{T}) where {T}
-    μ = mean_f.(model.latent_f)
-    f = Vector{NTuple}(undef,model.nTask)
+    μ = mean_f.(model.f)
+    f = []
     for i in 1:model.nTask
-        f[i] = ntuple(_->zeros(T,model.inference.nMinibatch),model.nf_per_task[i])
+        x = ntuple(_->zeros(T,model.inference.nMinibatch),model.nf_per_task[i])
         for j in 1:model.nf_per_task[i]
-            f[i][j] = sum(model.A[i,j,:].*μ)
+            x[j] .= sum(model.A[i,j,:].*μ)
         end
+        push!(f,x)
     end
     return f
 end
 
-function diag_cov_f(model::MOSVGP)
-    Σ = diag_cov_f.(model.latent_f)
-    cov_f = Vector{NTuple}(undef,model.nTask)
+function diag_cov_f(model::MOSVGP{T}) where {T}
+    Σ = diag_cov_f.(model.f)
+    cov_f = []
     for i in 1:model.nTask
-        cov_f[i] = ntuple(_->zeros(T,model.inference.nMinibatch),model.nf_per_task[i])
+        x = ntuple(_->zeros(T,model.inference.nMinibatch),model.nf_per_task[i])
         for j in 1:model.nf_per_task[i]
-            cov_f[i][j] = sum(model.A[i,j,:].^2 .*Σ)
+            x[j] .= sum(model.A[i,j,:].^2 .*Σ)
         end
+        push!(cov_f,x)
     end
     return cov_f
 end
 
 get_y(model::MOSVGP) = view.(model.y,[model.inference.MBIndices])
+
+function ∇E_Σ(model::MOSVGP{T}) where {T}
+    ∇ = [zeros(T,model.inference.nMinibatch) for _ in 1:model.nLatent]
+    ∇Es = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
+    for i in 1:model.nLatent
+        ∇[i] = sum(vec(model.A[:,:,i]).^2 .*∇Es)
+    end
+    return ∇
+end
+
+function ∇E_μ(model::MOSVGP{T}) where {T}
+    ∇ = [zeros(T,model.inference.nMinibatch) for _ in 1:model.nLatent]
+    ∇Es = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
+    for i in 1:model.nLatent
+        ∇[i] = sum(vec(model.A[:,:,i]).*∇Es)
+    end
+    return ∇
+end
+
+get_X(model::MOSVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
