@@ -57,13 +57,9 @@ function compute_proba(l::BayesianSVM{T},μ::Vector{T},σ²::Vector{T}) where {T
     pred = zeros(T,N)
     sig_pred = zeros(T,N)
     for i in 1:N
-        if σ²[i] <= 0.0
-            pred[i] = svmlikelihood(μ[i])
-        else
-            nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
-            pred[i] =  dot(pred_weights,svmlikelihood.(nodes))
-            sig_pred[i] = dot(pred_weights,svmlikelihood.(nodes).^2)-pred[i]^2
-        end
+        nodes = pred_nodes.*sqrt(max(σ²[i],zero(T)).+μ[i]
+        pred[i] =  dot(pred_weights,svmlikelihood.(nodes))
+        sig_pred[i] = dot(pred_weights,svmlikelihood.(nodes).^2)-pred[i]^2
     end
     return pred, sig_pred
 end
@@ -76,26 +72,17 @@ function local_updates!(l::BayesianSVM{T},y::AbstractVector,μ::AbstractVector,d
     l.θ .= one(T)./sqrt.(l.ω)
 end
 
-@inline ∇E_μ(model::AbstractGP{T,<:BayesianSVM, <:GibbsorVI}) where {T} = broadcast((y,θ)->y.*(θ.+one(T)),model.inference.y,model.likelihood.θ)
-@inline ∇E_μ(model::AbstractGP{T,<:BayesianSVM, <:GibbsorVI},i::Int) where {T} = model.inference.y[i].*(model.likelihood.θ[i].+one(T))
-
-@inline ∇E_Σ(model::AbstractGP{T,<:BayesianSVM,<:GibbsorVI}) where {T} = 0.5.*model.likelihood.θ
-@inline ∇E_Σ(model::AbstractGP{T,<:BayesianSVM,<:GibbsorVI},i::Int) where {T} = 0.5.*model.likelihood.θ[i]
+@inline ∇E_μ(l::BayesianSVM{T},::AVIOptimizer,y::AbstractVector) where {T} = y.*(l.θ.+one(T))
+@inline ∇E_Σ(l::BayesianSVM{T},::AVIOptimizer,y::AbstractVector) where {T} = 0.5.*l.θ
 
 function ELBO(model::AbstractGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
-    return expecLogLikelihood(model) - GaussianKL(model) - GIGEntropy(model)
+    (model.inference.ρ*expec_logpdf(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
+    - GaussianKL(model) - model.inference.ρ*GIGEntropy(model))
 end
 
-function expecLogLikelihood(model::VGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
-    tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((μ,y,θ,Σ)->(sum(μ.*y)-0.5*dot(θ,Σ+abs2.(one(T).-y.*μ))),
-                        model.μ,model.y,model.likelihood.θ,diag.(model.Σ)))
+function expec_logpdf(l::BayesianSVM{T},y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+    tot = -(0.5*length(y)*logtwo)
+    tot += dot(μ,y)
+    tot += -0.5*dot(θ,diag_cov)+dot(θ,abs2.(one(T).-y.*μ))
     return tot
-end
-
-function expecLogLikelihood(model::SVGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
-    tot = -model.nLatent*(0.5*model.nSample*logtwo)
-    tot += sum(broadcast((κμ,y,θ,κΣκ,K̃)->(sum(κμ.*y)-0.5*dot(θ,K̃+κΣκ+abs2.(one(T).-y.*κμ))),
-                        model.κ.*model.μ,model.inference.y,model.likelihood.θ,opt_diag.(model.κ.*model.Σ,model.κ),model.K̃))
-    return model.inference.ρ*tot
 end

@@ -2,11 +2,11 @@
 Class for sparse variational Gaussian Processes
 
 ```julia
-SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
     likelihood::LikelihoodType,inference::InferenceType, nInducingPoints::Int;
     verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-    IndependentPriors::Bool=true,Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
+    Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
     ArrayType::UnionAll=Vector)
 ```
 
@@ -43,7 +43,7 @@ mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,TGP
     Trained::Bool
 end
 
-function SVGP(X::AbstractArray{T1},y::AbstractArray{T2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
             likelihood::TLikelihood,inference::TInference, nInducingPoints::Int;
             verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,

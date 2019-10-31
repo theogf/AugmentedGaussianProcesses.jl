@@ -18,3 +18,9 @@ Base.iterate(l::Inference, ::Any) = nothing
 
 
 const GibbsorVI = Union{<:GibbsSampling,<:AnalyticVI}
+
+#Conversion from natural to standard distribution parameters
+function global_update!(gp::Abstract_GP) where {T,L}
+    gp.Σ .= -0.5*inv(gp.η₂)
+    gp.μ .= gp.Σ*gp.η₁
+end

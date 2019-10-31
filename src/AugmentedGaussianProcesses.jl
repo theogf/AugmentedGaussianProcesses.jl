@@ -65,6 +65,7 @@ include("models/GP.jl")
 include("models/VGP.jl")
 include("models/SVGP.jl")
 include("models/VStP.jl")
+include("models/MOSVGP.jl")
 
 include("inference/inference.jl")
 include("likelihood/likelihood.jl")

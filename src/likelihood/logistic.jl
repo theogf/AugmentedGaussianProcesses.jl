@@ -54,13 +54,9 @@ function compute_proba(l::LogisticLikelihood{T},μ::AbstractVector{T},σ²::Abst
     pred = zeros(T,N)
     σ²_pred = zeros(T,N)
     for i in 1:N
-        if σ²[i] <= 0.0
-            pred[i] = logistic(μ[i])
-        else
-            nodes = pred_nodes.*sqrt2.*sqrt.(σ²[i]).+μ[i]
-            pred[i] = dot(pred_weights,logistic.(nodes))
-            σ²_pred[i] = dot(pred_weights,logistic.(nodes).^2)-pred[i]^2
-        end
+        x = pred_nodes.*sqrt(max(σ²[i],zero(T))).+μ[i]
+        pred[i] = dot(pred_weights,logistic.(x))
+        σ²_pred[i] = dot(pred_weights,logistic.(x).^2)-pred[i]^2
     end
     return pred, σ²_pred
 end

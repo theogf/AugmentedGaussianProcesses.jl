@@ -5,6 +5,24 @@ using KernelFunctions
 X,f = noisy_function(sinc,range(-3,3,length=100))
 y = sign.(f)
 #
+# using ForwardDiff
+# S = BigFloat.(m.f[1].Σ)
+# L = cholesky(S).L
+# A = rand(10,10)# |> x->x*x'
+ # L = tril(rand(5,5))
+# # S = L*L'
+# g1 = ForwardDiff.gradient(x->sum(A*x),S)
+# g2 = ForwardDiff.gradient(x->sum(A*x*x'),L)
+# g3 = zero(g2)
+# for i in 1:size(g2,1), j in 1:i
+#     g3[i,j] = sum(2*g1[i,k]*L[k,j] for k in 1:size(g2,1))
+# end
+# 2*g1*L
+#
+# g3
+#
+# g1
+#
 # function train_and_ELBO(vals)
 #     # m = SVGP(X,y,SqExponentialKernel(l),LogisticLikelihood(),AnalyticVI(),10,optimizer=false)
 #     AGP.expec_logpdf(QuadratureVI(),LogisticLikelihood(),vals.μ,vals.Σ,y)
@@ -41,7 +59,7 @@ y = sign.(f)
 ##
 using Plots
 function cb(model,iter)
-    if iter%50 != 0
+    if iter%10 != 0
         return
     end
     pred_f = predict_f(model,X,covf=false)
@@ -54,29 +72,30 @@ function cb(model,iter)
     plot!(X,proba_x)
     display(p)
 end
-M = VGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),optimizer=true,verbose=3)
-# cb(model,iter) = @info "L = $(ELBO(model)), k_l = $(get_params(model.f[1].kernel)), σ = $(model.f[1].σ_k)"
-train!(M,1000,callback=cb)
 using GradDescent
-m = SVGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),10,optimizer=true,verbose=3,Zoptimizer=nothing)
+M = VGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),optimizer=true,verbose=3,variance=100.0)
+# cb(model,iter) = @info "L = $(ELBO(model)), k_l = $(get_params(model.f[1].kernel)), σ = $(model.f[1].σ_k)"
+train!(M,100,callback=nothing)
+m = SVGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),10,optimizer=false,verbose=3,Zoptimizer=true,variance=100.0)
 # m.f[1].Z.opt = Adam(α=0.01)
-
-train!(m,1000,callback=cb)
+show_eta(model,iter) =display(heatmap(Matrix(model.f[1].η₂),yflip=true))
+train!(m,100,callback=nothing)
 ELBO(m)
 
 ##
 pred_F,sig_F = predict_f(M,X,covf=true)
-pred_f = predict_f(m,X,covf=false)
+pred_f,sig_f = predict_f(m,X,covf=true)
 pred_X = predict_y(M,X)
 pred_x = predict_y(m,X)
 proba_X,_ = proba_y(M,X)
 proba_x,_ = proba_y(m,X)
+maximum(proba_x)
 scatter(X,y)
 scatter!(X,pred_x)
 scatter!(X,pred_X)
 scatter!(AGP.get_X(m)[:],zeros(length(AGP.get_X(m))))
-plot!(X,pred_f)
-plot!(X,pred_F)
+# plot!(X,pred_f)
+# plot!(X,pred_F)
 plot!(X,proba_X)
 plot!(X,proba_x)
 ##

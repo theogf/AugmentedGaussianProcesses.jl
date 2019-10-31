@@ -12,7 +12,7 @@ mutable struct _VGP{T} <: Abstract_GP{T}
     opt_σ::Union{Optimizer,Nothing}
 end
 
-function _VGP{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real,opt_ρ::Optimizer=Adam(α=0.01),opt_σ=deepcopy(opt_ρ)) where {T<:Real}
+function _VGP{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real,opt_ρ::Union{Optimizer,Nothing}=Adam(α=0.01),opt_σ=deepcopy(opt_ρ)) where {T<:Real}
     _VGP{T}(dim,
             zeros(T,dim),
             Matrix{T}(I,dim,dim),

@@ -31,13 +31,13 @@ mutable struct QuadratureVI{T<:Real,N} <: NumericalVI{T}
     yview::SubArray
 
     function QuadratureVI{T}(ϵ::T,nPoints::Integer,optimizer::Optimizer,Stochastic::Bool,clipping::Real,nMinibatch::Int) where {T}
-        return new{T,1}(ϵ,0,nPoints,[],[],clipping,Stochastic,0,nMinibatch,1.0,true,(NVIOptimizer{T}(0,optimizer),))
+        return new{T,1}(ϵ,0,nPoints,[],[],clipping,Stochastic,0,nMinibatch,1.0,true,(NVIOptimizer{T}(0,0,optimizer),))
     end
 
     function QuadratureVI{T,1}(ϵ::T,Stochastic::Bool,nPoints::Int,clipping::Real,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer) where {T}
         gh = gausshermite(nPoints)
         vi_opts = ntuple(_->NVIOptimizer{T}(nFeatures,nMinibatch,optimizer),nLatent)
-        new{T,nLatent}(ϵ,0,nPoints,gh[1],gh[2].*(sqrt2/sqrtπ),clipping,Stochastic,nSamples,nMinibatch,nSamples/nMinibatch,true,vi_opts,collect(1:nMinibatch))
+        new{T,nLatent}(ϵ,0,nPoints,gh[1].*sqrt2,gh[2]./sqrtπ,clipping,Stochastic,nSamples,nMinibatch,nSamples/nMinibatch,true,vi_opts,collect(1:nMinibatch))
     end
 end
 
@@ -62,7 +62,7 @@ QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Momentum(η=0.001)`
 """
-function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=300,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
+function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=100,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
     QuadratureVI{T}(ϵ,nGaussHermite,optimizer,clipping,nMinibatch)
 end
 
@@ -74,7 +74,7 @@ function expec_logpdf(model::VGP{T,L,<:QuadratureVI}) where {T,L}
     tot = 0.0
     for gp in model.f
         for i in 1:model.nSamples
-            x = model.inference.nodes*sqrt(gp.Σ[i,i]) .+ gp.μ[i]
+            x = model.inference.nodes*sqrt(max(gp.Σ[i,i],0.0)) .+ gp.μ[i]
             tot += dot(model.inference.weights,logpdf.(model.likelihood,model.y[i],x))
         end
     end
@@ -92,8 +92,8 @@ function expec_logpdf(i::QuadratureVI,l::Likelihood,μ::AbstractVector,Σ::Abstr
     sum(apply_quad.(y,μ,diag(Σ),i,l))
 end
 
-function apply_quad(y::Real,μ::Real,σ²::Real,i::QuadratureVI,l::Likelihood)
-    x = i.nodes*sqrt(σ²) .+ μ
+function apply_quad(y::Real,μ::Real,σ²::T,i::QuadratureVI,l::Likelihood) where {T}
+    x = i.nodes*sqrt(max(σ²,zero(T)) .+ μ
     return dot(i.weights,x)
     # return dot(i.weights,logpdf.(l,y,x))
 end
@@ -105,8 +105,8 @@ function expec_logpdf(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
         μ = mean_f(gp)
         Σ = opt_diag(gp.κ*gp.Σ,gp.κ)
         for i in 1:model.inference.nMinibatch
-            nodes = model.inference.nodes*sqrt(Σ[i]) .+ μ[i]
-            tot += dot(model.inference.weights,logpdf.(model.likelihood,y[i],nodes))
+            x = model.inference.nodes*sqrt(max(Σ[i],zero(T))) .+ μ[i]
+            tot += dot(model.inference.weights,logpdf.(model.likelihood,y[i],x))
         end
     end
     return tot
