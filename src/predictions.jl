@@ -129,7 +129,7 @@ Return the probability distribution p(y_test|model,X_test) :
 """
 function proba_y(model::AbstractGP,X_test::AbstractMatrix)
     μ_f,Σ_f = _predict_f(model,X_test,covf=true)
-    μ_p, σ²_p = compute_proba(model.likelihood,μ_f,Σ_f)
+    pred = compute_proba(model.likelihood,μ_f,Σ_f)
 end
 
 function proba_y(model::AbstractGP{T,<:MultiClassLikelihood},X_test::AbstractMatrix) where {T}

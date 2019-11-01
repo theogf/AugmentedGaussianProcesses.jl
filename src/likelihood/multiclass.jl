@@ -11,7 +11,7 @@ function init_multiclass_likelihood(likelihood::L,y::AbstractVector) where {L<:M
     L(one_of_K_mapping(y)...)
 end
 
-get_y(l::MultiClassLikelihood,y::AbstractVector,i::AbstractVector) = view.(y,i)
+view_y(l::MultiClassLikelihood,y::AbstractVector,i::AbstractVector) = view(view.(y,[i]),:)
 
 
 """ Given the labels, return one hot encoding, and the mapping of each class """

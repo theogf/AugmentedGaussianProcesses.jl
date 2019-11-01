@@ -75,7 +75,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
 
             nMinibatch = nSamples
             if inference.Stochastic
-                @assert inference.nMinibatch > 0 && inference.nMinibatch < nSample "The size of mini-batch $(inference.nMinibatch) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
+                @assert inference.nMinibatch > 0 && inference.nMinibatch < nSamples "The size of mini-batch $(inference.nMinibatch) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
                 nMinibatch = inference.nMinibatch
             end
 
@@ -84,9 +84,9 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
             likelihood = init_likelihood(likelihood,inference,nLatent,nMinibatch,nFeatures)
             inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
             inference.xview = view(X,1:nMinibatch,:)
-            inference.yview = view(y,1:nMinibatch)
+            inference.yview = view_y(likelihood,y,1:nMinibatch)
 
-            model = SVGP{T1,TLikelihood,TInference,_SVGP{T1},nLatent}(X,y,
+            model = SVGP{T1,TLikelihood,typeof(inference),_SVGP{T1},nLatent}(X,y,
                     nSamples, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
                     verbose,atfrequency,false)
@@ -103,5 +103,4 @@ end
 const SVGP1 = SVGP{<:Real,<:Likelihood,<:Inference,<:Abstract_GP,1}
 
 get_y(model::SVGP) = model.inference.yview
-get_X(model::SVGP1) = model.f[1].Z.Z
 get_X(model::SVGP) = getproperty.(getproperty.(model.f,:Z),:Z)

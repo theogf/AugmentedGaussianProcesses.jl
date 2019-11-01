@@ -44,7 +44,7 @@ end
 function testconv(model::AbstractGP,problem_type::String,X::AbstractArray,y::AbstractArray)
     μ,Σ = predict_f(model,X,covf=true)
     y_pred = predict_y(model,X)
-    py_pred,sigy_pred = proba_y(model,X)
+    py_pred = proba_y(model,X)
     if problem_type == "Regression"
         err=mean(abs.(y_pred-y))
         @info "Regression Error" err

@@ -27,4 +27,4 @@ function global_update!(gp::Abstract_GP) where {T,L}
 end
 
 ## Default function for getting a view on y
-@inline get_y(l::Likelihood,y::AbstractVector,i::AbstractVector) = view(y,i)
+@inline view_y(l::Likelihood,y::AbstractVector,i::AbstractVector) = view(y,i)

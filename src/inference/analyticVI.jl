@@ -24,8 +24,8 @@ mutable struct AnalyticVI{T,N} <: Inference{T}
     xview::SubArray{T,2,Matrix{T}}#,Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
     yview::SubArray
 
-    function AnalyticVI{T}(ϵ::T,optimizer::Optimizer,Stochastic::Bool) where {T}
-        return new{T,1}(ϵ,0,Stochastic,0,0,1.0,true,(AVIOptimizer{T}(0,optimizer),))
+    function AnalyticVI{T}(ϵ::T,optimizer::Optimizer,nMinibatch::Int,Stochastic::Bool) where {T}
+        return new{T,1}(ϵ,0,Stochastic,0,nMinibatch,1.0,true,(AVIOptimizer{T}(0,optimizer),))
     end
     function AnalyticVI{T,1}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer) where {T}
         vi_opts = ntuple(_->AVIOptimizer{T}(nFeatures,optimizer),nLatent)
@@ -35,7 +35,7 @@ end
 
 
 function AnalyticVI(;ϵ::T=1e-5) where {T<:Real}
-    AnalyticVI{Float64}(ϵ,VanillaGradDescent(η=1.0),false)
+    AnalyticVI{Float64}(ϵ,VanillaGradDescent(η=1.0),0,false)
 end
 
 """
@@ -53,7 +53,7 @@ AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay())
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `InverseDecay()` (ρ=(τ+iter)^-κ)
 """
 function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay()) where {T<:Real}
-    AnalyticVI{T}(ϵ,optimizer,true)
+    AnalyticVI{T}(ϵ,optimizer,nMinibatch,true)
 end
 
 function Base.show(io::IO,inference::AnalyticVI{T}) where T
@@ -108,9 +108,10 @@ function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},K::P
     -(ρκdiagθκ(ρ, κ, θ) + 0.5 .* inv(K)) - η₂
 end
 
-function global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L}
-    global_update!.(model.f)
-end
+global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L} = global_update!.(model.f)
+
+global_update!(gp::_VGP,opt::AVIOptimizer,i::AnalyticVI) = global_update!(gp)
+
 
 #Update of the natural parameters and conversion from natural to standard distribution parameters
 function global_update!(model::Union{SVGP{T,L,TInf},MOSVGP{T,L,TInf}}) where {T,L,TInf<:AnalyticVI}

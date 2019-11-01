@@ -67,8 +67,8 @@ function local_updates!(l::HeteroscedasticLikelihood{T},y::AbstractVector,μ::NT
     l.c .=  sqrt.(abs2.(μ[2])+diag_cov[2])
     l.γ .= 0.5*l.λ*l.ϕ.*safe_expcosh.(-0.5*μ[2],0.5*l.c)
     l.θ .= 0.5*(0.5.+l.γ)./l.c.*tanh.(0.5*l.c)
-    l.σg .= expectation.(logistic[1],μ,diag_cov[2])
-    l.λ .= 0.5*length(l.ϕ)/dot(l.ϕ,l.σg)
+    l.σg .= expectation.(logistic,μ[2],diag_cov[2])
+    l.λ = 0.5*length(l.ϕ)/dot(l.ϕ,l.σg)
 end
 
 function local_autotuning!(model::VGP{T,<:HeteroscedasticLikelihood}) where {T}
@@ -87,16 +87,16 @@ end
 
 function variational_updates!(model::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI}) where {T,L}
     local_updates!(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
-    natural_gradient!(∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model))[2],∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model))[2],model.inference,model.inference.vi_opt[2],get_y(model),model.f[2])
+    natural_gradient!(∇E_μ(model.likelihood,model.inference.vi_opt[2],get_y(model))[2],∇E_Σ(model.likelihood,model.inference.vi_opt[2],get_y(model))[2],model.inference,model.inference.vi_opt[2],model.f[2])
     global_update!(model.f[2],model.inference.vi_opt[2],model.inference)
     heteroscedastic_expectations!(model.likelihood,mean_f(model.f[2]),diag_cov_f(model.f[2]))
-    natural_gradient!(∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model))[1],∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model))[1],model.inference,model.inference.vi_opt[1],get_y(model),model.f[1])
+    natural_gradient!(∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model))[1],∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model))[1],model.inference,model.inference.vi_opt[1],model.f[1])
     global_update!(model.f[1],model.inference.vi_opt[1],model.inference)
 end
 
-function heteroscedastic_expectations(l::HeteroscedasticLikelihood{T},μ::AbstractVector,Σ::AbstractVector) where {T}
+function heteroscedastic_expectations!(l::HeteroscedasticLikelihood{T},μ::AbstractVector,Σ::AbstractVector) where {T}
     l.σg .= expectation.(logistic,μ,Σ)
-    l.λ .= 0.5*length(l.ϕ)/dot(l.ϕ,l.σg)
+    l.λ = 0.5*length(l.ϕ)/dot(l.ϕ,l.σg)
 end
 
 function expectation(f::Function,μ::Real,σ²::Real)
@@ -113,9 +113,9 @@ function proba_y(model::AbstractGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}}
     return μf,σ²f + expectation.(x->inv(model.likelihood.λ*logistic(x)),μg,σ²g)
 end
 
-function expec_logpdf(l::HeteroscedasticLikelihood{T},y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+function expec_logpdf(l::HeteroscedasticLikelihood{T},i::AnalyticVI,y::AbstractVector,μ,diag_cov) where {T}
     tot = length(y)*(0.5*log(l.λ)-log(2*sqrt(twoπ)))
-    tot += 0.5*(dot(μ[2],(0.5 .- l.γ)) - dot(abs2.(μ[2]),θ)-dot(diag_cov[2],θ))
+    tot += 0.5*(dot(μ[2],(0.5 .- l.γ)) - dot(abs2.(μ[2]),l.θ)-dot(diag_cov[2],l.θ))
     tot -= PoissonKL(l,y,μ[1],diag_cov[1])
     return tot
 end
