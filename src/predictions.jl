@@ -70,13 +70,13 @@ function predict_f(model::MOSVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullc
     A = get_K(model).\([I].-get_Σ(model)./get_K(model))
     if fullcov
         k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
-        Σf = - k_star.*A.*transpose.(k_star)
-        Σf = [[sum(k_starstar.+vec(model.A[i,j,:]).^2 .*Σf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
+        Σf = k_starstar .-  k_star.*A.*transpose.(k_star)
+        Σf = [[sum(vec(model.A[i,j,:]).^2 .*Σf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
         return μf,Σf
     else
         k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1).+[T(jitter)*ones(T,size(X_test,1))])
-        σ²f = - opt_diag.(k_star.*A,k_star)
-        σ²f = [[sum(k_starstar.+vec(model.A[i,j,:]).^2 .*σ²f) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
+        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
+        σ²f = [[sum(vec(model.A[i,j,:]).^2 .*σ²f) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
         return μf,σ²f
     end
 end

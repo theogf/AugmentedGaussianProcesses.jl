@@ -76,7 +76,7 @@ using GradDescent
 M = VGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),optimizer=true,verbose=3,variance=100.0)
 # cb(model,iter) = @info "L = $(ELBO(model)), k_l = $(get_params(model.f[1].kernel)), σ = $(model.f[1].σ_k)"
 train!(M,100,callback=nothing)
-m = SVGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),10,optimizer=false,verbose=3,Zoptimizer=true,variance=100.0)
+m = SVGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),10,optimizer=true,verbose=3,Zoptimizer=true,variance=100.0)
 # m.f[1].Z.opt = Adam(α=0.01)
 show_eta(model,iter) =display(heatmap(Matrix(model.f[1].η₂),yflip=true))
 train!(m,100,callback=nothing)

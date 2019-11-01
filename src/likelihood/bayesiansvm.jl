@@ -1,18 +1,19 @@
 """
-**Bayesian SVM**
-
-The [Bayesian SVM](https://arxiv.org/abs/1707.05532) is a Bayesian interpretation of the classical SVM.
-``p(y|f) \\propto \\exp\\left(2\\max(1-yf,0)\\right)``
-
 ```julia
 BayesianSVM()
 ```
+
+The [Bayesian SVM](https://arxiv.org/abs/1707.05532) is a Bayesian interpretation of the classical SVM.
+```math
+p(y|f) ∝ exp(2 max(1-yf,0))
+````
+
 ---
 For the analytic version of the likelihood, it is augmented via:
 ```math
-p(y|f,\\omega) = \\frac{1}{\\sqrt{2\\pi\\omega}}\\exp\\left(-\\frac{1}{2}\\frac{(1+\\omega-yf)^2}{\\omega}\\right)
+p(y|f,ω) = 1/(sqrt(2πω) exp(-0.5((1+ω-yf)^2/ω))
 ```
-where ``\\omega\\sim 1_{[0,\\infty]}`` has an improper prior (his posterior is however has a valid distribution (Generalized Inverse Gaussian)). For reference [see this paper](http://ecmlpkdd2017.ijs.si/papers/paperID502.pdf)
+where ``ω ∼ 𝟙[0,∞)`` has an improper prior (his posterior is however has a valid distribution, a Generalized Inverse Gaussian). For reference [see this paper](http://ecmlpkdd2017.ijs.si/papers/paperID502.pdf)
 """
 struct BayesianSVM{T<:Real} <: ClassificationLikelihood{T}
     ω::AbstractVector{T}
@@ -72,8 +73,8 @@ function local_updates!(l::BayesianSVM{T},y::AbstractVector,μ::AbstractVector,d
     l.θ .= one(T)./sqrt.(l.ω)
 end
 
-@inline ∇E_μ(l::BayesianSVM{T},::AVIOptimizer,y::AbstractVector) where {T} = y.*(l.θ.+one(T))
-@inline ∇E_Σ(l::BayesianSVM{T},::AVIOptimizer,y::AbstractVector) where {T} = 0.5.*l.θ
+@inline ∇E_μ(l::BayesianSVM{T},::AVIOptimizer,y::AbstractVector) where {T} = (y.*(l.θ.+one(T)),)
+@inline ∇E_Σ(l::BayesianSVM{T},::AVIOptimizer,y::AbstractVector) where {T} = (0.5.*l.θ,)
 
 function ELBO(model::AbstractGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
     (model.inference.ρ*expec_logpdf(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
@@ -85,4 +86,10 @@ function expec_logpdf(l::BayesianSVM{T},y::AbstractVector,μ::AbstractVector,dia
     tot += dot(μ,y)
     tot += -0.5*dot(θ,diag_cov)+dot(θ,abs2.(one(T).-y.*μ))
     return tot
+end
+
+AugmentedKL(l::BayesianSVM,::AbstractVector) = GIGEntropy(l)
+
+function GIGEntropy(l::BayesianSVM)
+    return 0.5*sum(log.(l.ω))+sum(log.(2.0*besselk.(0.5,sqrt.(l.ω))))-0.5*sum(sqrt.(l.ω))
 end

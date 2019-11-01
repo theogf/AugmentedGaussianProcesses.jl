@@ -44,12 +44,10 @@ function PolyaGammaKL(b,c,θ)
     dot(b,logcosh.(0.5*c))-0.5*dot(abs2.(c),θ)
 end
 
-"""Compute Entropy for Generalized inverse Gaussian latent variables (BayesianSVM)"""
-function GIGEntropy(model::AbstractGP{T,<:BayesianSVM}) where {T}
-    return model.inference.ρ*sum(broadcast(b->0.5*sum(log.(b))+sum(log.(2.0*besselk.(0.5,sqrt.(b))))-0.5*sum(sqrt.(b)),model.likelihood.ω))
-end
 
-"""Entropy of GIG variables with parameters a,b and p and omitting the derivative d/dpK_p cf <https://en.wikipedia.org/wiki/Generalized_inverse_Gaussian_distribution#Entropy>"""
+"""
+    Entropy of GIG variables with parameters a,b and p and omitting the derivative d/dpK_p cf <https://en.wikipedia.org/wiki/Generalized_inverse_Gaussian_distribution#Entropy>
+"""
 function GIGEntropy(a,b,p)
     sqrtab = sqrt.(a.*b)
     return sum(0.5*log.(a./b))+sum(log.(2*besselk.(p,sqrtab)))+ sum(0.5*sqrtab./besselk.(p,sqrtab).*(besselk.(p+1,sqrtab)+besselk.(p-1,sqrtab)))

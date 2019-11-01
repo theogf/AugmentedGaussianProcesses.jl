@@ -93,7 +93,13 @@ function MOSVGP(
 
             latent_f = ntuple( _ -> _SVGP{T1}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimizer),nLatent)
 
-            A = rand(nTask,nf_per_task[1],nLatent)
+            dpos = Normal(0.5,0.5)
+            dneg = Normal(-0.5,0.5)
+            A = zeros(T1,nTask,nf_per_task[1],nLatent)
+            for i in eachindex(A)
+                p = rand(0:1)
+                A[i] =  rand(Normal(1.0,1.0))#p*rand(dpos) + (1-p)*rand(dneg)
+            end
 
             likelihoods .= init_likelihood.(likelihoods,inference,nLatent,nMinibatch,nFeatures)
             inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
@@ -121,7 +127,7 @@ function mean_f(model::MOSVGP{T}) where {T}
     for i in 1:model.nTask
         x = ntuple(_->zeros(T,model.inference.nMinibatch),model.nf_per_task[i])
         for j in 1:model.nf_per_task[i]
-            x[j] .= sum(model.A[i,j,:].*μ)
+            x[j] .= sum(vec(model.A[i,j,:]) .* μ)
         end
         push!(f,x)
     end
@@ -134,7 +140,7 @@ function diag_cov_f(model::MOSVGP{T}) where {T}
     for i in 1:model.nTask
         x = ntuple(_->zeros(T,model.inference.nMinibatch),model.nf_per_task[i])
         for j in 1:model.nf_per_task[i]
-            x[j] .= sum(model.A[i,j,:].^2 .*Σ)
+            x[j] .= sum(vec(model.A[i,j,:]).^2 .* Σ)
         end
         push!(cov_f,x)
     end
@@ -143,20 +149,30 @@ end
 
 get_y(model::MOSVGP) = view.(model.y,[model.inference.MBIndices])
 
-function ∇E_Σ(model::MOSVGP{T}) where {T}
+## return the linear sum of the expectation gradient given μ ##
+function ∇E_μ(model::MOSVGP{T}) where {T}
     ∇ = [zeros(T,model.inference.nMinibatch) for _ in 1:model.nLatent]
-    ∇Es = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
-    for i in 1:model.nLatent
-        ∇[i] = sum(vec(model.A[:,:,i]).^2 .*∇Es)
+    ∇Es = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
+    for t in 1:model.nTask
+        for j in 1:model.nf_per_task[t]
+            for q in 1:model.nLatent
+                ∇[q] .+= model.A[t,j,q] * ∇Es[t][j]
+            end
+        end
     end
     return ∇
 end
 
-function ∇E_μ(model::MOSVGP{T}) where {T}
+## return the linear sum of the expectation gradient given diag(Σ) ##
+function ∇E_Σ(model::MOSVGP{T}) where {T}
     ∇ = [zeros(T,model.inference.nMinibatch) for _ in 1:model.nLatent]
-    ∇Es = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
-    for i in 1:model.nLatent
-        ∇[i] .= sum(vec(model.A[:,:,i]).*∇Es)
+    ∇Es = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
+    for t in 1:model.nTask
+        for j in 1:model.nf_per_task[t]
+            for q in 1:model.nLatent
+                ∇[q] .+= model.A[t,j,q]^2 * ∇Es[t][j]
+            end
+        end
     end
     return ∇
 end
@@ -169,13 +185,21 @@ function update_A!(model::MOSVGP)
     Σ = diag_cov_f.(model.f)
     ∇Eμ = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
     ∇EΣ = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
-    for i in 1:model.nTask
-        for j in 1:model.nf_per_task[i]
+    for t in 1:model.nTask
+        for j in 1:model.nf_per_task[t]
             for q in 1:model.nLatent
-                x1 = dot(∇Eμ[sum(model.nf_per_task[1:(i-1)])+j],μ[q])
-                x2 = dot(∇EΣ[sum(model.nf_per_task[1:(i-1)])+j],abs2.(μ[q])+Σ[q])
-                model.A[i,j,q] = x1/(2*x2)
+                x1 = dot(∇Eμ[t][j],μ[q])
+                x2 = dot(∇EΣ[t][j],abs2.(μ[q])+Σ[q])
+                # model.A[t,j,q] = x1/(2*x2)
             end
+            # model.A[t,j,:]./=sum(model.A[t,j,:])
         end
     end
+end
+
+function ELBO(model::MOSVGP{T}) where {T}
+    tot = zero(T)
+    tot += sum(expec_logpdf.(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model)))
+    tot -= GaussianKL(model)
+    tot -= sum(AugmentedKL.(model.likelihood))
 end

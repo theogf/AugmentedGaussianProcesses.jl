@@ -81,7 +81,7 @@ function expec_logpdf(model::VGP{T,L,<:QuadratureVI}) where {T,L}
     return tot
 end
 
-function expec_logpdf(i::QuadratureVI,l::Likelihood,μ::AbstractVector,Σ::AbstractMatrix,y::AbstractVector)
+function expec_logpdf(l::Likelihood,i::QuadratureVI,μ::AbstractVector,Σ::AbstractMatrix,y::AbstractVector)
 
     # for j in 1:length(y)
         # nodes = i.nodes*sqrt(Σ[j,j]) .+ μ[j]

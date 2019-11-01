@@ -61,7 +61,7 @@ function Base.show(io::IO,inference::AnalyticVI{T}) where T
 end
 
 
-"""Initialize the final version of the inference object"""
+## Initialize the final version of the inference object ##
 function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nMinibatch::Integer) where {TInf <: AnalyticVI}
     return TInf(i.ϵ,i.Stochastic,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimizer)
 end
@@ -71,8 +71,8 @@ end
 function variational_updates!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
     local_updates!(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
     natural_gradient!.(
-        ∇E_μ.(model.likelihood,model.inference.vi_opt,get_y(model)),
-        ∇E_Σ.(model.likelihood,model.inference.vi_opt,get_y(model)),
+        ∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
+        ∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
         model.inference,model.inference.vi_opt,model.f)
     global_update!(model)
 end
@@ -85,7 +85,8 @@ function variational_updates!(model::MOSVGP{T,L,<:AnalyticVI}) where {T,L}
     global_update!(model) # Update η₁ and η₂
 end
 
-local_updates!(l::Likelihood,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = local_updates!(l,y,μ[1],Σ[1])
+local_updates!(l::Likelihood,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = local_updates!(l,y,first(μ),first(Σ))
+expec_logpdf(l::Likelihood,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = expec_logpdf!(l,y,first(μ),first(Σ))
 
 ## Coordinate ascent updates on the natural parameters ##
 function natural_gradient!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,i::AnalyticVI,opt::AVIOptimizer,gp::_VGP{T}) where {T,L}
@@ -100,11 +101,11 @@ function natural_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T}
 end
 
 function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},K::PDMat{T,Matrix{T}},μ₀::PriorMean,η₁::AbstractVector{T}) where {T <: Real}
-    transpose(κ)*(ρ*∇μ) + (K \ μ₀) - η₁
+    transpose(κ)*(ρ * ∇μ) + (K \ μ₀) - η₁
 end
 
 function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},K::PDMat{T,Matrix{T}},η₂::Symmetric{T,Matrix{T}}) where {T<:Real}
-    -(ρκdiagθκ(ρ,κ,θ) + 0.5 .* inv(K)) - η₂
+    -(ρκdiagθκ(ρ, κ, θ) + 0.5 .* inv(K)) - η₂
 end
 
 function global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L}
@@ -117,7 +118,7 @@ function global_update!(model::Union{SVGP{T,L,TInf},MOSVGP{T,L,TInf}}) where {T,
 end
 
 function global_update!(gp::_SVGP,opt::AVIOptimizer,i::AnalyticVI)
-    if i.Stochastic
+    if isstochastic(i)
         Δ = GradDescent.update(opt.optimizer,vcat(opt.∇η₁,opt.∇η₂[:]))
         gp.η₁ .+= Δ[1:gp.dim]
         gp.η₂ .= Symmetric(gp.η₂ + reshape(Δ[(gp.dim+1):end],gp.dim,gp.dim))
@@ -126,4 +127,12 @@ function global_update!(gp::_SVGP,opt::AVIOptimizer,i::AnalyticVI)
         gp.η₂ .= Symmetric(opt.∇η₂ + gp.η₂)
     end
     global_update!(gp)
+end
+
+
+function ELBO(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
+    tot = zero(T)
+    tot += model.inference.ρ*expec_logpdf(model.likelihood,model.inference,mean_f(model),diag_diag_cov_f(model))
+    tot -= GaussianKL(model)
+    tot -= model.inference.ρ*AugmentedKL(model.likelihood)
 end

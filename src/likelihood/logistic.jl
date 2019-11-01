@@ -1,20 +1,21 @@
 """
-**Logistic Likelihood**
-
-Bernoulli likelihood with a logistic link for the Bernoulli likelihood
-    ``p(y|f) = \\sigma(yf) = \\frac{1}{1+\\exp(-yf)}``, (for more info see : [wiki page](https://en.wikipedia.org/wiki/Logistic_function))
-
 ```julia
 LogisticLikelihood()
 ```
+
+Bernoulli likelihood with a logistic link for the Bernoulli likelihood
+```math
+    p(y|f) = \\sigma(yf) = \\frac{1}{1+\\exp(-yf)},
+```
+(for more info see : [wiki page](https://en.wikipedia.org/wiki/Logistic_function))
 
 ---
 
 For the analytic version the likelihood, it is augmented via:
 ```math
-p(y|f,\\omega) = \\exp\\left(\\frac{1}{2}\\left(yf - (yf)^2 \\omega\\right)\\right)
+    p(y|f,ω) = exp(0.5(yf - (yf)^2 ω))
 ```
-where ``\\omega \\sim \\text{PG}(\\omega\\mid 1, 0)``, and PG is the Polya-Gamma distribution
+where ``ω ~ PG(ω | 1, 0)``, and `PG` is the Polya-Gamma distribution
 See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383)
 """
 struct LogisticLikelihood{T<:Real} <: ClassificationLikelihood{T}
@@ -63,7 +64,7 @@ end
 
 ### Local Updates Section ###
 
-function local_updates!(l::LogisticLikelihood,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+function local_updates!(l::LogisticLikelihood{T},y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     l.c .= sqrt.(diag_cov+abs2.(μ))
     l.θ .= 0.5*tanh.(0.5.*l.c)./l.c
 end
@@ -81,15 +82,13 @@ end
 
 ### ELBO Section ###
 
-function ELBO(model::AbstractGP{T,<:LogisticLikelihood,<:AnalyticVI}) where {T}
-    return model.inference.ρ*expec_logpdf(model.likelihood, get_y(model), mean_f(model), diag_cov_f(model)) - GaussianKL(model) - model.inference.ρ*PolyaGammaKL(model.likelihood)
-end
-
-function expec_logpdf(l::LogisticLikelihood,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+function expec_logpdf(l::LogisticLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     tot = -(0.5*length(y)*logtwo)
     tot += 0.5.*(dot(μ,y)-dot(l.θ,diag_cov)-dot(l.θ,μ))
     return tot
 end
+
+AugmentedKL(l::LogisticLikelihood,::AbstractVector) = PolyaGammaKL(l)
 
 function PolyaGammaKL(l::LogisticLikelihood{T}) where {T}
     sum(broadcast(PolyaGammaKL,ones(T,length(l.c)),l.c,l.θ))
@@ -99,14 +98,4 @@ end
 
 @inline grad_logpdf(::LogisticLikelihood{T},y::Real,f::Real) where {T} = y*logistic(-y*f)
 
-function grad_pdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
-    σ=logistic(y*f)
-    σ*(one(T)-σ)
-end
-
 @inline hessian_logpdf(::LogisticLikelihood{T},y::Real,f::Real) where {T<:Real} = -exp(y*f)/logistic(-y*f)^2
-
-function hessiandiag_pdf(::LogisticLikelihood,y::Int,f::T) where {T<:Real}
-    σ=logistic(y*f)
-    σ*(one(T)-2σ + abs2(σ))
-end

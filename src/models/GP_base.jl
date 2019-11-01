@@ -66,13 +66,11 @@ function _SVGP{T}(  dim::Int,nSamplesUsed::Int,
             deepcopy(opt_σ))
 end
 
-mean_f(model::AbstractGP{T,L,I,TGP,1}) where {T,L,I,TGP} = mean_f(model.f[1])
 mean_f(model::AbstractGP) = mean_f.(model.f)
 
 mean_f(gp::_VGP) = gp.μ
 mean_f(gp::_SVGP) = gp.κ*gp.μ
 
-diag_cov_f(model::AbstractGP{T,L,I,TGP,1}) where {T,L,I,TGP} = diag_cov_f(model.f[1])
 diag_cov_f(model::AbstractGP) = diag_cov_f.(model.f)
 diag_cov_f(gp::_VGP) = diag(gp.Σ)
 diag_cov_f(gp::_SVGP) = opt_diag(gp.κ*gp.Σ,gp.κ) + gp.K̃

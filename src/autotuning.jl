@@ -5,7 +5,7 @@ function update_hyperparameters!(model::VGP)
 end
 
 function update_hyperparameters!(model::SVGP)
-    update_hyperparameters!.(model.f,[model.inference.xview],∇E_μ(model.likelihood,model.vi_opt[1],get_y(model)),∇E_Σ(model.likelihood,model.vi_opt[1],get_y(model)),model.inference,model.inference.vi_opt)
+    update_hyperparameters!.(model.f,[model.inference.xview],∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model)),model.inference,model.inference.vi_opt)
     model.inference.HyperParametersUpdated = true
 end
 

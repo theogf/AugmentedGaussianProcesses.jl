@@ -16,6 +16,7 @@ Base.length(::Inference) = 1
 Base.iterate(l::Inference) = (l,nothing)
 Base.iterate(l::Inference, ::Any) = nothing
 
+isstochastic(l::Inference) = l.Stochastic
 
 const GibbsorVI = Union{<:GibbsSampling,<:AnalyticVI}
 

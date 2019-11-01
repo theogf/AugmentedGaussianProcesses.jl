@@ -2,7 +2,7 @@
 Class for variational Gaussian Processes models (non-sparse)
 
 ```julia
-VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+VGP(X::AbstractArray{T1,N1},y::AbstractVector,kernel::Union{Kernel,AbstractVector{<:Kernel}},
     likelihood::LikelihoodType,inference::InferenceType;
     verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
@@ -44,11 +44,11 @@ mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},T
 end
 
 
-function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             likelihood::TLikelihood,inference::TInference;
             verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
-            ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2,TLikelihood<:Likelihood,TInference<:Inference}
+            ArrayType::UnionAll=Vector) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
             X, y, nLatent, likelihood = check_data!(X, y, likelihood)
             @assert check_implementation(:VGP, likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
@@ -64,14 +64,14 @@ function VGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kerne
                 mean = EmpiricalMean(mean)
             end
 
-            latentf = ntuple(_->_VGP{T1}(nFeatures,kernel,mean,variance,optimizer),nLatent)
+            latentf = ntuple(_->_VGP{T}(nFeatures,kernel,mean,variance,optimizer),nLatent)
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamples,nFeatures)
             inference = tuple_inference(inference,nLatent,nSamples,nSamples,nSamples)
             inference.xview = view(X,:,:)
             inference.yview = view(y,:)
             inference.MBIndices = collect(1:nSamples)
-            VGP{T1,TLikelihood,TInference,_VGP{T1},nLatent}(X,y,
+            VGP{T,TLikelihood,TInference,_VGP{T},nLatent}(X,y,
                     nFeatures, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
                     verbose,atfrequency,false)

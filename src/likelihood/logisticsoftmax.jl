@@ -1,16 +1,17 @@
 """
-**The Logistic-Softmax likelihood**
+```julia
+    LogisticSoftMaxLikelihood()
+```
 
-The multiclass likelihood with a logistic-softmax mapping: : ``p(y=i|\\{f_k\\}) = \\sigma(f_i)/ \\sum_k \\sigma(f_k)``
-where σ is the logistic function has the same properties as softmax.
-
+The multiclass likelihood with a logistic-softmax mapping: :
+```math
+p(y=i|{fₖ}₁ᴷ) = σ(fᵢ)/∑ₖ σ(fₖ)
+```
+where `σ` is the logistic function.
+This likelihood has the same properties as [softmax](https://en.wikipedia.org/wiki/Softmax_function).
 ---
 
-For the analytical version, the likelihood is augmented multiple times to obtain :
-```math
-#TODO
-```
-Paper with details under submission
+For the analytical version, the likelihood is augmented multiple times. More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670)
 """
 struct LogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
     Y::AbstractVector{BitVector} #Mapping from instances to classes
@@ -68,17 +69,17 @@ function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},inference::Inf
     end
 end
 
-get_y(model) = view.(model.likelihood.Y,[model.inferences.MBIndices])
+get_y(model::AbstractGP{T,L}) = view.(model.likelihood.Y,[model.inferences.MBIndices])
 
 ## Local Updates##
-function local_updates!(l::LogisticSoftMaxLikelihood,y,μ::NTuple{N,<:AbstractVector},Σ::NTuple{N,<:AbstractVector}) where {T,V,N}
+function local_updates!(l::LogisticSoftMaxLikelihood,y,μ::NTuple{N,<:AbstractVector},Σ::NTuple{N,<:AbstractVector}) where {T,N}
     l.c .= broadcast((Σ,μ)->sqrt.(Σ+abs2.(μ)),Σ,μ)
     for _ in 1:2
         l.γ .= broadcast(
             (β,c,μ,ψα)->0.5 / β * exp.(ψα) .* safe_expcosh.(-0.5*μ, 0.5*c),                                    l.β,l.c,μ,[digamma.(l.α)])
         l.α .= 1.0.+(l.γ...)
     end
-    l.θ .= broadcast((y,γ::V,c::V)->0.5*(y+γ)./c.*tanh.(0.5.*c),
+    l.θ .= broadcast((y,γ,c)->0.5*(y+γ)./c.*tanh.(0.5.*c),
                                     y,l.γ,l.c)
     return nothing
 end
@@ -99,13 +100,12 @@ end
 ## ELBO Section ##
 
 function ELBO(model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI}) where {T}
-    return expecLogLikelihood(model) - GaussianKL(model) - GammaEntropy(model) - PoissonKL(model) - PolyaGammaKL(model)
+    return expec_logpdf(model) - GaussianKL(model) - GammaEntropy(model) - PoissonKL(model) - PolyaGammaKL(model)
 end
 
-function expecLogLikelihood(model::VGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI}) where {T}
-    # model.likelihood.c .= broadcast((Σ,μ)->sqrt.(Σ.+abs2.(μ)),diag.(model.Σ),model.μ)
-    tot = -model.nSample*logtwo
-    tot += -sum(sum(model.likelihood.γ.+model.likelihood.Y))*logtwo
+function expec_logpdf(model::VGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI}) where {T}
+    tot = -length(y)*logtwo
+    tot += -sum(sum(l.γ.+l.Y))*logtwo
     tot +=  0.5*sum(broadcast((y,μ,γ,θ,c)->sum(μ.*(y-γ)-θ.*abs2.(c)),
                     model.likelihood.Y,model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
     return tot
