@@ -53,8 +53,8 @@ function compute_proba(l::NegBinomialLikelihood{T},μ::Vector{T},σ²::Vector{T}
     N = length(μ)
     pred = zeros(T,N)
     for i in 1:N
-        x = (pred_nodes.*sqrt(max(σ²[i],zero(T))).+μ[i]
-        pred[i] = dot(pred_weights,get_p(l,x))
+        x = pred_nodes.*sqrt(max(σ²[i],zero(T))).+μ[i]
+        pred[i] = dot(pred_weights,get_p.(l,x))
     end
     return pred
 end
@@ -69,7 +69,7 @@ end
 ## Global Updates ##
 
 @inline ∇E_μ(l::NegBinomialLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} = (0.5*(y.-l.r),)
-@inline ∇E_Σ(l::NegBinomialLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} = 0.5.*l.θ
+@inline ∇E_Σ(l::NegBinomialLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} = (0.5.*l.θ,)
 
 ## ELBO Section ##
 
@@ -86,5 +86,5 @@ function expec_logpdf(l::NegBinomialLikelihood{T},i::AnalyticVI,y::AbstractVecto
 end
 
 function PolyaGammaKL(l::NegBinomialLikelihood,y::AbstractVector) where {T}
-    PolyaGammaKL(y.+r,l.c,l.θ)
+    PolyaGammaKL(y.+l.r,l.c,l.θ)
 end

@@ -105,7 +105,7 @@ function ELBO(model::GP{T,GaussianLikelihood{T}}) where {T}
 end
 
 function expec_logpdf(l::GaussianLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
-    return -0.5*i.ρ*(length(y)*(log(twoπ)+log(l.σ²))+sum(abs2.(y-μ[1])+diag_cov[1])/l.σ²)
+    return -0.5*i.ρ*(length(y)*(log(twoπ)+log(l.σ²))+sum(abs2.(y-μ)+diag_cov)/l.σ²)
 end
 
 AugmentedKL(::GaussianLikelihood{T},::AbstractVector) where {T} = zero(T)

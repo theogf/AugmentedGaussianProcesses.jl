@@ -77,8 +77,8 @@ end
 
 ### Natural Gradient Section ###
 
-@inline ∇E_μ(l::LogisticLikelihood,::AVIOptimizer,y::AbstractVector) where {T} = 0.5*y
-@inline ∇E_Σ(l::LogisticLikelihood,::AVIOptimizer,y::AbstractVector) where {T} = 0.5*l.θ
+@inline ∇E_μ(l::LogisticLikelihood,::AVIOptimizer,y::AbstractVector) where {T} = (0.5*y,)
+@inline ∇E_Σ(l::LogisticLikelihood,::AVIOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
 
 ### ELBO Section ###
 

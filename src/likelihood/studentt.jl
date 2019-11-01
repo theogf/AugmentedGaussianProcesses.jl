@@ -1,24 +1,23 @@
 """
-**Student-T likelihood**
-
-Student-t likelihood for regression: ``\\frac{\\Gamma((\\nu+1)/2)}{\\sqrt{\\nu\\pi}\\sigma\\Gamma(\\nu/2)}\\left(1+(y-f)^2/(\\sigma^2\\nu)\\right)^{(-(\\nu+1)/2)}``
-see [wiki page](https://en.wikipedia.org/wiki/Student%27s_t-distribution)
-
 ```julia
-StudentTLikelihood(ν::T,σ::Real=one(T)) #ν is the number of degrees of freedom
-#σ is the variance for local scale of the data.
+StudentTLikelihood(ν::T,σ::Real=one(T))
 ```
+[Student-t likelihood](https://en.wikipedia.org/wiki/Student%27s_t-distribution) for regression:
+```math
+    p(y|f,ν,σ) = Γ(0.5(ν+1))/(sqrt(νπ) σ Γ(0.5ν)) * (1+(y-f)^2/(σ^2ν))^(-0.5(ν+1))
+```
+`ν` is the number of degrees of freedom and `σ` is the variance for local scale of the data.
 
 ---
 
 For the analytical solution, it is augmented via:
 ```math
-p(y|f,\\omega) = \\mathcal{N}(y|f,\\sigma^2\\omega)
+    p(y|f,ω) = N(y|f,σ^2 ω)
 ```
-Where ``\\omega \\sim \\mathcal{IG}(\\frac{\\nu}{2},\\frac{\\nu}{2})`` where ``\\mathcal{IG}`` is the inverse gamma distribution
+Where `ω ~ IG(0.5ν,,0.5ν)` where `IG` is the inverse gamma distribution
 See paper [Robust Gaussian Process Regression with a Student-t Likelihood](http://www.jmlr.org/papers/volume12/jylanki11a/jylanki11a.pdf)
 """
-struct StudentTLikelihood{T<:Real} <: RegressionLikelihood{T}
+mutable struct StudentTLikelihood{T<:Real} <: RegressionLikelihood{T}
     ν::T
     α::T
     σ::T
@@ -56,7 +55,7 @@ function Base.show(io::IO,model::StudentTLikelihood{T}) where T
 end
 
 function compute_proba(l::StudentTLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
-    return μ,max.(σ²,0.0).+0.5*l.ν*l.σ^2/(0.5*l.ν-1)
+    return μ,max.(σ²,zero(σ²)).+0.5*l.ν*l.σ^2/(0.5*l.ν-1)
 end
 
 ## Local Updates ##
@@ -74,21 +73,19 @@ end
 
 ## Global Gradients ##
 
-@inline ∇E_μ(l::StudentTLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} = l.θ.*y
-@inline ∇E_Σ(l::StudentTLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} = 0.5.*l.θ
+@inline ∇E_μ(l::StudentTLikelihood,::AVIOptimizer,y::AbstractVector) = (l.θ.*y,)
+@inline ∇E_Σ(l::StudentTLikelihood,::AVIOptimizer,y::AbstractVector) = (0.5.*l.θ,)
 
 ## ELBO Section ##
 
-function ELBO(model::AbstractGP{T,<:StudentTLikelihood,<:AnalyticVI}) where {T}
-    return model.inference.ρ*(expec_logpdf(model.likelihood, get_y(model), mean_f(model), diag_cov_f(model)) - InverseGammaKL(model.likelihood)) - GaussianKL(model)
-end
-
-function expec_logpdf(l::StudentTLikelihood{T},y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+function expec_logpdf(l::StudentTLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     tot = -0.5*length(y)*(log(twoπ*l.σ^2))
     tot += -sum(log.(l.c).-digamma(l.α))
-    tot += -0.5*(dot(l.θ,diag_cov)+dot(θ,abs2.(μ))-2.0*dot(l.θ,μ.*y)+dot(l.θ,abs2.(y)))
+    tot += -0.5*(dot(l.θ,diag_cov)+dot(l.θ,abs2.(μ))-2.0*dot(l.θ,μ.*y)+dot(l.θ,abs2.(y)))
     return tot
 end
+
+AugmentedKL(l::StudentTLikelihood,::AbstractVector)= InverseGammaKL(l)
 
 function InverseGammaKL(l::StudentTLikelihood{T}) where {T}
     α_p = l.ν/2; β_p= α_p*l.σ^2

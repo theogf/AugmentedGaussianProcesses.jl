@@ -20,7 +20,15 @@ push!(methods_implemented_VGP["HeteroscedasticLikelihood"],"AnalyticVI")
 methods_implemented_SVGP = deepcopy(methods_implemented)
 methods_implemented_SVGP["GaussianLikelihood"] = ["AnalyticVI","AnalyticSVI"]
 
-
+function nlatent(l::String)
+    if l == "LogisticSoftMaxLikelihood" || l == "SoftMaxLikelihood"
+        "$(n_class)"
+    elseif l== "HeteroscedasticLikelihood"
+        "2"
+    else
+        "1"
+    end
+end
 stoch(s::Bool,inference::String) = inference != "GibbsSampling" ? (s ? inference[1:end-2]*"SVI" : inference) : inference
 addiargument(s::Bool,inference::String) = inference == "GibbsSampling" ? "nBurnin=0" : (s ? "b" : "")
 addlargument(likelihood::String) = begin
@@ -36,7 +44,7 @@ end
 function testconv(model::AbstractGP,problem_type::String,X::AbstractArray,y::AbstractArray)
     μ,Σ = predict_f(model,X,covf=true)
     y_pred = predict_y(model,X)
-    py_pred = proba_y(model,X)
+    py_pred,sigy_pred = proba_y(model,X)
     if problem_type == "Regression"
         err=mean(abs.(y_pred-y))
         @info "Regression Error" err

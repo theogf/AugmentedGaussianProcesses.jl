@@ -7,12 +7,6 @@ function GaussianKL(μ::AbstractVector{T},μ₀::PriorMean,Σ::Matrix{T},K::PDMa
     0.5*(-logdet(Σ)+logdet(K)+tr(K\Σ)+invquad(K,μ-μ₀)-length(μ))
 end
 
-"""
-    Compute the equivalent of KL divergence between an improper prior p(λ) (``1_{[0,\\infty]}``) and a variational Gamma distribution
-"""
-function GammaEntropy(model::AbstractGP)
-    return model.inference.ρ*(-sum(model.likelihood.α)+sum(log,model.likelihood.β[1])-sum(lgamma,model.likelihood.α)-dot(1.0.-model.likelihood.α,digamma.(model.likelihood.α)))
-end
 
 
 

@@ -1,6 +1,6 @@
 abstract type MultiClassLikelihood{T<:Real} <: Likelihood{T} end
 
-""" Return the labels in a vector of vectors for multiple outputs"""
+## Return the labels in a vector of vectors for multiple outputs ##
 function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:MultiClassLikelihood}
     @assert N <= 1 "Target should be a vector of labels"
     likelihood = init_multiclass_likelihood(likelihood,y)
@@ -10,6 +10,9 @@ end
 function init_multiclass_likelihood(likelihood::L,y::AbstractVector) where {L<:MultiClassLikelihood}
     L(one_of_K_mapping(y)...)
 end
+
+get_y(l::MultiClassLikelihood,y::AbstractVector,i::AbstractVector) = view.(y,i)
+
 
 """ Given the labels, return one hot encoding, and the mapping of each class """
 function one_of_K_mapping(y)

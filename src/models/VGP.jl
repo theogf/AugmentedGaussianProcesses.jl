@@ -71,7 +71,7 @@ function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             inference.xview = view(X,:,:)
             inference.yview = view(y,:)
             inference.MBIndices = collect(1:nSamples)
-            VGP{T,TLikelihood,TInference,_VGP{T},nLatent}(X,y,
+            VGP{T,TLikelihood,typeof(inference),_VGP{T},nLatent}(X,y,
                     nFeatures, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
                     verbose,atfrequency,false)
@@ -84,4 +84,4 @@ end
 const VGP1 = VGP{<:Real,<:Likelihood,<:Inference,<:Abstract_GP,1}
 
 get_y(model::VGP) = model.inference.yview
-get_X(model::VGP) = model.inference.xview
+get_X(model::VGP) = [model.inference.xview]

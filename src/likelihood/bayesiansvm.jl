@@ -76,15 +76,10 @@ end
 @inline ∇E_μ(l::BayesianSVM{T},::AVIOptimizer,y::AbstractVector) where {T} = (y.*(l.θ.+one(T)),)
 @inline ∇E_Σ(l::BayesianSVM{T},::AVIOptimizer,y::AbstractVector) where {T} = (0.5.*l.θ,)
 
-function ELBO(model::AbstractGP{T,<:BayesianSVM,<:AnalyticVI}) where {T}
-    (model.inference.ρ*expec_logpdf(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
-    - GaussianKL(model) - model.inference.ρ*GIGEntropy(model))
-end
-
-function expec_logpdf(l::BayesianSVM{T},y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+function expec_logpdf(l::BayesianSVM{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     tot = -(0.5*length(y)*logtwo)
     tot += dot(μ,y)
-    tot += -0.5*dot(θ,diag_cov)+dot(θ,abs2.(one(T).-y.*μ))
+    tot += -0.5*dot(l.θ,diag_cov)+dot(l.θ,abs2.(one(T).-y.*μ))
     return tot
 end
 

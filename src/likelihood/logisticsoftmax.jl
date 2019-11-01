@@ -69,14 +69,12 @@ function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},inference::Inf
     end
 end
 
-get_y(model::AbstractGP{T,L}) = view.(model.likelihood.Y,[model.inferences.MBIndices])
-
 ## Local Updates##
 function local_updates!(l::LogisticSoftMaxLikelihood,y,μ::NTuple{N,<:AbstractVector},Σ::NTuple{N,<:AbstractVector}) where {T,N}
     l.c .= broadcast((Σ,μ)->sqrt.(Σ+abs2.(μ)),Σ,μ)
     for _ in 1:2
         l.γ .= broadcast(
-            (β,c,μ,ψα)->0.5 / β * exp.(ψα) .* safe_expcosh.(-0.5*μ, 0.5*c),                                    l.β,l.c,μ,[digamma.(l.α)])
+            (β,c,μ,ψα)->0.5 / β * exp.(ψα) .* safe_expcosh.(-0.5*μ, 0.5*c),                                    [l.β],l.c,μ,[digamma.(l.α)])
         l.α .= 1.0.+(l.γ...)
     end
     l.θ .= broadcast((y,γ,c)->0.5*(y+γ)./c.*tanh.(0.5.*c),
@@ -98,39 +96,22 @@ end
 @inline ∇E_Σ(l::LogisticSoftMaxLikelihood,::AVIOptimizer,y) where {T} = 0.5.*l.θ
 
 ## ELBO Section ##
-
-function ELBO(model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI}) where {T}
-    return expec_logpdf(model) - GaussianKL(model) - GammaEntropy(model) - PoissonKL(model) - PolyaGammaKL(model)
-end
-
-function expec_logpdf(model::VGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI}) where {T}
+function expec_logpdf(l::LogisticSoftMaxLikelihood{T},i::AnalyticVI,y,μ,Σ) where {T}
     tot = -length(y)*logtwo
-    tot += -sum(sum(l.γ.+l.Y))*logtwo
-    tot +=  0.5*sum(broadcast((y,μ,γ,θ,c)->sum(μ.*(y-γ)-θ.*abs2.(c)),
-                    model.likelihood.Y,model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
+    tot += -sum(sum(l.γ.+y))*logtwo
+    tot +=  0.5*sum(broadcast((θ,γ,y,μ,Σ)->dot(μ,(y-γ))-dot(θ,abs2.(μ))-dot(θ,Σ),l.θ,l.γ,y,μ,Σ))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI}) where {T}
-    model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
-                                    model.μ,model.Σ,model.κ,model.K̃)
-    tot = -model.inference.nSamplesUsed*logtwo
-    tot += -sum(sum.(model.likelihood.γ.+getindex.(model.likelihood.Y,[model.inference.MBIndices])))*logtwo
-    tot += 0.5*sum(broadcast((y,κμ,γ,θ,c)->sum((κμ).*(y[model.inference.MBIndices]-γ)-θ.*abs2.(c)),
-                    model.likelihood.Y,model.κ.*model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
-    return model.inference.ρ*tot
-end
+AugmentedKL(l::LogisticSoftMaxLikelihood,y::AbstractVector) = PolyaGammaKL(l,y) + PoissonKL(l) + GammaEntropy(l)
 
-function PolyaGammaKL(model::VGP{T,<:LogisticSoftMaxLikelihood}) where {T}
-    sum(broadcast(PolyaGammaKL,model.likelihood.Y.+model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
-end
+PolyaGammaKL(l::LogisticSoftMaxLikelihood,y) =  sum(broadcast(PolyaGammaKL,y.+l.γ,l.c,l.θ))
 
-function PolyaGammaKL(model::SVGP{T,<:LogisticSoftMaxLikelihood}) where {T}
-    model.inference.ρ*sum(broadcast(PolyaGammaKL,getindex.(model.likelihood.Y,[model.inference.MBIndices]).+model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
-end
+PoissonKL(l::LogisticSoftMaxLikelihood) =     sum(broadcast(PoissonKL,l.γ,[l.α./l.β],[digamma.(l.α).-log.(l.β)]))
 
-function PoissonKL(model::AbstractGP{T,<:LogisticSoftMaxLikelihood}) where {T}
-    return model.inference.ρ*sum(broadcast(PoissonKL,model.likelihood.γ,[model.likelihood.α./model.likelihood.β],[digamma.(model.likelihood.α).-log.(model.likelihood.β)]))
+##  Compute the equivalent of KL divergence between an improper prior p(λ) (``1_{[0,\\infty]}``) and a variational Gamma distribution ##
+function GammaEntropy(l::LogisticSoftMaxLikelihood)
+    return -sum(l.α)+sum(log,l.β[1])-sum(lgamma,l.α)-dot(1.0.-l.α,digamma.(l.α))
 end
 
 ## Numerical Gradient Section ##

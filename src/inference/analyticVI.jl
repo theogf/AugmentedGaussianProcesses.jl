@@ -86,7 +86,7 @@ function variational_updates!(model::MOSVGP{T,L,<:AnalyticVI}) where {T,L}
 end
 
 local_updates!(l::Likelihood,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = local_updates!(l,y,first(μ),first(Σ))
-expec_logpdf(l::Likelihood,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = expec_logpdf!(l,y,first(μ),first(Σ))
+expec_logpdf(l::Likelihood,i::AnalyticVI,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = expec_logpdf(l,i,y,first(μ),first(Σ))
 
 ## Coordinate ascent updates on the natural parameters ##
 function natural_gradient!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,i::AnalyticVI,opt::AVIOptimizer,gp::_VGP{T}) where {T,L}
@@ -132,7 +132,7 @@ end
 
 function ELBO(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
     tot = zero(T)
-    tot += model.inference.ρ*expec_logpdf(model.likelihood,model.inference,mean_f(model),diag_diag_cov_f(model))
+    tot += model.inference.ρ*expec_logpdf(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model))
     tot -= GaussianKL(model)
-    tot -= model.inference.ρ*AugmentedKL(model.likelihood)
+    tot -= model.inference.ρ*AugmentedKL(model.likelihood,get_y(model))
 end

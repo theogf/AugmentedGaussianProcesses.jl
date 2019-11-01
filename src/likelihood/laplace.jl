@@ -16,7 +16,7 @@ p(y|f,ω) = N(y|f,ω⁻¹)
 where ``ω ~ Exp(ω | 1/(2 β^2))``, and `Exp` is the [Exponential distribution](https://en.wikipedia.org/wiki/Exponential_distribution)
 We use the variational distribution ``q(ω) = GIG(ω | a,b,p)``
 """
-struct LaplaceLikelihood{T<:Real} <: RegressionLikelihood{T}
+mutable struct LaplaceLikelihood{T<:Real} <: RegressionLikelihood{T}
     β::T
     a::T
     p::T
@@ -78,10 +78,6 @@ end
 @inline ∇E_Σ(l::LaplaceLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
 
 ## ELBO ##
-function ELBO(model::AbstractGP{T,<:LaplaceLikelihood,<:AnalyticVI}) where {T}
-    return expecLogLikelihood(model) - GIGExpKL(model) - GaussianKL(model)
-end
-
 function expec_logpdf(l::LaplaceLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     tot = -0.5*length(y)*log(twoπ)
     tot += 0.5*sum(log,l.θ)

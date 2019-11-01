@@ -17,10 +17,10 @@ m = AGP.MOSVGP(X,[y1,y2],k,GaussianLikelihood(0.1,opt_noise=false),AnalyticVI(),
 # end
 cb(model,iter) = display(ELBO(model))
 # cb(model,iter) = display(heatmap(model.A[:,1,:],yflip=true))
-m.A = zeros(2,1,m.nLatent)
-m.A[1,1,1] = 1.0
-m.A[2,1,2] = 0.5
-m.A[2,1,3] = 0.0
+# m.A = zeros(2,1,m.nLatent)
+# m.A[1,1,1] = 1.0
+# m.A[2,1,2] = 0.5
+# m.A[2,1,3] = 0.0
 train!(m,100,callback=cb)
 mm1 = SVGP(X,y1,k,GaussianLikelihood(),AnalyticVI(),10)
 train!(mm1,100,callback=nothing)
@@ -47,6 +47,18 @@ plot!(x,y_2,lab="pred y_2",lw=3.0,color=2)
 plot!(x,ys_2,lab="pred ys_2",lw=3.0,color=2,linestyle=:dash)
 plot!(x,y_1+2*sqrt.(sig_1),fillrange=y_1-2sqrt.(sig_1),color=1,alpha=0.3,lab="")
 plot!(x,y_2+2*sqrt.(sig_2),fillrange=y_2-2sqrt.(sig_2),color=2,alpha=0.3,lab="")
+plot!(x,AGP.mean_f(m)[1][1])
+plot!(x,AGP.mean_f(m)[2][1])
 scatter!(AGP.get_X(m),collect(AGP.get_μ(m)))  |> display
 # p
 # plot(x,collect(AGP.get_μ(m)))
+##
+
+mclass = VGP(X,rand(1:3,size(X,1)),k,NegBinomialLikelihood(),AnalyticVI())
+mclass.y
+
+train!(mclass)
+typeof(mclass)
+AGP.predict_f(mclass,X,covf=true)
+
+mclass.X

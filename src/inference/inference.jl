@@ -25,3 +25,6 @@ function global_update!(gp::Abstract_GP) where {T,L}
     gp.Σ .= -0.5*inv(gp.η₂)
     gp.μ .= gp.Σ*gp.η₁
 end
+
+## Default function for getting a view on y
+@inline get_y(l::Likelihood,y::AbstractVector,i::AbstractVector) = view(y,i)

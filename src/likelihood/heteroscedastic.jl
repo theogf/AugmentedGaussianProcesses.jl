@@ -11,7 +11,7 @@ Where `σ` is the logistic function
 
 Augmentation will be described in a future paper
 """
-struct HeteroscedasticLikelihood{T<:Real} <: RegressionLikelihood{T}
+mutable struct HeteroscedasticLikelihood{T<:Real} <: RegressionLikelihood{T}
     λ::T
     c::Vector{T}
     ϕ::Vector{T}
@@ -57,13 +57,17 @@ function init_likelihood(likelihood::HeteroscedasticLikelihood{T},inference::Inf
     HeteroscedasticLikelihood{T}(λ,c,ϕ,γ,θ,σg)
 end
 
+function compute_proba(l::HeteroscedasticLikelihood{T},μ::AbstractVector{<:AbstractVector},Σ::AbstractVector{<:AbstractVector}) where {T}
+    return μ[1],max.(Σ[1],zero(T)).+inv.(l.λ*logistic.(μ[2]))
+end
+
 function local_updates!(l::HeteroscedasticLikelihood{T},y::AbstractVector,μ::NTuple{2,<:AbstractVector},diag_cov::NTuple{2,<:AbstractVector}) where {T}
     # gp[1] is f and gp[2] is g (for approximating the noise)
     l.ϕ .= 0.5*(abs2.(μ[1]-y)+diag_cov[1])
     l.c .=  sqrt.(abs2.(μ[2])+diag_cov[2])
-    l.γ .= 0.5*l.λ*l.ϕ.*safe_expcosh.(-0.5*μ[2],0.5*c)
+    l.γ .= 0.5*l.λ*l.ϕ.*safe_expcosh.(-0.5*μ[2],0.5*l.c)
     l.θ .= 0.5*(0.5.+l.γ)./l.c.*tanh.(0.5*l.c)
-    l.σg .= expectation.(logistic,μ,Σ)
+    l.σg .= expectation.(logistic[1],μ,diag_cov[2])
     l.λ .= 0.5*length(l.ϕ)/dot(l.ϕ,l.σg)
 end
 
@@ -85,7 +89,7 @@ function variational_updates!(model::AbstractGP{T,<:HeteroscedasticLikelihood,<:
     local_updates!(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
     natural_gradient!(∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model))[2],∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model))[2],model.inference,model.inference.vi_opt[2],get_y(model),model.f[2])
     global_update!(model.f[2],model.inference.vi_opt[2],model.inference)
-    heteroscedastic_expectations!(model.likelihood,mean_f(model.f[2]),diag_cov_f(model.f[2])
+    heteroscedastic_expectations!(model.likelihood,mean_f(model.f[2]),diag_cov_f(model.f[2]))
     natural_gradient!(∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model))[1],∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model))[1],model.inference,model.inference.vi_opt[1],get_y(model),model.f[1])
     global_update!(model.f[1],model.inference.vi_opt[1],model.inference)
 end
@@ -116,7 +120,7 @@ function expec_logpdf(l::HeteroscedasticLikelihood{T},y::AbstractVector,μ::Abst
     return tot
 end
 
-AugmentedKL(l::HeteroscedasticLikelihood{T},::AbstractVector) = PolyaGammaKL(l)
+AugmentedKL(l::HeteroscedasticLikelihood,::AbstractVector) = PolyaGammaKL(l)
 
 function PoissonKL(l::HeteroscedasticLikelihood{T},y::AbstractVector,μ::AbstractVector,Σ::AbstractVector) where {T}
     return PoissonKL(l.γ,0.5*l.λ*(abs2.(y-μ)+Σ),log.(0.5*l.λ*(abs2.(μ-y)+Σ)))

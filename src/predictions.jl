@@ -2,47 +2,30 @@
 
 const pred_nodes,pred_weights = gausshermite(100) |> x->(x[1].*sqrt2,x[2]./sqrtπ)
 
-function _predict_f(μ::Vector{T},Σ::Symmetric{T,Matrix{T}},invK::Symmetric{T,Matrix{T}},kernel::Kernel,X_test::AbstractMatrix{T₁},X::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T,T₁<:Real}
-    k_star = kernelmatrix(X_test,X,kernel)
-    μf = k_star*invK*μ
-    if !covf
-        return μf
-    end
-    A = invK*(I-Σ*invK)
-    σ²f = []
-    if fullcov
-        k_starstar = kernelmatrix(X_test,kernel)
-        σ²f = Symmetric(k_starstar - k_star*A*transpose(k_star))
-    else
-        k_starstar = kerneldiagmatrix(X_test,kernel)
-        σ²f = k_starstar - opt_diag(k_star*A,k_star)
-    end
-    return μf,σ²f
-end
+# function _predict_f(μ::Vector{T},Σ::Symmetric{T,Matrix{T}},invK::Symmetric{T,Matrix{T}},kernel::Kernel,X_test::AbstractMatrix{T₁},X::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T,T₁<:Real}
+#     k_star = kernelmatrix(X_test,X,kernel)
+#     μf = k_star*invK*μ
+#     if !covf
+#         return μf
+#     end
+#     A = invK*(I-Σ*invK)
+#     σ²f = []
+#     if fullcov
+#         k_starstar = kernelmatrix(X_test,kernel)
+#         σ²f = Symmetric(k_starstar - k_star*A*transpose(k_star))
+#     else
+#         k_starstar = kerneldiagmatrix(X_test,kernel)
+#         σ²f = k_starstar - opt_diag(k_star*A,k_star)
+#     end
+#     return μf,σ²f
+# end
+
 """
 Compute the mean of the predicted latent distribution of `f` on `X_test` for the variational GP `model`
 
 Return also the variance if `covf=true` and the full covariance if `fullcov=true`
 """
-function predict_f(model::AbstractGP1,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
-    k_star = get_σ_k(model)*kernelmatrix(model.f[1].kernel,X_test,get_X(model),obsdim=1)
-    μf = k_star*(get_K(model)\get_μ(model))
-    if !covf
-        return μf
-    end
-    A = get_K(model)\(I-get_Σ(model)/get_K(model))
-    if fullcov
-        k_starstar = get_σ_k(model)*(kernelmatrix(model.f[1].kernel,X_test,obsdim=1)+T(jitter)*I)
-        σ²f = Symmetric(k_starstar - k_star*A*transpose(k_star))
-        return μf,σ²f
-    else
-        k_starstar = get_σ_k(model)*(kerneldiagmatrix(model.f[1].kernel,X_test,obsdim=1).+T(jitter))
-        σ²f = k_starstar - opt_diag(k_star*A,k_star)
-        return μf,σ²f
-    end
-end
-
-function predict_f(model::AbstractGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
+function _predict_f(model::AbstractGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_X(model),obsdim=1)
     μf = k_star.*(get_K(model).\get_μ(model))
     if !covf
@@ -54,13 +37,13 @@ function predict_f(model::AbstractGP,X_test::AbstractMatrix{T};covf::Bool=true,f
         σ²f = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
         return μf,σ²f
     else
-        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter))
+        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1).+[T(jitter)*ones(T,size(X_test,1))])
         σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
         return μf,σ²f
     end
 end
 
-function predict_f(model::MOSVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
+function _predict_f(model::MOSVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_X(model),obsdim=1)
     μf = k_star.*(get_K(model).\get_μ(model))
     μf = [[sum(vec(model.A[i,j,:]).*μf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
@@ -98,16 +81,16 @@ end
 #     return model.nLatent == 1 ? (μf[1],σ²f[1]) : (μf,σ²f)
 # end
 
-function predict_f(model::AbstractGP,X_test::AbstractVector{T};covf::Bool=false,fullcov::Bool=false) where T
-    predict_f(model,reshape(X_test,length(X_test),1),covf=covf,fullcov=fullcov)
-end
+predict_f(model::AbstractGP{T},X_test::AbstractVector{T};covf::Bool=false,fullcov::Bool=false) where {T} = predict_f(model,reshape(X_test,length(X_test),1),covf=covf,fullcov=fullcov)
+
+predict_f(model::AbstractGP{T,L,I,TGP,1},X_test::AbstractMatrix{T};covf::Bool=false,fullcov::Bool=false) where {T,L,I,TGP} = first.(_predict_f(model,X_test;covf=covf,fullcov=fullcov))
+
+predict_f(model::AbstractGP,X_test::AbstractMatrix{T};covf::Bool=false,fullcov::Bool=false) where {T,L,I,TGP} = _predict_f(model,X_test;covf=covf,fullcov=fullcov)
 
 ## Wrapper to predict vectors ##
-function predict_y(model::AbstractGP,X_test::AbstractVector)
+function predict_y(model::AbstractGP{T},X_test::AbstractVector{T}) where {T}
     return predict_y(model,reshape(X_test,:,1))
 end
-
-
 
 """
 `predict_y(model::AbstractGP,X_test::AbstractMatrix)`
@@ -118,8 +101,8 @@ Return
     - the most likely class for multi-class classification
     - the expected number of events for an event likelihood
 """
-function predict_y(model::AbstractGP{T,<:RegressionLikelihood},X_test::AbstractMatrix) where {T}
-    return predict_y(model.likelihood,predict_f(model,X_test,covf=false))
+function predict_y(model::AbstractGP{T},X_test::AbstractMatrix{T}) where {T}
+    return predict_y(model.likelihood,_predict_f(model,X_test,covf=false))
 end
 
 predict_y(model::MOSVGP,X_test::AbstractMatrix) = predict_y.(model.likelihood,predict_f(model,X_test,covf=false))
@@ -133,7 +116,7 @@ predict_y(l::EventLikelihood,μ::AbstractVector{<:Real}) = expec_count(l,μ)
 predict_y(l::EventLikelihood,μ::AbstractVector{<:AbstractVector}) = expec_count(l,first(μ))
 
 ## Wrapper to return proba on vectors ##
-proba_y(model::AbstractGP,X_test::AbstractVector) = proba_y(model,reshape(X_test,:,1))
+proba_y(model::AbstractGP{T},X_test::AbstractVector{T}) where {T} = proba_y(model,reshape(X_test,:,1))
 
 """
 `proba_y(model::AbstractGP,X_test::AbstractMatrix)`
@@ -145,13 +128,13 @@ Return the probability distribution p(y_test|model,X_test) :
     - Dataframe with columns and probability per class for multi-class classification
 """
 function proba_y(model::AbstractGP,X_test::AbstractMatrix)
-    μ_f,Σ_f = predict_f(model,X_test,covf=true)
+    μ_f,Σ_f = _predict_f(model,X_test,covf=true)
     μ_p, σ²_p = compute_proba(model.likelihood,μ_f,Σ_f)
 end
 
-function proba_y(model::MOSVGP,X_test::AbstractMatrix)
-    μ_f,Σ_f = predict_f(model,X_test,covf=true)
-    μ_p, σ²_p = compute_proba.(model.likelihood,μ_f,Σ_f)
+function proba_y(model::AbstractGP{T,<:MultiClassLikelihood},X_test::AbstractMatrix) where {T}
+    μ_f,Σ_f = _predict_f(model,X_test,covf=true)
+    μ_p = compute_proba(model.likelihood,μ_f,Σ_f)
 end
 
 compute_proba(l::Likelihood,μ::AbstractVector{<:AbstractVector},σ²::AbstractVector{<:AbstractVector}) = compute_proba(l,first(μ),first(σ²))
