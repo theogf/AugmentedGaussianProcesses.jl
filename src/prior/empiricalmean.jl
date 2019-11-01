@@ -38,3 +38,5 @@ Base.:-(x::EmpiricalMean{<:Real},y::EmpiricalMean{<:Real}) = EmpiricalMean(x.C-y
 Base.:*(A::AbstractMatrix{<:Real},y::EmpiricalMean{T}) where {T<:Real} = A*y.C
 Base.:*(y::EmpiricalMean{T},A::AbstractMatrix{<:Real}) where {T<:Real} = transpose(y)*A
 Base.:convert(::T1,x::EmpiricalMean{T2}) where {T1<:Real,T2<:Real} = T1(x.C)
+Base.adjoint(x::EmpiricalMean{T}) where {T} = adjoint(x.C)
+Base.:\(A::AbstractPDMat{T},x::EmpiricalMean) where {T} = A\x.C
