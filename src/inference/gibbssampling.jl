@@ -1,13 +1,11 @@
 """
-**GibbsSampling**
-
-Draw samples from the true posterior via Gibbs Sampling.
-
 ```julia
 GibbsSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=10)
 ```
-**Keywords arguments**
 
+Draw samples from the true posterior via Gibbs Sampling.
+
+**Keywords arguments**
     - `ϵ::T` : convergence criteria
     - `nBurnin::Int` : Number of samples discarded before starting to save samples
     - `samplefrequency::Int` : Frequency of sampling
@@ -47,13 +45,11 @@ function init_inference(inference::GibbsSampling{T},nLatent::Integer,nFeatures::
     return inference
 end
 
-function variational_updates!(model::VGP{T,L,GibbsSampling{T}}) where {T,L}
+function sample_parameters!(model::GPMC{T,L,GibbsSampling{T}}) where {T,L}
     sample_local!(model)
     sample_global!(model)
     if model.inference.nIter > model.inference.nBurnin && (model.inference.nIter-model.inference.nBurnin)%model.inference.samplefrequency==0
-        for k in 1:model.nLatent
-            push!(model.inference.sample_store[k],model.μ[k])
-        end
+        store_variables!(model)
     end
 end
 

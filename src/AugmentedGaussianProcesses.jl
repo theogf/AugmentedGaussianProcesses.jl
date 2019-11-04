@@ -14,9 +14,6 @@ export PoissonLikelihood, NegBinomialLikelihood
 export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI
 export NumericalVI, NumericalSVI
 export PriorMean, ZeroMean, ConstantMean, EmpiricalMean
-#Deprecated
-export BatchGPRegression, SparseGPRegression, MultiClass, SparseMultiClass, BatchBSVM, SparseBSVM, BatchXGPC, SparseXGPC, BatchStudentT, SparseStudentT
-
 
 #Useful functions and module
 include("kmeans/KMeansModule.jl")
@@ -26,7 +23,6 @@ include("functions/GIGSampler.jl")
 # include("functions/GPAnalysisTools.jl")
 # include("functions/IO_model.jl")
 #Custom modules
-using .KMeansModule
 using .PGSampler
 using .GIGSampler
 # using .PerturbativeCorrection
@@ -74,8 +70,6 @@ include("functions/utils.jl")
 include("functions/init.jl")
 include("functions/KLdivergences.jl")
 # include("functions/plotting.jl")
-#Deprecated constructors
-include("deprecated.jl")
 
 #Training Functions
 include("training.jl")
