@@ -5,7 +5,7 @@ of the expected log-likelihood ad its gradients
 Gradients are computed as in "The Variational Gaussian Approximation
 Revisited" by Opper and Archambeau 2009
 """
-abstract type NumericalVI{T<:Real} <: Inference{T} end
+abstract type NumericalVI{T<:Real} <: VariationalInference{T} end
 
 include("quadratureVI.jl")
 include("MCVI.jl")

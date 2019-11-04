@@ -67,14 +67,14 @@ end
 
 function sample_local!(l::StudentTLikelihood{T},y::AbstractVector,f::AbstractVector) where {T}
     l.c .= rand.(InverseGamma.(l.α,0.5*(abs2.(μ-y).+l.σ^2*l.ν)))
-    l.θ .= inv.(l.c)
+    set_ω!(l,inv.(l.c))
     return nothing
 end
 
 ## Global Gradients ##
 
-@inline ∇E_μ(l::StudentTLikelihood,::AVIOptimizer,y::AbstractVector) = (l.θ.*y,)
-@inline ∇E_Σ(l::StudentTLikelihood,::AVIOptimizer,y::AbstractVector) = (0.5.*l.θ,)
+@inline ∇E_μ(l::StudentTLikelihood,::AOptimizer,y::AbstractVector) = (l.θ.*y,)
+@inline ∇E_Σ(l::StudentTLikelihood,::AOptimizer,y::AbstractVector) = (0.5.*l.θ,)
 
 ## ELBO Section ##
 

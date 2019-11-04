@@ -1,6 +1,11 @@
-abstract type AbstractVIOptimizer{T} end
+abstract type AbstractOptimizer{T} end
 
-mutable struct AVIOptimizer{T<:Real} <: AbstractVIOptimizer{T}
+## Abstract type for analytical optimizer (closed forms are known)
+abstract type AOptimizer{T} <: AbstractOptimizer{T}
+## Abstract type for numerical optimizer (need for numerical integration)
+abstract type NOptimizer{T} <: AbstractOptimizer{T}
+
+mutable struct AVIOptimizer{T<:Real} <: AOptimizer{T}
     optimizer::Optimizer #Learning rate for stochastic updates
     ∇η₁::Vector{T}
     ∇η₂::Matrix{T}
@@ -9,7 +14,7 @@ mutable struct AVIOptimizer{T<:Real} <: AbstractVIOptimizer{T}
     end
 end
 
-mutable struct NVIOptimizer{T<:Real} <: AbstractVIOptimizer{T}
+mutable struct NVIOptimizer{T<:Real} <: NOptimizer{T}
     optimizer::Optimizer #Learning rate for stochastic updates
     ∇η₁::Vector{T}
     ∇η₂::Matrix{T}
@@ -19,4 +24,9 @@ mutable struct NVIOptimizer{T<:Real} <: AbstractVIOptimizer{T}
     function NVIOptimizer{T}(n::Int,b::Int,opt::Optimizer) where {T}
         new{T}(opt,zeros(T,n),zeros(T,n,n),zeros(T,b),zeros(T,b),LowerTriangular(diagm(sqrt(0.5)*ones(T,n))))
     end
+end
+
+mutable struct SOptimizer{T<:Real} <: AOptimizer{T}
+    optimizer::Optimizer 
+
 end

@@ -56,8 +56,8 @@ function local_updates!(l::GaussianLikelihood{T},y::AbstractVector,μ::AbstractV
     l.θ .= inv(l.σ²)
 end
 
-@inline ∇E_μ(l::GaussianLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} = (y./l.σ²,)
-@inline ∇E_Σ(l::GaussianLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
+@inline ∇E_μ(l::GaussianLikelihood{T},::AOptimizer,y::AbstractVector) where {T} = (y./l.σ²,)
+@inline ∇E_Σ(l::GaussianLikelihood{T},::AOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
 
 function predict_f(model::GP{T,GaussianLikelihood{T},Analytic{T}},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = kernelmatrix.([X_test],[model.X],model.kernel)

@@ -68,8 +68,8 @@ end
 
 ## Global Updates ##
 
-@inline ∇E_μ(l::NegBinomialLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} = (0.5*(y.-l.r),)
-@inline ∇E_Σ(l::NegBinomialLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} = (0.5.*l.θ,)
+@inline ∇E_μ(l::NegBinomialLikelihood{T},::AOptimizer,y::AbstractVector) where {T} = (0.5*(y.-l.r),)
+@inline ∇E_Σ(l::NegBinomialLikelihood{T},::AOptimizer,y::AbstractVector) where {T} = (0.5.*l.θ,)
 
 ## ELBO Section ##
 

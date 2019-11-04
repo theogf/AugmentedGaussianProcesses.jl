@@ -82,18 +82,18 @@ function local_updates!(l::LogisticSoftMaxLikelihood,y,μ::NTuple{N,<:AbstractVe
     return nothing
 end
 
-function sample_local!(model::VGP{T,<:LogisticSoftMaxLikelihood,<:GibbsSampling}) where {T}
-    model.likelihood.γ .= broadcast(μ::AbstractVector{<:Real}->rand.(Poisson.(0.5*model.likelihood.α.*safe_expcosh.(-0.5*μ,0.5*μ))), model.μ)
-    model.likelihood.α .= rand.(Gamma.(1.0.+(model.likelihood.γ...),1.0./model.likelihood.β))
+function sample_local!(l::LogisticSoftMaxLikelihood{T},y::AbstractVector,f) where {T}
+    l.γ .= broadcast(f->rand.(Poisson.(0.5*l.α.*safe_expcosh.(-0.5*f,0.5*f))), f)
+    l.α .= rand.(Gamma.(one(T).+(l.γ...),1.0./l.β))
     pg = PolyaGammaDist()
-    model.likelihood.θ .= broadcast((y::BitVector,γ::AbstractVector{<:Real},μ::AbstractVector{<:Real})->draw.([pg],y.+γ,μ),model.likelihood.Y,model.likelihood.γ,model.μ)
+    set_ω!(l,broadcast((y,γ,f)->draw.([pg],y.+γ,μ),y,l.γ,f)
     return nothing
 end
 
 ## Global Gradient Section ##
 
-@inline ∇E_μ(l::LogisticSoftMaxLikelihood,::AVIOptimizer,y) where {T} = 0.5.*(y.-l.γ)
-@inline ∇E_Σ(l::LogisticSoftMaxLikelihood,::AVIOptimizer,y) where {T} = 0.5.*l.θ
+@inline ∇E_μ(l::LogisticSoftMaxLikelihood,::AOptimizer,y::AbstractVector) where {T} = 0.5.*(y.-l.γ)
+@inline ∇E_Σ(l::LogisticSoftMaxLikelihood,::AOptimizer,y::AbstractVector) where {T} = 0.5.*l.θ
 
 ## ELBO Section ##
 function expec_logpdf(l::LogisticSoftMaxLikelihood{T},i::AnalyticVI,y,μ,Σ) where {T}

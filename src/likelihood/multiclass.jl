@@ -50,9 +50,17 @@ function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractV
     return DataFrame(pred,Symbol.(l.class_mapping))
 end
 
-function expecLogLikelihood(model::AbstractGP{T,<:MultiClassLikelihood,<:NumericalVI}) where {T}
+function expec_logpdf(model::AbstractGP{T,<:MultiClassLikelihood,<:NumericalVI}) where {T}
     compute_log_expectations(model)
 end
+
+log_likelihood(l::MultiClassLikelihood,y::AbstractVector,fs) where {T<:Real} = logpdf.(l,y,[getindex.(fs,i) for i in 1:length(y)])
+
+function grad_log_likelihood(l::Likelihood,y::AbstractVector,fs)
+    grad_logpdf.(l,y,[getindex.(fs,i) for i in 1:length(y)])
+end
+
+
 
 include("softmax.jl")
 include("logisticsoftmax.jl")

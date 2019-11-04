@@ -11,7 +11,7 @@ AnalyticVI(;ϵ::T=1e-5)
 
     - `ϵ::T` : convergence criteria
 """
-mutable struct AnalyticVI{T,N} <: Inference{T}
+mutable struct AnalyticVI{T,N} <: VariationalInference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
     Stochastic::Bool #Use of mini-batches
