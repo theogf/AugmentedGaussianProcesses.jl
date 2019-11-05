@@ -1,11 +1,13 @@
+abstract type VariationalInference{T} <: Inference{T} end
+
 
 include("learning_rate/alrsvi.jl")
 include("learning_rate/inversedecay.jl")
 include("vi_optimizers.jl")
 include("analytic.jl")
 include("analyticVI.jl")
-include("gibbssampling.jl")
 include("numericalVI.jl")
+include("sampling.jl")
 
 function post_process!(model::AbstractGP{T,<:Likelihood,<:Inference}) where {T}
     nothing
@@ -28,3 +30,12 @@ end
 
 ## Default function for getting a view on y
 @inline view_y(l::Likelihood,y::AbstractVector,i::AbstractVector) = view(y,i)
+
+## Default function for getting gradient ##
+function grad_logpdf(l::Likelihood,y::Real,f::Real)
+    ForwardDiff.gradient(x->logpdf(l,y,x),[f])[1]
+end
+
+function grad_logpdf(l::Likelihood,y::Real,f::AbstractVector)
+    ForwardDiff.gradient(x->logpdf(l,y,x),f)
+end

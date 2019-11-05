@@ -71,14 +71,13 @@ end
 
 function sample_local!(l::LogisticLikelihood,y::AbstractVector,f::AbstractVector) where {T}
     pg = PolyaGammaDist()
-    l.θ .= draw.([pg],[1.0],f)
-    return nothing
+    set_ω!(l,draw.([pg],[1.0],f))
 end
 
 ### Natural Gradient Section ###
 
-@inline ∇E_μ(l::LogisticLikelihood,::AVIOptimizer,y::AbstractVector) where {T} = (0.5*y,)
-@inline ∇E_Σ(l::LogisticLikelihood,::AVIOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
+@inline ∇E_μ(l::LogisticLikelihood,::AOptimizer,y::AbstractVector) where {T} = (0.5*y,)
+@inline ∇E_Σ(l::LogisticLikelihood,::AOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
 
 ### ELBO Section ###
 

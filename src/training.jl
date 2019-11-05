@@ -9,7 +9,7 @@ there are options to change the number of max iterations,
 - `callback::Function` : Callback function called at every iteration. Should be of type `function(model,iter) ...  end`
 - `convergence::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
-function train!(model::AbstractGP{T,TLike,TInf},iterations::Integer=100;callback::Union{Nothing,Function}=nothing,convergence::Union{Nothing,Function}=nothing) where {T,TLike<:Likelihood,TInf<:Inference}
+function train!(model::AbstractGP{T,TLike,TInf},iterations::Int=100;callback::Union{Nothing,Function}=nothing,convergence::Union{Nothing,Function}=nothing) where {T,TLike<:Likelihood,TInf<:Inference}
     if model.verbose > 0
       println("Starting training $model with $(model.nSamples) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))
     end
@@ -56,6 +56,14 @@ function train!(model::AbstractGP{T,TLike,TInf},iterations::Integer=100;callback
     computeMatrices!(model) #Compute final version of the matrices for prediction
     post_process!(model)
     model.Trained = true
+end
+
+function sample(model::GPMC{T,TLike,TInf},nSamples::Int=1000;callback::Union{Nothing,Function}=nothing) where {T,TLike<:Likelihood,TInf<:Inference}
+    if model.verbose > 0
+      println("Starting sampling $model with $(model.nSamples) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))
+    end
+    @assert nSamples > 0  "Number of samples should be positive"
+    return sample_parameters(model,nSamples)
 end
 
 function update_parameters!(model::GP)

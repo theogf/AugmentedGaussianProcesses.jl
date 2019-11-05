@@ -71,8 +71,8 @@ end
 
 ## Global Updates ##
 
-@inline ∇E_μ(l::PoissonLikelihood,::AVIOptimizer,y) = (0.5*(y-l.γ),)
-@inline ∇E_Σ(l::PoissonLikelihood,::AVIOptimizer,y) = (0.5*l.θ,)
+@inline ∇E_μ(l::PoissonLikelihood,::AOptimizer,y::AbstractVector) = (0.5*(y-l.γ),)
+@inline ∇E_Σ(l::PoissonLikelihood,::AOptimizer,y::AbstractVector) = (0.5*l.θ,)
 
 ## ELBO Section ##
 function expec_logpdf(l::PoissonLikelihood{T},i::AnalyticVI,y,μ::AbstractVector,Σ::AbstractVector) where {T}

@@ -30,12 +30,12 @@ function HeteroscedasticLikelihood(λ::T=1.0) where {T<:Real}
         HeteroscedasticLikelihood{T}(λ)
 end
 
-function pdf(l::HeteroscedasticLikelihood,y::Real,f::Real,g::Real)
-    pdf(Normal(y,inv(sqrt(l.λ*logistic(g)))),f)
+function pdf(l::HeteroscedasticLikelihood,y::Real,f::AbstractVector)
+    pdf(Normal(y,inv(sqrt(l.λ*logistic(f[2])))),f[1])
 end
 
-function logpdf(l::HeteroscedasticLikelihood,y::Real,f::Real,g::Real)
-    logpdf(Normal(y,inv(sqrt(l.λ*logistic(g)))),f)
+function logpdf(l::HeteroscedasticLikelihood,y::Real,f::AbstractVector)
+    logpdf(Normal(y,inv(sqrt(l.λ*logistic(f[2])))),f[1])
 end
 
 function Base.show(io::IO,model::HeteroscedasticLikelihood{T}) where T
@@ -104,9 +104,9 @@ function expectation(f::Function,μ::Real,σ²::Real)
     dot(pred_weights,f.(x))
 end
 
-@inline ∇E_μ(l::HeteroscedasticLikelihood,::AVIOptimizer,y::AbstractVector) where {T} = (0.5*y.*l.λ.*l.σg,0.5*(0.5.-l.γ))
+@inline ∇E_μ(l::HeteroscedasticLikelihood,::AOptimizer,y::AbstractVector) where {T} = (0.5*y.*l.λ.*l.σg,0.5*(0.5.-l.γ))
 
-@inline ∇E_Σ(l::HeteroscedasticLikelihood,::AVIOptimizer,y::AbstractVector) where {T} = (0.5*l.λ.*l.σg,0.5*l.θ)
+@inline ∇E_Σ(l::HeteroscedasticLikelihood,::AOptimizer,y::AbstractVector) where {T} = (0.5*l.λ.*l.σg,0.5*l.θ)
 
 function proba_y(model::AbstractGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}},X_test::AbstractMatrix{T}) where {T<:Real}
     (μf, σ²f),(μg, σ²g) = predict_f(model,X_test,covf=true)

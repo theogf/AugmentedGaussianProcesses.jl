@@ -73,8 +73,8 @@ function local_updates!(l::BayesianSVM{T},y::AbstractVector,μ::AbstractVector,d
     l.θ .= one(T)./sqrt.(l.ω)
 end
 
-@inline ∇E_μ(l::BayesianSVM{T},::AVIOptimizer,y::AbstractVector) where {T} = (y.*(l.θ.+one(T)),)
-@inline ∇E_Σ(l::BayesianSVM{T},::AVIOptimizer,y::AbstractVector) where {T} = (0.5.*l.θ,)
+@inline ∇E_μ(l::BayesianSVM{T},::AOptimizer,y::AbstractVector) where {T} = (y.*(l.θ.+one(T)),)
+@inline ∇E_Σ(l::BayesianSVM{T},::AOptimizer,y::AbstractVector) where {T} = (0.5.*l.θ,)
 
 function expec_logpdf(l::BayesianSVM{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     tot = -(0.5*length(y)*logtwo)

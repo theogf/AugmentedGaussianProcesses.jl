@@ -68,14 +68,14 @@ function local_updates!(l::LaplaceLikelihood{T},y::AbstractVector,μ::AbstractVe
     l.θ .= sqrt(l.a)./sqrt.(l.b)
 end
 
-function sample_local!(model::VGP{T,<:LaplaceLikelihood,<:GibbsSampling}) where {T}
-    model.likelihood.b .= broadcast((μ,y,β)->rand.(GeneralizedInverseGaussian.(1/β^2,abs2.(μ-y),0.5)),model.μ,model.inference.y,model.likelihood.β)
-    model.likelihood.θ .= broadcast(b->1.0./b,model.likelihood.b)
+function sample_local!(l::LaplaceLikelihood,y::AbstractVector,f::AbstractVector) where {T}
+    l.b .= rand.(GeneralizedInverseGaussian.(1/l.β^2,abs2.(f-y),0.5))
+    set_ω!(l,inv.(l.b))
     return nothing
 end
 
-@inline ∇E_μ(l::LaplaceLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} =  (l.θ.*y,)
-@inline ∇E_Σ(l::LaplaceLikelihood{T},::AVIOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
+@inline ∇E_μ(l::LaplaceLikelihood{T},::AOptimizer,y::AbstractVector) where {T} =  (l.θ.*y,)
+@inline ∇E_Σ(l::LaplaceLikelihood{T},::AOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
 
 ## ELBO ##
 function expec_logpdf(l::LaplaceLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}

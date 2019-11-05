@@ -66,6 +66,28 @@ function _SVGP{T}(  dim::Int,nSamplesUsed::Int,
             deepcopy(opt_σ))
 end
 
+mutable struct _GPMC{T} <: Abstract_GP{T}
+    dim::Int
+    f::Vector{T}
+    kernel::Kernel
+    σ_k::Float64
+    μ₀::PriorMean{T}
+    K::PDMat{T,Matrix{T}}
+end
+
+function _GPMC{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real) where {T<:Real}
+    _GPMC{T}(dim,
+            zeros(T,dim),
+            deepcopy(kernel),
+            σ_k,
+            deepcopy(mean),
+            PDMat(Matrix{T}(I,dim,dim)),
+end
+
+
+get_f(model::GPMC) = getproperty(model.f,:f)
+
+
 mean_f(model::AbstractGP) = mean_f.(model.f)
 
 mean_f(gp::_VGP) = gp.μ
