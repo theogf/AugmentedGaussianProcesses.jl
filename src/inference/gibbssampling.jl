@@ -45,7 +45,7 @@ function init_inference(inference::GibbsSampling{T},nLatent::Integer,nFeatures::
     return inference
 end
 
-function sample_parameters!(model::GPMC{T,L,GibbsSampling{T}}) where {T,L}
+function sample_parameters!(model::AbstractGP{T,L,GibbsSampling{T}}) where {T,L}
     sample_local!(model)
     sample_global!(model)
     if model.inference.nIter > model.inference.nBurnin && (model.inference.nIter-model.inference.nBurnin)%model.inference.samplefrequency==0

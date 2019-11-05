@@ -23,6 +23,7 @@ include("functions/GIGSampler.jl")
 # include("functions/GPAnalysisTools.jl")
 # include("functions/IO_model.jl")
 #Custom modules
+using .KMeansModule
 using .PGSampler
 using .GIGSampler
 # using .PerturbativeCorrection

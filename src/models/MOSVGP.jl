@@ -98,7 +98,7 @@ function MOSVGP(
             A = zeros(T1,nTask,nf_per_task[1],nLatent)
             for i in eachindex(A)
                 p = rand(0:1)
-                A[i] =  rand(Normal(1.0,1.0))#p*rand(dpos) + (1-p)*rand(dneg)
+                A[i] =  rand(Normal(0.0,1.0))#p*rand(dpos) + (1-p)*rand(dneg)
             end
 
             likelihoods .= init_likelihood.(likelihoods,inference,nLatent,nMinibatch,nFeatures)
@@ -181,8 +181,8 @@ get_X(model::MOSVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
 
 
 function update_A!(model::MOSVGP)
-    μ = mean_f.(model.f)
-    Σ = diag_cov_f.(model.f)
+    μ = mean_f.(model.f) # κμ
+    Σ = diag_cov_f.(model.f) #K̃ + κΣκ
     ∇Eμ = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
     ∇EΣ = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
     for t in 1:model.nTask
@@ -190,7 +190,7 @@ function update_A!(model::MOSVGP)
             for q in 1:model.nLatent
                 x1 = dot(∇Eμ[t][j],μ[q])
                 x2 = dot(∇EΣ[t][j],abs2.(μ[q])+Σ[q])
-                # model.A[t,j,q] = x1/(2*x2)
+                model.A[t,j,q] = x1/(2*x2)
             end
             # model.A[t,j,:]./=sum(model.A[t,j,:])
         end

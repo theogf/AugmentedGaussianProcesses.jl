@@ -132,6 +132,11 @@ function proba_y(model::AbstractGP,X_test::AbstractMatrix)
     pred = compute_proba(model.likelihood,μ_f,Σ_f)
 end
 
+function proba_y(model::MOSVGP,X_test::AbstractMatrix)
+    μ_f,Σ_f = _predict_f(model,X_test,covf=true)
+    preds = compute_proba.(model.likelihood,μ_f,Σ_f)
+end
+
 function proba_y(model::AbstractGP{T,<:MultiClassLikelihood},X_test::AbstractMatrix) where {T}
     μ_f,Σ_f = _predict_f(model,X_test,covf=true)
     μ_p = compute_proba(model.likelihood,μ_f,Σ_f)
