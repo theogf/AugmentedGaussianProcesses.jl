@@ -66,7 +66,7 @@ function _SVGP{T}(  dim::Int,nSamplesUsed::Int,
             deepcopy(opt_σ))
 end
 
-mutable struct _GPMC{T} <: Abstract_GP{T}
+mutable struct _MCGP{T} <: Abstract_GP{T}
     dim::Int
     f::Vector{T}
     kernel::Kernel
@@ -75,17 +75,15 @@ mutable struct _GPMC{T} <: Abstract_GP{T}
     K::PDMat{T,Matrix{T}}
 end
 
-function _GPMC{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real) where {T<:Real}
-    _GPMC{T}(dim,
+function _MCGP{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real) where {T<:Real}
+    _MCGP{T}(dim,
             zeros(T,dim),
             deepcopy(kernel),
             σ_k,
             deepcopy(mean),
-            PDMat(Matrix{T}(I,dim,dim)),
+            PDMat(Matrix{T}(I,dim,dim)))
 end
 
-
-get_f(model::GPMC) = getproperty(model.f,:f)
 
 
 mean_f(model::AbstractGP) = mean_f.(model.f)
@@ -97,7 +95,7 @@ diag_cov_f(model::AbstractGP) = diag_cov_f.(model.f)
 diag_cov_f(gp::_VGP) = diag(gp.Σ)
 diag_cov_f(gp::_SVGP) = opt_diag(gp.κ*gp.Σ,gp.κ) + gp.K̃
 
-compute_K!(gp::_VGP,X::AbstractMatrix,jitter) = gp.K = PDMat(gp.σ_k*(kernelmatrix(gp.kernel,X,obsdim=1)+jitter*I))
+compute_K!(gp::Union{_VGP,_MCGP},X::AbstractMatrix,jitter) = gp.K = PDMat(gp.σ_k*(kernelmatrix(gp.kernel,X,obsdim=1)+jitter*I))
 compute_K!(gp::_SVGP,jitter) = gp.K = PDMat(gp.σ_k*(kernelmatrix(gp.kernel,gp.Z.Z,obsdim=1)+jitter*I))
 
 function compute_κ!(gp::_SVGP,X,jitter)

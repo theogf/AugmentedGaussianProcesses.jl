@@ -1,6 +1,3 @@
-abstract type VariationalInference{T} <: Inference{T} end
-
-
 include("learning_rate/alrsvi.jl")
 include("learning_rate/inversedecay.jl")
 include("vi_optimizers.jl")

@@ -118,7 +118,7 @@ function MOSVGP(
 end
 
 function Base.show(io::IO,model::MOSVGP{T,<:Likelihood,<:Inference}) where {T}
-    print(io,"Multioutput Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
+    print(io,"Multioutput Sparse Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ")
 end
 
 function mean_f(model::MOSVGP{T}) where {T}

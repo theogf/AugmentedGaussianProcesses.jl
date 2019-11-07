@@ -5,7 +5,7 @@ General Framework for the data augmented Gaussian Processes
 """
 module AugmentedGaussianProcesses
 
-export AbstractGP, GP, VGP, SVGP, VStP
+export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOSVGP
 export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
 export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood
 export LogisticLikelihood, BayesianSVM
@@ -43,13 +43,15 @@ using ProgressMeter
 export KMeansModule
 export KMeansInducingPoints
 #Useful functions
-export train!
+export train!, sample
 export predict_f, predict_y, proba_y
 export fstar, ELBO
 export covariance, diag_covariance, prior_mean
 
 # Main classes
 abstract type Inference{T<:Real} end
+abstract type VariationalInference{T} <: Inference{T} end
+abstract type SamplingInference{T} <: Inference{T} end
 abstract type Likelihood{T<:Real} end
 abstract type Abstract_GP{T<:Real} end
 
@@ -61,6 +63,7 @@ include("models/AbstractGP.jl")
 include("models/GP_base.jl")
 include("models/GP.jl")
 include("models/VGP.jl")
+include("models/MCGP.jl")
 include("models/SVGP.jl")
 include("models/VStP.jl")
 include("models/MOSVGP.jl")

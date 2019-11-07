@@ -34,7 +34,7 @@ function Base.show(io::IO,inference::HMCSampling{T}) where {T<:Real}
     print(io,"Gibbs Sampler")
 end
 
-function grad_logpdf(model::GPMC{T,L,HMCSampling{T}},x) where {T,L}
+function grad_logpdf(model::MCGP{T,L,HMCSampling{T}},x) where {T,L}
     grad_log_likelihood(model.likelihood,get_y(model),x) + sum(grad_log_gp_prior.(model.f,x))
 end
 
@@ -45,7 +45,7 @@ function init_sampler(inference::HMCSampling{T},nLatent::Integer,nFeatures::Inte
     return inference
 end
 
-function sample_parameters!(model::GPMC{T,L,HMCSampling{T}},nSamples::Int,callback) where {T,L}
+function sample_parameters!(model::MCGP{T,L,HMCSampling{T}},nSamples::Int,callback) where {T,L}
     f_init = vcat(get_f(model)...)
     logpdf(x) = log_joint_model(model,x)
     gradlogpdf(x) = (log_joint_model(model,x),grad_log_joint_model(model,x))

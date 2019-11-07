@@ -28,77 +28,57 @@ Argument list :
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct MCGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},TGP<:Abstract_GP{T}} <: AbstractGP{T,TLikelihood,TInference,TGP}
+mutable struct MCGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},TGP<:Abstract_GP{T},N} <: AbstractGP{T,TLikelihood,TInference,TGP,N}
     X::Matrix{T} #Feature vectors
     y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSample::Int64 # Number of data points
+    nSamples::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
-    IndependentPriors::Bool # Use of separate priors for each latent GP
-    nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
-    f::NTuple{N,Vector{T}} # Vector of latent GPs
+    f::NTuple{N,_MCGP} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64 #Level of printing information
-    optimizer::Union{Optimiser,Nothing}
     atfrequency::Int64
     Trained::Bool
 end
 
 
-function MCGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
+function MCGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             likelihood::TLikelihood,inference::TInference;
             verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
-            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-            IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2,N1,N2,TLikelihood<:Likelihood,TInference<:Inference}
+            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real=1.0,
+            ArrayType::UnionAll=Vector) where {T<:Real,TLikelihood<:Likelihood,TInference<:SamplingInference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(:MCGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
 
-            nPrior = IndependentPriors ? nLatent : 1
-            nFeatures = nSample = size(X,1); nDim = size(X,2);
+            nFeatures = nSamples = size(X,1); nDim = size(X,2);
             if isa(optimizer,Bool)
                 optimizer = optimizer ? Adam(α=0.01) : nothing
             end
-            if !isnothing(optimizer) && isa(inference,GibbsSampling)
-                @warn "Hyperparameter optimization is not available with Gibbs Sampling, disabling it"
-                optimizer = nothing
-            end
-            if !isnothing(optimizer)
-                setoptimizer!(kernel,optimizer)
-            end
 
-            kernel = ArrayType([deepcopy(kernel) for _ in 1:nPrior])
-
-            μ = LatentArray([zeros(T1,nFeatures) for _ in 1:nLatent]); η₁ = deepcopy(μ)
-            Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T1)*I,nFeatures))) for _ in 1:nLatent]);
-            η₂ = -0.5*inv.(Σ);
-            μ₀ = []
             if typeof(mean) <: Real
-                μ₀ = [ConstantMean(mean) for _ in 1:nPrior]
+                mean = ConstantMean(mean)
             elseif typeof(mean) <: AbstractVector{<:Real}
-                μ₀ = [EmpiricalMean(mean) for _ in 1:nPrior]
-            else
-                μ₀ = [mean for _ in 1:nPrior]
+                mean = EmpiricalMean(mean)
             end
-            Knn = LatentArray([deepcopy(Σ[1]) for _ in 1:nPrior]);
-            invKnn = copy(Knn)
 
-            likelihood = init_likelihood(likelihood,inference,nLatent,nSample,nFeatures)
-            inference = init_inference(inference,nLatent,nSample,nSample,nSample)
-            inference.x = view(X,:,:)
-            inference.y = view.(y,:)
-            MCGP{T1,TLikelihood,TInference,ArrayType{T1}}(X,y,
+            latentf = ntuple(_->_MCGP{T}(nFeatures,kernel,mean,variance),nLatent)
+
+            likelihood = init_likelihood(likelihood,inference,nLatent,nSamples,nFeatures)
+            inference = init_inference!(inference,nLatent,nSamples,nSamples)
+            inference.xview = view(X,:,:)
+            inference.yview = view_y(likelihood,y,1:nSamples)
+            MCGP{T,TLikelihood,typeof(inference),_VGP{T},nLatent}(X,y,
                     nFeatures, nDim, nFeatures, nLatent,
-                    IndependentPriors,nPrior,μ,Σ,η₁,η₂,
-                    μ₀,Knn,invKnn,kernel,likelihood,inference,
-                    verbose,optimizer,atfrequency,false)
+                    latentf,likelihood,inference,
+                    verbose,atfrequency,false)
 end
 
 function Base.show(io::IO,model::MCGP{T,<:Likelihood,<:Inference}) where {T}
-    print(io,"Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
+    print(io,"Monte Carlo Gaussian Process with a $(model.likelihood) sampled via $(model.inference) ")
 end
 
-@inline invK(model::MCGP) = model.invKnn
-@inline invK(model::MCGP,i::Integer) = model.invKnn[i]
+get_f(model::MCGP) = getproperty.(model.f,:f)
+get_y(model::MCGP) = model.inference.yview

@@ -17,54 +17,61 @@ mutable struct GibbsSampling{T<:Real} <: SamplingInference{T}
     nIter::Integer #Number of steps performed
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64 # Number of samples
+    nMinibatch::Int64
+    ρ::Float64
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     sample_store::AbstractArray{T,3}
-    x::SubArray{T,2,Matrix{T}}#,Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
-    y::LatentArray{SubArray}
+    xview::SubArray{T,2,Matrix{T}}#,Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
+    yview::SubArray
     function GibbsSampling{T}(nBurnin::Int,samplefrequency::Int,ϵ::T,nIter::Integer,Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
-        return new{T}(nBurnin,samplefrequency,ϵ,nIter,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag)
+        return new{T}(nBurnin,samplefrequency,ϵ,nIter,Stochastic,nSamples,nSamplesUsed,ρ,flag)
+    end
+    function GibbsSampling{T}(nBurnin::Int,samplefrequency::Int,ϵ::Real) where {T}
+        @assert nBurnin >= 0 "nBurnin should be a positive integer"
+        @assert samplefrequency >= 0 "samplefrequency should be a positive integer"
+        return new{T}(nBurnin,samplefrequency,ϵ)
     end
 end
 
 function GibbsSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=10) where {T<:Real}
-    GibbsSampling{Float64}(nBurnin,samplefrequency,ϵ,0,false,1,1,[1],1.0,true)
+    GibbsSampling{Float64}(nBurnin,samplefrequency,ϵ)
 end
 
 function Base.show(io::IO,inference::GibbsSampling{T}) where {T<:Real}
     print(io,"Gibbs Sampler")
 end
 
-function init_sampler(inference::GibbsSampling{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer) where {T<:Real}
-    inference.nSamples =
-    inference.MBIndices = collect(1:nSamples)
-    inference.sample_store = zeros(T,nLatent,nFeatures,n)
+function init_inference!(inference::GibbsSampling{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer) where {T}
+    inference.nSamples = nSamples
+    inference.Stochastic = false
+    inference.nSamples = nSamples
+    inference.nMinibatch = nSamples
+    inference.ρ = 1.0
+    inference.HyperParametersUpdated = true
     return inference
 end
 
-<<<<<<< HEAD
-function sample_parameters!(model::AbstractGP{T,L,GibbsSampling{T}}) where {T,L}
-    sample_local!(model)
-    sample_global!(model)
-    if model.inference.nIter > model.inference.nBurnin && (model.inference.nIter-model.inference.nBurnin)%model.inference.samplefrequency==0
-        store_variables!(model)
-=======
-function sample_parameters!(model::GPMC{T,L,GibbsSampling{T}},nSamples::Int,callback) where {T,L}
+function init_sampler(inference::GibbsSampling{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer) where {T<:Real}
+    inference.sample_store = zeros(T,nLatent,nFeatures,nSamples)
+    return inference
+end
+
+function sample_parameters(model::MCGP{T,L,GibbsSampling{T}},nSamples::Int,callback) where {T,L}
     model.inference.sample_store = zeros(T,model.nLatent,model.nFeatures,nSamples)
     computeMatrices!(model)
-    for i in 1:(model.inference.nBurnin+nSamples*model.inference.atfrequency)
+    for i in 1:(model.inference.nBurnin+nSamples*model.inference.samplefrequency)
         sample_local!(model.likelihood,get_y(model),get_f(model))
-        sample_global!.(∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
+        sample_global!.(∇E_μ(model.likelihood,[],get_y(model)),
         ∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model)),model.f)
         if model.inference.nIter > model.inference.nBurnin && (model.inference.nIter-model.inference.nBurnin)%model.inference.samplefrequency==0
             store_variables!(model.inference,get_f(model))
         end
->>>>>>> dbea8df91f33794d97b6ab471444b4dcfbeee5ab
     end
-    symbols = [Symbol(f,"_",i,"_",j) for j in 1:model.nFeatures, i in 1:model.nLatent]
-    Chain(reshape(model.inference.sample_store,model.nLatent*model.nFeatures,:,1),symbols)
+    symbols = [Symbol(f,"_",i) for i in 1:model.nFeatures]
+    chains = [Chain(reshape(model.inference.sample_store[i,:,:],model.nFeatures,:,1),symbols) for i in 1:model.nLatent]
 end
 
-sample_local!(l::Likelihood,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} =sample_local!(l,y,first(μ),first(Σ))
+sample_local!(l::Likelihood,y,f::Tuple{<:AbstractVector{T}}) where {T} =sample_local!(l,y,first(f))
 set_ω!(l::Likelihood,ω) = l.θ .= ω
 get_ω(l::Likelihood) = l.θ
 
@@ -72,13 +79,13 @@ function logpdf(model::AbstractGP{T,<:Likelihood,<:GibbsSampling}) where {T}
     return 0.0
 end
 
-function sample_global!(∇E_Σ::AbstractVector,∇E_μ::AbstractVector,gp::_GPMC{T}) where {T}
+function sample_global!(∇E_Σ::AbstractVector,∇E_μ::AbstractVector,gp::_MCGP{T}) where {T}
     Σ = inv(Diagonal(2.0*∇E_Σ)+inv(gp.K))
     gp.f .= rand(MvNormal(Σ*(∇E_μ+gp.K/gp.μ₀),Σ))
     return nothing
 end
 
-function store_variables!(i::SamplingInference{T},fs)
+function store_variables!(i::SamplingInference{T},fs) where {T}
     i.sample_store[:,:,(i.nIter-i.nBurnin)÷i.samplefrequency] .= hcat(fs...)
 end
 

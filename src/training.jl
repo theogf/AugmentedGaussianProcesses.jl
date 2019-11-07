@@ -58,12 +58,12 @@ function train!(model::AbstractGP{T,TLike,TInf},iterations::Int=100;callback::Un
     model.Trained = true
 end
 
-function sample(model::GPMC{T,TLike,TInf},nSamples::Int=1000;callback::Union{Nothing,Function}=nothing) where {T,TLike<:Likelihood,TInf<:Inference}
+function sample(model::MCGP{T,TLike,TInf},nSamples::Int=1000;callback::Union{Nothing,Function}=nothing) where {T,TLike<:Likelihood,TInf<:Inference}
     if model.verbose > 0
       println("Starting sampling $model with $(model.nSamples) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))
     end
     @assert nSamples > 0  "Number of samples should be positive"
-    return sample_parameters(model,nSamples)
+    return sample_parameters(model,nSamples,callback)
 end
 
 function update_parameters!(model::GP)
@@ -110,7 +110,7 @@ function computeMatrices!(model::GP{T}) where {T}
     end
 end
 
-function computeMatrices!(model::VGP{T}) where {T}
+function computeMatrices!(model::Union{VGP{T},MCGP{T}}) where {T}
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,[model.inference.xview],T(jitter))
     end

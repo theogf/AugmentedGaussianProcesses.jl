@@ -1,9 +1,9 @@
 abstract type AbstractOptimizer{T} end
 
 ## Abstract type for analytical optimizer (closed forms are known)
-abstract type AOptimizer{T} <: AbstractOptimizer{T}
+abstract type AOptimizer{T} <: AbstractOptimizer{T} end
 ## Abstract type for numerical optimizer (need for numerical integration)
-abstract type NOptimizer{T} <: AbstractOptimizer{T}
+abstract type NOptimizer{T} <: AbstractOptimizer{T} end
 
 mutable struct AVIOptimizer{T<:Real} <: AOptimizer{T}
     optimizer::Optimizer #Learning rate for stochastic updates
@@ -27,6 +27,5 @@ mutable struct NVIOptimizer{T<:Real} <: NOptimizer{T}
 end
 
 mutable struct SOptimizer{T<:Real} <: AOptimizer{T}
-    optimizer::Optimizer 
-
+    optimizer::Optimizer
 end

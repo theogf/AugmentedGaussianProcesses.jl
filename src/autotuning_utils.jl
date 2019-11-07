@@ -6,7 +6,7 @@ function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,J
     return map(gradient_function,J)
 end
 
-function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,Jmm::Vector{<:AbstractMatrix},Jnm::Vector{<:AbstractMatrix},Jnn::Vector{<:AbstractVector},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractVIOptimizer) where {T<:Real}
+function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,Jmm::Vector{<:AbstractMatrix},Jnm::Vector{<:AbstractMatrix},Jnn::Vector{<:AbstractVector},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T<:Real}
     return map(gradient_function,Jmm,Jnm,Jnn,[∇E_μ],[∇E_Σ],i,[opt])
 end
 

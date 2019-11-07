@@ -42,7 +42,7 @@ function update_hyperparameters!(gp::_VGP{T},X) where {T}
 end
 
 ## Update all hyperparameters for the sparse variational GP models ##
-function update_hyperparameters!(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractVIOptimizer) where {T}
+function update_hyperparameters!(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T}
     if !isnothing(gp.opt_ρ) || !isnothing(gp.opt_σ) || !isnothing(get_opt(gp.μ₀))
         f_ρ,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
         if !isnothing(gp.opt_ρ)
@@ -172,7 +172,7 @@ end
 
 
 ## Return a function computing the gradient of the ELBO given the inducing point locations ##
-function inducingpoints_gradient(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractVIOptimizer) where {T<:Real}
+function inducingpoints_gradient(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T<:Real}
     gradient_inducing_points = similar(gp.Z.Z)
     A = (I-gp.K\(gp.Σ+gp.µ*transpose(gp.μ)))/gp.K
     #preallocation

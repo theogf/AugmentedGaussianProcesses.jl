@@ -30,7 +30,7 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
     elseif likelihood isa LaplaceLikelihood
         if inference isa AnalyticVI || inference isa QuadratureVI
             return true
-        elseif model == :VGP && inference isa GibbsSampling
+        elseif model == :MCGP && inference isa GibbsSampling
             return true
         else
             return false
@@ -44,7 +44,7 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
     elseif likelihood isa LogisticLikelihood
         if inference isa AnalyticVI || inference isa QuadratureVI
             return true
-        elseif model == :VGP && inference isa GibbsSampling
+        elseif model == :MCGP && inference isa GibbsSampling
             return true
         else
             return false
@@ -64,7 +64,7 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
     elseif likelihood isa LogisticSoftMaxLikelihood
         if inference isa AnalyticVI
             return true
-        elseif model == :VGP && inference isa GibbsSampling
+        elseif model == :MCGP && inference isa GibbsSampling
             return true
         elseif inference isa MCIntegrationVI
             return true
