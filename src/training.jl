@@ -58,12 +58,12 @@ function train!(model::AbstractGP{T,TLike,TInf},iterations::Int=100;callback::Un
     model.Trained = true
 end
 
-function sample(model::MCGP{T,TLike,TInf},nSamples::Int=1000;callback::Union{Nothing,Function}=nothing) where {T,TLike<:Likelihood,TInf<:Inference}
+function sample(model::MCGP{T,TLike,TInf},nSamples::Int=1000;callback::Union{Nothing,Function}=nothing,cat_samples::Bool=false) where {T,TLike<:Likelihood,TInf<:Inference}
     if model.verbose > 0
       println("Starting sampling $model with $(model.nSamples) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))
     end
     @assert nSamples > 0  "Number of samples should be positive"
-    return sample_parameters(model,nSamples,callback)
+    return sample_parameters(model,nSamples,callback,cat_samples)
 end
 
 function update_parameters!(model::GP)

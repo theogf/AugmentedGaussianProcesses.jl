@@ -21,10 +21,11 @@ function cb(model,iter)
     # display(p)
 end
 using GradDescent
-M = MCGP(X,y,SqExponentialKernel(),LogisticLikelihood(),GibbsSampling(),optimizer=false,verbose=3,variance=10.0)
+model = MCGP(X,y,SqExponentialKernel(),LogisticLikelihood(),GibbsSampling(nBurnin=0),optimizer=false,verbose=3,variance=10.0)
 # cb(model,iter) = @info "L = $(ELBO(model)), k_l = $(get_params(model.f[1].kernel)), σ = $(model.f[1].σ_k)"
-sample(M,100,callback=nothing)
-
+chain = sample(model,1000,callback=nothing,cat_samples=true)
+pred_f,sig_f = predict_f(model,X,covf=true)
+chain
 ##
 # pred_F,sig_F = predict_f(M,X,covf=true)
 # pred_f,sig_f = predict_f(m,X,covf=true)
@@ -33,11 +34,12 @@ sample(M,100,callback=nothing)
 # proba_X,_ = proba_y(M,X)
 # proba_x,_ = proba_y(m,X)
 # maximum(proba_x)
-# scatter(X,y)
+scatter(X,y)
 # scatter!(X,pred_x)
 # scatter!(X,pred_X)
 # scatter!(AGP.get_X(m)[:],zeros(length(AGP.get_X(m))))
-# # plot!(X,pred_f)
+plot!(X,pred_f .+ 2*sqrt.(sig_f),fillrange=pred_f .- 2*sqrt.(sig_f),lab="",alpha=0.3)
+plot!(X,pred_f)
 # # plot!(X,pred_F)
 # plot!(X,proba_X)
 # plot!(X,proba_x)

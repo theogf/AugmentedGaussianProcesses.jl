@@ -67,10 +67,10 @@ function MCGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             latentf = ntuple(_->_MCGP{T}(nFeatures,kernel,mean,variance),nLatent)
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamples,nFeatures)
-            inference = init_inference!(inference,nLatent,nSamples,nSamples)
+            inference = tuple_inference(inference,nLatent,nSamples,nSamples)
             inference.xview = view(X,:,:)
             inference.yview = view_y(likelihood,y,1:nSamples)
-            MCGP{T,TLikelihood,typeof(inference),_VGP{T},nLatent}(X,y,
+            MCGP{T,TLikelihood,typeof(inference),_MCGP{T},nLatent}(X,y,
                     nFeatures, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
                     verbose,atfrequency,false)
@@ -82,3 +82,4 @@ end
 
 get_f(model::MCGP) = getproperty.(model.f,:f)
 get_y(model::MCGP) = model.inference.yview
+get_X(model::MCGP) = [model.inference.xview]

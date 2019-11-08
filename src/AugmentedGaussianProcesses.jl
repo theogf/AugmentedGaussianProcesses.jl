@@ -35,7 +35,7 @@ using GradDescent
 using KernelFunctions
 using ForwardDiff
 using PDMats
-using AdvancedHMC
+using AdvancedHMC, MCMCChains
 using DataFrames
 using StatsBase, StatsFuns, SpecialFunctions, Distributions, FastGaussQuadrature
 using ProgressMeter
