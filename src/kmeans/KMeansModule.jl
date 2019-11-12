@@ -9,7 +9,7 @@ using AugmentedGaussianProcesses.KernelModule
 using GradDescent
 
 export KMeansInducingPoints
-export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, DPPAlg, MEC
+export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, DPPAlg, MEC, Greedy
 export total_cost
 export init!, add_point!, remove_point!, update_centers!
 
@@ -100,6 +100,7 @@ include("CircleKMeans.jl")
 include("DataSelection.jl")
 include("OfflineKMeans.jl")
 include("MEC.jl")
+include("greedy.jl")
 ####
 function KLGP(mu,sig,f,sig_f)
     tot = -0.5*length(f)
@@ -116,10 +117,10 @@ end
 
 
 #Return K inducing points from X, m being the number of Markov iterations for the seeding
-function KMeansInducingPoints(X::AbstractArray{T,N},nC::Integer;nMarkov::Integer=10,kweights::Vector{T}=[0.0]) where {T,N}
+function KMeansInducingPoints(X::AbstractArray{T,N},nC::Integer;nMarkov::Integer=10,kweights::Vector{T}=[0.0],tol=1e-3) where {T,N}
     C = copy(transpose(KmeansSeed(X,nC,nMarkov)))
     if kweights!=[0.0]
-        Clustering.kmeans!(copy(transpose(X)),C,weights=kweights,tol=1e-3)
+        Clustering.kmeans!(copy(transpose(X)),C,weights=kweights,tol=tol)
     else
         Clustering.kmeans!(copy(transpose(X)),C)
     end

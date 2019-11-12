@@ -35,7 +35,7 @@ function train!(model::OnlineVGP,X::AbstractArray,y::AbstractArray;iterations::I
         try #Allow for keyboard interruption without losing the model
             setZ!(model)
             if local_iter == 1
-                println("BLAH")
+                # println("BLAH")
                 computeMatrices!(model)
                 natural_gradient!(model)
                 global_update!(model)
