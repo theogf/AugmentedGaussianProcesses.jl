@@ -8,6 +8,8 @@ mutable struct Analytic{T<:Real} <: Inference{T}
     MBIndices::Vector{Int64} #Indices of the minibatch
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
+    xview::SubArray{T,2,Matrix{T}}
+    yview::SubArray
     function Analytic{T}(ϵ::T,nIter::Integer,Stochastic::Bool,nSamples::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
         return new{T}(ϵ,nIter,Stochastic,nSamples,nSamples,MBIndices,ρ,flag)
     end
@@ -35,6 +37,13 @@ function init_inference(inference::Analytic{T},nLatent::Integer,nFeatures::Integ
     inference.nSamples = nSamples
     inference.nSamplesUsed = nSamples
     inference.MBIndices = 1:nSamples
-    inference.ρ = nSamples/nSamplesUsed
+    inference.ρ = one(T)
     return inference
+end
+
+function analytic_updates!(model::GP{T}) where {T}
+    if model.likelihood.opt_noise
+        model.likelihood.σ² = mean(abs2,model.y.-model.f[1].μ)
+    end
+    model.f[1].μ = model.f[1].K\(model.y - model.f[1].μ₀)
 end

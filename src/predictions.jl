@@ -7,8 +7,8 @@ Compute the mean of the predicted latent distribution of `f` on `X_test` for the
 
 Return also the variance if `covf=true` and the full covariance if `fullcov=true`
 """
-function _predict_f(model::AbstractGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
-    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_X(model),obsdim=1)
+function _predict_f(model::AbstractGP{T},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
+    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     μf = k_star.*(get_K(model).\get_μ(model))
     if !covf
         return (μf,)
@@ -16,8 +16,26 @@ function _predict_f(model::AbstractGP,X_test::AbstractMatrix{T};covf::Bool=true,
     A = get_K(model).\([I].-get_Σ(model)./get_K(model))
     if fullcov
         k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
-        σ²f = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
+        Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
+        return μf,Σf
+    else
+        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1).+[T(jitter)*ones(T,size(X_test,1))])
+        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
         return μf,σ²f
+    end
+end
+
+function _predict_f(model::GP{T},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
+    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
+    μf = k_star.*mean_f(model)
+    if !covf
+        return (μf,)
+    end
+    A = [inv(model.f[1].K+model.likelihood.σ²I)]
+    if fullcov
+        k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
+        Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
+        return μf,Σf
     else
         k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1).+[T(jitter)*ones(T,size(X_test,1))])
         σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
@@ -95,7 +113,7 @@ end
 predict_y(model::MOSVGP,X_test::AbstractMatrix) = predict_y.(model.likelihood,_predict_f(model,X_test,covf=false))
 
 predict_y(l::RegressionLikelihood,μ::AbstractVector{<:Real}) = μ
-predict_y(l::RegressionLikelihood,μ::AbstractVector{<:AbstractVector})= first(μ)
+predict_y(l::RegressionLikelihood,μ::Tuple{<:AbstractVector})= first(μ)
 predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:Real}) = sign.(μ)
 predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:AbstractVector}) = sign.(first(μ))
 predict_y(l::MultiClassLikelihood,μs::AbstractVector{<:AbstractVector}) = [l.class_mapping[argmax([μ[i] for μ in μs])] for i in 1:length(μs[1])]
@@ -169,101 +187,6 @@ function proba_y(model::VGP{T,<:MultiClassLikelihood{T},<:GibbsSampling{T}},X_te
     return DataFrame(proba/nf,labels)
 end
 #
-# function proba_y(model::VGP{T,<:ClassificationLikelihood,<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
-#     k_star = kernelmatrix.([X_test],[model.X],model.kernel)
-#     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
-#     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
-#     K̃ = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+ [zeros(size(X_test,1)) for i in 1:model.nLatent]
-#     nf = length(model.inference.sample_store[1])
-#     proba = [zeros(size(X_test,1)) for i in 1:model.nLatent]
-#     sig_proba = [zeros(size(X_test,1)) for i in 1:model.nLatent]
-#     for i in 1:nf
-#         prob, sig_prob = compute_proba(model.likelihood,getindex.(f,[i]),K̃)
-#         proba .+= prob
-#         sig_proba .+= sig_prob
-#     end
-#     if model.nLatent == 1
-#         return (proba[1]/nf, sig_proba[1]/nf)
-#     else
-#         return (proba./nf, sig_proba./nf)
-#     end
-# end
-
-# function compute_proba(l::Likelihood{T},μ::AbstractVector{<:AbstractVector{T}},σ²::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
-#     compute_proba.(l,μ,σ²)
-# end
-
 function compute_proba(l::Likelihood{T},μ::AbstractVector{T},σ²::AbstractVector{}) where {T<:Real}
     @error "Non implemented for the likelihood $l"
-end
-
-# "Return the mean of likelihood p(y*=1|X,x*) via the probit link with a linear model"
-# function probitpredictproba(model::LinearModel,X_test::AbstractArray{T}) where {T<:Real}
-#     if model.Intercept
-#       X_test = [ones(T,size(X_test,1)) X_test]
-#     end
-#     n = size(X_test,1)
-#     pred = zeros(n)
-#     for i in 1:nTest
-#       pred[i] = cdf(Normal(),(dot(X_test[i,:],model.μ))/(dot(X_test[i,:],model.Σ*X_test[i,:])+1))
-#     end
-#     return pred
-# end
-
-"""Return the mean of likelihood p(y*=1|X,x*) via the probit link with a GP model"""
-function probitpredictproba(model::AbstractGP,X_test::AbstractArray{<:Real})
-    m_f,cov_f = predict_f(model,X_test,covf=true)
-    return broadcast((m,c)->cdf(Normal(),m/(c+1)),m_f,cov_f)
-end
-
-"Return the modified softmax likelihood given the latent functions"
-function sigma_max(f::Vector{T},index::Integer) where {T<:Real}
-    return logit(f[index])/sum(logit.(f))
-end
-
-"Return the modified softmax likelihood given the array of 'σ' and their sum (can be given via sumsig)"
-function mod_soft_max(σ::Vector{T},sumsig::T=zero(T)) where {T<:Real}
-    return sumsig == 0 ? σ./(sum(σ)) : σ./sumsig
-end
-
-
-"Return the gradient of the modified softmax likelihood given 'σ' and their sum (can be given via sumsig)"
-function grad_mod_soft_max(σ::Array{T,1},sumsig::T=zero(T)) where {T<:Real}
-    sumsig = sumsig == 0 ? sum(σ) : sumsig
-    shortened_sum = sumsig.-σ
-    sum_square = sumsig^2
-    base_grad = (σ-(σ.^2))./sum_square
-    n = size(σ,1)
-    grad = zeros(n,n)
-    for i in 1:n
-        for j in 1:n
-            if i==j
-                grad[i,i] = shortened_sum[i]*base_grad[i]
-            else
-                grad[i,j] = -σ[i]*base_grad[j]
-            end
-        end
-    end
-    return grad
-end
-
-"Return the hessian of the modified softmax likelihood given 'σ' and their sum (can be given via sumsig)"
-function hessian_mod_soft_max(σ::AbstractVector{T},sumsig::T=zero(T)) where {T<:Real}
-    sumsig = sumsig == 0 ? sum(σ) : sumsig
-    shortened_sum = sumsig.-σ
-    sum_square = sumsig^2
-    sum_cube = sumsig^3
-    base_grad = (σ-σ.^2).*((1.0.-2.0.*σ).*sum_square-2.0.*(σ-σ.^2)*sumsig)./sum_cube
-    n = size(σ,1)
-    grad = zeros(n,n)
-    for i in 1:n
-        for j in 1:n
-            if i==j
-                grad[i,i] = shortened_sum[i]*base_grad[i]
-            else
-                grad[i,j] = -σ[i]*base_grad[j]
-            end
-        end
-    end
-    return grad
 end

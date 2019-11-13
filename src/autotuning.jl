@@ -1,5 +1,5 @@
 include("autotuning_utils.jl")
-function update_hyperparameters!(model::VGP)
+function update_hyperparameters!(model::Union{GP,VGP})
     update_hyperparameters!.(model.f,[model.X])
     model.inference.HyperParametersUpdated = true
 end
@@ -15,7 +15,7 @@ function update_hyperparameters!(model::MOSVGP)
 end
 
 ## Update all hyperparameters for the full batch GP models ##
-function update_hyperparameters!(gp::_VGP{T},X) where {T}
+function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X) where {T}
     if !isnothing(gp.opt_ρ) || !isnothing(gp.opt_σ) || !isnothing(get_opt(gp.μ₀))
         f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp)
         if !isnothing(gp.opt_ρ)
@@ -80,9 +80,22 @@ function hyperparameter_KL_gradient(J::AbstractMatrix{T},A::AbstractMatrix{T}) w
 end
 
 
+function hyperparameter_gradient_function(gp::_GP{T}) where {T}
+    A = (inv(gp.K)-gp.μ*transpose(gp.μ))
+    return (function(Jnn)
+                return -hyperparameter_KL_gradient(Jnn,A)
+            end,
+            function(kernel,σ_k)
+                return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K,A)
+            end,
+            function()
+                return -gp.K\(gp.μ₀-gp.y)
+            end)
+end
+
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model ##
 function hyperparameter_gradient_function(gp::_VGP{T}) where {T<:Real}
-    A = (Diagonal{T}(I,gp.dim)-gp.K\(gp.Σ+(gp.µ-gp.μ₀)*transpose(gp.μ-gp.μ₀)))/gp.K
+    A = (I-gp.K\(gp.Σ+(gp.µ-gp.μ₀)*transpose(gp.μ-gp.μ₀)))/gp.K
     return (function(Jnn)
                 return -hyperparameter_KL_gradient(Jnn,A)
             end,
@@ -91,19 +104,6 @@ function hyperparameter_gradient_function(gp::_VGP{T}) where {T<:Real}
             end,
             function()
                 return -gp.K\(gp.μ₀-gp.μ)
-            end)
-end
-
-function hyperparameter_local_gradient_function(model::VGP{T}) where {T<:Real}
-    A = ([Diagonal{T}(I,model.nFeatures)].-model.likelihood.invK.*(model.likelihood.Σ.+(model.likelihood.µ.-model.likelihood.μ₀).*transpose.(model.likelihood.μ.-model.likelihood.μ₀))).*model.likelihood.invK
-    return (function(Jnn,index)
-                return -hyperparameter_KL_gradient(Jnn,A[index])
-            end,
-            function(kernel,index)
-                return -1.0/getvariance(kernel)*hyperparameter_KL_gradient(model.Knn[index],A[index])
-            end,
-            function(index)
-                return -model.likelihood.invK[index]*(model.likelihood.μ₀[index]-model.likelihood.μ[index])
             end)
 end
 

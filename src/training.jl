@@ -67,7 +67,7 @@ function sample(model::MCGP{T,TLike,TInf},nSamples::Int=1000;callback::Union{Not
 end
 
 function update_parameters!(model::GP)
-    local_updates!(model)
+    analytic_updates!(model)
     computeMatrices!(model); #Recompute the matrices if necessary (when hyperparameters have been updated)
 end
 
@@ -103,14 +103,7 @@ function update_parameters!(model::VStP)
     variational_updates!(model);
 end
 
-function computeMatrices!(model::GP{T}) where {T}
-    if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) )
-        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn.+ model.likelihood.ϵ.*[I])))
-    end
-end
-
-function computeMatrices!(model::Union{VGP{T},MCGP{T}}) where {T}
+function computeMatrices!(model::Union{GP{T},VGP{T},MCGP{T}}) where {T}
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,[model.inference.xview],T(jitter))
     end

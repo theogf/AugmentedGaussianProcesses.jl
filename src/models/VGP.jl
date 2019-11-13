@@ -2,7 +2,8 @@
 Class for variational Gaussian Processes models (non-sparse)
 
 ```julia
-VGP(X::AbstractArray{T1,N1},y::AbstractVector,kernel::Union{Kernel,AbstractVector{<:Kernel}},
+VGP(X::AbstractArray{T},y::AbstractVector,
+kernel::Kernel,
     likelihood::LikelihoodType,inference::InferenceType;
     verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
@@ -15,7 +16,7 @@ Argument list :
 
  - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
  - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
- - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
+ - `kernel` : covariance function, a single kernel from the KernelFunctions.jl package
  - `likelihood` : likelihood of the model, currently implemented : Gaussian, Bernoulli (with logistic link), Multiclass (softmax or logistic-softmax) see [`Likelihood Types`](@ref likelihood_user)
  - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the [`Compatibility Table`](@ref compat_table)
 
@@ -71,7 +72,7 @@ function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             inference.xview = view(X,:,:)
             inference.yview = view_y(likelihood,y,:)
             inference.MBIndices = collect(1:nSamples)
-            VGP{T,TLikelihood,typeof(inference),_VGP{T},nLatent}(X,y,
+            VGP{T,TLikelihood,typeof(inference),_VGP{T},nLatent}(     X,y,
                     nFeatures, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
                     verbose,atfrequency,false)
@@ -82,4 +83,4 @@ function Base.show(io::IO,model::VGP{T,<:Likelihood,<:Inference}) where {T}
 end
 
 get_y(model::VGP) = model.inference.yview
-get_X(model::VGP) = [model.inference.xview]
+get_Z(model::VGP) = [model.inference.xview]
