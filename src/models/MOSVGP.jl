@@ -152,11 +152,13 @@ get_y(model::MOSVGP) = view.(model.y,[model.inference.MBIndices])
 ## return the linear sum of the expectation gradient given μ ##
 function ∇E_μ(model::MOSVGP{T}) where {T}
     ∇ = [zeros(T,model.inference.nMinibatch) for _ in 1:model.nLatent]
-    ∇Es = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
+    ∇Eμs = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
+    ∇EΣs = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
+    μs = mean_f.(model.f)
     for t in 1:model.nTask
         for j in 1:model.nf_per_task[t]
             for q in 1:model.nLatent
-                ∇[q] .+= model.A[t,j,q] * ∇Es[t][j]
+                ∇[q] .+= model.A[t,j,q] * (∇Eμs[t][j]  - ∇EΣs[t][j].*sum(model.A[t,j,qq]*μs[qq] for qq in 1:model.nLatent if qq!=q))
             end
         end
     end
@@ -177,7 +179,7 @@ function ∇E_Σ(model::MOSVGP{T}) where {T}
     return ∇
 end
 
-get_X(model::MOSVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
+get_Z(model::MOSVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
 
 
 function update_A!(model::MOSVGP)
@@ -185,16 +187,18 @@ function update_A!(model::MOSVGP)
     Σ = diag_cov_f.(model.f) #K̃ + κΣκ
     ∇Eμ = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
     ∇EΣ = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
+    new_A = zero(model.A)
     for t in 1:model.nTask
         for j in 1:model.nf_per_task[t]
             for q in 1:model.nLatent
-                x1 = dot(∇Eμ[t][j],μ[q])
+                x1 = dot(∇Eμ[t][j],μ[q])-dot(∇EΣ[t][j],μ[q].*sum(model.A[t,j,qq]*μ[qq] for qq in 1:model.nLatent if qq!=q))
                 x2 = dot(∇EΣ[t][j],abs2.(μ[q])+Σ[q])
-                model.A[t,j,q] = x1/(2*x2)
+                new_A[t,j,q] = x1/(2*x2)
             end
             # model.A[t,j,:]./=sum(model.A[t,j,:])
         end
     end
+    # model.A .= new_A
 end
 
 function ELBO(model::MOSVGP{T}) where {T}

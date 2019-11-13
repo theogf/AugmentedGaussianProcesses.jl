@@ -60,8 +60,9 @@ end
 @inline ∇E_Σ(l::GaussianLikelihood{T},::AOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
 
 ### Special case where the ELBO is equal to the marginal likelihood
-function ELBO(model::GP{T,GaussianLikelihood{T}}) where {T}
-    return -0.5*sum(broadcast((y,invK)->dot(y,invK*y) - logdet(invK)+ model.nFeatures*log(twoπ),model.y,model.invKnn))
+function ELBO(model::GP{T}) where {T}
+    model.f[1].Σ = Symmetric(inv(model.f[1].K+model.likelihood.σ²*I))
+    return -0.5*dot(model.y,model.f[1].Σ*model.y) - logdet(model.f[1].Σ)+ model.nFeatures*log(twoπ)
 end
 
 function expec_logpdf(l::GaussianLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}

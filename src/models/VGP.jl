@@ -70,7 +70,7 @@ function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamples,nFeatures)
             inference = tuple_inference(inference,nLatent,nSamples,nSamples,nSamples)
             inference.xview = view(X,:,:)
-            inference.yview = view_y(likelihood,y,:)
+            inference.yview = view_y(likelihood,y,1:nSamples)
             inference.MBIndices = collect(1:nSamples)
             VGP{T,TLikelihood,typeof(inference),_VGP{T},nLatent}(     X,y,
                     nFeatures, nDim, nFeatures, nLatent,

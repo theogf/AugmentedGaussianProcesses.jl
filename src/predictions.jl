@@ -5,9 +5,9 @@ const pred_nodes,pred_weights = gausshermite(100) |> x->(x[1].*sqrt2,x[2]./sqrt�
 """
 Compute the mean of the predicted latent distribution of `f` on `X_test` for the variational GP `model`
 
-Return also the variance if `covf=true` and the full covariance if `fullcov=true`
+Return also the diagonal variance if `covf=true` and the full covariance if `fullcov=true`
 """
-function _predict_f(model::AbstractGP{T},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
+function _predict_f(model::AbstractGP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     μf = k_star.*(get_K(model).\get_μ(model))
     if !covf
@@ -25,7 +25,7 @@ function _predict_f(model::AbstractGP{T},X_test::AbstractMatrix{T};covf::Bool=tr
     end
 end
 
-function _predict_f(model::GP{T},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
+function _predict_f(model::GP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     μf = k_star.*mean_f(model)
     if !covf
@@ -43,8 +43,8 @@ function _predict_f(model::GP{T},X_test::AbstractMatrix{T};covf::Bool=true,fullc
     end
 end
 
-function _predict_f(model::MOSVGP,X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
-    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_X(model),obsdim=1)
+function _predict_f(model::MOSVGP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T}
+    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     μf = k_star.*(get_K(model).\get_μ(model))
     μf = [[sum(vec(model.A[i,j,:]).*μf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
     if !covf
@@ -65,7 +65,7 @@ function _predict_f(model::MOSVGP,X_test::AbstractMatrix{T};covf::Bool=true,full
 end
 
 function _predict_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
-    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_X(model),obsdim=1)
+    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     f = _sample_f(model,X_test,k_star)
     μf = Tuple(vec(mean(f[k],dims=2)) for k in 1:model.nLatent)
     if !covf
@@ -82,7 +82,7 @@ function _predict_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::Abstract
     end
 end
 
-function _sample_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T},k_star=get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_X(model),obsdim=1)) where {T}
+function _sample_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T},k_star=get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)) where {T}
     return f = [k_star[k]*(model.f[k].K\model.inference.sample_store[:,:,k]') for k in 1:model.nLatent]
 end
 
@@ -107,13 +107,13 @@ Return
     - the expected number of events for an event likelihood
 """
 function predict_y(model::AbstractGP{T},X_test::AbstractMatrix{T}) where {T}
-    return predict_y(model.likelihood,_predict_f(model,X_test,covf=false))
+    return predict_y(model.likelihood,_predict_f(model,X_test,covf=false)[1])
 end
 
 predict_y(model::MOSVGP,X_test::AbstractMatrix) = predict_y.(model.likelihood,_predict_f(model,X_test,covf=false))
 
 predict_y(l::RegressionLikelihood,μ::AbstractVector{<:Real}) = μ
-predict_y(l::RegressionLikelihood,μ::Tuple{<:AbstractVector})= first(μ)
+predict_y(l::RegressionLikelihood,μ::AbstractVector{<:AbstractVector}) = first(μ)
 predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:Real}) = sign.(μ)
 predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:AbstractVector}) = sign.(first(μ))
 predict_y(l::MultiClassLikelihood,μs::AbstractVector{<:AbstractVector}) = [l.class_mapping[argmax([μ[i] for μ in μs])] for i in 1:length(μs[1])]
