@@ -78,7 +78,7 @@ end
 
 ## ELBO Section ##
 
-function expec_logpdf(l::StudentTLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+function expec_log_likelihood(l::StudentTLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     tot = -0.5*length(y)*(log(twoπ*l.σ^2))
     tot += -sum(log.(l.c).-digamma(l.α))
     tot += -0.5*(dot(l.θ,diag_cov)+dot(l.θ,abs2.(μ))-2.0*dot(l.θ,μ.*y)+dot(l.θ,abs2.(y)))

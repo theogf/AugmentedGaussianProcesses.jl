@@ -81,7 +81,7 @@ end
 
 ### ELBO Section ###
 
-function expec_logpdf(l::LogisticLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+function expec_log_likelihood(l::LogisticLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     tot = -(0.5*length(y)*logtwo)
     tot += 0.5.*(dot(μ,y)-dot(l.θ,diag_cov)-dot(l.θ,μ))
     return tot
@@ -95,6 +95,6 @@ end
 
 ### Gradient Section ###
 
-@inline grad_logpdf(::LogisticLikelihood{T},y::Real,f::Real) where {T} = y*logistic(-y*f)
+@inline grad_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T} = y*logistic(-y*f)
 
-@inline hessian_logpdf(::LogisticLikelihood{T},y::Real,f::Real) where {T<:Real} = -exp(y*f)/logistic(-y*f)^2
+@inline hessian_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T<:Real} = -exp(y*f)/logistic(-y*f)^2

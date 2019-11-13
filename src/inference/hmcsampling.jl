@@ -3,7 +3,7 @@
 HMCSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=10)
 ```
 
-Draw samples from the true posterior via Gibbs Sampling.
+Draw samples from the true posterior via Hamiltonian Monte Carlo.
 
 **Keywords arguments**
     - `ϵ::T` : convergence criteria
@@ -34,7 +34,7 @@ function Base.show(io::IO,inference::HMCSampling{T}) where {T<:Real}
     print(io,"Gibbs Sampler")
 end
 
-function grad_logpdf(model::MCGP{T,L,HMCSampling{T}},x) where {T,L}
+function grad_log_joint_pdf(model::MCGP{T,L,HMCSampling{T}},x) where {T,L}
     grad_log_likelihood(model.likelihood,get_y(model),x) + sum(grad_log_gp_prior.(model.f,x))
 end
 
@@ -55,16 +55,4 @@ function sample_parameters!(model::MCGP{T,L,HMCSampling{T}},nSamples::Int,callba
     prop = NUTS{MultinomialTS,GeneralisedNoUTurn}(int)
     adaptor = StanHMCAdaptor(n_adapts, Preconditioner(metric), NesterovDualAveraging(0.8, int.ϵ))
     samples, stats = sample(h, prop, f_init, nSamples, adaptor, n_adapts; progress=true)
-end
-
-function store_variables!(i::SamplingInference{T},fs)
-    i.sample_store[:,:,(i.nIter-i.nBurnin)÷i.samplefrequency] .= hcat(fs...)
-end
-
-function post_process!(model::AbstractGP{T,<:Likelihood,<:HMCSampling}) where {T}
-    for k in 1:model.nLatent
-        model.μ[k] = vec(mean(hcat(model.inference.sample_store[k]...),dims=2))
-        model.Σ[k] = Symmetric(cov(hcat(model.inference.sample_store[k]...),dims=2))
-    end
-    nothing
 end

@@ -70,7 +70,7 @@ function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::I
     return TInf(i.ϵ,i.Stochastic,i.nPoints,i.clipping,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimizer)
 end
 
-function expec_logpdf(model::VGP{T,L,<:QuadratureVI}) where {T,L}
+function expec_log_likelihood(model::VGP{T,L,<:QuadratureVI}) where {T,L}
     tot = 0.0
     for gp in model.f
         for i in 1:model.nSamples
@@ -81,7 +81,7 @@ function expec_logpdf(model::VGP{T,L,<:QuadratureVI}) where {T,L}
     return tot
 end
 
-function expec_logpdf(l::Likelihood,i::QuadratureVI,μ::AbstractVector,Σ::AbstractMatrix,y::AbstractVector)
+function expec_log_likelihood(l::Likelihood,i::QuadratureVI,μ::AbstractVector,Σ::AbstractMatrix,y::AbstractVector)
 
     # for j in 1:length(y)
         # nodes = i.nodes*sqrt(Σ[j,j]) .+ μ[j]
@@ -98,7 +98,7 @@ function apply_quad(y::Real,μ::Real,σ²::Real,i::QuadratureVI,l::Likelihood) w
     # return dot(i.weights,logpdf.(l,y,x))
 end
 
-function expec_logpdf(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
+function expec_log_likelihood(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
     tot = 0.0
     y = get_y(model)
     for gp in model.f

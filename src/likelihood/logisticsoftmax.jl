@@ -96,7 +96,7 @@ end
 @inline ∇E_Σ(l::LogisticSoftMaxLikelihood,::AOptimizer,y::AbstractVector) where {T} = 0.5.*l.θ
 
 ## ELBO Section ##
-function expec_logpdf(l::LogisticSoftMaxLikelihood{T},i::AnalyticVI,y,μ,Σ) where {T}
+function expec_log_likelihood(l::LogisticSoftMaxLikelihood{T},i::AnalyticVI,y,μ,Σ) where {T}
     tot = -length(y)*logtwo
     tot += -sum(sum(l.γ.+y))*logtwo
     tot +=  0.5*sum(broadcast((θ,γ,y,μ,Σ)->dot(μ,(y-γ))-dot(θ,abs2.(μ))-dot(θ,Σ),l.θ,l.γ,y,μ,Σ))

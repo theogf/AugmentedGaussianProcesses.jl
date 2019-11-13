@@ -203,7 +203,7 @@ end
 
 function ELBO(model::MOSVGP{T}) where {T}
     tot = zero(T)
-    tot += model.inference.ρ*sum(expec_logpdf.(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model)))
+    tot += model.inference.ρ*sum(expec_log_likelihood.(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model)))
     tot -= GaussianKL(model)
     tot -= model.inference.ρ*sum(AugmentedKL.(model.likelihood,get_y(model)))
 end

@@ -45,7 +45,7 @@ end
 
 
 function MCGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
-            likelihood::TLikelihood,inference::TInference;
+            likelihood::Union{TLikelihood,Distribution},inference::TInference;
             verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real=1.0,
             ArrayType::UnionAll=Vector) where {T<:Real,TLikelihood<:Likelihood,TInference<:SamplingInference}

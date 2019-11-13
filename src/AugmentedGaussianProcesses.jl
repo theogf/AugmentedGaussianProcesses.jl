@@ -13,7 +13,7 @@ module AugmentedGaussianProcesses
     export PoissonLikelihood, NegBinomialLikelihood
     export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI
     export NumericalVI, NumericalSVI
-    export PriorMean, ZeroMean, ConstantMean, EmpiricalMean
+    export PriorMean, ZeroMean, ConstantMean, EmpiricalMean, AffineMean
 
     #Useful functions and module
     include("kmeans/KMeansModule.jl")

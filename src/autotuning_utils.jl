@@ -23,8 +23,8 @@ function apply_gradients_variance!(gp::Abstract_GP,g::Real)
     gp.σ_k = exp(logσ)
 end
 
-function apply_gradients_mean_prior!(μ::PriorMean,g::AbstractVector)
-    update!(μ,g)
+function apply_gradients_mean_prior!(μ::PriorMean,g::AbstractVector,X::AbstractMatrix)
+    update!(μ,g,X)
 end
 
 function kernelderivative(kernel::Kernel{T,<:ScaleTransform},X) where {T}

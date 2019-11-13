@@ -75,7 +75,7 @@ end
 @inline ∇E_Σ(l::PoissonLikelihood,::AOptimizer,y::AbstractVector) = (0.5*l.θ,)
 
 ## ELBO Section ##
-function expec_logpdf(l::PoissonLikelihood{T},i::AnalyticVI,y,μ::AbstractVector,Σ::AbstractVector) where {T}
+function expec_log_likelihood(l::PoissonLikelihood{T},i::AnalyticVI,y,μ::AbstractVector,Σ::AbstractVector) where {T}
     tot = sum(y*log(l.λ))-sum(lfactorial,y)-logtwo*sum((y+l.γ))
     tot += 0.5*(dot(μ,(y-l.γ))-dot(l.θ,abs2.(μ))-dot(l.θ,Σ))
     return tot

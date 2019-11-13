@@ -79,7 +79,7 @@ function logabsbinomial(n,k)
     log(binomial(n,k))
 end
 
-function expec_logpdf(l::NegBinomialLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+function expec_log_likelihood(l::NegBinomialLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     tot = sum(logabsbinomial.(y.+(l.r-1),y))-log(2.0)*sum((y.+l.r))
     tot += 0.5*dot(μ,(y.-l.r))-0.5*dot(l.θ,μ)-0.5*dot(l.θ,diag_cov)
     return tot

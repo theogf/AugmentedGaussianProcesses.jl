@@ -78,7 +78,7 @@ end
 @inline ∇E_Σ(l::LaplaceLikelihood{T},::AOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
 
 ## ELBO ##
-function expec_logpdf(l::LaplaceLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+function expec_log_likelihood(l::LaplaceLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     tot = -0.5*length(y)*log(twoπ)
     tot += 0.5*sum(log,l.θ)
     tot += -0.5*(dot(l.θ,diag_cov)+dot(l.θ,abs2.(μ))-2.0*dot(l.θ,μ.*y)+dot(l.θ,abs2.(y)))

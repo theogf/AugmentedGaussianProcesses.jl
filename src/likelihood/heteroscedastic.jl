@@ -113,7 +113,7 @@ function proba_y(model::AbstractGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}}
     return μf,σ²f + expectation.(x->inv(model.likelihood.λ*logistic(x)),μg,σ²g)
 end
 
-function expec_logpdf(l::HeteroscedasticLikelihood{T},i::AnalyticVI,y::AbstractVector,μ,diag_cov) where {T}
+function expec_log_likelihood(l::HeteroscedasticLikelihood{T},i::AnalyticVI,y::AbstractVector,μ,diag_cov) where {T}
     tot = length(y)*(0.5*log(l.λ)-log(2*sqrt(twoπ)))
     tot += 0.5*(dot(μ[2],(0.5 .- l.γ)) - dot(abs2.(μ[2]),l.θ)-dot(diag_cov[2],l.θ))
     tot -= PoissonKL(l,y,μ[1],diag_cov[1])

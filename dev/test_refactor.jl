@@ -2,59 +2,9 @@ using AugmentedGaussianProcesses; const AGP= AugmentedGaussianProcesses
 using MLDataUtils, LinearAlgebra, PDMats
 using KernelFunctions
 
-X,f = noisy_function(sinc,range(-3,3,length=100))
-y = sign.(f)
-#
-# using ForwardDiff
-# S = BigFloat.(m.f[1].Σ)
-# L = cholesky(S).L
-# A = rand(10,10)# |> x->x*x'
- # L = tril(rand(5,5))
-# # S = L*L'
-# g1 = ForwardDiff.gradient(x->sum(A*x),S)
-# g2 = ForwardDiff.gradient(x->sum(A*x*x'),L)
-# g3 = zero(g2)
-# for i in 1:size(g2,1), j in 1:i
-#     g3[i,j] = sum(2*g1[i,k]*L[k,j] for k in 1:size(g2,1))
-# end
-# 2*g1*L
-#
-# g3
-#
-# g1
-#
-# function train_and_ELBO(vals)
-#     # m = SVGP(X,y,SqExponentialKernel(l),LogisticLikelihood(),AnalyticVI(),10,optimizer=false)
-#     AGP.expec_logpdf(QuadratureVI(),LogisticLikelihood(),vals.μ,vals.Σ,y)
-# end
-#
-# using Zygote
-#
-# struct gpstore
-#     μ
-#     Σ
-# end
-# v = gpstore(zeros(Float64,length(y)),diagm(ones(Float64,length(y))))
-# train_and_ELBO(v)
-# AGP.expec_logpdf(QuadratureVI(),LogisticLikelihood(),v.μ,v.Σ,y)
-# AGP.apply_quad(y[1],v.μ[1],v.Σ[1,1],QuadratureVI(),LogisticLikelihood())
-# Zygote.refresh()
-# Zygote.gradient(train_and_ELBO,v)
-#
-# nodes,weights = AGP.gausshermite(100)
-# y = rand(100)
-# using Distributions
-# function bar(gh,m,y)
-#     x = gh[1] .+ m
-#     dot(gh[2],exp.(y.*x))
-# end
-# function foo(v)
-#     Zygote.@showgrad w = bar.([(nodes,weights)],v,y)
-#     sum(w)
-# end
-# foo(rand(100))
-# Zygote.refresh()
-# Zygote.gradient(foo,rand(100))
+X,f = noisy_function(sinc,range(-3,3,length=100),noise=0.3)
+w = randn()
+y = X*w + f
 
 ##
 using Plots
@@ -73,10 +23,10 @@ function cb(model,iter)
     display(p)
 end
 using GradDescent
-M = VGP(X,y,SqExponentialKernel(),BayesianSVM(),AnalyticVI(),optimizer=true,verbose=3,variance=100.0)
+M = VGP(X,y,SqExponentialKernel(),LaplaceLikelihood(),AnalyticVI(),optimizer=true,verbose=3,variance=100.0,mean=AGP.AffineMean(1))
 # cb(model,iter) = @info "L = $(ELBO(model)), k_l = $(get_params(model.f[1].kernel)), σ = $(model.f[1].σ_k)"
-train!(M,100,callback=nothing)
-m = SVGP(X,y,SqExponentialKernel(),LogisticLikelihood(),AnalyticVI(),10,optimizer=true,verbose=3,Zoptimizer=true,variance=100.0)
+train!(M,1000,callback=nothing)
+m = SVGP(X,y,SqExponentialKernel(),StudentTLikelihood(4.0),AnalyticVI(),10,optimizer=true,verbose=3,Zoptimizer=true,variance=100.0)
 # m.f[1].Z.opt = Adam(α=0.01)
 show_eta(model,iter) =display(heatmap(Matrix(model.f[1].η₂),yflip=true))
 train!(m,100,callback=nothing)
@@ -92,8 +42,10 @@ pred_x = predict_y(m,X)
 proba_X,sig_X = proba_y(M,X)
 proba_x,sig_x = proba_y(m,X)
 maximum(proba_x)
-scatter(X,y)
-scatter!(X,pred_x)
+scatter(X,y,lab="data")
+plot!(X,pred_x,lab="VGP",lw=3.0)
+plot!(X,X*w,lab="True Linear",lw=3.0)
+plot!(X,M.f[1].μ₀(reshape(X,:,1)),lab="Inferred Linear",lw=3.0)
 scatter!(X,pred_X)
 plot!(X,proba_X.+2*sqrt.(sig_X),fillrange=proba_X.-2*sqrt.(sig_X),alpha=0.3)
 scatter!(AGP.get_Z(m)[1],zeros(length(AGP.get_Z(m)[1])))

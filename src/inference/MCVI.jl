@@ -1,22 +1,18 @@
-mutable struct MCIntegrationVI{T<:Real} <: NumericalVI{T}
+mutable struct MCIntegrationVI{T<:Real,N} <: NumericalVI{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    optimizer::LatentArray{Optimizer} #Learning rate for stochastic updates
     nMC::Int64 #Number of samples for MC Integrations
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64 #Number of samples of the data
-    nSamplesUsed::Int64 #Size of mini-batches
-    MBIndices::AbstractVector #Indices of the minibatch
+    nMinibatch::Int64 #Size of mini-batches
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
-    ∇η₁::AbstractVector{AbstractVector}
-    ∇η₂::AbstractVector{AbstractArray}
-    ν::AbstractVector{AbstractVector}
-    λ::AbstractVector{AbstractVector}
-    x::SubArray{T,2,Matrix{T}}#,Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
-    y::LatentArray{SubArray}
-    function MCIntegrationVI{T}(ϵ::T,nMC::Integer,nIter::Integer,optimizer::Opt,Stochastic::Bool,nSamplesUsed::Integer=1) where {T<:Real,Opt<:Optimizer}
-        return new{T}(ϵ,nIter,[optimizer],[optimizer],nMC,Stochastic,1,nSamplesUsed)
+    vi_opt::NTuple{N,NVIOptimizer}
+    MBIndices::Vector #Indices of the minibatch
+    xview::SubArray{T,2,Matrix{T}}
+    yview::SubArray
+    function MCIntegrationVI{T}(ϵ::T,nMC::Integer,optimizer::Opt,Stochastic::Bool,nSamplesUsed::Integer=1) where {T<:Real,Opt<:Optimizer}
+        return new{T,1}(ϵ,0,nMC,Stochastic,1,nSamplesUsed)
     end
 end
 
@@ -31,7 +27,7 @@ Constructor for Variational Inference via MC Integration approximation.
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
 """
 function MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Momentum(η=0.01)) where {T<:Real}
-    MCIntegrationVI{T}(ϵ,nMC,0,optimizer,false,1)
+    MCIntegrationVI{T}(ϵ,nMC,optimizer,false,1)
 end
 
 """ `MCIntegrationSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))`

@@ -75,14 +75,14 @@ function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     global_update!(model)
 end
 
-function natural_gradient!(l::Likelihood,i::NumericalVI,opt::NVIOptimizer,y::AbstractVector,gp::_VGP{T}) where {T,L}
+function natural_gradient!(l::Likelihood,i::NumericalVI,opt::NVIOptimizer,y::AbstractVector,X::AbstractMatrix,gp::_VGP{T}) where {T,L}
     opt.∇η₂ .= Symmetric(Diagonal(∇E_Σ(l,opt,y)) - 0.5*inv(gp.K) - gp.η₂)
-    opt.∇η₁ .= ∇E_μ(l,opt,y) - gp.K \ (gp.μ - gp.μ₀) - 2 * opt.∇η₂ * gp.μ
+    opt.∇η₁ .= ∇E_μ(l,opt,y) - gp.K \ (gp.μ - gp.μ₀(X)) - 2 * opt.∇η₂ * gp.μ
 end
 
-function natural_gradient!(l::Likelihood,i::NumericalVI,opt::NVIOptimizer,y::AbstractVector,gp::_SVGP{T}) where {T,L}
+function natural_gradient!(l::Likelihood,i::NumericalVI,opt::NVIOptimizer,y::AbstractVector,Z::AbstractMatrix,gp::_SVGP{T}) where {T,L}
     opt.∇η₂ .= Symmetric(i.ρ*transpose(gp.κ)*Diagonal(∇E_Σ(l,opt,y))*gp.κ - 0.5*inv(gp.K) - gp.η₂)
-    opt.∇η₁ .= i.ρ * transpose(gp.κ) * ∇E_μ(l,opt,y) - gp.K \ (gp.μ - gp.μ₀) - 2 * opt.∇η₂ * gp.μ
+    opt.∇η₁ .= i.ρ * transpose(gp.κ) * ∇E_μ(l,opt,y) - gp.K \ (gp.μ - gp.μ₀(Z)) - 2 * opt.∇η₂ * gp.μ
 end
 
 function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}

@@ -73,7 +73,7 @@ function variational_updates!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
     natural_gradient!.(
         ∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
         ∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
-        model.inference,model.inference.vi_opt,model.f)
+        model.inference,model.inference.vi_opt,get_Z(model),model.f)
     global_update!(model)
 end
 
@@ -81,26 +81,27 @@ function variational_updates!(model::MOSVGP{T,L,<:AnalyticVI}) where {T,L}
     local_updates!.(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model)) # Compute the local updates given the expectations of f
     natural_gradient!.(
         ∇E_μ(model), ∇E_Σ(model), model.inference,
-        model.inference.vi_opt, model.f) # Compute the natural gradients of u given the weighted sum of the gradient of f
+        model.inference.vi_opt, get_Z(model), model.f) # Compute the natural gradients of u given the weighted sum of the gradient of f
     global_update!(model) # Update η₁ and η₂
 end
 
+## Wrappers for tuple of 1 element
 local_updates!(l::Likelihood,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = local_updates!(l,y,first(μ),first(Σ))
-expec_logpdf(l::Likelihood,i::AnalyticVI,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = expec_logpdf(l,i,y,first(μ),first(Σ))
+expec_log_likelihood(l::Likelihood,i::AnalyticVI,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = expec_log_likelihood(l,i,y,first(μ),first(Σ))
 
 ## Coordinate ascent updates on the natural parameters ##
-function natural_gradient!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,i::AnalyticVI,opt::AVIOptimizer,gp::_VGP{T}) where {T,L}
-    gp.η₁ .= ∇E_μ .+ gp.K \ gp.μ₀
+function natural_gradient!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,i::AnalyticVI,opt::AVIOptimizer,X::AbstractMatrix,gp::_VGP{T}) where {T,L}
+    gp.η₁ .= ∇E_μ .+ gp.K \ gp.μ₀(X)
     gp.η₂ .= -Symmetric(Diagonal(∇E_Σ) .+ 0.5 .* inv(gp.K))
 end
 
 #Computation of the natural gradient for the natural parameters
-function natural_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,gp::_SVGP{T}) where {T<:Real,L}
-    opt.∇η₁ .= ∇η₁(∇E_μ, i.ρ, gp.κ, gp.K, gp.μ₀, gp.η₁)
+function natural_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,Z::AbstractMatrix,gp::_SVGP{T}) where {T<:Real,L}
+    opt.∇η₁ .= ∇η₁(∇E_μ, i.ρ, gp.κ, gp.K, gp.μ₀(Z), gp.η₁)
     opt.∇η₂ .= ∇η₂(∇E_Σ, i.ρ, gp.κ, gp.K, gp.η₂)
 end
 
-function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},K::PDMat{T,Matrix{T}},μ₀::PriorMean,η₁::AbstractVector{T}) where {T <: Real}
+function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},K::PDMat{T,Matrix{T}},μ₀::AbstractVector,η₁::AbstractVector{T}) where {T <: Real}
     transpose(κ)*(ρ * ∇μ) + (K \ μ₀) - η₁
 end
 
@@ -133,7 +134,7 @@ end
 
 function ELBO(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
     tot = zero(T)
-    tot += model.inference.ρ*expec_logpdf(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model))
+    tot += model.inference.ρ*expec_log_likelihood(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model))
     tot -= GaussianKL(model)
     tot -= model.inference.ρ*AugmentedKL(model.likelihood,get_y(model))
 end
