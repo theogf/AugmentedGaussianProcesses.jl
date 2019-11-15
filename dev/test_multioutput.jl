@@ -3,32 +3,47 @@ using KernelFunctions
 using MLDataUtils
 using Distributions, LinearAlgebra
 using Random: seed!
+using GradDescent
+using Plots; gr()
+
 # seed!(33)
 N = 100
 x = collect(range(-3,3,length=N))
 X = reshape(x,:,1)
-_,y1 = noisy_function(sinc,x,noise=0.01)
+_,y1 = noisy_function(sinc,x,noise=0.1)
 _,y2 = noisy_function(sech,x)
 y2 .= -y2
 k = SqExponentialKernel()
-m = AGP.MOSVGP(X,[y1,y2],k,GaussianLikelihood(0.1,opt_noise=true),AnalyticVI(),2,10,optimizer=false,verbose=3)
-# for gp in m.f
-#     gp.μ .= randn(model.nFeatures)
-# end
+m = AGP.MOSVGP(X,[y1,y2],k,GaussianLikelihood(0.1,opt_noise=Inversedecay(t0=10)),AnalyticSVI(10),3,10,optimizer=false,verbose=3)
 cb(model,iter) = display(ELBO(model))
+anim = Animation()
+function cbplot(model,iter)
+    (f_1,sig_f1),(f_2,sig_f2) = predict_f(m,X,covf=true)
+    (y_1,sig_1),(y_2,sig_2) = proba_y(m,X)
+    p = scatter(x,y1,lab="true y_1",color=1)
+    scatter!(x,y2,lab="true y_2",color=2)
+    plot!(x,y_1,lab="pred y_1",lw=3.0,color=1)
+    plot!(x,y_2,lab="pred y_2",lw=3.0,color=2)
+    plot!(x,y_1+2*sqrt.(sig_1),fillrange=y_1-2sqrt.(sig_1),color=1,alpha=0.3,lab="")
+    plot!(x,y_2+2*sqrt.(sig_2),fillrange=y_2-2sqrt.(sig_2),color=2,alpha=0.3,lab="")
+    scatter!(AGP.get_Z(m),collect(AGP.get_μ(m)),lab="")  |> display
+    frame(anim)
+end
 # cb(model,iter) = display(heatmap(model.A[:,1,:],yflip=true))
 # m.A = zeros(2,1,m.nLatent)
 for i in 1:m.nLatent
     m.f[i].μ = randn(m.nFeatures)
 end
-# m.A[1,1,1] = 1.0
-# m.A[2,1,2] = 0.5
+# m.A[1,1,:] = [0.3,0.7]
+# m.A[2,1,:] = [0.7,0.3]
 # m.A[2,1,3] = 0.0
-train!(m,20,callback=cb)
+@profiler train!(m,5)
+train!(m,30,callback=cbplot)
 mm1 = SVGP(X,y1,k,GaussianLikelihood(),AnalyticVI(),10,optimizer=false)
 train!(mm1,100,callback=nothing)
 mm2 = SVGP(X,y2,k,GaussianLikelihood(),AnalyticVI(),10,optimizer=false)
 train!(mm2,100,callback=nothing)
+gif(anim,"~/MultiOutput.gif")
 ##
 (f_1,sig_f1),(f_2,sig_f2) = predict_f(m,X,covf=true)
 y_1,y_2 = predict_y(m,X)
@@ -41,7 +56,6 @@ fs_2 = predict_f(mm2,X,covf=false)
 # ys_2 = predict_y(mm2,X)
 (ys_2,sigs_2) = proba_y(mm2,X)
 
-using Plots; gr()
 p = scatter(x,y1,lab="true y_1",color=1)
 scatter!(x,y2,lab="true y_2",color=2)
 plot!(x,y_1,lab="pred y_1",lw=3.0,color=1)
@@ -50,9 +64,7 @@ plot!(x,y_2,lab="pred y_2",lw=3.0,color=2)
 plot!(x,ys_2,lab="pred ys_2",lw=3.0,color=:black,linestyle=:dash)
 plot!(x,y_1+2*sqrt.(sig_1),fillrange=y_1-2sqrt.(sig_1),color=1,alpha=0.3,lab="")
 plot!(x,y_2+2*sqrt.(sig_2),fillrange=y_2-2sqrt.(sig_2),color=2,alpha=0.3,lab="")
-plot!(x,AGP.mean_f(m)[1][1],lab="")
-plot!(x,AGP.mean_f(m)[2][1],lab="")
-scatter!(AGP.get_X(m),collect(AGP.get_μ(m)),lab="")  |> display
+scatter!(collect(vec.(AGP.get_Z(m)))[1],collect(AGP.get_μ(m))[1],lab="")  |> display
 # p
 # plot(x,collect(AGP.get_μ(m)))
 ##

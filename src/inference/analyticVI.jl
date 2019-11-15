@@ -22,7 +22,7 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
     vi_opt::NTuple{N,AVIOptimizer}
     MBIndices::Vector{Int64} #Indices of the minibatch
     xview::SubArray{T,2,Matrix{T}}
-    yview::SubArray
+    yview::AbstractVector
 
     function AnalyticVI{T}(ϵ::T,optimizer::Optimizer,nMinibatch::Int,Stochastic::Bool) where {T}
         return new{T,1}(ϵ,0,Stochastic,0,nMinibatch,1.0,true,(AVIOptimizer{T}(0,optimizer),))
@@ -79,8 +79,12 @@ end
 
 function variational_updates!(model::MOSVGP{T,L,<:AnalyticVI}) where {T,L}
     local_updates!.(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model)) # Compute the local updates given the expectations of f
-    natural_gradient!.(
-        ∇E_μ(model), ∇E_Σ(model), model.inference,
+    # for i in 1:model.nLatent
+    #     local_updates!.(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model)) # Compute the local updates given the expectations of f
+    #     natural_gradient!(∇E_μ(model)[i],∇E_Σ(model)[i],model.inference,model.inference.vi_opt[i],get_Z(model)[i],model.f[i])
+    #     global_update!(model) # Update η₁ and η₂
+    # end
+    natural_gradient!.(∇E_μ(model), ∇E_Σ(model), model.inference,
         model.inference.vi_opt, get_Z(model), model.f) # Compute the natural gradients of u given the weighted sum of the gradient of f
     global_update!(model) # Update η₁ and η₂
 end

@@ -89,12 +89,12 @@ end
 function update_parameters!(model::MOSVGP)
     if model.inference.Stochastic
         model.inference.MBIndices .= StatsBase.sample(1:model.inference.nSamples,model.inference.nMinibatch,replace=false)
-        model.inference.xview = view(model.y,model.inference.MBIndices)
-        inference.yview = view_y.(model.likelihood,model.y,[model.inference.MBIndices])
+        model.inference.xview = view(model.X,model.inference.MBIndices,:)
+        model.inference.yview = view_y.(model.likelihood,model.y,[model.inference.MBIndices])
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    variational_updates!(model);
     update_A!(model)
+    variational_updates!(model);
 end
 
 function update_parameters!(model::VStP)

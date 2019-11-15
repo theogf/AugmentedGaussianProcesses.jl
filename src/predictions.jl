@@ -116,7 +116,8 @@ predict_y(l::RegressionLikelihood,μ::AbstractVector{<:Real}) = μ
 predict_y(l::RegressionLikelihood,μ::AbstractVector{<:AbstractVector}) = first(μ)
 predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:Real}) = sign.(μ)
 predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:AbstractVector}) = sign.(first(μ))
-predict_y(l::MultiClassLikelihood,μs::AbstractVector{<:AbstractVector}) = [l.class_mapping[argmax([μ[i] for μ in μs])] for i in 1:length(μs[1])]
+predict_y(l::MultiClassLikelihood,μs::AbstractVector{<:AbstractVector{<:Real}}) = [l.class_mapping[argmax([μ[i] for μ in μs])] for i in 1:length(μs[1])]
+predict_y(l::MultiClassLikelihood,μs::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}}) = predict_y(l,first(μs))
 predict_y(l::EventLikelihood,μ::AbstractVector{<:Real}) = expec_count(l,μ)
 predict_y(l::EventLikelihood,μ::AbstractVector{<:AbstractVector}) = expec_count(l,first(μ))
 
