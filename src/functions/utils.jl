@@ -68,6 +68,8 @@ function Base.copy(opt::Optimizer)
     return typeof(opt)(copied_params...)
 end
 
+Base.deepcopy(opt::Optimizer) = copy(opt)
+
 ## Compute exp(μ)/cosh(c) safely if there is an overflow ##
 function safe_expcosh(μ::Real,c::Real)
     return isfinite(exp(μ)/cosh(c)) ? exp(μ)/cosh(c) : 2*logistic(2.0*max(μ,c))
