@@ -2,7 +2,9 @@
 using RecipesBase
 
 
-@recipe function f(gp::AbstractGP,x::AbstractVector;showX::Bool=false,nSigma::Real=2.0)
+@recipe function f(gp::AbstractGP,x::AbstractVector;showX=false,nSigma=2.0)
+    @assert showX isa Bool "showX should be a boolean"
+    @assert nSigma isa Real "nSigma should be a Real"
     X = reshape(x,:,1)
     ch1 = Int('f')
     f,sig_f = predict_f(gp,X,covf=true)
@@ -37,6 +39,8 @@ using RecipesBase
 end
 
 @recipe function f(gps::MOSVGP,x::AbstractVector;showX::Bool=false,nSigma::Real=2.0)
+    @assert showX isa Bool "showX should be a boolean"
+    @assert nSigma isa Real "nSigma should be a Real"
     X = reshape(x,:,1)
     nTasks = gps.nTask
     f,sig_f = predict_f(gps,X,covf=true)
