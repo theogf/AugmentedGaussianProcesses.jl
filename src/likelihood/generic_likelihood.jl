@@ -104,7 +104,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
             function $(lname){T}() where {T<:Real}
                 new{T}()
             end
-            function $(lname){T}($(add_variables) c²::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
+            function $(lname){T}(c²::AbstractVector{<:AbstractVector{<:Real}},θ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
                 new{T}(c²,θ)
             end
         end
@@ -115,7 +115,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
 
         function AGP.init_likelihood(likelihood::$(lname){T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
             if inference isa AnalyticVI || inference isa GibbsSampling
-                $(lname){T}([zeros(T,nSamplesUsed) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
+                $(lname){T}(zeros(T,nSamplesUsed),zeros(T,nSamplesUsed))
             else
                 $(lname){T}()
             end
@@ -206,11 +206,11 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
 
         ### Natural Gradient Section ###
 
-        @inline AGP.∇E_μ(l::$(lname),::AOptimizer,y::AbstractVector) where {T} = g(l,y)+l.θ.*β(l,y)
-        @inline AGP.∇E_Σ(l::$(lname),::AOptimizer,y::AbstractVector) where {T} = l.θ.*γ(l,y)
+        @inline AGP.∇E_μ(l::$(lname),::AOptimizer,y::AbstractVector) where {T} = (g(l,y)+l.θ.*β(l,y),)
+        @inline AGP.∇E_Σ(l::$(lname),::AOptimizer,y::AbstractVector) where {T} = (l.θ.*γ(l,y),)
 
         ### ELBO Section ###
-        function AGP.expec_logpdf(l::$(lname),i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+        function AGP.expec_log_likelihood(l::$(lname),i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
             tot = length(y)*log(C(l))
             tot += dot(g(l,y),μ)
             tot += -(dot(θ,α(l,y))

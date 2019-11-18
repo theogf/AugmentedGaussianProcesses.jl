@@ -31,7 +31,7 @@ function _predict_f(model::GP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,
     if !covf
         return (μf,)
     end
-    A = [inv(model.f[1].K+model.likelihood.σ²I)]
+    A = [inv(model.f[1].K+model.likelihood.σ²*I)]
     if fullcov
         k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
         Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
