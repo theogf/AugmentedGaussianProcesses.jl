@@ -77,7 +77,7 @@ end # mass_texpon
 function rtigauss(Z::T) where {T<:Real}
   Z = abs(Z);
   t = __TRUNC;
-  X = t + 1.0;
+  x = t + 1.0;
   Unif = Uniform(); # between 0 and 1
   Normal = Distributions.Normal(0.0,1.0);
   if __TRUNC_RECIP > Z
@@ -89,29 +89,31 @@ function rtigauss(Z::T) where {T<:Real}
       while  E1*E1 > 2 * E2 / t
 	       E1 = rand(Expo); E2 = rand(Expo);
       end
-      X = 1 + E1 * t;
-      X = t / (X * X);
-      alpha = exp(-0.5 * Z*Z * X);
+      x = 1 + E1 * t;
+      x = t / (x * x);
+      alpha = exp(-0.5 * Z*Z * x);
     end
   else
     mu = 1.0 / Z;
-    while (X > t)
+    while (x > t)
       Y = rand(Normal); Y = Y^2;
       half_mu = 0.5 * mu;
       mu_Y    = mu  * Y;
-      X = mu + half_mu * mu_Y - half_mu * sqrt(4 * mu_Y + mu_Y * mu_Y);
-      if rand(Unif) > mu / (mu + X)
-	       X = mu*mu / X;
+      x = mu + half_mu * mu_Y - half_mu * sqrt(4 * mu_Y + mu_Y * mu_Y);
+      if rand(Unif) > mu / (mu + x)
+	       x = mu*mu / x;
        end
     end
   end
-  return X;
+  return x;
 end
 
 # ////////////////////////////////////////////////////////////////////////////////
 # 				  // Sample //
 # ////////////////////////////////////////////////////////////////////////////////
 
+
+# sample from PG(b,c)
 function draw(pg::PolyaGammaDist{T},n::Real, z::Real) where {T<:Real}
   if n == 0
     # @warn "draw(PolyaGamma): n < 1.  Set n = 1." maxlog=1
@@ -134,7 +136,7 @@ function draw_like_devroye(Z::T) where {T<:Real}
   # double p  = 0.5 * __PI * exp(-1.0 * fz * __TRUNC) / fz;
   # double q  = 2 * exp(-1.0 * Z) * pigauss(__TRUNC, Z);
 
-  X = 0.0;
+  x = 0.0;
   S = 1.0;
   Y = 0.0;
   # int iter = 0; If you want to keep track of iterations.
@@ -143,11 +145,11 @@ function draw_like_devroye(Z::T) where {T<:Real}
   while (true)
 
     if rand(Unif) < mass_texpon(Z)
-      X = __TRUNC + rand(Expo) / fz;
+      x = __TRUNC + rand(Expo) / fz;
     else
-      X = rtigauss(Z);
+      x = rtigauss(Z);
     end
-    S = a(0, X);
+    S = a(0, x);
     Y = rand(Unif) * S;
     n = 0;
     go = true;
@@ -156,15 +158,15 @@ function draw_like_devroye(Z::T) where {T<:Real}
     while (go)
       n = n+1;
       if n%2==1
-	       S = S - a(n, X);
-	       if Y<=S; return 0.25 * X;end;
+	       S = S - a(n, x);
+	       if Y<=S; return 0.25 * x;end;
       else
-	       S = S + a(n, X);
+	       S = S + a(n, x);
 	       if Y>S; go = false; end;
       end
 
     end
-    # Need Y <= S in event that Y = S, e.g. when X = 0.
+    # Need Y <= S in event that Y = S, e.g. when x = 0.
 
   end
 end # draw_like_devroye

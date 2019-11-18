@@ -74,7 +74,7 @@ module AugmentedGaussianProcesses
     include("functions/utils.jl")
     include("functions/init.jl")
     include("functions/KLdivergences.jl")
-    # include("functions/plotting.jl")
+    include("functions/plotting.jl")
 
     #Training Functions
     include("training.jl")

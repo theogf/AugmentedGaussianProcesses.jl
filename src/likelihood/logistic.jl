@@ -45,6 +45,10 @@ function pdf(l::LogisticLikelihood,y::Real,f::Real)
     logistic(y*f)
 end
 
+function logpdf(l::LogisticLikelihood,y::T,f::T) where {T<:Real}
+    -log(one(T)+exp(-y*f))
+end
+
 function Base.show(io::IO,model::LogisticLikelihood{T}) where T
     print(io,"Bernoulli Likelihood with Logistic Link")
 end

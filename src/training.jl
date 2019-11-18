@@ -34,8 +34,13 @@ function train!(model::AbstractGP{T,TLike,TInf},iterations::Int=100;callback::Un
                 if isa(TInf,GibbsSampling)
                     next!(p; showvalues = [(:samples, local_iter)])
                 else
-                    elbo=ELBO(model)
-                    next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
+                    if (model.verbose > 2  || local_iter%10==0)
+                        elbo = ELBO(model)
+                        prev_elbo = elbo
+                        next!(p; showvalues = [(:iter, local_iter),(:ELBO,elbo)])
+                    else
+                        next!(p; showvalues = [(:iter, local_iter),(:ELBO,prev_elbo)])
+                    end
                 end
             end
             local_iter += 1; model.inference.nIter += 1
@@ -55,7 +60,7 @@ function train!(model::AbstractGP{T,TLike,TInf},iterations::Int=100;callback::Un
     end
     computeMatrices!(model) #Compute final version of the matrices for prediction
     post_process!(model)
-    model.Trained = true
+    return model.Trained = true
 end
 
 function sample(model::MCGP{T,TLike,TInf},nSamples::Int=1000;callback::Union{Nothing,Function}=nothing,cat_samples::Bool=false) where {T,TLike<:Likelihood,TInf<:Inference}
@@ -124,7 +129,7 @@ end
 
 function computeMatrices!(model::VStP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
+        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.inference.x],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
         model.invL .= inv.(getproperty.(cholesky.(model.Knn),:L))
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
         # model.invKnn .= Symmetric.(model.invL.*transpose.(model.invL))

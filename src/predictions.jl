@@ -31,7 +31,7 @@ function _predict_f(model::GP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,
     if !covf
         return (μf,)
     end
-    A = [inv(model.f[1].K+model.likelihood.σ²I)]
+    A = [inv(model.f[1].K+model.likelihood.σ²*I)]
     if fullcov
         k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
         Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
@@ -171,7 +171,7 @@ function proba_y(model::MCGP{T,<:Union{<:RegressionLikelihood{T},<:Classificatio
 end
 
 function proba_y(model::VGP{T,<:MultiClassLikelihood{T},<:GibbsSampling{T}},X_test::AbstractMatrix{T};nSamples::Int=200) where {T}
-    k_star = kernelmatrix.([X_test],[model.X],model.kernel)
+    k_star = kernelmatrix.([X_test],[model.inference.x],model.kernel)
     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
     K̃ = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+ [zeros(size(X_test,1)) for i in 1:model.nLatent]

@@ -15,15 +15,12 @@ See all functions you need to implement
 
 
 """
+const InputSymbol = Union{Symbol,Expr,Real}
+
 
 check_model_name(name::Symbol) = !isnothing(match(r"[^\w]*",string(name)))
-function check_likelihoodtype(ltype::Symbol)
-    if ltype == :Regression || ltype == :Classification || ltype == :Event
-        return true
-    else
-        return false
-    end
-end
+
+check_likelihoodtype(ltype::Symbol) = Symbol(ltype) == :Regression || Symbol(ltype) == :Classification || Symbol(ltype) == :Event
 
 function treat_likelihood(likelihood::Expr)
 
@@ -83,24 +80,26 @@ macro augmodel(name::Symbol,likelihoodtype::Symbol,likelihood::Expr)
 
 end
 
-
-macro augmodel(name,ltype,C::Symbol,g::Symbol,α::Symbol,β::Symbol,γ::Symbol,φ::Symbol,∇φ::Symbol)
+macro augmodel(name,ltype,C::InputSymbol,g::InputSymbol,α::InputSymbol,β::InputSymbol,γ::InputSymbol,φ::InputSymbol,∇φ::InputSymbol,args...)
+    add_variables = []; default_values = [];
+    for input in args
+        @assert input.head == :(=) "Additional variables should be given a default value, for example `b=1`"
+        push!(add_variables,input.args[1])
+        push!(default_values,input.args[1])
+    end
     #### Check args here
-    #Check name has no space
     @assert check_model_name(name) "Please only use alphabetic characters for the name of the likelihood"
     @assert check_likelihoodtype(ltype) "Please use a correct likelihood type : Regression, Classification or Event"
     #Find gradient with AD if needed
-    #In a later stage try to find structure automatically
-    esc(_augmodel(string(name),Symbol(name,"Likelihood"),Symbol(ltype,"Likelihood"),C,g,α,β,γ,φ,∇φ))
+    esc(_augmodel(string(name),name,Symbol(ltype,"Likelihood"),C,g,α,β,γ,φ,∇φ))
 end
 function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
     quote begin
+        using Statistics
         # struct $(Symbol(name,"{T<:Real}"))# <: $(ltype)
         struct $(lname){T<:Real} <: AGP.$(ltype){T}
             # b::T
-            # c²::AGP.LatentArray{Vector}
             c²::AGP.LatentArray{Vector{T}}
-            # θ::AGP.LatentArray{Vector}
             θ::AGP.LatentArray{Vector{T}}
             function $(lname){T}() where {T<:Real}
                 new{T}()
@@ -116,7 +115,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
 
         function AGP.init_likelihood(likelihood::$(lname){T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
             if inference isa AnalyticVI || inference isa GibbsSampling
-                $(lname){T}([zeros(T,nSamplesUsed) for _ in 1:nLatent],[zeros(T,nSamplesUsed) for _ in 1:nLatent])
+                $(lname){T}(zeros(T,nSamplesUsed),zeros(T,nSamplesUsed))
             else
                 $(lname){T}()
             end
@@ -134,36 +133,36 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
             C()
         end
 
-        function g(l::$(lname),y::AbstractVector{T}) where {T}
-            g.(y)
+        function _gen_g(l::$(lname),y::AbstractVector{T}) where {T}
+            $(g)
         end
 
-        function α(l::$(lname),y::AbstractVector{T}) where {T}
-            α.(y)
+        function _gen_α(l::$(lname),y::AbstractVector{T}) where {T}
+            $(α)
         end
 
-        function β(l::$(lname),y::AbstractVector{T}) where {T}
-            β.(y)
+        function _gen_β(l::$(lname),y::AbstractVector{T}) where {T}
+            $(β)
         end
 
-        function γ(l::$(lname),y::AbstractVector{T}) where {T}
-            γ.(y)
+        function _gen_γ(l::$(lname),y::AbstractVector{T}) where {T}
+            $(γ)
         end
 
-        function φ(l::$(lname),r::T) where {T}
-            φ.(r)
+        function _gen_φ(l::$(lname),r::T) where {T}
+            $(φ)
         end
 
-        function ∇φ(l::$(lname),r::T) where {T}
-            ∇φ.(r)
+        function _gen_∇φ(l::$(lname),r::T) where {T}
+            $(∇φ)
         end
 
-        function ∇²φ(l::$(lname),r::T) where {T}
-            Zygote.gradient(x->∇φ(x),r)[1]
+        function _gen_∇²φ(l::$(lname),r::T) where {T}
+            Zygote.gradient(x->$(∇φ)(x),r)[1]
         end
 
         function Base.show(io::IO,model::$(lname){T}) where {T}
-            print(io,"Generic Likelihood")#WARNING TODO, to be fixed!
+            print(io,"$(:($lname))")
         end
 
         function Statistics.var(l::$(lname){T}) where {T}
@@ -207,11 +206,11 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
 
         ### Natural Gradient Section ###
 
-        @inline AGP.∇E_μ(l::$(lname),::AOptimizer,y::AbstractVector) where {T} = g(l,y)+l.θ.*β(l,y)
-        @inline AGP.∇E_Σ(l::$(lname),::AOptimizer,y::AbstractVector) where {T} = l.θ.*γ(l,y)
+        @inline AGP.∇E_μ(l::$(lname),::AOptimizer,y::AbstractVector) where {T} = (g(l,y)+l.θ.*β(l,y),)
+        @inline AGP.∇E_Σ(l::$(lname),::AOptimizer,y::AbstractVector) where {T} = (l.θ.*γ(l,y),)
 
         ### ELBO Section ###
-        function AGP.expec_logpdf(l::$(lname),i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+        function AGP.expec_log_likelihood(l::$(lname),i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
             tot = length(y)*log(C(l))
             tot += dot(g(l,y),μ)
             tot += -(dot(θ,α(l,y))
@@ -227,16 +226,16 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         ### Gradient Section ###
 
         @inline function AGP.grad_log_pdf(l::$(lname){T},y::Real,f::Real) where {T<:Real}
-            h² = α(y) - β(y)*f + γ(y)*f^2
-            g(y)+(-β(y)+2*γ(y)*f)*∇φ(h²)/φ(h²)
+            h² = _gen_α(y) - _gen_β(y)*f + _gen_γ(y)*f^2
+            _gen_g(y)+(-_gen_β(y)+2*_gen_γ(y)*f)*_gen_∇φ(h²)/_gen_φ(h²)
         end
 
         @inline function AGP.hessian_log_pdf(l::$(lname){T},y::Real,f::Real) where {T<:Real}
-            h² = α(y) - β(y)*f + γ(y)*f^2
-            ϕ = φ(l,h²); ∇ϕ = ∇φ(l,h²); ∇²ϕ = ∇²φ(l,h²)
-            return (2*γ(y)*∇ϕ/ϕ
-                    -((-β(y)+2*γ(y)*f)*∇ϕ/ϕ)^2
-                    +(-β(y)+2*γ(y)*f)^2*∇²ϕ/ϕ)
+            h² = _gen_α(y) - _gen_β(y)*f + _gen_γ(y)*f^2
+            φ = _gen_φ(l,h²); ∇φ = _gen_∇φ(l,h²); ∇²φ = _gen_∇²φ(l,h²)
+            return (2*_gen_γ(y)*∇φ/φ
+                    -((-_gen_β(y)+2*_gen_γ(y)*f)*∇φ/φ)^2
+                    +(-_gen_β(y)+2*_gen_γ(y)*f)^2*∇²φ/φ)
         end
 
     end
