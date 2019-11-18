@@ -13,7 +13,8 @@ AGP.jl stands for AugmentedGaussianProcesses.jl and GP.jl for GaussianProcesses.
 | Student-T | ✓ | ✖ | ✓ |
 | Bernoulli | ✓ (Logistic) | ✖ | ✓ (Probit) |
 | Bayesian-SVM  | ✓ | ✖ |  ✖ |
-| Poisson  | ✖ | ✖ | ✓ |
+| Poisson  | ✓ | ✖ | ✓ |
+| NegativeBinomial  | ✓ | ✖ | ✖ |
 | Exponential | ✖ | ✖ | ✓ |
 | MultiClass | ✓ | ✖ | ✖ |
 
@@ -51,5 +52,5 @@ Note that the kernels will be defered to `MLKernels.jl` in the future.
 | --- | :-: | :-: | :-: |
 | Sparse GP | ✓ | ✖ | ✓  |
 | Custom prior Mean | ✓ | ✓ | ✓ |
-| Hyperparam. Opt. | ✓ | ? | ? |
+| Hyperparam. Opt. | ✓ | ? | ✓ |
 | MultiOutput | ✖ | ✓ | ✖ |

@@ -11,32 +11,31 @@ AnalyticVI(;ϵ::T=1e-5)
 
     - `ϵ::T` : convergence criteria
 """
-mutable struct AnalyticVI{T<:Real} <: Inference{T}
+mutable struct AnalyticVI{T,N} <: VariationalInference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    optimizer::LatentArray{Optimizer} #Learning rate for stochastic updates
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64
-    nSamplesUsed::Int64 #Size of mini-batches
-    MBIndices::Vector{Int64} #Indices of the minibatch
+    nMinibatch::Int64 #Size of mini-batches
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
-    ∇η₁::LatentArray{Vector{T}}
-    ∇η₂::LatentArray{Matrix{T}} #Stored as a matrix since symmetric sums do not help for the moment WARNING
-    x::SubArray{T,2,Matrix{T}}#,Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
-    y::LatentArray{SubArray}
-    function AnalyticVI{T}(ϵ::T,nIter::Integer,optimizer::AbstractVector{<:Optimizer},Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool) where T
-        return new{T}(ϵ,nIter,optimizer,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag)
+    vi_opt::NTuple{N,AVIOptimizer}
+    MBIndices::Vector{Int64} #Indices of the minibatch
+    xview::SubArray{T,2,Matrix{T}}
+    yview::AbstractVector
+
+    function AnalyticVI{T}(ϵ::T,optimizer::Optimizer,nMinibatch::Int,Stochastic::Bool) where {T}
+        return new{T,1}(ϵ,0,Stochastic,0,nMinibatch,1.0,true,(AVIOptimizer{T}(0,optimizer),))
     end
-    function AnalyticVI{T}(ϵ::T,nIter::Integer,optimizer::AbstractVector{<:Optimizer},Stochastic::Bool,nSamples::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,ρ::T,flag::Bool,∇η₁::AbstractVector{<:AbstractVector},
-    ∇η₂::AbstractVector{<:AbstractMatrix}) where T
-        return new{T}(ϵ,nIter,optimizer,Stochastic,nSamples,nSamplesUsed,MBIndices,ρ,flag,∇η₁,∇η₂)
+    function AnalyticVI{T,1}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer) where {T}
+        vi_opts = ntuple(_->AVIOptimizer{T}(nFeatures,optimizer),nLatent)
+        new{T,nLatent}(ϵ,0,Stochastic,nSamples,nMinibatch,nSamples/nMinibatch,true,vi_opts,collect(1:nMinibatch))
     end
 end
 
 
 function AnalyticVI(;ϵ::T=1e-5) where {T<:Real}
-    AnalyticVI{Float64}(ϵ,0,[VanillaGradDescent(η=1.0)],false,1,1,[1],1.0,true)
+    AnalyticVI{Float64}(ϵ,VanillaGradDescent(η=1.0),0,false)
 end
 
 """
@@ -54,7 +53,7 @@ AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay())
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `InverseDecay()` (ρ=(τ+iter)^-κ)
 """
 function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay()) where {T<:Real}
-    AnalyticVI{T}(ϵ,0,[optimizer],true,1,nMinibatch,1:nMinibatch,1.0,true)
+    AnalyticVI{T}(ϵ,optimizer,nMinibatch,true)
 end
 
 function Base.show(io::IO,inference::AnalyticVI{T}) where T
@@ -62,65 +61,84 @@ function Base.show(io::IO,inference::AnalyticVI{T}) where T
 end
 
 
-"""Initialize the final version of the inference object"""
-function init_inference(inference::AnalyticVI{T},nLatent::Integer,nFeatures::Integer,nSamples::Integer,nSamplesUsed::Integer) where {T<:Real}
-    inference.nSamples = nSamples
-    inference.nSamplesUsed = nSamplesUsed
-    inference.MBIndices = 1:nSamplesUsed
-    inference.ρ = nSamples/nSamplesUsed
-    inference.optimizer = [copy(inference.optimizer[1]) for _ in 1:nLatent]
-    inference.∇η₁ = [zeros(T,nFeatures) for _ in 1:nLatent];
-    inference.∇η₂ = [Matrix(Diagonal(ones(T,nFeatures))) for _ in 1:nLatent]
-    return inference
+## Initialize the final version of the inference object ##
+function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nMinibatch::Integer) where {TInf <: AnalyticVI}
+    return TInf(i.ϵ,i.Stochastic,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimizer)
 end
 
-"""Generic method for variational updates using analytical formulas"""
-function variational_updates!(model::AbstractGP{T,L,AnalyticVI{T}}) where {T,L}
-    local_updates!(model)
-    natural_gradient!(model)
+
+## Generic method for variational updates using analytical formulas ##
+function variational_updates!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
+    local_updates!(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
+    natural_gradient!.(
+        ∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
+        ∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
+        model.inference,model.inference.vi_opt,get_Z(model),model.f)
     global_update!(model)
 end
 
-#Coordinate ascent updates on the natural parameters
-function natural_gradient!(model::Union{VGP{T,L,AnalyticVI{T}},VStP{T,L,AnalyticVI{T}}}) where {T,L}
-    model.η₁ .= ∇E_μ(model) .+ invK(model).*model.μ₀
-    model.η₂ .= -Symmetric.(Diagonal{T}.(∇E_Σ(model)).+0.5.*invK(model))
+function variational_updates!(model::MOSVGP{T,L,<:AnalyticVI}) where {T,L}
+    local_updates!.(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model)) # Compute the local updates given the expectations of f
+    # for i in 1:model.nLatent
+    #     local_updates!.(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model)) # Compute the local updates given the expectations of f
+    #     natural_gradient!(∇E_μ(model)[i],∇E_Σ(model)[i],model.inference,model.inference.vi_opt[i],get_Z(model)[i],model.f[i])
+    #     global_update!(model) # Update η₁ and η₂
+    # end
+    natural_gradient!.(∇E_μ(model), ∇E_Σ(model), model.inference,
+        model.inference.vi_opt, get_Z(model), model.f) # Compute the natural gradients of u given the weighted sum of the gradient of f
+    global_update!(model) # Update η₁ and η₂
+end
+
+## Wrappers for tuple of 1 element
+local_updates!(l::Likelihood,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = local_updates!(l,y,first(μ),first(Σ))
+expec_log_likelihood(l::Likelihood,i::AnalyticVI,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = expec_log_likelihood(l,i,y,first(μ),first(Σ))
+
+## Coordinate ascent updates on the natural parameters ##
+function natural_gradient!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,i::AnalyticVI,opt::AVIOptimizer,X::AbstractMatrix,gp::_VGP{T}) where {T,L}
+    gp.η₁ .= ∇E_μ .+ gp.K \ gp.μ₀(X)
+    gp.η₂ .= -Symmetric(Diagonal(∇E_Σ) .+ 0.5 .* inv(gp.K))
 end
 
 #Computation of the natural gradient for the natural parameters
-function natural_gradient!(model::SVGP{T,L,AnalyticVI{T}}) where {T,L}
-    model.inference.∇η₁ .= ∇η₁.(∇E_μ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.μ₀,model.η₁)
-    model.inference.∇η₂ .= ∇η₂.(∇E_Σ(model),fill(model.inference.ρ,model.nLatent),model.κ,model.invKmm,model.η₂)
+function natural_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,Z::AbstractMatrix,gp::_SVGP{T}) where {T<:Real,L}
+    opt.∇η₁ .= ∇η₁(∇E_μ, i.ρ, gp.κ, gp.K, gp.μ₀(Z), gp.η₁)
+    opt.∇η₂ .= ∇η₂(∇E_Σ, i.ρ, gp.κ, gp.K, gp.η₂)
 end
 
-function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},invKmm::Symmetric{T,Matrix{T}},μ₀::PriorMean,η₁::AbstractVector{T}) where {T <: Real}
-    transpose(κ)*(ρ*∇μ) + invKmm*μ₀ - η₁
+function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},K::PDMat{T,Matrix{T}},μ₀::AbstractVector,η₁::AbstractVector{T}) where {T <: Real}
+    transpose(κ)*(ρ * ∇μ) + (K \ μ₀) - η₁
 end
 
-function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},invKmm::Symmetric{T,Matrix{T}},η₂::Symmetric{T,Matrix{T}}) where {T<:Real}
-    -(ρκdiagθκ(ρ,κ,θ)+0.5.*invKmm) - η₂
+function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},K::PDMat{T,Matrix{T}},η₂::Symmetric{T,Matrix{T}}) where {T<:Real}
+    -(ρκdiagθκ(ρ, κ, θ) + 0.5 .* inv(K)) - η₂
 end
 
-#Conversion from natural to standard distribution parameters
-function global_update!(model::Union{VGP{T,L,AnalyticVI{T}},VStP{T,L,AnalyticVI{T}}}) where {T,L}
-    model.Σ .= -0.5.*inv.(model.η₂)
-    model.μ .= model.Σ.*model.η₁
-end
+global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L} = global_update!.(model.f)
+
+global_update!(gp::_VGP,opt::AVIOptimizer,i::AnalyticVI) = global_update!(gp)
+
 
 #Update of the natural parameters and conversion from natural to standard distribution parameters
-function global_update!(model::SVGP{T,L,AnalyticVI{T}}) where {T,L}
-    if model.inference.Stochastic
-        for k in 1:model.nLatent
-            Δ = GradDescent.update(model.inference.optimizer[k],vcat(model.inference.∇η₁[k],model.inference.∇η₂[k][:]))
-            model.η₁[k] .= model.η₁[k] + Δ[1:model.nFeatures]
-            model.η₂[k] .= Symmetric(model.η₂[k] + reshape(Δ[(model.nFeatures+1):end],model.nFeatures,model.nFeatures))
-            # model.η₁ .= model.η₁ .+ GradDescent.update.(model.inference.optimizer_η₁,model.inference.∇η₁)
-            # model.η₂ .= Symmetric.(model.η₂ .+ GradDescent.update.(model.inference.optimizer_η₂,model.inference.∇η₂))
-        end
+function global_update!(model::Union{SVGP{T,L,TInf},MOSVGP{T,L,TInf}}) where {T,L,TInf<:AnalyticVI}
+    global_update!.(model.f,model.inference.vi_opt,model.inference)
+end
+
+function global_update!(gp::_SVGP,opt::AVIOptimizer,i::AnalyticVI)
+    if isstochastic(i)
+        Δ = GradDescent.update(opt.optimizer,vcat(opt.∇η₁,opt.∇η₂[:]))
+        gp.η₁ .+= Δ[1:gp.dim]
+        gp.η₂ .= Symmetric(gp.η₂ + reshape(Δ[(gp.dim+1):end],gp.dim,gp.dim))
     else
-        model.η₁ .+= model.inference.∇η₁
-        model.η₂ .= Symmetric.(model.inference.∇η₂ .+ model.η₂)
+        gp.η₁ .+= opt.∇η₁
+        gp.η₂ .= Symmetric(opt.∇η₂ + gp.η₂)
     end
-    model.Σ .= -0.5.*inv.(model.η₂)
-    model.μ .= model.Σ.*model.η₁
+    global_update!(gp)
+end
+
+
+function ELBO(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
+    tot = zero(T)
+    tot += model.inference.ρ*expec_log_likelihood(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model))
+    tot -= GaussianKL(model)
+    tot -= model.inference.ρ*AugmentedKL(model.likelihood,get_y(model))
 end

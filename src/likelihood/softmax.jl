@@ -1,7 +1,12 @@
 """
-**SoftMax Likelihood**
+```julia
+    SoftMaxLikelihood()
+```
+Multiclass likelihood with [Softmax transformation](https://en.wikipedia.org/wiki/Softmax_function):
 
-Multiclass likelihood with Softmax transformation: ``p(y=i|{f_k}) = \\exp(f_i)/ \\sum_{j=1}\\exp(f_j) ``
+```math
+p(y=i|{fₖ}) = exp(fᵢ)/ ∑ₖexp(fₖ)
+```
 
 There is no possible augmentation for this likelihood
 """

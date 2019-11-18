@@ -1,4 +1,6 @@
-abstract type AbstractGP{T<:Real,L<:Likelihood{T},I<:Inference{T},V<:AbstractArray{T}} end
+abstract type AbstractGP{T<:Real,L<:Likelihood{T},I<:Inference{T},GP<:Abstract_GP,N} end
+
+const AbstractGP1 = AbstractGP{<:Real,<:Likelihood,<:Inference,<:Abstract_GP,1}
 
 function Random.rand!(model::AbstractGP,A::DenseArray{T},X::AbstractArray{T}) where {T<:Real}
     rand!(MvNormal(predict_f(model,X,covf=true,fullcov=true)...),A)
@@ -14,12 +16,12 @@ end
 
 # Statistics.mean(model::AbstractGP) = model.μ
 
-covariance(model::AbstractGP) = model.Σ
+get_K(model::AbstractGP) = getproperty.(model.f,:K)
 
-diag_covariance(model::AbstractGP) = diag.(model.Σ)
+get_μ(model::AbstractGP) = getproperty.(model.f,:μ)
 
-prior_mean(model::AbstractGP) = model.μ₀
+get_Σ(model::AbstractGP) = getproperty.(model.f,:Σ)
 
-Base.length(model::AbstractGP) = model.nLatent
+get_σ_k(model::AbstractGP) = getproperty.(model.f,:σ_k)
 
-kernel(model::AbstractGP) = model.kernel
+get_kernel(model::AbstractGP) = getproperty.(model.f,:kernel)
