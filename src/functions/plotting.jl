@@ -1,4 +1,32 @@
 using AbstractPlotting
+using RecipesBase
+
+
+@recipe function f(gp::AbstractGP,x::AbstractVector)
+    X = reshape(x,:,1)
+    f,sig_f = predict_f(gp,X)
+    @series begin
+        ribbon := 2*sqrt.(sig_f)
+        fillalpha --> 0.3
+        width = 2.0
+        x,f
+    end
+end
+
+@recipe function plot(gps::MOSVGP,x::AbstractVector)
+    X = reshape(x,:,1)
+    n = gps.nTask
+    f,sig_f = predict_f(gp,X)
+    for i in 1:n
+        @series begin
+            ribbon := 2*sqrt.(sig_f[i])
+            fillalpha --> 0.3
+            width --> 2.0
+            title --> "Task $i"
+            x,f[i]
+        end
+    end
+end
 
 function AbstractPlotting.plot(model::AbstractGP;nGrid::Int=100,nsigma::Int=2)
     scene = Makie.Scene()
