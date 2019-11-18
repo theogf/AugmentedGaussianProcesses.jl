@@ -11,11 +11,18 @@ function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,J
 end
 
 
-function apply_gradients_lengthscale!(opt::Optimizer,k::Kernel,g::AbstractVector)
-    logρ = log.(KernelFunctions.get_params(k))
-    logρ .+= update(opt,g.*exp.(logρ))
-    set_params!(k,exp.(logρ))
+function apply_gradients_lengthscale!(opt::Optimizer,k::Kernel{T,<:ScaleTransform{<:Base.RefValue{<:Real}}},g::AbstractVector) where {T}
+    ρ = first(KernelFunctions.params(k))
+    logρ = log(ρ) + update(opt,first(g)*ρ)
+    KernelFunctions.set_params!(k,exp(logρ))
 end
+
+function apply_gradients_lengthscale!(opt::Optimizer,k::Kernel{T,<:ScaleTransform{<:AbstractVector}},g::AbstractVector) where {T}
+    ρ = first(KernelFunctions.params(k))
+    logρ = log.(ρ) .+ update(opt,g.*ρ)
+    KernelFunctions.set_params!(k,exp.(logρ))
+end
+
 
 function apply_gradients_variance!(gp::Abstract_GP,g::Real)
     logσ = log(gp.σ_k)
@@ -27,21 +34,39 @@ function apply_gradients_mean_prior!(μ::PriorMean,g::AbstractVector,X::Abstract
     update!(μ,g,X)
 end
 
-function kernelderivative(kernel::Kernel{T,<:ScaleTransform},X) where {T}
-    p = KernelFunctions.get_params(kernel)
-    J = reshape(ForwardDiff.jacobian(x->kernelmatrix(base_kernel(kernel)(x[1]),X,obsdim=1),p),size(X,1),size(X,1),length(p))
+function kernelderivative(kernel::Kernel{T,<:ScaleTransform{<:Base.RefValue}},X) where {T}
+    p = collect(KernelFunctions.params(kernel))
+    J = reshape(ForwardDiff.jacobian(x->kernelmatrix(base_kernel(kernel)(x...),X,obsdim=1),p),size(X,1),size(X,1),1)
+    return [J[:,:,1]]
+end
+
+function kernelderivative(kernel::Kernel{T,<:ScaleTransform{<:AbstractVector}},X) where {T}
+    p = first(KernelFunctions.params(kernel))
+    J = reshape(ForwardDiff.jacobian(x->kernelmatrix(base_kernel(kernel)(x),X,obsdim=1),p),size(X,1),size(X,1),length(p))
     return [J[:,:,i] for i in 1:length(p)]
 end
 
-function kernelderivative(kernel::Kernel{T,<:ScaleTransform},X,Y) where {T}
-    p = KernelFunctions.get_params(kernel)
-    J = reshape(ForwardDiff.jacobian(x->kernelmatrix(base_kernel(kernel)(x[1]),X,Y,obsdim=1),p),size(X,1),size(Y,1),length(p))
+function kernelderivative(kernel::Kernel{T,<:ScaleTransform{<:Base.RefValue}},X,Y) where {T}
+    p = collect(KernelFunctions.params(kernel))
+    J = reshape(ForwardDiff.jacobian(x->kernelmatrix(base_kernel(kernel)(x...),X,Y,obsdim=1),p),size(X,1),size(Y,1),1)
+    return [J[:,:,1]]
+end
+
+function kernelderivative(kernel::Kernel{T,<:ScaleTransform{<:AbstractVector}},X,Y) where {T}
+    p = first(KernelFunctions.params(kernel))
+    J = reshape(ForwardDiff.jacobian(x->kernelmatrix(base_kernel(kernel)(x),X,Y,obsdim=1),p),size(X,1),size(Y,1),length(p))
     return [J[:,:,i] for i in 1:length(p)]
 end
 
-function kerneldiagderivative(kernel::Kernel{T,<:ScaleTransform},X) where {T}
-    p = KernelFunctions.get_params(kernel)
-    J = reshape(ForwardDiff.jacobian(x->kerneldiagmatrix(base_kernel(kernel)(x[1]),X,obsdim=1),p),size(X,1),length(p))
+function kerneldiagderivative(kernel::Kernel{T,<:ScaleTransform{<:Base.RefValue}},X) where {T}
+    p = collect(KernelFunctions.params(kernel))
+    J = reshape(ForwardDiff.jacobian(x->kerneldiagmatrix(base_kernel(kernel)(x...),X,obsdim=1),p),size(X,1),length(p))
+    return [J[:,1]]
+end
+
+function kerneldiagderivative(kernel::Kernel{T,<:ScaleTransform{<:AbstractVector}},X) where {T}
+    p = first(KernelFunctions.params(kernel))
+    J = reshape(ForwardDiff.jacobian(x->kerneldiagmatrix(base_kernel(kernel)(x),X,obsdim=1),p),size(X,1),length(p))
     return [J[:,i] for i in 1:length(p)]
 end
 
