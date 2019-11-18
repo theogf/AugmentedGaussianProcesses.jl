@@ -1,3 +1,14 @@
+"""
+`MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))`
+
+Variational Inference solver by approximating gradients via MC Integration.
+
+**Keyword arguments**
+
+    - `ϵ::T` : convergence criteria, which can be user defined
+    - `nMC::Int` : Number of samples per data point for the integral evaluation
+    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
+"""
 mutable struct MCIntegrationVI{T<:Real,N} <: NumericalVI{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
@@ -16,23 +27,15 @@ mutable struct MCIntegrationVI{T<:Real,N} <: NumericalVI{T}
     end
 end
 
-""" `MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))`
 
-Constructor for Variational Inference via MC Integration approximation.
-
-**Keyword arguments**
-
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `nMC::Int` : Number of samples per data point for the integral evaluation
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
-"""
 function MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Momentum(η=0.01)) where {T<:Real}
     MCIntegrationVI{T}(ϵ,nMC,optimizer,false,1)
 end
 
-""" `MCIntegrationSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))`
+"""
+`MCIntegrationSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimizer::Optimizer=Adam(α=0.1))`
 
-Constructor for Stochastic Variational Inference via MC integration approximation.
+Stochastic Variational Inference solver by approximating gradients via Monte Carlo integration
 
 **Argument**
 
@@ -68,27 +71,13 @@ function compute_grad_expectations!(model::SVGP{T,L,<:MCIntegrationVI}) where {T
     end
 end
 
-function compute_log_expectations(model::VGP{T,L,<:MCIntegrationVI}) where {T,L}
-    raw_samples = randn(model.inference.nMC,model.nLatent)
+function expec_log_likelihood(l::Likelihood,i::MCIntegrationVI,y,μ,diag_cov) where {T,L}
+    raw_samples = randn(i.nMC,i.nLatent)
     samples = similar(raw_samples)
     loglike = 0.0
     for i in 1:model.nSample
-        samples .= raw_samples.*[sqrt(model.Σ[k][i,i]) for k in 1:model.nLatent]' .+ [model.μ[k][i] for k in 1:model.nLatent]'
-        loglike += mean(mapslices(f->log(pdf(model.likelihood,model.likelihood.y_class[i],f)),samples,dims=2))
+        samples .= raw_samples.*[sqrt(diag_cov[k][i]) for k in 1:i.nLatent]' .+ [μ[k][i] for k in 1:i.nLatent]'
+        loglike += mean(mapslices(f->logpdf(l,y[i],f),samples,dims=2))
     end
     return loglike
-end
-
-
-function compute_log_expectations(model::SVGP{T,L,<:MCIntegrationVI}) where {T,L}
-    raw_samples = randn(model.inference.nMC,model.nLatent)
-    samples = similar(raw_samples)
-    loglike = 0.0
-    Σ = opt_diag.(model.κ.*model.Σ,model.κ)
-    μ = model.κ.*model.μ
-    for i in model.inference.MBIndices
-        samples .= raw_samples.*[sqrt(Σ[k][i]) for k in 1:model.nLatent]' .+ [μ[k][i] for k in 1:model.nLatent]'
-        loglike += mean(mapslices(f->log(pdf(model.likelihood,model.likelihood.y_class[i],f)),samples,dims=2))
-    end
-    return model.inference.ρ*loglike
 end

@@ -125,5 +125,5 @@ function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
 end
 
 function ELBO(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
-    return expec_logpdf(model) - GaussianKL(model)
+    return model.inference.ρ*expec_log_likelihood(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model)) - GaussianKL(model)
 end

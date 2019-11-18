@@ -81,7 +81,7 @@ function expec_log_likelihood(model::VGP{T,L,<:QuadratureVI}) where {T,L}
     return tot
 end
 
-function expec_log_likelihood(l::Likelihood,i::QuadratureVI,μ::AbstractVector,Σ::AbstractMatrix,y::AbstractVector)
+function expec_log_likelihood(l::Likelihood,i::QuadratureVI,y::AbstractVector,μ::AbstractVector,Σ::AbstractMatrix)
 
     # for j in 1:length(y)
         # nodes = i.nodes*sqrt(Σ[j,j]) .+ μ[j]
