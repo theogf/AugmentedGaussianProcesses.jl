@@ -81,12 +81,12 @@ end
 
 
 function hyperparameter_gradient_function(gp::_GP{T},X::AbstractMatrix) where {T}
-    A = (inv(gp.K)-gp.μ*transpose(gp.μ))
+    A = (inv(gp.K)+ (-gp.μ*transpose(gp.μ)))
     return (function(Jnn)
                 return -hyperparameter_KL_gradient(Jnn,A)
             end,
             function(kernel,σ_k)
-                return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K,A)
+                return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K.mat,A)
             end,
             function()
                 return -gp.K\(gp.μ₀(X)-gp.y)
@@ -95,12 +95,12 @@ end
 
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model ##
 function hyperparameter_gradient_function(gp::_VGP{T},X::AbstractMatrix) where {T<:Real}
-    A = (I-gp.K\(gp.Σ+(gp.µ-gp.μ₀(X))*transpose(gp.μ-gp.μ₀(X))))/gp.K
+    A = (I-gp.K\(gp.Σ+(gp.µ-gp.μ₀(X))*transpose(gp.μ-gp.μ₀(X))))/gp.K.mat
     return (function(Jnn)
                 return -hyperparameter_KL_gradient(Jnn,A)
             end,
             function(kernel,σ_k)
-                return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K,A)
+                return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K.mat,A)
             end,
             function()
                 return -gp.K\(gp.μ₀(X)-gp.μ)
@@ -109,7 +109,7 @@ end
 
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse latent GP ##
 function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
-    A = (Diagonal{T}(I,gp.dim).-gp.K\(gp.Σ.+(gp.µ-gp.μ₀(gp.Z.Z))*transpose(gp.μ-gp.μ₀(gp.Z.Z))))/gp.K
+    A = (Diagonal{T}(I,gp.dim).-gp.K\(gp.Σ.+(gp.µ-gp.μ₀(gp.Z.Z))*transpose(gp.μ-gp.μ₀(gp.Z.Z))))/gp.K.mat
     ι = similar(gp.κ) #Empty container to save data allocation
     κΣ = gp.κ*gp.Σ
     return (function(Jmm,Jnm,Jnn,∇E_μ,∇E_Σ,i,opt)
@@ -118,7 +118,7 @@ function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
             function(kernel::Kernel,σ_k::Real,∇E_Σ,i,opt)
                 return one(T)/σ_k*(
                         - i.ρ*dot(∇E_Σ,gp.K̃)
-                        - hyperparameter_KL_gradient(gp.K,A))
+                        - hyperparameter_KL_gradient(gp.K.mat,A))
             end,
             function()
                 return -gp.K\(gp.μ₀(gp.Z.Z)-gp.μ)
@@ -140,7 +140,7 @@ end
 
 ## Gradient with respect to hyperparameter for analytical VI ##
 function hyperparameter_expec_gradient(gp::_SVGP{T},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,ι::AbstractMatrix{T},κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{T},Jnm::AbstractMatrix{T},Jnn::AbstractVector{T}) where {T<:Real}
-    ι .= (Jnm-gp.κ*Jmm)/gp.K
+    ι .= (Jnm-gp.κ*Jmm)/gp.K.mat
     Jnn .-= opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm)
     dμ = dot(∇E_μ,ι*gp.μ)
     dΣ = -dot(∇E_Σ,Jnn)
@@ -151,7 +151,7 @@ end
 
 ## Gradient with respect to hyperparameters for numerical VI ##
 function hyperparameter_expec_gradient(gp::_SVGP{T},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::NumericalVI,opt::NVIOptimizer,ι::AbstractMatrix{T},κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{T},Jnm::AbstractMatrix{T},Jnn::AbstractVector{T}) where {T<:Real}
-    ι .= (Jnm-gp.κ*Jmm)/gp.K
+    ι .= (Jnm-gp.κ*Jmm)/gp.K.mat
     Jnn .-= opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm)
     dμ = dot(∇E_μ,ι*gp.μ)
     dΣ = dot(∇E_Σ,Jnn+2.0*opt_diag(ι,κΣ))

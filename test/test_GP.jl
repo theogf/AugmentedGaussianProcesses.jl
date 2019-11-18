@@ -14,7 +14,7 @@ X = rand(nData,nDim)
 y = rand(MvNormal(zeros(nData),kernelmatrix(k,X,obsdim=1)+1e-3I))
 
 floattypes = [Float64]
-@testset "GP" begin
+@testset "GP Testing" begin
     for floattype in floattypes
         @test typeof(GP(X,y,k)) <: GP{floattype,eval(Meta.parse("GaussianLikelihood{"*string(floattype)*"}")),eval(Meta.parse("Analytic{"*string(floattype)*"}")),AGP._GP{floattype},1}
         model = GP(X,y,k,verbose=2)

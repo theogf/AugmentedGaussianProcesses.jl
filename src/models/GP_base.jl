@@ -126,7 +126,7 @@ compute_K!(gp::_SVGP,jitter) = gp.K = PDMat(gp.σ_k*(kernelmatrix(gp.kernel,gp.Z
 
 function compute_κ!(gp::_SVGP,X,jitter)
     gp.Knm .= gp.σ_k * kernelmatrix(gp.kernel,X,gp.Z.Z,obsdim=1)
-    gp.κ .= gp.Knm / gp.K
+    gp.κ .= gp.Knm / gp.K.mat
     gp.K̃ .= gp.σ_k * (kerneldiagmatrix(gp.kernel,X,obsdim=1) .+ jitter) - opt_diag(gp.κ,gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

@@ -96,7 +96,7 @@ expec_log_likelihood(l::Likelihood,i::AnalyticVI,y,μ::Tuple{<:AbstractVector{T}
 ## Coordinate ascent updates on the natural parameters ##
 function natural_gradient!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,i::AnalyticVI,opt::AVIOptimizer,X::AbstractMatrix,gp::_VGP{T}) where {T,L}
     gp.η₁ .= ∇E_μ .+ gp.K \ gp.μ₀(X)
-    gp.η₂ .= -Symmetric(Diagonal(∇E_Σ) .+ 0.5 .* inv(gp.K))
+    gp.η₂ .= -Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(gp.K).mat)
 end
 
 #Computation of the natural gradient for the natural parameters
@@ -110,7 +110,7 @@ function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},K::PDM
 end
 
 function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},K::PDMat{T,Matrix{T}},η₂::Symmetric{T,Matrix{T}}) where {T<:Real}
-    -(ρκdiagθκ(ρ, κ, θ) + 0.5 .* inv(K)) - η₂
+    -(ρκdiagθκ(ρ, κ, θ) + 0.5 * inv(K).mat) - η₂
 end
 
 global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L} = global_update!.(model.f)
