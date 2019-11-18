@@ -19,16 +19,7 @@ function update!(μ::EmpiricalMean{T},grad::AbstractVector{T}) where {T<:Real}
     μ.C .+= update!(μ.opt,grad)
 end
 
-Base.:+(x::Real,y::EmpiricalMean{<:Real}) = x.+y.C
-Base.:+(x::AbstractVector{<:Real},y::EmpiricalMean{<:Real}) = x+y.C
-Base.:+(x::EmpiricalMean{<:Real},y::Real) = y.+x.C
-Base.:+(x::EmpiricalMean{<:Real},y::AbstractVector{<:Real}) = y+x.C
-Base.:+(x::EmpiricalMean{<:Real},y::EmpiricalMean{<:Real}) = EmpiricalMean(x.C+y.C)
-Base.:-(x::Real,y::EmpiricalMean) = x .- y.C
-Base.:-(x::AbstractVector{<:Real},y::EmpiricalMean) = x - y.C
-Base.:-(x::EmpiricalMean{<:Real},y::Real) = x.C .- y
-Base.:-(x::EmpiricalMean{<:Real},y::AbstractVector{<:Real}) = x.C - y
-Base.:-(x::EmpiricalMean{<:Real},y::EmpiricalMean{<:Real}) = EmpiricalMean(x.C-y.C)
-Base.:*(A::AbstractMatrix{<:Real},y::EmpiricalMean{T}) where {T<:Real} = A*y.C
-Base.:*(y::EmpiricalMean{T},A::AbstractMatrix{<:Real}) where {T<:Real} = transpose(y)*A
-Base.:convert(::T1,x::EmpiricalMean{T2}) where {T1<:Real,T2<:Real} = T1(x.C)
+function (μ::EmpiricalMean{T})(x::AbstractMatrix) where {T<:Real}
+    @assert size(x,1)==length(μ)
+    return μ.C
+end

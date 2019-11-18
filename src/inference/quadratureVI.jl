@@ -13,34 +13,36 @@ QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Momentum(
     - `nGaussHermite::Int` : Number of points for the integral estimation
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Momentum(η=0.0001)`
 """
-mutable struct QuadratureVI{T<:Real} <: NumericalVI{T}
+mutable struct QuadratureVI{T<:Real,N} <: NumericalVI{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    optimizer::LatentArray{Optimizer} #Learning rate for stochastic updates
     nPoints::Int64 #Number of points for the quadrature
     nodes::Vector{T}
     weights::Vector{T}
     clipping::T
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64 #Number of samples of the data
-    nSamplesUsed::Int64 #Size of mini-batches
-    MBIndices::Vector #Indices of the minibatch
+    nMinibatch::Int64 #Size of mini-batches
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
-    ∇η₁::LatentArray{Vector{T}}
-    ∇η₂::LatentArray{Symmetric{T,Matrix{T}}}
-    ν::LatentArray{Vector{T}} #Derivative -<dv/dx>_qn
-    λ::LatentArray{Vector{T}} #Derivative  <d²V/dx²>_qm
-    x::SubArray{T,2,Matrix{T}}#,Tuple{UnitRange{Int64},Base.Slice{Base.OneTo{Int64}}},false}#SubArray{T,2,Matrix{T},Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
-    y::LatentArray{SubArray}
-    function QuadratureVI{T}(ϵ::T,nPoints::Integer,nIter::Integer,optimizer::Optimizer,Stochastic::Bool,clipping::Real,nSamplesUsed::Integer=1) where T
+    vi_opt::NTuple{N,NVIOptimizer}
+    MBIndices::Vector #Indices of the minibatch
+    xview::SubArray{T,2,Matrix{T}}
+    yview::SubArray
+
+    function QuadratureVI{T}(ϵ::T,nPoints::Integer,optimizer::Optimizer,Stochastic::Bool,clipping::Real,nMinibatch::Int) where {T}
+        return new{T,1}(ϵ,0,nPoints,[],[],clipping,Stochastic,0,nMinibatch,1.0,true,(NVIOptimizer{T}(0,0,optimizer),))
+    end
+
+    function QuadratureVI{T,1}(ϵ::T,Stochastic::Bool,nPoints::Int,clipping::Real,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer) where {T}
         gh = gausshermite(nPoints)
-        return new{T}(ϵ,nIter,[optimizer],nPoints,gh[1],gh[2]./sqrtπ,clipping,Stochastic,1,nSamplesUsed)
+        vi_opts = ntuple(_->NVIOptimizer{T}(nFeatures,nMinibatch,optimizer),nLatent)
+        new{T,nLatent}(ϵ,0,nPoints,gh[1].*sqrt2,gh[2]./sqrtπ,clipping,Stochastic,nSamples,nMinibatch,nSamples/nMinibatch,true,vi_opts,collect(1:nMinibatch))
     end
 end
 
-function QuadratureVI(;ϵ::T=1e-5,nGaussHermite::Integer=1000,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
-    QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,false,clipping)
+function QuadratureVI(;ϵ::T=1e-5,nGaussHermite::Integer=100,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
+    QuadratureVI{T}(ϵ,nGaussHermite,optimizer,false,clipping,1)
 end
 
 
@@ -60,63 +62,76 @@ QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
     - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Momentum(η=0.001)`
 """
-function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
-    QuadratureVI{T}(ϵ,nGaussHermite,0,optimizer,true,clipping,nMinibatch)
+function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=100,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
+    QuadratureVI{T}(ϵ,nGaussHermite,optimizer,clipping,nMinibatch)
 end
 
-function expecLogLikelihood(model::VGP{T,L,<:QuadratureVI}) where {T,L}
+function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nMinibatch::Integer) where {TInf <: QuadratureVI}
+    return TInf(i.ϵ,i.Stochastic,i.nPoints,i.clipping,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimizer)
+end
+
+function expec_log_likelihood(model::VGP{T,L,<:QuadratureVI}) where {T,L}
     tot = 0.0
-    for k in 1:model.nLatent
-        for i in 1:model.nSample
-            nodes = model.inference.nodes*sqrt2*sqrt(model.Σ[k][i,i]) .+ model.μ[k][i]
-            tot += dot(model.inference.weights,logpdf.(model.likelihood,model.y[k][i],nodes))
+    for gp in model.f
+        for i in 1:model.nSamples
+            x = model.inference.nodes*sqrt(max(gp.Σ[i,i],0.0)) .+ gp.μ[i]
+            tot += dot(model.inference.weights,logpdf.(model.likelihood,model.y[i],x))
         end
     end
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
+function expec_log_likelihood(l::Likelihood,i::QuadratureVI,y::AbstractVector,μ::AbstractVector,Σ::AbstractMatrix)
+
+    # for j in 1:length(y)
+        # nodes = i.nodes*sqrt(Σ[j,j]) .+ μ[j]
+        # tot += dot(i.weights,logpdf.(l,y[j],nodes))
+    # end
+    # return tot
+    @show "TEST5"
+    sum(apply_quad.(y,μ,diag(Σ),i,l))
+end
+
+function apply_quad(y::Real,μ::Real,σ²::Real,i::QuadratureVI,l::Likelihood) where {T}
+    x = i.nodes*sqrt(max(σ², zero(σ²))) .+ μ
+    return dot(i.weights,x)
+    # return dot(i.weights,logpdf.(l,y,x))
+end
+
+function expec_log_likelihood(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
     tot = 0.0
-    for k in 1:model.nLatent
-        k_correct = model.nLatent == 1 ? 1 : k
-        μ = model.κ[k_correct]*model.μ[k]
-        Σ = opt_diag(model.κ[k_correct]*model.Σ[k],model.κ[k_correct])
-        for i in 1:model.inference.nSamplesUsed
-            nodes = model.inference.nodes*sqrt2*sqrt(Σ[i]) .+ μ[i]
-            tot += dot(model.inference.weights,logpdf.(model.likelihood,model.inference.y[k][i],nodes))
+    y = get_y(model)
+    for gp in model.f
+        μ = mean_f(gp)
+        Σ = opt_diag(gp.κ*gp.Σ,gp.κ)
+        for i in 1:model.inference.nMinibatch
+            x = model.inference.nodes*sqrt(max(Σ[i],zero(T))) .+ μ[i]
+            tot += dot(model.inference.weights,logpdf.(model.likelihood,y[i],x))
         end
     end
     return tot
 end
 
 
-function compute_grad_expectations!(model::VGP{T,L,<:QuadratureVI}) where {T,L}
-    for k in 1:model.nLatent
-        for i in 1:model.nSample
-            model.inference.ν[k][i], model.inference.λ[k][i] = grad_quad(model.likelihood, model.y[k][i], model.μ[k][i], model.Σ[k][i,i],model.inference)
-        end
-    end
-end
-
-function compute_grad_expectations!(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
-    for k in 1:model.nLatent
-        k_correct = model.nLatent == 1 ? 1 : k
-        μ = model.κ[k_correct]*model.μ[k]
-        Σ = opt_diag(model.κ[k_correct]*model.Σ[k],model.κ[k_correct])
-        for i in 1:model.inference.nSamplesUsed
-            model.inference.ν[k][i], model.inference.λ[k][i] = grad_quad(model.likelihood, model.inference.y[k][i], μ[i], Σ[i], model.inference)
+function compute_grad_expectations!(model::AbstractGP{T,L,<:QuadratureVI}) where {T,L}
+    y = get_y(model)
+    for (gp,opt) in zip(model.f,model.inference.vi_opt)
+        μ = mean_f(gp)
+        Σ = diag_cov_f(gp)
+        for i in 1:model.inference.nMinibatch
+            opt.ν[i], opt.λ[i] = grad_quad(model.likelihood,y[i],μ[i],Σ[i],model.inference)
         end
     end
 end
 
 #Compute the first and second derivative of the log-likelihood using the quadrature nodes
-function grad_quad(likelihood::Likelihood{T},y::Real,μ::Real,σ²::Real,inference::Inference) where {T<:Real}
-    nodes = inference.nodes*sqrt2*sqrt(max(σ²,zero(T))) .+ μ
-    Edlogpdf = dot(inference.weights,grad_log_pdf.(likelihood,y,nodes))
-    Ed²logpdf = dot(inference.weights,hessian_log_pdf.(likelihood,y,nodes))
-    if inference.clipping != 0
-        return (abs(Edlogpdf) > inference.clipping ? sign(Edlogpdf)*inference.clipping : -Edlogpdf::T,
-                abs(Ed²logpdf) > inference.clipping ? sign(Ed²logpdf)*inference.clipping : -Ed²logpdf::T)
+function grad_quad(l::Likelihood{T},y::Real,μ::Real,σ²::Real,i::Inference) where {T<:Real}
+    x = i.nodes*sqrt(max(σ²,zero(T))) .+ μ
+    Edlogpdf = dot(i.weights,grad_logpdf.(l,y,x))
+    Ed²logpdf = dot(i.weights,hessian_logpdf.(l,y,x))
+    if i.clipping != 0
+        return (abs(Edlogpdf) > i.clipping ? sign(Edlogpdf)*i.clipping : -Edlogpdf::T,
+                abs(Ed²logpdf) > i.clipping ? sign(Ed²logpdf)*i.clipping : -Ed²logpdf::T)
     else
         return -Edlogpdf::T, Ed²logpdf::T
     end

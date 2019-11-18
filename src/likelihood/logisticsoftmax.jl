@@ -1,16 +1,17 @@
 """
-**The Logistic-Softmax likelihood**
+```julia
+    LogisticSoftMaxLikelihood()
+```
 
-The multiclass likelihood with a logistic-softmax mapping: : ``p(y=i|\\{f_k\\}) = \\sigma(f_i)/ \\sum_k \\sigma(f_k)``
-where σ is the logistic function has the same properties as softmax.
-
+The multiclass likelihood with a logistic-softmax mapping: :
+```math
+p(y=i|{fₖ}₁ᴷ) = σ(fᵢ)/∑ₖ σ(fₖ)
+```
+where `σ` is the logistic function.
+This likelihood has the same properties as [softmax](https://en.wikipedia.org/wiki/Softmax_function).
 ---
 
-For the analytical version, the likelihood is augmented multiple times to obtain :
-```math
-#TODO
-```
-Paper with details under submission
+For the analytical version, the likelihood is augmented multiple times. More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670)
 """
 struct LogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
     Y::AbstractVector{BitVector} #Mapping from instances to classes
@@ -68,83 +69,49 @@ function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},inference::Inf
     end
 end
 
-## Local Updates Section ##
-
-function local_updates!(model::VGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI,V}) where {T,V}
-    model.likelihood.c .= broadcast((Σ::V,μ::V)->sqrt.(Σ.+abs2.(μ)),diag.(model.Σ),model.μ)
+## Local Updates##
+function local_updates!(l::LogisticSoftMaxLikelihood,y,μ::NTuple{N,<:AbstractVector},Σ::NTuple{N,<:AbstractVector}) where {T,N}
+    l.c .= broadcast((Σ,μ)->sqrt.(Σ+abs2.(μ)),Σ,μ)
     for _ in 1:2
-        model.likelihood.γ .= broadcast((c::V,μ::V,ψα::V)->0.5/(model.likelihood.β[1])*exp.(ψα).*safe_expcosh.(-0.5*μ,0.5*c),
-                                    model.likelihood.c,model.μ,[digamma.(model.likelihood.α)])
-        model.likelihood.α .= 1.0.+(model.likelihood.γ...)
+        l.γ .= broadcast(
+            (β,c,μ,ψα)->0.5 / β * exp.(ψα) .* safe_expcosh.(-0.5*μ, 0.5*c),                                    [l.β],l.c,μ,[digamma.(l.α)])
+        l.α .= 1.0.+(l.γ...)
     end
-    model.likelihood.θ .= broadcast((y::BitVector,γ::V,c::V)->0.5*(y.+γ)./c.*tanh.(0.5*c),model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
-end
-
-function local_updates!(model::SVGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI,V}) where {T,V}
-    model.likelihood.c .= broadcast((μ::V,Σ::Symmetric{T,Matrix{T}},κ::Matrix{T},K̃::V)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
-                                    model.μ,model.Σ,model.κ,model.K̃)
-    for _ in 1:5
-        model.likelihood.γ .= broadcast((c::V,κμ::V,ψα::V)->(0.5/(model.likelihood.β[1]))*exp.(ψα).*safe_expcosh.(-0.5*κμ,0.5*c),
-                                    model.likelihood.c,model.κ.*model.μ,[digamma.(model.likelihood.α)])
-        model.likelihood.α .= 1.0.+(model.likelihood.γ...)
-    end
-    model.likelihood.θ .= broadcast((y::BitVector,γ::V,c::V)->0.5*(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5.*c),
-                                    model.likelihood.Y,model.likelihood.γ,model.likelihood.c)
+    l.θ .= broadcast((y,γ,c)->0.5*(y+γ)./c.*tanh.(0.5.*c),
+                                    y,l.γ,l.c)
     return nothing
 end
 
-function sample_local!(model::VGP{T,<:LogisticSoftMaxLikelihood,<:GibbsSampling}) where {T}
-    model.likelihood.γ .= broadcast(μ::AbstractVector{<:Real}->rand.(Poisson.(0.5*model.likelihood.α.*safe_expcosh.(-0.5*μ,0.5*μ))), model.μ)
-    model.likelihood.α .= rand.(Gamma.(1.0.+(model.likelihood.γ...),1.0./model.likelihood.β))
+function sample_local!(l::LogisticSoftMaxLikelihood{T},y::AbstractVector,f) where {T}
+    l.γ .= broadcast(f->rand.(Poisson.(0.5*l.α.*safe_expcosh.(-0.5*f,0.5*f))), f)
+    l.α .= rand.(Gamma.(one(T).+(l.γ...),1.0./l.β))
     pg = PolyaGammaDist()
-    model.likelihood.θ .= broadcast((y::BitVector,γ::AbstractVector{<:Real},μ::AbstractVector{<:Real})->draw.([pg],y.+γ,μ),model.likelihood.Y,model.likelihood.γ,model.μ)
+    set_ω!(l,broadcast((y,γ,f)->draw.([pg],y.+γ,μ),y,l.γ,f))
     return nothing
 end
 
 ## Global Gradient Section ##
 
-@inline ∇E_μ(model::VGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI}) where {T} = 0.5.*(model.likelihood.Y.-model.likelihood.γ)
-@inline ∇E_μ(model::VGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5.*(model.likelihood.Y.-model.likelihood.γ)
-@inline ∇E_μ(model::SVGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI}) where {T} = 0.5.*(getindex.(model.likelihood.Y,[model.inference.MBIndices]).-model.likelihood.γ)
-@inline ∇E_μ(model::SVGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5.*(model.likelihood.Y[i][model.inference.MBIndices]-model.likelihood.γ[i])
-@inline ∇E_Σ(model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI}) where {T} = 0.5.*model.likelihood.θ
-@inline ∇E_Σ(model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:GibbsorVI},i::Int) where {T} = 0.5.*model.likelihood.θ[i]
+@inline ∇E_μ(l::LogisticSoftMaxLikelihood,::AOptimizer,y::AbstractVector) where {T} = 0.5.*(y.-l.γ)
+@inline ∇E_Σ(l::LogisticSoftMaxLikelihood,::AOptimizer,y::AbstractVector) where {T} = 0.5.*l.θ
 
 ## ELBO Section ##
-
-function ELBO(model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI}) where {T}
-    return expecLogLikelihood(model) - GaussianKL(model) - GammaEntropy(model) - PoissonKL(model) - PolyaGammaKL(model)
-end
-
-function expecLogLikelihood(model::VGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI}) where {T}
-    # model.likelihood.c .= broadcast((Σ,μ)->sqrt.(Σ.+abs2.(μ)),diag.(model.Σ),model.μ)
-    tot = -model.nSample*logtwo
-    tot += -sum(sum(model.likelihood.γ.+model.likelihood.Y))*logtwo
-    tot +=  0.5*sum(broadcast((y,μ,γ,θ,c)->sum(μ.*(y-γ)-θ.*abs2.(c)),
-                    model.likelihood.Y,model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
+function expec_log_likelihood(l::LogisticSoftMaxLikelihood{T},i::AnalyticVI,y,μ,Σ) where {T}
+    tot = -length(y)*logtwo
+    tot += -sum(sum(l.γ.+y))*logtwo
+    tot +=  0.5*sum(broadcast((θ,γ,y,μ,Σ)->dot(μ,(y-γ))-dot(θ,abs2.(μ))-dot(θ,Σ),l.θ,l.γ,y,μ,Σ))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{T,<:LogisticSoftMaxLikelihood,<:AnalyticVI}) where {T}
-    model.likelihood.c .= broadcast((μ::AbstractVector,Σ::AbstractMatrix,κ::AbstractMatrix,K̃::AbstractVector)->sqrt.(K̃+opt_diag(κ*Σ,κ)+abs2.(κ*μ)),
-                                    model.μ,model.Σ,model.κ,model.K̃)
-    tot = -model.inference.nSamplesUsed*logtwo
-    tot += -sum(sum.(model.likelihood.γ.+getindex.(model.likelihood.Y,[model.inference.MBIndices])))*logtwo
-    tot += 0.5*sum(broadcast((y,κμ,γ,θ,c)->sum((κμ).*(y[model.inference.MBIndices]-γ)-θ.*abs2.(c)),
-                    model.likelihood.Y,model.κ.*model.μ,model.likelihood.γ,model.likelihood.θ,model.likelihood.c))
-    return model.inference.ρ*tot
-end
+AugmentedKL(l::LogisticSoftMaxLikelihood,y::AbstractVector) = PolyaGammaKL(l,y) + PoissonKL(l) + GammaEntropy(l)
 
-function PolyaGammaKL(model::VGP{T,<:LogisticSoftMaxLikelihood}) where {T}
-    sum(broadcast(PolyaGammaKL,model.likelihood.Y.+model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
-end
+PolyaGammaKL(l::LogisticSoftMaxLikelihood,y) =  sum(broadcast(PolyaGammaKL,y.+l.γ,l.c,l.θ))
 
-function PolyaGammaKL(model::SVGP{T,<:LogisticSoftMaxLikelihood}) where {T}
-    model.inference.ρ*sum(broadcast(PolyaGammaKL,getindex.(model.likelihood.Y,[model.inference.MBIndices]).+model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
-end
+PoissonKL(l::LogisticSoftMaxLikelihood) =     sum(broadcast(PoissonKL,l.γ,[l.α./l.β],[digamma.(l.α).-log.(l.β)]))
 
-function PoissonKL(model::AbstractGP{T,<:LogisticSoftMaxLikelihood}) where {T}
-    return model.inference.ρ*sum(broadcast(PoissonKL,model.likelihood.γ,[model.likelihood.α./model.likelihood.β],[digamma.(model.likelihood.α).-log.(model.likelihood.β)]))
+##  Compute the equivalent of KL divergence between an improper prior p(λ) (``1_{[0,\\infty]}``) and a variational Gamma distribution ##
+function GammaEntropy(l::LogisticSoftMaxLikelihood)
+    return -sum(l.α)+sum(log,l.β[1])-sum(lgamma,l.α)-dot(1.0.-l.α,digamma.(l.α))
 end
 
 ## Numerical Gradient Section ##

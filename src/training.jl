@@ -1,5 +1,4 @@
-
-""" `train!(model::AbstractGP;iterations::Integer=100,callback=0,conv_function=0)`
+""" `train!(model::AbstractGP;iterations::Integer=100,callback=0,convergence=0)`
 
 Function to train the given GP `model`.
 
@@ -8,31 +7,31 @@ Function to train the given GP `model`.
 there are options to change the number of max iterations,
 - `iterations::Int` : Number of iterations (not necessarily epochs!)for training
 - `callback::Function` : Callback function called at every iteration. Should be of type `function(model,iter) ...  end`
-- `conv_function::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
+- `convergence::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
-function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence=0)
+function train!(model::AbstractGP{T,TLike,TInf},iterations::Int=100;callback::Union{Nothing,Function}=nothing,convergence::Union{Nothing,Function}=nothing) where {T,TLike<:Likelihood,TInf<:Inference}
     if model.verbose > 0
-      println("Starting training $model with $(model.nSample) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))# using the "*model.Name*" model")
+      println("Starting training $model with $(model.nSamples) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))
     end
 
     @assert iterations > 0  "Number of iterations should be positive"
     # model.evol_conv = [] #Array to check on the evolution of convergence
-    local_iter::Int64 = 1; conv = Inf;
+    local_iter = 1; conv = Inf;
     p = Progress(iterations,dt=0.2,desc="Training Progress: ")
     prev_elbo = -Inf
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             update_parameters!(model) #Update all the variational parameters
             model.Trained = true
-            if callback != 0
+            if !isnothing(callback)
                 callback(model,model.inference.nIter) #Use a callback method if set by user
             end
-            if !isnothing(model.optimizer) && (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
+            if (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
             # Print out informations about the convergence
             if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
-                if isa(model.inference,GibbsSampling)
+                if isa(TInf,GibbsSampling)
                     next!(p; showvalues = [(:samples, local_iter)])
                 else
                     elbo=ELBO(model)
@@ -59,8 +58,16 @@ function train!(model::AbstractGP;iterations::Integer=100,callback=0,Convergence
     model.Trained = true
 end
 
+function sample(model::MCGP{T,TLike,TInf},nSamples::Int=1000;callback::Union{Nothing,Function}=nothing,cat_samples::Bool=false) where {T,TLike<:Likelihood,TInf<:Inference}
+    if model.verbose > 0
+      println("Starting sampling $model with $(model.nSamples) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))
+    end
+    @assert nSamples > 0  "Number of samples should be positive"
+    return sample_parameters(model,nSamples,callback,cat_samples)
+end
+
 function update_parameters!(model::GP)
-    local_updates!(model)
+    analytic_updates!(model)
     computeMatrices!(model); #Recompute the matrices if necessary (when hyperparameters have been updated)
 end
 
@@ -71,11 +78,22 @@ end
 
 function update_parameters!(model::SVGP)
     if model.inference.Stochastic
-        model.inference.MBIndices = StatsBase.sample(1:model.inference.nSamples,model.inference.nSamplesUsed,replace=false) #Sample nSamplesUsed indices for the minibatches
-        model.inference.x = view(model.X,model.inference.MBIndices,:)
-        model.inference.y = view.(model.y,[model.inference.MBIndices])
+        model.inference.MBIndices .= StatsBase.sample(1:model.inference.nSamples,model.inference.nMinibatch,replace=false)
+        model.inference.xview = view(model.X,model.inference.MBIndices,:)
+        model.inference.yview = view_y(model.likelihood,model.y,model.inference.MBIndices)
     end
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    variational_updates!(model);
+end
+
+function update_parameters!(model::MOSVGP)
+    if model.inference.Stochastic
+        model.inference.MBIndices .= StatsBase.sample(1:model.inference.nSamples,model.inference.nMinibatch,replace=false)
+        model.inference.xview = view(model.X,model.inference.MBIndices,:)
+        model.inference.yview = view_y.(model.likelihood,model.y,[model.inference.MBIndices])
+    end
+    computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    update_A!(model)
     variational_updates!(model);
 end
 
@@ -85,31 +103,20 @@ function update_parameters!(model::VStP)
     variational_updates!(model);
 end
 
-function computeMatrices!(model::GP{T,<:Likelihood,<:Inference}) where {T}
+function computeMatrices!(model::Union{GP{T},VGP{T},MCGP{T}}) where {T}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) )
-        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn.+ model.likelihood.ϵ.*[I])))
+        compute_K!.(model.f,[model.inference.xview],T(jitter))
     end
+    model.inference.HyperParametersUpdated=false
 end
 
-function computeMatrices!(model::VGP{T,<:Likelihood,<:Inference}) where {T}
+function computeMatrices!(model::Union{SVGP{T},MOSVGP{T}}) where {T}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.X],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
-        model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
-    end
-end
-
-function computeMatrices!(model::SVGP{T,<:Likelihood,<:Inference}) where {T}
-    if model.inference.HyperParametersUpdated
-        model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*T(jitter)*I),model.Z,model.kernel)
-        model.invKmm .= Symmetric.(inv.(cholesky.(model.Kmm)))
+        compute_K!.(model.f,T(jitter))
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
-        KernelModule.kernelmatrix!.(model.Knm,[model.inference.x],model.Z,model.kernel)
-        model.κ .= model.Knm.*model.invKmm
-        model.K̃ .= kerneldiagmatrix.([model.inference.x],model.kernel) .+ [T(jitter)*ones(T,model.inference.nSamplesUsed)] - opt_diag.(model.κ,model.Knm)
-        @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
+        compute_κ!.(model.f,[model.inference.xview],T(jitter))
     end
     model.inference.HyperParametersUpdated=false
 end

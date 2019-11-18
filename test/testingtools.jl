@@ -20,7 +20,15 @@ push!(methods_implemented_VGP["HeteroscedasticLikelihood"],"AnalyticVI")
 methods_implemented_SVGP = deepcopy(methods_implemented)
 methods_implemented_SVGP["GaussianLikelihood"] = ["AnalyticVI","AnalyticSVI"]
 
-
+function nlatent(l::String)
+    if l == "LogisticSoftMaxLikelihood" || l == "SoftMaxLikelihood"
+        "$(n_class)"
+    elseif l== "HeteroscedasticLikelihood"
+        "2"
+    else
+        "1"
+    end
+end
 stoch(s::Bool,inference::String) = inference != "GibbsSampling" ? (s ? inference[1:end-2]*"SVI" : inference) : inference
 addiargument(s::Bool,inference::String) = inference == "GibbsSampling" ? "nBurnin=0" : (s ? "b" : "")
 addlargument(likelihood::String) = begin

@@ -1,6 +1,6 @@
 abstract type MultiClassLikelihood{T<:Real} <: Likelihood{T} end
 
-""" Return the labels in a vector of vectors for multiple outputs"""
+## Return the labels in a vector of vectors for multiple outputs ##
 function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:MultiClassLikelihood}
     @assert N <= 1 "Target should be a vector of labels"
     likelihood = init_multiclass_likelihood(likelihood,y)
@@ -10,6 +10,9 @@ end
 function init_multiclass_likelihood(likelihood::L,y::AbstractVector) where {L<:MultiClassLikelihood}
     L(one_of_K_mapping(y)...)
 end
+
+view_y(l::MultiClassLikelihood,y::AbstractVector,i::AbstractVector) = view(view.(y,[i]),:)
+
 
 """ Given the labels, return one hot encoding, and the mapping of each class """
 function one_of_K_mapping(y)
@@ -47,9 +50,17 @@ function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractV
     return DataFrame(pred,Symbol.(l.class_mapping))
 end
 
-function expecLogLikelihood(model::AbstractGP{T,<:MultiClassLikelihood,<:NumericalVI}) where {T}
+function expec_logpdf(model::AbstractGP{T,<:MultiClassLikelihood,<:NumericalVI}) where {T}
     compute_log_expectations(model)
 end
+
+log_likelihood(l::MultiClassLikelihood,y::AbstractVector,fs) where {T<:Real} = logpdf.(l,y,[getindex.(fs,i) for i in 1:length(y)])
+
+function grad_log_likelihood(l::Likelihood,y::AbstractVector,fs)
+    grad_logpdf.(l,y,[getindex.(fs,i) for i in 1:length(y)])
+end
+
+
 
 include("softmax.jl")
 include("logisticsoftmax.jl")
