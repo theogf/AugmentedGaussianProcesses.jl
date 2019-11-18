@@ -30,6 +30,7 @@ AugmentedGaussianProcesses.jl is a Julia package in development for **Data Augme
 <p align=center>
    <img src="docs/src/assets/Regression.png">
  </p>
+ 
 ---
 ## Two GP event counting likelihoods
 
