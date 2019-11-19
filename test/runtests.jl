@@ -4,7 +4,7 @@ using Random: seed!
 seed!(42)
 
 # Global flags for the tests
-@testset "Augmented Gaussian Process Testing"
+@testset "Augmented Gaussian Process Testing" begin
 include("test_GP.jl")
 include("test_VGP.jl")
 include("test_SVGP.jl")
