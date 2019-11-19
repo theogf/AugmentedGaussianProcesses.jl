@@ -58,8 +58,16 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
                 optimizer = optimizer ? Adam(α=0.01) : nothing
             end
 
-            @assert nInducingPoints > 0 && nInducingPoints < nSamples "The number of inducing points is incorrect (negative or bigger than number of samples)"
-            Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10)
+            @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
+            if nInducingPoints > nSamples
+                @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
+                nInducingPoints = nSamples
+            end
+            if nInducingPoints == nSamples
+                Z = X
+            else
+                Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10)
+            end
             if isa(Zoptimizer,Bool)
                 Zoptimizer = Zoptimizer ? Adam(α=0.01) : nothing
             end
