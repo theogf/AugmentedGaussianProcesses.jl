@@ -2,7 +2,6 @@ using Distributions
 using AugmentedGaussianProcesses
 using LinearAlgebra
 using Random: seed!
-using ValueHistories
 const AGP = AugmentedGaussianProcesses
 seed!(42)
 doPlots=  true
@@ -17,8 +16,8 @@ minx=-1.0
 maxx=1.0
 μ_0 = -1
 l= sqrt(0.1); vf = 2.0;vg=1.0; α = 0.1;n_sig = 2
-kernel = RBFKernel(0.3,variance = vf); m = 40
-kernel_g = RBFKernel(0.3,variance = vg)
+kernel = SqExponentialKernel(1/0.3); m = 40
+kernel_g = SqExponentialKernel(1/0.3)
 autotuning = false
 
 rmse(y,y_test) = norm(y-y_test,2)/sqrt(length(y_test))
@@ -28,8 +27,8 @@ h(x) = α*logistic.(x)
 X = rand(N_data,N_dim)*(maxx-minx).+minx
 x_test = range(minx,stop=maxx,length=N_test)
 X_tot = vcat(X,x_test)
-y_m = rand(MvNormal(zeros(N_data+N_test),kernelmatrix(X_tot,kernel)+1e-5*I))
-y_noise = rand(MvNormal(μ_0*ones(N_data+N_test),kernelmatrix(X_tot,kernel_g)+1e-5I))
+y_m = vf*rand(MvNormal(zeros(N_data+N_test),kernelmatrix(kernel,X_tot,obsdim=1)+1e-5*I))
+y_noise = vg*rand(MvNormal(μ_0*ones(N_data+N_test),kernelmatrix(kernel_g,X_tot,obsdim=1)+1e-5I))
 h_noise = 1.0./sqrt.(h.(y_noise))
 y = y_m .+ rand.(Normal.(0,h_noise))
 scatter(X_tot,y_m,lab="True Mean")
@@ -71,11 +70,11 @@ end
 
 # if fullm
 println("Testing the full model")
-t_full = @elapsed global model = VGP(X,y,kernel,AGP.HeteroscedasticLikelihood(kernel_g,AGP.ConstantMean(float(μ_0))),AnalyticVI(),verbose=verbose,optimizer=false)
+t_full = @elapsed global model = VGP(X,y,kernel,HeteroscedasticLikelihood(),AnalyticVI(),verbose=verbose,optimizer=false)
 # model.μ = copy(y_m[1:model.nSamples])
-t_full += @elapsed train!(model,iterations=10)#,callback=callback)
+t_full += @elapsed train!(model,10)#,callback=callback)
 global y_full,sig_full = proba_y(model,X_test); rmse_full = rmse(y_full,y_test);
-
+plot(model,X_test)
 if doPlots
     # p1=plot(x_test,x_test,reshape(y_full,N_test,N_test),t=:contour,fill=true,cbar=false,clims=[-5,5],lab="",title="StudentT")
     p1=plot(x_test,y_full,lab="",title="Heteroscedastic",ylim=(miny,maxy))
@@ -87,10 +86,9 @@ end
 # end
 ##
 
-
 println("Basic GP")
 gpmodel = GP(X,y,kernel,noise=1.0)
-t_gp = @elapsed train!(gpmodel,iterations=10)
+t_gp = @elapsed train!(gpmodel,10)
 y_gp,sig_gp = proba_y(gpmodel,X_test); rmse_gp = rmse(y_gp,y_test)
 if doPlots
     p4=plot(x_test,y_gp,lab="",title="Homoscedastic",ylim=(miny,maxy))
