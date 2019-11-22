@@ -30,7 +30,7 @@ AugmentedGaussianProcesses.jl is a Julia package in development for **Data Augme
 <p align=center>
    <img src="docs/src/assets/Regression.png">
  </p>
- 
+
 ---
 ## Two GP event counting likelihoods
 
@@ -49,6 +49,10 @@ AugmentedGaussianProcesses.jl is a Julia package in development for **Data Augme
    <img src="docs/src/assets/final3D.png" width=400px>
  </p>
 
+ ---
+ ## Multi-Ouput models
+  - It is also possible to create a multi-ouput model where the outputs are a linear combination of inducing variables see  [IJulia example in preparation]()/[Reference][neuripsmultiouput]
+
 ## More models in development
   - **Probit** : A Classifier with a Bernoulli likelihood with the probit link
   - **Online** : Allowing for all algorithms to work online as well
@@ -63,9 +67,10 @@ Run `julia`, press `]` and type `add AugmentedGaussianProcesses`, it will instal
 A complete documentation is available [in the docs](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable). For a short start now you can use this very basic example where `X_train` is a matrix ``N x D`` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs (or matrix of independent outputs).
 
 ```julia
-using AugmentedGaussianProcesses
-model = SVGP(X_train,Y_train,RBFKernel(1.0),LogisticLikelihood(),AnalyticSVI(100),64)
-train!(model,iterations=100)
+using AugmentedGaussianProcesses;
+using KernelFunctions
+model = SVGP(X_train,Y_train,SqExponentialKernel(1.0),LogisticLikelihood(),AnalyticSVI(100),64)
+train!(model,100)
 Y_predic = predict_y(model,X_test) #For getting the label directly
 Y_predic_prob, Y_predic_prob_var = proba_y(model,X_test) #For getting the likelihood (and likelihood uncertainty) of predicting class 1
 ```
@@ -83,6 +88,8 @@ UAI 19' "Multi-Class Gaussian Process Classification Made Conjugate: Efficient I
 ECML 17' "Bayesian Nonlinear Support Vector Machines for Big Data" by Florian Wenzel, Théo Galy-Fajou, Matthäus Deutsch and Marius Kloft. [https://arxiv.org/abs/1707.05532][arxivbsvm]
 
 AAAI 19' "Efficient Gaussian Process Classification using Polya-Gamma Variables" by Florian Wenzel, Théo Galy-Fajou, Christian Donner, Marius Kloft and Manfred Opper. [https://arxiv.org/abs/1802.06383][arxivxgpc]
+
+NeurIPS 18' "Moreno-Muñoz, Pablo, Antonio Artés, and Mauricio Álvarez. "Heterogeneous multi-output Gaussian process prediction." Advances in Neural Information Processing Systems. 2018." [https://papers.nips.cc/paper/7905-heterogeneous-multi-output-gaussian-process-prediction][neuripsmultiouput]
 
 UAI 13' "Gaussian Process for Big Data" by James Hensman, Nicolo Fusi and Neil D. Lawrence [https://arxiv.org/abs/1309.6835][arxivgpbigdata]
 

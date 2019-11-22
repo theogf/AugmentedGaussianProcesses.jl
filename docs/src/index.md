@@ -10,9 +10,8 @@ A [Julia](http://julialang.org) package for Augmented and Normal Gaussian Proces
 
 ***
 
-### Authors
+### Author
 - [Théo Galy-Fajou](https://theogf.github.io) PhD Student at Technical University of Berlin.
-- [Florian Wenzel](http://www.florian-wenzel.de) PhD Student at Technical University of Kaiserslautern & Humboldt University of Berlin
 
 ### Installation
 
@@ -26,8 +25,8 @@ pkg> add AugmentedGaussianProcesses
 Here is a simple example to start right away :
 ```julia
 using AugmentedGaussianProcesses
-model = SVGP(X_train,y_train,RBFKernel(1.0),LogisticLikelihood(),AnalyticVI(),50)
-train!(model,iterations=100)
+model = SVGP(X_train,y_train,SqExponentialKernel(1.0),LogisticLikelihood(),AnalyticVI(),50)
+train!(model,100)
 y_pred = predict_y(model,X_test)
 ```
 

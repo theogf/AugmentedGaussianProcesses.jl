@@ -16,7 +16,8 @@ end
 
 ## Update all hyperparameters for the full batch GP models ##
 function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X::AbstractMatrix) where {T}
-    if !isnothing(gp.opt_ρ) || !isnothing(gp.opt_σ) || !isnothing(get_opt(gp.μ₀))
+    if true#!isnothing(gp.opt_ρ) || !isnothing(gp.opt_σ) || !isnothing(get_opt(gp.μ₀))
+        return; ###BAD STUFFFFF
         f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp,X)
         if !isnothing(gp.opt_ρ)
             Jnn = kernelderivative(gp.kernel,X)

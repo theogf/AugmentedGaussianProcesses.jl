@@ -84,3 +84,5 @@ end
 
 get_y(model::VGP) = model.inference.yview
 get_Z(model::VGP) = [model.inference.xview]
+
+@traitimpl IsFull{VGP}

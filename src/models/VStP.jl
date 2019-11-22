@@ -119,3 +119,5 @@ function local_prior_updates!(model::VStP)
     model.l² .= broadcast((ν,μ,Σ,μ₀,invK)->0.5*(ν+model.nSample+dot(μ-μ₀,invK*(μ-μ₀))+opt_trace(invK,Σ)),model.ν,model.μ,model.Σ,model.μ₀,model.invKnn)
     model.χ .= (model.ν.+model.nSample)./(model.ν.+model.l²)
 end
+
+@traitimpl IsFull{VStP}
