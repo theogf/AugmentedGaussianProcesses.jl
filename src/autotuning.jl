@@ -151,7 +151,7 @@ end
 
 ## Gradient with respect to hyperparameters for numerical VI ##
 function hyperparameter_expec_gradient(gp::_SVGP{T},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::NumericalVI,opt::NVIOptimizer,ι::AbstractMatrix{T},κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{T},Jnm::AbstractMatrix{T},Jnn::AbstractVector{T}) where {T<:Real}
-    ι .= (Jnm-gp.κ*Jmm)/gp.K
+    ι .= (Jnm-gp.κ*Jmm)/gp.K.mat
     Jnn .-= opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm)
     dμ = dot(∇E_μ,ι*gp.μ)
     dΣ = dot(∇E_Σ,Jnn+2.0*opt_diag(ι,κΣ))

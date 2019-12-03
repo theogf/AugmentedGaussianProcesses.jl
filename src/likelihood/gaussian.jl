@@ -67,7 +67,7 @@ end
 
 ### Special case where the ELBO is equal to the marginal likelihood
 function ELBO(model::GP{T}) where {T}
-    model.f[1].Σ = Symmetric(inv(model.f[1].K+model.likelihood.σ²*I))
+    model.f[1].Σ = Symmetric(inv(model.f[1].K+model.likelihood.σ²*I).mat)
     return -0.5*dot(model.y,model.f[1].Σ*model.y) - logdet(model.f[1].Σ)+ model.nFeatures*log(twoπ)
 end
 

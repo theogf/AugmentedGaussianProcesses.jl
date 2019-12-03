@@ -110,7 +110,7 @@ function ∇η₁(∇μ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{T},K::PDM
 end
 
 function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},K::PDMat{T,Matrix{T}},η₂::Symmetric{T,Matrix{T}}) where {T<:Real}
-    -(ρκdiagθκ(ρ, κ, θ) + 0.5 * inv(K)) - η₂
+    -(ρκdiagθκ(ρ, κ, θ) + 0.5 * inv(K).mat) - η₂
 end
 
 global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L} = global_update!.(model.f)

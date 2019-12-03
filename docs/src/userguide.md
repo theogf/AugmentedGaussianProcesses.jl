@@ -33,7 +33,7 @@ For **regression**, four likelihoods are available :
 - The classical [`GaussianLikelihood`](@ref), for [**Gaussian noise**](https://en.wikipedia.org/wiki/Gaussian_noise)
 - The [`StudentTLikelihood`](@ref), assuming noise from a [**Student-T**](https://en.wikipedia.org/wiki/Student%27s_t-distribution) distribution (more robust to ouliers)
 - The [`LaplaceLikelihood`](@ref), with noise from a [**Laplace**](https://en.wikipedia.org/wiki/Laplace_distribution) distribution.
-- The [`HeteroscedasticLikelihood`](@ref), (in development) where the noise is a function of the input: ``\\text{Var}(X) = \\lambda\\sigma^{-1}(g(X))`` where `g(X)` is an additional Gaussian Process and ``\\sigma`` is the logistic function.
+- The [`HeteroscedasticLikelihood`](@ref), (in development) where the noise is a function of the input: ``Var(X) = λσ^{-1}(g(X))`` where `g(X)` is an additional Gaussian Process and ``σ`` is the logistic function.
 
 #### Classification
 
