@@ -68,7 +68,7 @@ mutable struct _SVGP{T} <: Abstract_GP{T}
 end
 
 function _SVGP{T}(  dim::Int,nSamplesUsed::Int,
-                    Z::Union{AbstractMatrix,InducingPoints},
+                    Z::InducingPoints,
                     kernel::Kernel,mean::PriorMean,σ_k::Real,
                     opt_ρ::Union{Optimizer,Nothing}=Adam(α=0.01),opt_σ::Union{Optimizer,Nothing}=opt_ρ
                  ) where {T<:Real}

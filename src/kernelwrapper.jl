@@ -29,21 +29,26 @@ Base.length(k::KernelProductWrapper) = length(k.kernelwrappers)
 Base.iterate(k::KernelProductWrapper) = iterate(k.kernelwrappers)
 Base.iterate(k::KernelProductWrapper,state) = iterate(k.kernelwrappers,state)
 
-function wrapper(kernel::Kernel,opt::Optimizer)
+function wrapper(kernel::Kernel,opt::OptorNothing)
     p = collect(KernelFunctions.params(kernel))
     opts = create_opts(kernel,opt)
     KernelWrapper(kernel,p,opts)
 end
 
-function wrapper(kernel::KernelSum,opt::Optimizer)
+
+function wrapper(kernel::KernelSum,opt::OptorNothing)
     KernelSumWrapper(wrapper.(kernel.kernels,[opt]),kernel.weights,deepcopy(opt))
 end
 
-function wrapper(kernel::KernelProduct,opt::Optimizer)
+function wrapper(kernel::KernelProduct,opt::OptorNothing)
     KernelProductWrapper(wrapper.(kernel,[opt]))
 end
 
-function create_opts(kernel::Kernel,opt::Optimizer)
+isopt(k::KernelWrapper) = count(!isnothing,k.opts) > 0
+isopt(k::KernelSumWrapper) = !isnothing(k.opt) || count(isopt,k) > 0
+isopt(k::KernelProductWrapper) = count(isopt,k) > 0
+
+function create_opts(kernel::Kernel,opt::OptorNothing)
     opts = []
     for p in KernelFunctions.opt_params(kernel)
         push!(opts,isnothing(p) ? nothing : deepcopy(opt))
@@ -51,7 +56,7 @@ function create_opts(kernel::Kernel,opt::Optimizer)
     return opts
 end
 
-function create_opts(kernel::Kernel{T,<:ChainTransform},opt::Optimizer) where {T}
+function create_opts(kernel::Kernel{T,<:ChainTransform},opt::OptorNothing) where {T}
     opts = []
     t_opts = []
     ps = KernelFunctions.opt_params(kernel)

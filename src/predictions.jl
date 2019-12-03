@@ -13,7 +13,7 @@ function _predict_f(model::AbstractGP{T},X_test::AbstractMatrix{<:Real};covf::Bo
     if !covf
         return (μf,)
     end
-    A = get_K(model).\([I].-get_Σ(model)./get_K(model))
+    A = get_K(model).\([I].-get_Σ(model)./getproperty.(get_K(model),:mat))
     if fullcov
         k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test]).+T(jitter)*[I])
         Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))

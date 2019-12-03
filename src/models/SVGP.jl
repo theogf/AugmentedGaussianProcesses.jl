@@ -64,7 +64,6 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
                 Zoptimizer = Zoptimizer ? Adam(α=0.01) : nothing
             end
             Z = InducingPoints(Z,Zoptimizer)
-
             nFeatures = nInducingPoints
 
             if typeof(mean) <: Real
