@@ -61,7 +61,6 @@ function create_opts(kernel::Kernel{T,<:ChainTransform},opt::OptorNothing) where
     t_opts = []
     ps = KernelFunctions.opt_params(kernel)
     for p in first(ps)
-        @show p
         push!(t_opts,isnothing(p) ? nothing : deepcopy(opt))
     end
     push!(opts,t_opts)

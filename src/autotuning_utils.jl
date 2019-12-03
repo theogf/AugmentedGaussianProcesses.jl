@@ -124,9 +124,24 @@ function kerneldiagderivative(kwrapper::KernelSumWrapper,X::AbstractMatrix)
 end
 
 # Kernel Product
+recursive_hadamard(A::AbstractMatrix,V::AbstractVector) = recursive_hadamard.([A],V)
+recursive_hadamard(A::AbstractMatrix,V::AbstractMatrix) = hadamard(A,V)
+recursive_hadamard(A::AbstractVector,V::AbstractVector) = recursive_hadamard.([A],V)
+recursive_hadamard(A::AbstractVector,V::AbstractVector{<:Real}) = hadamard(A,V)
+
 function kernelderivative(kwrapper::KernelProductWrapper,X::AbstractMatrix)
     Kproduct = kernelmatrix(kwrapper)
-    [hadamard.(kernelderivative(k,X),[Kproduct./kernelmatrix(k,X)]) for k in k.wrapper] ### TO CORRECT!!!!
+    [recursive_hadamard([Kproduct./kernelmatrix(k,X)],kernelderivative(k,X)) for k in k.wrapper]
+end
+
+function kernelderivative(kwrapper::KernelProductWrapper,X::AbstractMatrix)
+    Kproduct = kernelmatrix(kwrapper)
+    [recursive_hadamard([Kproduct./kernelmatrix(k,X)],kernelderivative(k,X)) for k in k.wrapper]
+end
+
+function kerneldiagderivative(kwrapper::KernelProductWrapper,X::AbstractMatrix)
+    Kproduct = kerneldiagmatrix(kwrapper)
+    [recursive_hadamard([Kproduct./kerneldiagmatrix(k,X)],kerneldiagderivative(k,X)) for k in k.wrapper]
 end
 
 # Kernel

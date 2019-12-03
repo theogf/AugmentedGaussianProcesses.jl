@@ -13,14 +13,14 @@ k = SqExponentialKernel(10.0)
 r = 10
 K = 4
 X = rand(nData,nDim)
-f = ones(nData)
-while !(maximum(f) > 0 && minimum(f) < 0)
-    global f = rand(MvNormal(zeros(nData),kernelmatrix(k,X,obsdim=1)+1e-3I))
+f_ = ones(nData)
+while !(maximum(f_) > 0 && minimum(f_) < 0)
+    global f_ = rand(MvNormal(zeros(nData),kernelmatrix(k,X,obsdim=1)+1e-3I))
 end
-width = maximum(f)-minimum(f)
-normf = (f.-minimum(f))/width*K
+width = maximum(f_)-minimum(f_)
+normf = (f_.-minimum(f_))/width*K
 
-y = Dict("Regression"=>f,"Classification"=>sign.(f),"MultiClass"=>floor.(Int64,normf),"Poisson"=>rand.(Poisson.(2.0*AGP.logistic.(f))),"NegBinomial"=>rand.(NegativeBinomial.(r,AGP.logistic.(f))))
+y = Dict("Regression"=>f_,"Classification"=>sign.(f_),"MultiClass"=>floor.(Int64,normf),"Poisson"=>rand.(Poisson.(2.0*AGP.logistic.(f_))),"NegBinomial"=>rand.(NegativeBinomial.(r,AGP.logistic.(f_))))
 n_class = length(unique(y["MultiClass"]))
 reg_likelihood = ["GaussianLikelihood","StudentTLikelihood","LaplaceLikelihood","HeteroscedasticLikelihood"]
 class_likelihood = ["BayesianSVM","LogisticLikelihood"]

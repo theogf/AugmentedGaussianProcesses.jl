@@ -86,7 +86,7 @@ function hyperparameter_gradient_function(gp::_GP{T},X::AbstractMatrix) where {T
                 return -hyperparameter_KL_gradient(Jnn,A)
             end,
             function(σ_k)
-                return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K,A)
+                return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K.mat,A)
             end,
             function()
                 return -gp.K\(gp.μ₀(X)-gp.y)
