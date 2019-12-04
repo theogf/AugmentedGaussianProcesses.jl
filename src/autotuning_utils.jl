@@ -130,17 +130,17 @@ recursive_hadamard(A::AbstractVector,V::AbstractVector) = recursive_hadamard.([A
 recursive_hadamard(A::AbstractVector,V::AbstractVector{<:Real}) = hadamard(A,V)
 
 function kernelderivative(kwrapper::KernelProductWrapper,X::AbstractMatrix)
-    Kproduct = kernelmatrix(kwrapper)
+    Kproduct = kernelmatrix(kwrapper,X)
     [recursive_hadamard([Kproduct./kernelmatrix(k,X)],kernelderivative(k,X)) for k in k.wrapper]
 end
 
-function kernelderivative(kwrapper::KernelProductWrapper,X::AbstractMatrix)
-    Kproduct = kernelmatrix(kwrapper)
-    [recursive_hadamard([Kproduct./kernelmatrix(k,X)],kernelderivative(k,X)) for k in k.wrapper]
+function kernelderivative(kwrapper::KernelProductWrapper,X::AbstractMatrix,Y::AbstractMatrix)
+    Kproduct = kernelmatrix(kwrapper,X,Y)
+    [recursive_hadamard([Kproduct./kernelmatrix(k,X,Y)],kernelderivative(k,X,Y)) for k in k.wrapper]
 end
 
 function kerneldiagderivative(kwrapper::KernelProductWrapper,X::AbstractMatrix)
-    Kproduct = kerneldiagmatrix(kwrapper)
+    Kproduct = kerneldiagmatrix(kwrapper,X)
     [recursive_hadamard([Kproduct./kerneldiagmatrix(k,X)],kerneldiagderivative(k,X)) for k in k.wrapper]
 end
 
