@@ -1,5 +1,7 @@
 ## File containing different utility functions ##
 
+const OptorNothing = Union{Optimizer,Nothing}
+
 ## Jittering object adapting to the type of the GP ##
 struct Jittering end;
 

@@ -16,21 +16,21 @@ end
 
 ## Update all hyperparameters for the full batch GP models ##
 function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X::AbstractMatrix) where {T}
-    if !isnothing(gp.opt_ρ) || !isnothing(gp.opt_σ) || !isnothing(get_opt(gp.μ₀))
+    if isopt(gp.kernel) || !isnothing(gp.opt_σ) || !isnothing(get_opt(gp.μ₀))
         f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp,X)
-        if !isnothing(gp.opt_ρ)
+        if isopt(gp.kernel)
             Jnn = kernelderivative(gp.kernel,X)
             grads_ρ = compute_hyperparameter_gradient(gp.kernel,f_l,Jnn)
         end
         if !isnothing(gp.opt_σ)
-            grads_σ_k = f_v(gp.kernel,gp.σ_k)
+            grads_σ_k = f_v(gp.σ_k)
         end
         if !isnothing(get_opt(gp.μ₀))
             grads_μ₀ = f_μ₀()
         end
 
-        if !isnothing(gp.opt_ρ)
-            apply_gradients_lengthscale!(gp.opt_ρ,gp.kernel,grads_ρ) #Send the derivative of the matrix to the specific gradient of the model
+        if isopt(gp.kernel)
+            apply_gradients_lengthscale!(gp.kernel,grads_ρ) #Send the derivative of the matrix to the specific gradient of the model
         end
         if !isnothing(gp.opt_σ)
             apply_gradients_variance!(gp,grads_σ_k) #Send the derivative of the matrix to the specific gradient of the model
@@ -43,16 +43,16 @@ end
 
 ## Update all hyperparameters for the sparse variational GP models ##
 function update_hyperparameters!(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T}
-    if !isnothing(gp.opt_ρ) || !isnothing(gp.opt_σ) || !isnothing(get_opt(gp.μ₀))
+    if isopt(gp.kernel) || !isnothing(gp.opt_σ) || !isnothing(get_opt(gp.μ₀))
         f_ρ,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
-        if !isnothing(gp.opt_ρ)
+        if isopt(gp.kernel)
             Jmm = kernelderivative(gp.kernel,gp.Z.Z)
             Jnm = kernelderivative(gp.kernel,X,gp.Z.Z)
             Jnn = kerneldiagderivative(gp.kernel,X)
-            grads_l = compute_hyperparameter_gradient(gp.kernel,f_ρ,Jmm,Jnm,Jnn,∇E_μ,∇E_Σ,i,opt)
+            grads_ρ = compute_hyperparameter_gradient(gp.kernel,f_ρ,Jmm,Jnm,Jnn,∇E_μ,∇E_Σ,i,opt)
         end
         if !isnothing(gp.opt_σ)
-            grads_σ_k = f_σ_k(gp.kernel,gp.σ_k,∇E_Σ,i,opt)
+            grads_σ_k = f_σ_k(gp.σ_k,∇E_Σ,i,opt)
         end
         if !isnothing(get_opt(gp.μ₀))
             grads_μ₀ = f_μ₀()
@@ -61,8 +61,8 @@ function update_hyperparameters!(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_
             Z_gradients = inducingpoints_gradient(gp,X,∇E_μ,∇E_Σ,i,opt) #Compute the gradient given the inducing points location
             gp.Z.Z .+= GradDescent.update(gp.Z.opt,Z_gradients) #Apply the gradients on the location
         end
-        if !isnothing(gp.opt_ρ)
-            apply_gradients_lengthscale!(gp.opt_ρ,gp.kernel,grads_l)
+        if isopt(gp.kernel)
+            apply_gradients_lengthscale!(gp.kernel,grads_ρ)
         end
         if !isnothing(gp.opt_σ)
             apply_gradients_variance!(gp,grads_σ_k)
@@ -81,11 +81,11 @@ end
 
 
 function hyperparameter_gradient_function(gp::_GP{T},X::AbstractMatrix) where {T}
-    A = (inv(gp.K)+ (-gp.μ*transpose(gp.μ)))
+    A = (inv(gp.K).mat-gp.μ*transpose(gp.μ))
     return (function(Jnn)
                 return -hyperparameter_KL_gradient(Jnn,A)
             end,
-            function(kernel,σ_k)
+            function(σ_k)
                 return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K.mat,A)
             end,
             function()
@@ -99,7 +99,7 @@ function hyperparameter_gradient_function(gp::_VGP{T},X::AbstractMatrix) where {
     return (function(Jnn)
                 return -hyperparameter_KL_gradient(Jnn,A)
             end,
-            function(kernel,σ_k)
+            function(σ_k)
                 return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K.mat,A)
             end,
             function()
@@ -115,7 +115,7 @@ function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
     return (function(Jmm,Jnm,Jnn,∇E_μ,∇E_Σ,i,opt)
                 return (hyperparameter_expec_gradient(gp,∇E_μ,∇E_Σ,i,opt,ι,κΣ,Jmm,Jnm,Jnn)-hyperparameter_KL_gradient(Jmm,A))
             end,
-            function(kernel::Kernel,σ_k::Real,∇E_Σ,i,opt)
+            function(σ_k::Real,∇E_Σ,i,opt)
                 return one(T)/σ_k*(
                         - i.ρ*dot(∇E_Σ,gp.K̃)
                         - hyperparameter_KL_gradient(gp.K.mat,A))

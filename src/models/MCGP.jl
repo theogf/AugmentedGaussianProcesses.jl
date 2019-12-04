@@ -83,3 +83,5 @@ end
 get_f(model::MCGP) = getproperty.(model.f,:f)
 get_y(model::MCGP) = model.inference.yview
 get_Z(model::MCGP) = [model.inference.xview]
+
+@traitimpl IsFull{MCGP}

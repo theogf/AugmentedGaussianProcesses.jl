@@ -33,19 +33,19 @@ function one_of_K_mapping(y)
 end
 
 function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractVector{T}},σ²::AbstractVector{<:AbstractVector{T}},nSamples::Integer=200) where {T<:Real}
-    K = length(μ)
-    n = length(μ[1])
-    μ = hcat(μ...)
-    μ = [μ[i,:] for i in 1:n]
-    σ² = hcat(σ²...)
-    σ² = [σ²[i,:] for i in 1:n]
-    pred = zeros(T,n,K)
+    K = length(μ) # Number of classes
+    n = length(μ[1]) # Number of test points
+    μ = hcat(μ...) # Concatenate means together
+    μ = [μ[i,:] for i in 1:n] # Create one vector per sample
+    σ² = hcat(σ²...) # Concatenate variances together
+    σ² = [σ²[i,:] for i in 1:n] # Create one vector per sample
+    pred = zeros(T,n,K) # Empty container for the predictions
     for i in 1:n
-            p = MvNormal(μ[i],sqrt.(abs.(σ²[i])))
-            # p = MvNormal(μ[i],sqrt.(max.(eps(T),σ²[i])))
-            for _ in 1:nSamples
-                pred[i,:] += pdf(l,rand(p))/nSamples
-            end
+            # p = MvNormal(μ[i],sqrt.(abs.(σ²[i])))
+            # p = MvNormal(μ[i],sqrt.(max.(eps(T),σ²[i]))) #WARNING DO NOT USE VARIANCE
+            pred[i,:] .= pdf(l,μ[i])
+            # for _ in 1:nSamples
+            # end
     end
     return DataFrame(pred,Symbol.(l.class_mapping))
 end

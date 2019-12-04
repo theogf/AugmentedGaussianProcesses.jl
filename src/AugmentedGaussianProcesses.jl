@@ -38,7 +38,7 @@ module AugmentedGaussianProcesses
     using AdvancedHMC, MCMCChains
     using DataFrames
     using StatsBase, StatsFuns, SpecialFunctions, Distributions, FastGaussQuadrature
-    using ProgressMeter
+    using ProgressMeter, SimpleTraits
     #Exported modules
     export KMeansModule
     export KMeansInducingPoints
@@ -56,8 +56,10 @@ module AugmentedGaussianProcesses
     abstract type Abstract_GP{T<:Real} end
 
     const LatentArray = Vector #For future optimization : How collection of latent GP parameters and local variables are stored
+    include("functions/utils.jl")
     include("prior/priormean.jl")
     include("models/inducing_points.jl")
+    include("kernelwrapper.jl")
 
     include("models/AbstractGP.jl")
     include("models/GP_base.jl")
@@ -71,7 +73,6 @@ module AugmentedGaussianProcesses
     include("inference/inference.jl")
     include("likelihood/likelihood.jl")
 
-    include("functions/utils.jl")
     include("functions/init.jl")
     include("functions/KLdivergences.jl")
     include("functions/plotting.jl")
