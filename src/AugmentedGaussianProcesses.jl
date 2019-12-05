@@ -30,9 +30,10 @@ module AugmentedGaussianProcesses
     # using .GPAnalysisTools
     # using .IO_model
     #General modules
+    using Reexport
     using LinearAlgebra, Random
     using GradDescent
-    using KernelFunctions
+    @reexport using KernelFunctions
     using ForwardDiff
     using PDMats
     using AdvancedHMC, MCMCChains

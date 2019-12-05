@@ -29,14 +29,14 @@ Argument list :
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},TGP<:Abstract_GP{T},N} <: AbstractGP{T,TLikelihood,TInference,TGP,N}
+mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},N} <: AbstractGP{T,TLikelihood,TInference,N}
     X::Matrix{T} #Feature vectors
     y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSamples::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
-    f::NTuple{N,TGP} # Vector of latent GPs
+    f::NTuple{N,_VGP{T}} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64 #Level of printing information
@@ -72,10 +72,10 @@ function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             inference.xview = view(X,:,:)
             inference.yview = view_y(likelihood,y,1:nSamples)
             inference.MBIndices = collect(1:nSamples)
-            VGP{T,TLikelihood,typeof(inference),_VGP{T},nLatent}(     X,y,
-                    nFeatures, nDim, nFeatures, nLatent,
-                    latentf,likelihood,inference,
                     verbose,atfrequency,false)
+            VGP{T, TLikelihood, typeof(inference), nLatent}(
+                    X, y, nFeatures, nDim, nFeatures, nLatent,
+                    latentf, likelihood, inference,
 end
 
 function Base.show(io::IO,model::VGP{T,<:Likelihood,<:Inference}) where {T}
