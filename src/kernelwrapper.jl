@@ -7,7 +7,7 @@ mutable struct KernelWrapper{K<:Kernel} <: AbstractKernelWrapper
 end
 
 params(k::KernelWrapper) = k.params
-# KernelFunctions.set_params!(k::KernelWrapper,θ::AbstractVector) = k.params .= θ
+KernelFunctions.set_params!(k::KernelWrapper,θ::AbstractVector) = k.params .= θ
 
 mutable struct KernelSumWrapper{T<:Real,K<:AbstractKernelWrapper} <: AbstractKernelWrapper
     kernelwrappers::Vector{K}

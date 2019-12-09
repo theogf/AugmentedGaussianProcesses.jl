@@ -4,6 +4,8 @@ const AbstractGP1 = AbstractGP{<:Real,<:Likelihood,<:Inference,1}
 
 @traitdef IsFull{X}
 
+@traitdef IsFull{X}
+
 function Random.rand!(model::AbstractGP,A::DenseArray{T},X::AbstractArray{T}) where {T<:Real}
     rand!(MvNormal(predict_f(model,X,covf=true,fullcov=true)...),A)
 end

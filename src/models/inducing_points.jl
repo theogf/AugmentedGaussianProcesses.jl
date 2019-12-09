@@ -1,10 +1,10 @@
-struct InducingPoints{T,M<:AbstractMatrix{T},O<:Union{Optimizer,Nothing}} <: AbstractMatrix{T}
+struct InducingPoints{T,M<:AbstractMatrix{T},O} <: AbstractMatrix{T}
     Z::M
     opt::O
 end
 
-function InducingPoints(Z::AbstractMatrix{T},opt::O=nothing) where {T<:Real,O<:Union{Optimizer,Nothing}}
-    InducingPoints{T,typeof(Z),O}(Z,opt)
+function InducingPoints(Z::AbstractMatrix{T},opt=nothing) where {T<:Real}
+    InducingPoints{T,typeof(Z),typeof(opt)}(Z,opt)
 end
 
 Base.size(Z::InducingPoints) = size(Z.Z)
