@@ -3,7 +3,6 @@ using AugmentedGaussianProcesses
 using LinearAlgebra
 using Statistics
 using Distributions
-using KernelFunctions
 const AGP = AugmentedGaussianProcesses
 include("testingtools.jl")
 

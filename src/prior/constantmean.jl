@@ -1,5 +1,5 @@
 mutable struct ConstantMean{T<:Real} <: PriorMean{T}
-    C::T
+    C::Ref{T}
     opt::Optimizer
 end
 
@@ -16,9 +16,9 @@ function ConstantMean(c::T=1.0;opt::Optimizer=Adam(α=0.01)) where {T<:Real}
     ConstantMean{T}(c,opt)
 end
 
-function update!(μ::ConstantMean{T},grad::AbstractVector{T}) where {T<:Real}
-    μ.C += update(μ.opt,sum(grad))
+function update!(opt,μ::ConstantMean{T},grad::AbstractVector{T},X) where {T<:Real}
+    μ.C[] += Flux.Optimise.apply!(opt,μ.C,sum(grad))
 end
 
-(μ::ConstantMean{T})(x::Real) where {T<:Real} = μ.C
-(μ::ConstantMean{T})(x::AbstractArray) where {T<:Real} = μ.C*ones(T,size(X))
+(μ::ConstantMean{T})(x::Real) where {T<:Real} = μ.C[]
+(μ::ConstantMean{T})(x::AbstractMatrix) where {T<:Real} = fill(T(μ.C[]),size(X,1))

@@ -1,7 +1,21 @@
 ### Compute the gradients using a gradient function and matrices Js ###
+for k in (:SqExponentialKernel,:Matern32Kernel,:LinearKernel)
+    @eval Flux.@functor($k)
+end
 
-base_kernel(k::Kernel) = eval(nameof(typeof(k)))
+for t in (:ARDTransform,:ScaleTransform)
+    @eval Flux.@functor($t)
+end
 
+
+function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,J::IdDict)
+    ps = Flux.params(k)
+    Δ = IdDict()
+    for p in ps
+        Δ[p] = vec(mapslices(gradient_function,J[p],dims=[1,2]))
+    end
+    return Δ
+end
 
 ## VGP Case
 function compute_hyperparameter_gradient(k::KernelWrapper,gradient_function::Function,J::Vector)
@@ -46,6 +60,14 @@ function compute_hyperparameter_gradient(k::KernelProductWrapper,gradient_functi
 end
 
 ##
+function apply_grads_kernel_params!(opt,k::Kernel,Δ::IdDict)
+    ps = Flux.params(k)
+    for p in ps
+      Δ[p] == nothing && continue
+      p .+= Flux.Optimise.apply!(opt, p, Δ[p])
+      #logσ .+= Flux.Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
+    end
+end
 
 function apply_gradients_lengthscale!(k::KernelWrapper,g::AbstractVector) where {T}
     ρ = params(k)
@@ -98,14 +120,41 @@ function apply_gradients_lengthscale!(k::KernelProductWrapper,g::AbstractVector)
     apply_gradients_lengthscale!.(k,g)
 end
 
-function apply_gradients_variance!(gp::Abstract_GP,g::Real)
-    logσ = log(gp.σ_k)
-    logσ += update(gp.opt_σ,g*gp.σ_k)
-    gp.σ_k = exp(logσ)
+function apply_grads_kernel_variance!(opt,gp::Abstract_GP,grad::Real)
+    logσ = log.(gp.σ_k)
+    logσ .+= Flux.Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
+    gp.σ_k .= exp.(logσ)
 end
 
-function apply_gradients_mean_prior!(μ::PriorMean,g::AbstractVector,X::AbstractMatrix)
-    update!(μ,g,X)
+function apply_gradients_mean_prior!(opt,μ::PriorMean,g::AbstractVector,X::AbstractMatrix)
+    update!(opt,μ,g,X)
+end
+
+function jacobian(f, ps::Params) # Union{Tracker.Params, Zygote.Params}
+    res, back = pullback(f, ps)
+    out = IdDict()
+    for p in ps
+        T = Base.promote_type(eltype(p), eltype(res))
+        J = similar(res, T, size(res)..., size(p)...)
+        out[p] = J
+    end
+    delta = fill!(similar(res), 0)
+    for k in CartesianIndices(res)
+        delta[k] = 1
+        grads = back(delta)
+        for p in ps
+            g = grads[p]
+            c = map(_->(:), size(g))
+            o = out[p]
+            o[k,c...] .= g
+        end
+        delta[k] = 0
+    end
+    out
+end
+function kernelderivative(k::Kernel,X::AbstractMatrix)
+    ps = Flux.params(k)
+    jacobian(()->kernelmatrix(k,X,obsdim=1),ps)
 end
 
 ## Wrapper for iterating over parameters for getting matrices

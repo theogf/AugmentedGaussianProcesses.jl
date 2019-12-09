@@ -22,14 +22,12 @@ function AffineMean(dims::Int;opt::Optimizer=Adam(α=0.01))
     AffineMean{Float64,Vector{Float64}}(randn(dims),0.0,dims,opt)
 end
 
-function update!(μ::AffineMean{T},grad::AbstractVector{T},X::AbstractMatrix) where {T<:Real}
-    Δ = vcat(X'*grad,sum(grad))
-    Δ = update(μ.opt,Δ)
-    μ.w .+= Δ[1:μ.nDim]
-    μ.b += Δ[end]
+function update!(opt,μ::AffineMean{T},grad::AbstractVector{T},X::AbstractMatrix) where {T<:Real}
+    μ.w .+= Flux.Optimise.apply!(opt,μ.w,X'*grad)
+    μ.b += Flux.Optimise.apply!(opt,μ.b,sum(grad))
 end
 
 function (μ::AffineMean{T})(x::AbstractMatrix) where {T<:Real}
-    @assert μ.nDim == size(x,2) "Number of dimensions do not match"
+    @assert μ.nDim == size(x,2) "Number of dimensions of prior weight W ($(size(μ.w))) and X ($(size(x))) do not match"
     return x*μ.w .+ μ.b
 end

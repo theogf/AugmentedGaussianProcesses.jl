@@ -28,14 +28,14 @@ Argument list :
  - `optimizer` : Optimizer for inducing point locations (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,TGP<:Abstract_GP{T},N} <: AbstractGP{T,TLikelihood,TInference,TGP,N}
+mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N} <: AbstractGP{T,TLikelihood,TInference,N}
     X::Matrix{T} #Feature vectors
     y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSamples::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
-    f::NTuple{N,TGP}
+    f::NTuple{N,_SVGP}
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64
@@ -106,8 +106,6 @@ end
 function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
-
-const SVGP1 = SVGP{<:Real,<:Likelihood,<:Inference,<:Abstract_GP,1}
 
 get_y(model::SVGP) = model.inference.yview
 get_Z(model::SVGP) = getproperty.(getproperty.(model.f,:Z),:Z)

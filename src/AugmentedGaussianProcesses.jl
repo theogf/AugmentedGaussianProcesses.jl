@@ -34,6 +34,8 @@ module AugmentedGaussianProcesses
     using GradDescent
     using KernelFunctions
     using ForwardDiff
+    using Zygote
+    using Flux
     using PDMats
     using AdvancedHMC, MCMCChains
     using DataFrames

@@ -3,11 +3,10 @@ using AugmentedGaussianProcesses
 using LinearAlgebra
 using Statistics
 using Distributions
-using KernelFunctions
 const AGP = AugmentedGaussianProcesses
 include("testingtools.jl")
 
-nData = 100; nDim = 2
+nData = 50; nDim = 2
 k = SqExponentialKernel(10.0)
 ν = 5.0
 r = 10
@@ -29,7 +28,7 @@ poisson_likelihood = ["PoissonLikelihood"]
 negbin_likelihood = ["NegBinomialLikelihood"]
 likelihood_types = [reg_likelihood,class_likelihood,multiclass_likelihood,poisson_likelihood,negbin_likelihood]
 # likelihood_types = [negbin_likelihood]
-likelihood_names = ["Regression","Classification","MultiClass","Poisson","NegBinomial"]
+likelihood_names = ["Regression"]#,"Classification","MultiClass","Poisson","NegBinomial"]
 # likelihood_names = ["NegBinomial"]
 # inferences = ["GibbsSampling"]#,"NumericalInference"]
 inferences = ["AnalyticVI"]#,"GibbsSampling","QuadratureVI"]
@@ -43,7 +42,7 @@ floattypes = [Float64]
                         @testset "$(string(inference))" begin
                             if in(inference,methods_implemented_VGP[l])
                                 for floattype in floattypes
-                                    @test typeof(VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"("*addiargument(false,inference)*")")))) <: VGP{floattype,eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*","*nlatent(l)*"}")),AGP._VGP{floattype},eval(Meta.parse(nlatent(l)))}
+                                    @test typeof(VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"("*addiargument(false,inference)*")")))) <: VGP{floattype,eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*","*nlatent(l)*"}")),eval(Meta.parse(nlatent(l)))}
                                     global model = VGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(inference*"("*addiargument(false,inference)*")")),verbose=2)
                                     @test train!(model,50)
                                     @test testconv(model,l_names,X,y[l_names])
