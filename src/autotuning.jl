@@ -1,4 +1,6 @@
+include("zygote_rules.jl")
 include("autotuning_utils.jl")
+
 function update_hyperparameters!(model::Union{GP,VGP})
     update_hyperparameters!.(model.f,get_Z(model))
     model.inference.HyperParametersUpdated = true
@@ -18,8 +20,11 @@ end
 function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X::AbstractMatrix) where {T}
     if !isnothing(gp.opt)
         f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp,X)
-        Jnn = kernelderivative(gp.kernel,X)
-        global grads = compute_hyperparameter_gradient(gp.kernel,f_l,Jnn)
+        ∇L_ρ(gp,X,f_l)
+        ps = Flux.params(gp.kernel)
+        grads = Zygote.gradient(()->∇L_ρ(gp,X,f_l),ps)
+        # Jnn = kernelderivative(gp.kernel,X)
+        # global grads = compute_hyperparameter_gradient(gp.kernel,f_l,Jnn)
         grads[gp.σ_k] = f_v(first(gp.σ_k))
         grads[gp.μ₀] = f_μ₀()
 
@@ -83,7 +88,8 @@ end
 
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model ##
 function hyperparameter_gradient_function(gp::_VGP{T},X::AbstractMatrix) where {T<:Real}
-    A = (I-gp.K\(gp.Σ+(gp.µ-gp.μ₀(X))*transpose(gp.μ-gp.μ₀(X))))/gp.K.mat
+    μ₀ = gp.μ₀(X)
+    A = (I-gp.K\(gp.Σ+(gp.µ-gp.μ₀(X))*transpose(gp.μ-μ₀)))/gp.K.mat
     return (function(Jnn)
                 return -hyperparameter_KL_gradient(Jnn,A)
             end,
@@ -91,13 +97,14 @@ function hyperparameter_gradient_function(gp::_VGP{T},X::AbstractMatrix) where {
                 return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K.mat,A)
             end,
             function()
-                return -gp.K.mat\(gp.μ₀(X)-gp.μ)
+                return -gp.K.mat\(μ₀-gp.μ)
             end)
 end
 
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse latent GP ##
 function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
-    A = (Diagonal{T}(I,gp.dim).-gp.K\(gp.Σ.+(gp.µ-gp.μ₀(gp.Z.Z))*transpose(gp.μ-gp.μ₀(gp.Z.Z))))/gp.K.mat
+    μ₀ = gp.μ₀(gp.Z.Z)
+    A = (Diagonal{T}(I,gp.dim).-gp.K\(gp.Σ.+(gp.µ-μ₀)*transpose(gp.μ-μ₀)))/gp.K.mat
     ι = similar(gp.κ) #Empty container to save data allocation
     κΣ = gp.κ*gp.Σ
     return (function(Jmm,Jnm,Jnn,∇E_μ,∇E_Σ,i,opt)
@@ -109,7 +116,7 @@ function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
                         - hyperparameter_KL_gradient(gp.K.mat,A))
             end,
             function()
-                return -gp.K.mat\(gp.μ₀(gp.Z.Z)-gp.μ)
+                return -gp.K.mat\(μ₀-gp.μ)
             end)
 end
 

@@ -152,6 +152,19 @@ function jacobian(f, ps::Params) # Union{Tracker.Params, Zygote.Params}
     end
     out
 end
+
+function jacobian!(f_back, jacobians, grad_output::AbstractArray)
+    for (k, idx) in enumerate(eachindex(grad_output))
+        grad_output = fill!(grad_output, 0)
+        grad_output[idx] = 1
+        grads_input = f_back(grad_output)
+        for (jacobian_x, d_x) in zip(jacobians, grads_input)
+            jacobian_x[k, :] .= _vec(d_x)
+        end
+    end
+    return jacobians
+end
+
 function kernelderivative(k::Kernel,X::AbstractMatrix)
     ps = Flux.params(k)
     jacobian(()->kernelmatrix(k,X,obsdim=1),ps)

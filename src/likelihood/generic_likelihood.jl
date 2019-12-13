@@ -206,8 +206,8 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
 
         ### Natural Gradient Section ###
 
-        @inline AGP.∇E_μ(l::$(lname),::AOptimizer,y::AbstractVector) where {T} = (g(l,y)+l.θ.*β(l,y),)
-        @inline AGP.∇E_Σ(l::$(lname),::AOptimizer,y::AbstractVector) where {T} = (l.θ.*γ(l,y),)
+        @inline AGP.∇E_μ(l::$(lname),::AugmentedGaussianProcesses.AOptimizer,y::AbstractVector) where {T} = (g(l,y)+l.θ.*β(l,y),)
+        @inline AGP.∇E_Σ(l::$(lname),::AugmentedGaussianProcesses.AOptimizer,y::AbstractVector) where {T} = (l.θ.*γ(l,y),)
 
         ### ELBO Section ###
         function AGP.expec_log_likelihood(l::$(lname),i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
