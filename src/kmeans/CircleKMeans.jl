@@ -4,15 +4,15 @@ mutable struct CircleKMeans <: ZAlg
     k::Int64
     centers::Matrix{Float64}
     optimizers::Vector{Optimizer}
-    function CircleKMeans(lim::Real=0.8;lim_rem::Real=0.9)
-        return new(lim,lim_rem)
+    function CircleKMeans(ρ_accept::Real=0.8,ρ_remove::Real=1.0)
+        @assert 0.0 <= ρ_accept <= 1.0 "ρ_accept should be between 0 and 1"
+        @assert 0.0 <= ρ_remove <= 1.0 "ρ_remove should be between 0 and 1"
+        return new(ρ_accept,ρ_remove)
     end
 end
 
 
 function init!(alg::CircleKMeans,X,y,kernel;optimizer=Adam(α=0.005))
-    @assert alg.ρ_accept < 1.0 && alg.ρ_accept > 0 "lim should be between 0 and 1"
-    @assert alg.ρ_remove < 1.0 && alg.ρ_remove > 0 "lim should be between 0 and 1"
     @assert size(X,1) > 9 "First batch should have at least 10 samples"
     samples = sample(1:size(X,1),10,replace=false)
     alg.centers = copy(X[samples,:])
