@@ -9,7 +9,7 @@ using MLDataUtils
 seed!(42)
 
 N_data = 100
-N_dim=2
+N_dim=10
 N_class = 10
 N_test = 50
 minx=-5.0
@@ -67,5 +67,16 @@ Jz = first(AGP.kernelderivative((model.f[1].kernel),X))[2]
 Jf = reshape(ForwardDiff.jacobian(x->kernelmatrix(SqExponentialKernel(x),X,obsdim=1),ll),size(X,1),size(X,1),2)
 @btime AGP.kernelderivative($(model.f[1].kernel),$X);
 @btime reshape(ForwardDiff.jacobian(x->kernelmatrix(SqExponentialKernel(x),X,obsdim=1),ll),size(X,1),size(X,1),2);
-
 using ForwardDiff
+
+f_l,f_v,f_μ₀ = AGP.hyperparameter_gradient_function(model.f[1],X)
+gp = model.f[1]
+ps = Flux.params(gp.kernel)
+function old_method(gp,X,f_l)
+    Jnn = reshape(ForwardDiff.jacobian(x->kernelmatrix(SqExponentialKernel(x),X,obsdim=1),ll),size(X,1),size(X,1),N_dim);
+    mapslices(f_l,Jnn,dims=[1,2])
+end
+vec(old_method(gp,X,f_l))
+AGP.∇L_ρ(gp,X,f_l)[first(ps)][:]
+@btime AGP.∇L_ρ(gp,X,f_l)
+@btime old_method(gp,X,f_l)

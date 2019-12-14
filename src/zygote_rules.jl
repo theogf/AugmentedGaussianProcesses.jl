@@ -1,14 +1,11 @@
 Zygote.refresh()
 
 function ∇L_ρ(gp,X,f)
-    K = kernelmatrix(gp.kernel,X,obsdim=1)
-    Zygote.forwarddiff()
-    Zygote.@showgrad K
-    _∇L_ρ(K)
+    Zygote.gradient(()->_∇L_ρ(gp.kernel,X,f),Flux.params(gp.kernel))
 end
 
-_∇L_ρ(K) = tr(K)
+_∇L_ρ(kernel,X,f) = f(kernelmatrix(kernel,X,obsdim=1))
 
-Zygote.@adjoint function _∇L_ρ(K)
-    tr(K), J->(begin @show J;tr(J); end,nothing)
-end
+# Zygote.@adjoint function _∇L_ρ(K,f)
+#     f(K), J->(begin @show J;tr(J); end,nothing)
+# end

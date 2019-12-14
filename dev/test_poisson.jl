@@ -1,4 +1,4 @@
-using AugmentedGaussianProcesses
+using AugmentedGaussianProcesses; const AGP = AugmentedGaussianProcesses
 using Plots, LinearAlgebra, Distributions
 using SpecialFunctions
 using LaTeXStrings
@@ -9,14 +9,14 @@ ngrid = 100
 xrange = collect(range(0,1,length=ngrid))
 Xrange = make_grid(xrange,xrange)
 
-K = kernelmatrix(vcat(X,Xrange),RBFKernel(0.1))
+K = kernelmatrix(SqExponentialKernel(10.0),vcat(X,Xrange),obsdim=1)
 y = rand(MvNormal(zeros(N+size(Xrange,1)),K+1e-2I))
 n = rand.(Poisson.(λ.*AugmentedGaussianProcesses.logistic.(y)))
 n_train = n[1:N]
 ptrue = contourf(xrange,xrange,reshape(n[N+1:end],ngrid,ngrid))
-model = VGP(X,n_train,RBFKernel(0.1),PoissonLikelihood(),AnalyticSVI(10),verbose=3)
+model = VGP(X,n_train,SqExponentialKernel(10.0),PoissonLikelihood(),AnalyticVI(10),verbose=0)
 # model = SVGP(X,n_train,RBFKernel(0.1),PoissonLikelihood(),AnalyticVI(),100,verbose=3)
-train!(model,iterations=100)
+train!(model,100)
 norm(proba_y(model,X)-n_train)
 pred_f = predict_y(model,Xrange)
 scatter(eachcol(X)...,zcolor=n_train)

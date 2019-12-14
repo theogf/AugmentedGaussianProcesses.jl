@@ -60,11 +60,11 @@ function compute_hyperparameter_gradient(k::KernelProductWrapper,gradient_functi
 end
 
 ##
-function apply_grads_kernel_params!(opt,k::Kernel,Δ::IdDict)
+function apply_grads_kernel_params!(opt,k::Kernel,Δ::Zygote.Grads)
     ps = Flux.params(k)
     for p in ps
       Δ[p] == nothing && continue
-      p .+= Flux.Optimise.apply!(opt, p, Δ[p])
+      p .+= Flux.Optimise.apply!(opt, p, vec(Δ[p]))
       #logσ .+= Flux.Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
     end
 end

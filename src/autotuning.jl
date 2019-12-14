@@ -20,13 +20,13 @@ end
 function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X::AbstractMatrix) where {T}
     if !isnothing(gp.opt)
         f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp,X)
-        ∇L_ρ(gp,X,f_l)
-        ps = Flux.params(gp.kernel)
-        grads = Zygote.gradient(()->∇L_ρ(gp,X,f_l),ps)
+        global grads = ∇L_ρ(gp,X,f_l)
+        # ps = Flux.params(gp.kernel)
+        # grads = Zygote.gradient(()->∇L_ρ(gp,X,f_l),ps)
         # Jnn = kernelderivative(gp.kernel,X)
         # global grads = compute_hyperparameter_gradient(gp.kernel,f_l,Jnn)
-        grads[gp.σ_k] = f_v(first(gp.σ_k))
-        grads[gp.μ₀] = f_μ₀()
+        grads.grads[gp.σ_k] = f_v(first(gp.σ_k))
+        grads.grads[gp.μ₀] = f_μ₀()
 
         apply_grads_kernel_params!(gp.opt,gp.kernel,grads) # Apply gradients to the kernel parameters
         apply_grads_kernel_variance!(gp.opt,gp,grads[gp.σ_k]) #Send the derivative of the matrix to the specific gradient of the model
