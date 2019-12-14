@@ -38,8 +38,10 @@ ll = l*ones(N_dim)
 kernel = SqExponentialKernel(ll)
 
 model = VGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticVI())
+model2 = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticVI(),20)
 
 train!(model,1)
+train!(model2,1)
 
 ##Precompile functions
 AGP.computeMatrices!(model)
@@ -68,7 +70,7 @@ Jf = reshape(ForwardDiff.jacobian(x->kernelmatrix(SqExponentialKernel(x),X,obsdi
 @btime AGP.kernelderivative($(model.f[1].kernel),$X);
 @btime reshape(ForwardDiff.jacobian(x->kernelmatrix(SqExponentialKernel(x),X,obsdim=1),ll),size(X,1),size(X,1),2);
 using ForwardDiff
-
+####
 f_l,f_v,f_μ₀ = AGP.hyperparameter_gradient_function(model.f[1],X)
 gp = model.f[1]
 ps = Flux.params(gp.kernel)
@@ -77,6 +79,26 @@ function old_method(gp,X,f_l)
     mapslices(f_l,Jnn,dims=[1,2])
 end
 vec(old_method(gp,X,f_l))
-AGP.∇L_ρ(gp,X,f_l)[first(ps)][:]
-@btime AGP.∇L_ρ(gp,X,f_l)
+AGP.∇L_ρ(f_l,gp,X)[first(ps)][:]
+@btime AGP.∇L_ρ(f_l,gp,X)
 @btime old_method(gp,X,f_l)
+
+#####
+f_l,f_l2,f_v,f_μ₀ = AGP.hyperparameter_gradient_function(model.f[1],X)
+gp2 = model2.f[1]
+ps2 = Flux.params(gp2.kernel)
+Emu, Esig  = AGP.∇E_μ(model2.likelihood,model2.inference.vi_opt[1],get_y(model2))[1],AGP.∇E_Σ(model2.likelihood,model2.inference.vi_opt[1],get_y(model2))[1]
+i = model.inference
+opt = model.inference.vi_opt[1]
+function old_method2(gp,X,f_l,Emu,Esig,i,opt)
+    Jmm = reshape(ForwardDiff.jacobian(x->kernelmatrix(SqExponentialKernel(x),gp.Z.Z,obsdim=1),ll),size(X,1),size(X,1),N_dim);
+    Jnm = reshape(ForwardDiff.jacobian(x->kernelmatrix(SqExponentialKernel(x),X,gp.Z.Z,obsdim=1),ll),size(X,1),size(X,1),N_dim);
+    Jnn = reshape(ForwardDiff.jacobian(x->kerneldiagmatrix(SqExponentialKernel(x),X,obsdim=1),ll),size(X,1),N_dim);
+
+    f_l.(eachslice(Jmm,3),eachslice(Jnm,3),eachslice(Jnn,2),[Emu],[Esig],[i],[opt])
+end
+reshape(ForwardDiff.jacobian(x->kerneldiagmatrix(SqExponentialKernel(x),X,obsdim=1),ll),size(X,1),N_dim)
+vec(old_method2(gp,X,f_l,Emu,Esig,i,opt))
+AGP.∇L_ρ(f_l,gp,X,Emu,Esig,i,opt)[first(ps)][:]
+@btime AGP.∇L_ρ(f_l,gp,X,Emu,Esig,i,opt)
+@btime old_method2(gp,X,f_l,Emu,Esig,i,opt)

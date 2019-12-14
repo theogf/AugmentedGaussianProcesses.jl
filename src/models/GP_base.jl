@@ -70,14 +70,14 @@ end
 function _SVGP{T}(  dim::Int,nSamplesUsed::Int,
                     Z::InducingPoints,
                     kernel::Kernel,mean::PriorMean,σ_k::Real,
-                    opt_ρ::Union{Optimizer,Nothing}=Adam(α=0.01),opt_σ::Union{Optimizer,Nothing}=opt_ρ
+                    opt
                  ) where {T<:Real}
     _SVGP{T}(dim,
             zeros(T,dim),
             Matrix{T}(I,dim,dim),
             zeros(T,dim),
             Symmetric(Matrix{T}(-0.5*I,dim,dim)),
-            wrapper(kernel,opt_ρ),
+            kernel,
             [σ_k],
             deepcopy(mean),
             deepcopy(Z),
@@ -85,7 +85,7 @@ function _SVGP{T}(  dim::Int,nSamplesUsed::Int,
             Matrix{T}(undef,nSamplesUsed,dim),
             Matrix{T}(undef,nSamplesUsed,dim),
             Vector{T}(undef,nSamplesUsed),
-            deepcopy(opt_σ))
+            deepcopy(opt))
 end
 
 mutable struct _MCGP{T} <: Abstract_GP{T}

@@ -45,7 +45,7 @@ end
 
 function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
             likelihood::TLikelihood,inference::TInference, nInducingPoints::Int;
-            verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
+            verbose::Int=0,optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
             Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
             ArrayType::UnionAll=Vector) where {T1<:Real,T2,TLikelihood<:Likelihood,TInference<:Inference}
@@ -55,7 +55,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
 
             nSamples = size(X,1); nDim = size(X,2);
             if isa(optimizer,Bool)
-                optimizer = optimizer ? ADAM(0.01) : nothing
+                optimizer = optimizer ? Flux.ADAM(0.01) : nothing
             end
 
             @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
@@ -69,7 +69,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
                 Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10)
             end
             if isa(Zoptimizer,Bool)
-                Zoptimizer = Zoptimizer ? ADAM(α=0.01) : nothing
+                Zoptimizer = Zoptimizer ? ADAM(α=0.001) : nothing
             end
             Z = InducingPoints(Z,Zoptimizer)
             nFeatures = nInducingPoints

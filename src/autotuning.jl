@@ -36,33 +36,21 @@ end
 
 ## Update all hyperparameters for the sparse variational GP models ##
 function update_hyperparameters!(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T}
-    if isopt(gp.kernel) || !isnothing(gp.opt_σ) || !isnothing(get_opt(gp.μ₀))
-        f_ρ,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
+    if !isnothing(gp.opt)
+        f_ρ,f_ρ2,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
         if isopt(gp.kernel)
-            Jmm = kernelderivative(gp.kernel,gp.Z.Z)
-            Jnm = kernelderivative(gp.kernel,X,gp.Z.Z)
-            Jnn = kerneldiagderivative(gp.kernel,X)
-            grads_ρ = compute_hyperparameter_gradient(gp.kernel,f_ρ,Jmm,Jnm,Jnn,∇E_μ,∇E_Σ,i,opt)
-        end
-        if !isnothing(gp.opt_σ)
-            grads_σ_k = f_σ_k(first(gp.σ_k),∇E_Σ,i,opt)
-        end
-        if !isnothing(get_opt(gp.μ₀))
-            grads_μ₀ = f_μ₀()
-        end
-        if !isnothing(gp.Z.opt)
-            Z_gradients = inducingpoints_gradient(gp,X,∇E_μ,∇E_Σ,i,opt) #Compute the gradient given the inducing points location
-            gp.Z.Z .+= GradDescent.update(gp.Z.opt,Z_gradients) #Apply the gradients on the location
-        end
-        if isopt(gp.kernel)
-            apply_gradients_lengthscale!(gp.kernel,grads_ρ)
-        end
-        if !isnothing(gp.opt_σ)
-            apply_gradients_variance!(gp,grads_σ_k)
-        end
-        if !isnothing(get_opt(gp.μ₀))
-            apply_gradients_mean_prior!(gp.μ₀,grads_μ₀,gp.Z.Z)
-        end
+        grads =  ∇L_ρ(f,gp,X,∇E_μ,∇E_Σ,i,opt)
+        grads.grads[gp.σ_k] = f_σ_k(first(gp.σ_k),∇E_Σ,i,opt)
+        grads[gp.μ₀] = f_μ₀()
+    end
+    if !isnothing(gp.Z.opt)
+        Z_gradients = inducingpoints_gradient(gp,X,∇E_μ,∇E_Σ,i,opt) #Compute the gradient given the inducing points location
+        gp.Z.Z .+= GradDescent.update(gp.Z.opt,Z_gradients) #Apply the gradients on the location
+    end
+    if !isnothing(gp.opt)
+        apply_grads_kernel_params!(gp.opt,gp.kernel,grads) # Apply gradients to the kernel parameters
+        apply_grads_kernel_variance!(gp.opt,gp,grads[gp.σ_k]) #Send the derivative of the matrix to the specific gradient of the model
+        apply_gradients_mean_prior!(gp.opt,gp.μ₀,grads[gp.μ₀],X)
     end
 end
 
@@ -110,6 +98,9 @@ function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
     return (function(Jmm,Jnm,Jnn,∇E_μ,∇E_Σ,i,opt)
                 return (hyperparameter_expec_gradient(gp,∇E_μ,∇E_Σ,i,opt,ι,κΣ,Jmm,Jnm,Jnn)-hyperparameter_KL_gradient(Jmm,A))
             end,
+            function(Jmm,Jnm,Jnn,∇E_μ,∇E_Σ,i,opt)
+                return (hyperparameter_expec_gradient2(gp,∇E_μ,∇E_Σ,i,opt,κΣ,Jmm,Jnm,Jnn)-hyperparameter_KL_gradient(Jmm,A))
+            end,
             function(σ_k::Real,∇E_Σ,i,opt)
                 return one(T)/σ_k*(
                         - i.ρ*dot(∇E_Σ,gp.K̃)
@@ -143,6 +134,17 @@ function hyperparameter_expec_gradient(gp::_SVGP{T},∇E_μ::AbstractVector{T},�
     dΣ += -dot(∇E_Σ,2.0*(ι*gp.μ).*(gp.κ*gp.μ))
     return i.ρ*(dμ+dΣ)
 end
+
+function hyperparameter_expec_gradient2(gp::_SVGP{T},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{T},Jnm::AbstractMatrix{T},Jnn::AbstractVector{T}) where {T<:Real}
+    ι = (Jnm-gp.κ*Jmm)/gp.K.mat
+    Jnn = Jnn - (opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm))
+    dμ = dot(∇E_μ,ι*gp.μ)
+    dΣ = -dot(∇E_Σ,Jnn)
+    dΣ += -dot(∇E_Σ,2.0*(opt_diag(ι,κΣ)))
+    dΣ += -dot(∇E_Σ,2.0*(ι*gp.μ).*(gp.κ*gp.μ))
+    return i.ρ*(dμ+dΣ)
+end
+
 
 ## Gradient with respect to hyperparameters for numerical VI ##
 function hyperparameter_expec_gradient(gp::_SVGP{T},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::NumericalVI,opt::NVIOptimizer,ι::AbstractMatrix{T},κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{T},Jnm::AbstractMatrix{T},Jnn::AbstractVector{T}) where {T<:Real}
