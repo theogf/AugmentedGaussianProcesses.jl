@@ -84,21 +84,21 @@ AGP.∇L_ρ(f_l,gp,X)[first(ps)][:]
 @btime old_method(gp,X,f_l)
 
 #####
-f_l,f_l2,f_v,f_μ₀ = AGP.hyperparameter_gradient_function(model.f[1],X)
+using Flux, ForwardDiff
+f_l,f_l2,f_v,f_μ₀ = AGP.hyperparameter_gradient_function(model2.f[1])
 gp2 = model2.f[1]
 ps2 = Flux.params(gp2.kernel)
-Emu, Esig  = AGP.∇E_μ(model2.likelihood,model2.inference.vi_opt[1],get_y(model2))[1],AGP.∇E_Σ(model2.likelihood,model2.inference.vi_opt[1],get_y(model2))[1]
+Emu, Esig  = AGP.∇E_μ(model2.likelihood,model2.inference.vi_opt[1],AGP.get_y(model2))[1],AGP.∇E_Σ(model2.likelihood,model2.inference.vi_opt[1],AGP.get_y(model2))[1]
 i = model.inference
 opt = model.inference.vi_opt[1]
 function old_method2(gp,X,f_l,Emu,Esig,i,opt)
-    Jmm = reshape(ForwardDiff.jacobian(x->kernelmatrix(SqExponentialKernel(x),gp.Z.Z,obsdim=1),ll),size(X,1),size(X,1),N_dim);
-    Jnm = reshape(ForwardDiff.jacobian(x->kernelmatrix(SqExponentialKernel(x),X,gp.Z.Z,obsdim=1),ll),size(X,1),size(X,1),N_dim);
+    Jmm = reshape(ForwardDiff.jacobian(x->kernelmatrix(SqExponentialKernel(x),gp.Z.Z,obsdim=1),ll),gp.dim,gp.dim,N_dim);
+    Jnm = reshape(ForwardDiff.jacobian(x->kernelmatrix(SqExponentialKernel(x),X,gp.Z.Z,obsdim=1),ll),size(X,1),gp.dim,N_dim);
     Jnn = reshape(ForwardDiff.jacobian(x->kerneldiagmatrix(SqExponentialKernel(x),X,obsdim=1),ll),size(X,1),N_dim);
 
-    f_l.(eachslice(Jmm,3),eachslice(Jnm,3),eachslice(Jnn,2),[Emu],[Esig],[i],[opt])
+    f_l.(eachslice(Jmm,dims=3),eachslice(Jnm,dims=3),eachslice(Jnn,dims=2),[Emu],[Esig],[i],[opt])
 end
-reshape(ForwardDiff.jacobian(x->kerneldiagmatrix(SqExponentialKernel(x),X,obsdim=1),ll),size(X,1),N_dim)
-vec(old_method2(gp,X,f_l,Emu,Esig,i,opt))
-AGP.∇L_ρ(f_l,gp,X,Emu,Esig,i,opt)[first(ps)][:]
+vec(old_method2(gp2,X,f_l,Emu,Esig,i,opt))
+AGP.∇L_ρ(f_l2,gp2,X,Emu,Esig,i,opt)[first(ps)][:]
 @btime AGP.∇L_ρ(f_l,gp,X,Emu,Esig,i,opt)
 @btime old_method2(gp,X,f_l,Emu,Esig,i,opt)

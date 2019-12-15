@@ -38,7 +38,6 @@ end
 function update_hyperparameters!(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T}
     if !isnothing(gp.opt)
         f_ρ,f_ρ2,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
-        if isopt(gp.kernel)
         grads =  ∇L_ρ(f,gp,X,∇E_μ,∇E_Σ,i,opt)
         grads.grads[gp.σ_k] = f_σ_k(first(gp.σ_k),∇E_Σ,i,opt)
         grads[gp.μ₀] = f_μ₀()

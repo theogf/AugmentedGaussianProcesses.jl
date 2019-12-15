@@ -64,7 +64,7 @@ mutable struct _SVGP{T} <: Abstract_GP{T}
     Knm::Matrix{T}
     κ::Matrix{T}
     K̃::Vector{T}
-    opt_σ::OptorNothing
+    opt
 end
 
 function _SVGP{T}(  dim::Int,nSamplesUsed::Int,

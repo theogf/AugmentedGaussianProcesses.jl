@@ -93,7 +93,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
             inference.xview = view(X,1:nMinibatch,:)
             inference.yview = view_y(likelihood,y,1:nMinibatch)
 
-            model = SVGP{T1,TLikelihood,typeof(inference),_SVGP{T1},nLatent}(X,y,
+            model = SVGP{T1,TLikelihood,typeof(inference),nLatent}(X,y,
                     nSamples, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
                     verbose,atfrequency,false)
