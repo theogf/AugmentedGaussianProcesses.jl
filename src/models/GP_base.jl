@@ -9,15 +9,15 @@ mutable struct _GP{T} <: Abstract_GP{T}
     opt
 end
 
-function _GP{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real,opt_kernel=Adam(α=0.01)) where {T<:Real}
+function _GP{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real,opt) where {T<:Real}
     _GP{T}(dim,
             zeros(T,dim),
             Matrix{T}(I,dim,dim),
-            wrapper(kernel,opt_ρ),
+            kernel,
             [σ_k],
             deepcopy(mean),
             PDMat(Matrix{T}(I,dim,dim)),
-            deepcopy(opt_σ))
+            deepcopy(opt))
 end
 
 @traitimpl IsFull{_GP}

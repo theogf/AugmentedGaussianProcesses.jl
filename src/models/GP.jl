@@ -46,8 +46,8 @@ end
 
 function GP(X::AbstractArray{T}, y::AbstractArray,kernel::Kernel;
                 noise::Real=1e-5, opt_noise::Bool=true, verbose::Int=0,
-                optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
-                mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
+                optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
+                mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),variance::Real = 1.0,
                 ArrayType::UnionAll=Vector) where {T<:Real}
             likelihood = GaussianLikelihood(noise,opt_noise=opt_noise)
             inference = Analytic()
@@ -55,7 +55,7 @@ function GP(X::AbstractArray{T}, y::AbstractArray,kernel::Kernel;
 
             nFeatures = nSamples = size(X,1); nDim = size(X,2);
             if isa(optimizer,Bool)
-                optimizer = optimizer ? Adam(α=0.01) : nothing
+                optimizer = optimizer ? Flux.ADAM(0.01) : nothing
             end
 
             latentf = ntuple(_->_GP{T}(nFeatures,kernel,mean,variance,optimizer),nLatent)
@@ -64,7 +64,7 @@ function GP(X::AbstractArray{T}, y::AbstractArray,kernel::Kernel;
             inference = init_inference(inference,nLatent,nSamples,nSamples,nSamples)
             inference.xview = view(X,:,:)
             inference.yview = view_y(likelihood,y,1:nSamples)
-            model = GP{T,GaussianLikelihood{T},typeof(inference),_GP{T},1}(X,y,nFeatures,
+            model = GP{T,GaussianLikelihood{T},typeof(inference),1}(X,y,nFeatures,
             nDim, nFeatures, nLatent,latentf,likelihood,inference,
             verbose,atfrequency,false)
             computeMatrices!(model)
