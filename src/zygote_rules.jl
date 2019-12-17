@@ -1,5 +1,3 @@
-Zygote.refresh()
-
 function ∇L_ρ(f,gp,X)
     Zygote.gradient(()->_∇L_ρ(f,gp.kernel,first(gp.σ_k),X),Flux.params(gp.kernel))
 end
