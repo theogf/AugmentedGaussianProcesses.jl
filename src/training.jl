@@ -11,7 +11,7 @@ there are options to change the number of max iterations,
 """
 function train!(model::AbstractGP{T,TLike,TInf},iterations::Int=100;callback::Union{Nothing,Function}=nothing,convergence::Union{Nothing,Function}=nothing) where {T,TLike<:Likelihood,TInf<:Inference}
     if model.verbose > 0
-      println("Starting training $model with $(model.nSamples) samples with $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))
+      println("Starting training $model with $(model.nSamples) samples, $(size(model.X,2)) features and $(model.nLatent) latent GP"*(model.nLatent > 1 ? "s" : ""))
     end
 
     @assert iterations > 0  "Number of iterations should be positive"

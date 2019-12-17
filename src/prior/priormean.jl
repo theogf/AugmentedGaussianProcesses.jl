@@ -1,6 +1,6 @@
 abstract type PriorMean{T} end
 
-import Base: +, -, *, convert
+import Base: convert
 
 include("constantmean.jl")
 include("zeromean.jl")
@@ -14,5 +14,3 @@ end
 function Base.convert(::Type{PriorMean},x::AbstractVector{T}) where {T<:Real}
     EmpiricalMean(x)
 end
-
-get_opt(μ::PriorMean) = μ.opt

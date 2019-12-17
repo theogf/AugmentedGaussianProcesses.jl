@@ -28,14 +28,14 @@ Argument list :
  - `optimizer` : Optimizer for inducing point locations (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,TGP<:Abstract_GP{T},N} <: AbstractGP{T,TLikelihood,TInference,TGP,N}
+mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N} <: AbstractGP{T,TLikelihood,TInference,N}
     X::Matrix{T} #Feature vectors
     y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSamples::Int64 # Number of data points
     nDim::Int64 # Number of covariates per data point
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
-    f::NTuple{N,TGP}
+    f::NTuple{N,_SVGP}
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64
@@ -45,9 +45,9 @@ end
 
 function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
             likelihood::TLikelihood,inference::TInference, nInducingPoints::Int;
-            verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
+            verbose::Int=0,optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
-            Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
+            Zoptimizer=false,
             ArrayType::UnionAll=Vector) where {T1<:Real,T2,TLikelihood<:Likelihood,TInference<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
@@ -55,7 +55,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
 
             nSamples = size(X,1); nDim = size(X,2);
             if isa(optimizer,Bool)
-                optimizer = optimizer ? Adam(α=0.01) : nothing
+                optimizer = optimizer ? Flux.ADAM(0.01) : nothing
             end
 
             @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
@@ -69,7 +69,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
                 Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10)
             end
             if isa(Zoptimizer,Bool)
-                Zoptimizer = Zoptimizer ? Adam(α=0.01) : nothing
+                Zoptimizer = Zoptimizer ? ADAM(α=0.001) : nothing
             end
             Z = InducingPoints(Z,Zoptimizer)
             nFeatures = nInducingPoints
@@ -93,7 +93,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
             inference.xview = view(X,1:nMinibatch,:)
             inference.yview = view_y(likelihood,y,1:nMinibatch)
 
-            model = SVGP{T1,TLikelihood,typeof(inference),_SVGP{T1},nLatent}(X,y,
+            model = SVGP{T1,TLikelihood,typeof(inference),nLatent}(X,y,
                     nSamples, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
                     verbose,atfrequency,false)
@@ -106,8 +106,6 @@ end
 function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
-
-const SVGP1 = SVGP{<:Real,<:Likelihood,<:Inference,<:Abstract_GP,1}
 
 get_y(model::SVGP) = model.inference.yview
 get_Z(model::SVGP) = getproperty.(getproperty.(model.f,:Z),:Z)

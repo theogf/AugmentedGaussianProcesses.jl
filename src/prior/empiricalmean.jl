@@ -1,6 +1,5 @@
 mutable struct EmpiricalMean{T<:Real,V<:AbstractVector{<:Real}} <: PriorMean{T}
     C::V
-    opt::Optimizer
 end
 
 """
@@ -15,8 +14,8 @@ function EmpiricalMean(c::V=1.0;opt::Optimizer=Adam(α=0.01)) where {V<:Abstract
     EmpiricalMean{eltype(c),V}(c,opt)
 end
 
-function update!(μ::EmpiricalMean{T},grad::AbstractVector{T}) where {T<:Real}
-    μ.C .+= update!(μ.opt,grad)
+function update!(opt,μ::EmpiricalMean{T},grad,X) where {T<:Real}
+    μ.C .+= Flux.Optimise.apply!(opt,μ.C,grad)
 end
 
 function (μ::EmpiricalMean{T})(x::AbstractMatrix) where {T<:Real}

@@ -3,7 +3,6 @@ using AugmentedGaussianProcesses
 using LinearAlgebra
 using Statistics
 using Distributions
-using KernelFunctions
 const AGP = AugmentedGaussianProcesses
 include("testingtools.jl")
 
@@ -15,14 +14,14 @@ K = 4
 r = 10
 
 X = rand(nData,nDim)
-f = ones(nData)
-while !(maximum(f) > 0 && minimum(f) < 0)
-    global f = rand(MvNormal(zeros(nData),kernelmatrix(k,X,obsdim=1)+1e-3I))
+f_ = ones(nData)
+while !(maximum(f_) > 0 && minimum(f_) < 0)
+    global f_ = rand(MvNormal(zeros(nData),kernelmatrix(k,X,obsdim=1)+1e-3I))
 end
-width = maximum(f)-minimum(f)
-normf = (f.-minimum(f))/width*K
+width = maximum(f_)-minimum(f_)
+normf = (f_.-minimum(f_))/width*K
 
-y = Dict("Regression"=>f,"Classification"=>sign.(f),"MultiClass"=>floor.(Int64,normf),"Poisson"=>rand.(Poisson.(2.0*AGP.logistic.(f))),"NegBinomial"=>rand.(NegativeBinomial.(r,AGP.logistic.(f))))
+y = Dict("Regression"=>f_,"Classification"=>sign.(f_),"MultiClass"=>floor.(Int64,normf),"Poisson"=>rand.(Poisson.(2.0*AGP.logistic.(f_))),"NegBinomial"=>rand.(NegativeBinomial.(r,AGP.logistic.(f_))))
 n_class = length(unique(y["MultiClass"]))
 
 reg_likelihood = ["GaussianLikelihood","StudentTLikelihood","LaplaceLikelihood"]
@@ -45,7 +44,7 @@ floattypes = [Float64]
                             @testset "$(string(stoch(s,inference)))" begin
                                 if in(stoch(s,inference),methods_implemented_SVGP[l])
                                     for floattype in floattypes
-                                        @test typeof(SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*addiargument(s,inference)*")")),m)) <: SVGP{floattype,eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*","*nlatent(l)*"}")),AGP._SVGP{floattype},eval(Meta.parse(nlatent(l)))}
+                                        @test typeof(SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*addiargument(s,inference)*")")),m)) <: SVGP{floattype,eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*","*nlatent(l)*"}")),eval(Meta.parse(nlatent(l)))}
                                         model = SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*(addiargument(s,inference))*")")),m,verbose=2)
                                         @test train!(model,50)
                                         @test testconv(model,l_names,X,y[l_names])

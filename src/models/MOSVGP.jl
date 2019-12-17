@@ -28,7 +28,7 @@ Argument list :
  - `optimizer` : Optimizer for inducing point locations (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,TGP<:Abstract_GP{T},N,Q} <: AbstractGP{T,TLikelihood,TInference,TGP,N}
+mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N,Q} <: AbstractGP{T,TLikelihood,TInference,N}
     X::Matrix{T} #Feature vectors
     y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSamples::Int64 # Number of data points
@@ -37,11 +37,11 @@ mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,T
     nLatent::Int64 # Number of latent GPs
     nTask::Int64
     nf_per_task::Vector{Int64}
-    f::NTuple{Q,TGP}
+    f::NTuple{Q,_SVGP}
     likelihood::Vector{TLikelihood}
     inference::TInference
     A::Array{T,3}
-    A_opt::Union{Optimizer,Nothing}
+    A_opt
     verbose::Int64
     atfrequency::Int64
     Trained::Bool
@@ -52,9 +52,9 @@ end
 function MOSVGP(
             X::AbstractArray{T},y::AbstractVector{<:AbstractVector},kernel::Kernel,
             likelihood::TLikelihood,inference::TInference,nLatent::Int,nInducingPoints::Int;
-            verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
-            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,Aoptimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),
-            Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
+            verbose::Int=0,optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
+            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,Aoptimizer=Adam(α=0.01),
+            Zoptimizer=false,
             ArrayType::UnionAll=Vector) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
             @assert length(y) > 0 "y should not be an empty vector"

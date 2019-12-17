@@ -47,7 +47,7 @@ end
 
 function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             likelihood::TLikelihood,inference::TInference;
-            verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
+            verbose::Int=0,optimizer=ADAM(0.01),atfrequency::Integer=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
             ArrayType::UnionAll=Vector) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
@@ -56,7 +56,7 @@ function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             nFeatures = nSamples = size(X,1); nDim = size(X,2);
 
             if isa(optimizer,Bool)
-                optimizer = optimizer ? Adam(α=0.01) : nothing
+                optimizer = optimizer ? ADAM(0.01) : nothing
             end
 
             if typeof(mean) <: Real
@@ -72,10 +72,10 @@ function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             inference.xview = view(X,:,:)
             inference.yview = view_y(likelihood,y,1:nSamples)
             inference.MBIndices = collect(1:nSamples)
-                    verbose,atfrequency,false)
             VGP{T, TLikelihood, typeof(inference), nLatent}(
                     X, y, nFeatures, nDim, nFeatures, nLatent,
                     latentf, likelihood, inference,
+                    verbose, atfrequency, false)
 end
 
 function Base.show(io::IO,model::VGP{T,<:Likelihood,<:Inference}) where {T}

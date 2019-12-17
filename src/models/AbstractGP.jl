@@ -1,6 +1,6 @@
-abstract type AbstractGP{T<:Real,L<:Likelihood{T},I<:Inference{T},GP<:Abstract_GP,N} end
+abstract type AbstractGP{T<:Real,L<:Likelihood{T},I<:Inference{T},N} end
 
-const AbstractGP1 = AbstractGP{<:Real,<:Likelihood,<:Inference,<:Abstract_GP,1}
+const AbstractGP1 = AbstractGP{<:Real,<:Likelihood,<:Inference,1}
 
 @traitdef IsFull{X}
 
@@ -24,6 +24,6 @@ get_μ(model::AbstractGP) = getproperty.(model.f,:μ)
 
 get_Σ(model::AbstractGP) = getproperty.(model.f,:Σ)
 
-get_σ_k(model::AbstractGP) = getproperty.(model.f,:σ_k)
+get_σ_k(model::AbstractGP) = first.(getproperty.(model.f,:σ_k))
 
 get_kernel(model::AbstractGP) = getproperty.(model.f,:kernel)
