@@ -13,6 +13,6 @@ end
 function _∇L_ρ(f,kernel,σ,Z,X,∇E_μ,∇E_Σ,i,opt)
     Kmm = σ*kernelmatrix(kernel,Z,obsdim=1)
     Knm = σ*kernelmatrix(kernel,X,Z,obsdim=1)
-    Knn = σ*kerneldiagmatrix(kernel,X,obsdim=1)
+    Knn = σ*diag(kernelmatrix(kernel,X,obsdim=1)) # TO FIX ONCE Zygote#429 is fixed.
     f(Kmm,Knm,Knn,∇E_μ,∇E_Σ,i,opt)
 end

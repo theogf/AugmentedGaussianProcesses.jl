@@ -20,11 +20,7 @@ end
 function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X::AbstractMatrix) where {T}
     if !isnothing(gp.opt)
         f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp,X)
-        global grads = ∇L_ρ(gp,X,f_l)
-        # ps = Flux.params(gp.kernel)
-        # grads = Zygote.gradient(()->∇L_ρ(gp,X,f_l),ps)
-        # Jnn = kernelderivative(gp.kernel,X)
-        # global grads = compute_hyperparameter_gradient(gp.kernel,f_l,Jnn)
+        grads = ∇L_ρ(gp,X,f_l)
         grads.grads[gp.σ_k] = f_v(first(gp.σ_k))
         grads.grads[gp.μ₀] = f_μ₀()
 
@@ -92,12 +88,8 @@ end
 function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
     μ₀ = gp.μ₀(gp.Z.Z)
     A = (Diagonal{T}(I,gp.dim).-gp.K\(gp.Σ.+(gp.µ-μ₀)*transpose(gp.μ-μ₀)))/gp.K.mat
-    ι = similar(gp.κ) #Empty container to save data allocation
     κΣ = gp.κ*gp.Σ
     return (function(Jmm,Jnm,Jnn,∇E_μ,∇E_Σ,i,opt)
-                return (hyperparameter_expec_gradient(gp,∇E_μ,∇E_Σ,i,opt,ι,κΣ,Jmm,Jnm,Jnn)-hyperparameter_KL_gradient(Jmm,A))
-            end,
-            function(Jmm,Jnm,Jnn,∇E_μ,∇E_Σ,i,opt)
                 return (hyperparameter_expec_gradient2(gp,∇E_μ,∇E_Σ,i,opt,κΣ,Jmm,Jnm,Jnn)-hyperparameter_KL_gradient(Jmm,A))
             end,
             function(σ_k::Real,∇E_Σ,i,opt)
@@ -111,30 +103,21 @@ function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
 end
 
 function hyperparameter_gradient_function(model::VStP{T},X::AbstractMatrix) where {T<:Real}
-    A = ([Diagonal{T}(I,model.nFeatures)].-invK(model).*(model.Σ.+(model.µ.-model.μ₀(X)).*transpose.(model.μ.-model.μ₀(X)))).*invK(model)
-    return (function(Jnn,index)
-                return -hyperparameter_KL_gradient(Jnn,A[index])
+    μ₀ = gp.μ₀(X)
+    A = (Diagonal{T}(I,gp.dim).-gp.K\(gp.Σ.+(gp.µ-μ₀)*transpose(gp.μ-μ₀)))/gp.K.mat
+    return (function(Jnn)
+                return -hyperparameter_KL_gradient(Jnn,A)
             end,
-            function(kernel,index)
-                return -1.0/getvariance(kernel)*hyperparameter_KL_gradient(model.Knn[index].*model.χ[index],A[index])
+            function(σ_k::Real)
+                return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K.mat*gp.χ,A)
             end,
-            function(index)
-                return -invK(model,index)*(model.μ₀(X)-model.μ[index])
+            function()
+                return -gp.K.mat\(μ₀-gp.μ)
             end)
 end
 
 ## Gradient with respect to hyperparameter for analytical VI ##
-function hyperparameter_expec_gradient(gp::_SVGP{T},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,ι::AbstractMatrix{T},κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{T},Jnm::AbstractMatrix{T},Jnn::AbstractVector{T}) where {T<:Real}
-    ι .= (Jnm-gp.κ*Jmm)/gp.K.mat
-    Jnn .-= opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm)
-    dμ = dot(∇E_μ,ι*gp.μ)
-    dΣ = -dot(∇E_Σ,Jnn)
-    dΣ += -dot(∇E_Σ,2.0*(opt_diag(ι,κΣ)))
-    dΣ += -dot(∇E_Σ,2.0*(ι*gp.μ).*(gp.κ*gp.μ))
-    return i.ρ*(dμ+dΣ)
-end
-
-function hyperparameter_expec_gradient2(gp::_SVGP{T},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{T},Jnm::AbstractMatrix{T},Jnn::AbstractVector{T}) where {T<:Real}
+function hyperparameter_expec_gradient(gp::_SVGP{T},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{T},Jnm::AbstractMatrix{T},Jnn::AbstractVector{T}) where {T<:Real}
     ι = (Jnm-gp.κ*Jmm)/gp.K.mat
     Jnn = Jnn - (opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm))
     dμ = dot(∇E_μ,ι*gp.μ)
