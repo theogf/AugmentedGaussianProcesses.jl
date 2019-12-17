@@ -47,7 +47,7 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
             likelihood::TLikelihood,inference::TInference, nInducingPoints::Int;
             verbose::Int=0,optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
-            Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
+            Zoptimizer=false,
             ArrayType::UnionAll=Vector) where {T1<:Real,T2,TLikelihood<:Likelihood,TInference<:Inference}
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)

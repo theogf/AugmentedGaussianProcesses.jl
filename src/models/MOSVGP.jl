@@ -41,7 +41,7 @@ mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N
     likelihood::Vector{TLikelihood}
     inference::TInference
     A::Array{T,3}
-    A_opt::Union{Optimizer,Nothing}
+    A_opt
     verbose::Int64
     atfrequency::Int64
     Trained::Bool
@@ -52,9 +52,9 @@ end
 function MOSVGP(
             X::AbstractArray{T},y::AbstractVector{<:AbstractVector},kernel::Kernel,
             likelihood::TLikelihood,inference::TInference,nLatent::Int,nInducingPoints::Int;
-            verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
-            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,Aoptimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),
-            Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
+            verbose::Int=0,optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
+            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,Aoptimizer=Adam(α=0.01),
+            Zoptimizer=false,
             ArrayType::UnionAll=Vector) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
             @assert length(y) > 0 "y should not be an empty vector"

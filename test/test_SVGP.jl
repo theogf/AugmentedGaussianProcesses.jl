@@ -44,7 +44,7 @@ floattypes = [Float64]
                             @testset "$(string(stoch(s,inference)))" begin
                                 if in(stoch(s,inference),methods_implemented_SVGP[l])
                                     for floattype in floattypes
-                                        @test typeof(SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*addiargument(s,inference)*")")),m)) <: SVGP{floattype,eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*","*nlatent(l)*"}")),AGP._SVGP{floattype},eval(Meta.parse(nlatent(l)))}
+                                        @test typeof(SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*addiargument(s,inference)*")")),m)) <: SVGP{floattype,eval(Meta.parse(l*"{"*string(floattype)*"}")),eval(Meta.parse(inference*"{"*string(floattype)*","*nlatent(l)*"}")),eval(Meta.parse(nlatent(l)))}
                                         model = SVGP(X,y[l_names],k,eval(Meta.parse(l*"("*addlargument(l)*")")),eval(Meta.parse(stoch(s,inference)*"("*(addiargument(s,inference))*")")),m,verbose=2)
                                         @test train!(model,50)
                                         @test testconv(model,l_names,X,y[l_names])

@@ -20,7 +20,7 @@ end
 function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X::AbstractMatrix) where {T}
     if !isnothing(gp.opt)
         f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp,X)
-        grads = ∇L_ρ(gp,X,f_l)
+        grads = ∇L_ρ(f_l,gp,X)
         grads.grads[gp.σ_k] = f_v(first(gp.σ_k))
         grads.grads[gp.μ₀] = f_μ₀()
 
@@ -33,14 +33,14 @@ end
 ## Update all hyperparameters for the sparse variational GP models ##
 function update_hyperparameters!(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T}
     if !isnothing(gp.opt)
-        f_ρ,f_ρ2,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
-        grads =  ∇L_ρ(f,gp,X,∇E_μ,∇E_Σ,i,opt)
+        f_ρ,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
+        grads =  ∇L_ρ(f_ρ,gp,X,∇E_μ,∇E_Σ,i,opt)
         grads.grads[gp.σ_k] = f_σ_k(first(gp.σ_k),∇E_Σ,i,opt)
-        grads[gp.μ₀] = f_μ₀()
+        grads.grads[gp.μ₀] = f_μ₀()
     end
     if !isnothing(gp.Z.opt)
         Z_gradients = inducingpoints_gradient(gp,X,∇E_μ,∇E_Σ,i,opt) #Compute the gradient given the inducing points location
-        gp.Z.Z .+= GradDescent.update(gp.Z.opt,Z_gradients) #Apply the gradients on the location
+        gp.Z.Z .+= Flux.apply!(gp.Z.opt,gp.Z.Z,Z_gradients) #Apply the gradients on the location
     end
     if !isnothing(gp.opt)
         apply_grads_kernel_params!(gp.opt,gp.kernel,grads) # Apply gradients to the kernel parameters
@@ -90,7 +90,7 @@ function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
     A = (Diagonal{T}(I,gp.dim).-gp.K\(gp.Σ.+(gp.µ-μ₀)*transpose(gp.μ-μ₀)))/gp.K.mat
     κΣ = gp.κ*gp.Σ
     return (function(Jmm,Jnm,Jnn,∇E_μ,∇E_Σ,i,opt)
-                return (hyperparameter_expec_gradient2(gp,∇E_μ,∇E_Σ,i,opt,κΣ,Jmm,Jnm,Jnn)-hyperparameter_KL_gradient(Jmm,A))
+                return (hyperparameter_expec_gradient(gp,∇E_μ,∇E_Σ,i,opt,κΣ,Jmm,Jnm,Jnn)-hyperparameter_KL_gradient(Jmm,A))
             end,
             function(σ_k::Real,∇E_Σ,i,opt)
                 return one(T)/σ_k*(
