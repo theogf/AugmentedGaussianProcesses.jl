@@ -33,7 +33,7 @@ For **regression**, four likelihoods are available :
 - The classical [`GaussianLikelihood`](@ref), for [**Gaussian noise**](https://en.wikipedia.org/wiki/Gaussian_noise)
 - The [`StudentTLikelihood`](@ref), assuming noise from a [**Student-T**](https://en.wikipedia.org/wiki/Student%27s_t-distribution) distribution (more robust to ouliers)
 - The [`LaplaceLikelihood`](@ref), with noise from a [**Laplace**](https://en.wikipedia.org/wiki/Laplace_distribution) distribution.
-- The [`HeteroscedasticLikelihood`](@ref), (in development) where the noise is a function of the input: ``\\text{Var}(X) = \\lambda\\sigma^{-1}(g(X))`` where `g(X)` is an additional Gaussian Process and ``\\sigma`` is the logistic function.
+- The [`HeteroscedasticLikelihood`](@ref), (in development) where the noise is a function of the input: ``Var(X) = λσ^{-1}(g(X))`` where `g(X)` is an additional Gaussian Process and ``σ`` is the logistic function.
 
 #### Classification
 
@@ -41,11 +41,21 @@ For **classification** one can select among
 - The [`LogisticLikelihood`](@ref) : a Bernoulli likelihood with a [**logistic link**](https://en.wikipedia.org/wiki/Logistic_function)
 - The [`BayesianSVM`](@ref) likelihood based on the [**frequentist SVM**](https://en.wikipedia.org/wiki/Support_vector_machine#Bayesian_SVM), equivalent to use a hinge loss.
 
+#### Event Likelihoods
+
+For likelihoods such as Poisson or Negative Binomial, we approximate a parameter by `σ(f)`. Two Likelihoods are implemented :
+- The [`PoissonLikelihood`](@ref) : A discrete [Poisson process](https://en.wikipedia.org/wiki/Poisson_distribution) (one parameter per point) with the scale parameter defined as `λσ(f)`
+- The [`NegBinomialLikelihood`](@ref) : The [Negative Binomial likelihood](https://en.wikipedia.org/wiki/Negative_binomial_distribution) where `r` is fixed and we define the success probability `p` as `σ(f)`
+
 #### Multi-class classification
 
 There is two available likelihoods for multi-class classification:
 - The [`SoftMaxLikelihood`](@ref), the most common approach. However no analytical solving is possible
 - The [`LogisticSoftMaxLikelihood`](@ref), a modified softmax where the exponential function is replaced by the logistic function. It allows to get a fully conjugate model, [**Corresponding paper**](https://arxiv.org/abs/1905.09670)
+
+### More options
+
+You can also write your own likelihood by using the [following template](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/docs/src/template_likelihood.jl).
 
 ### Inference
 
@@ -53,6 +63,8 @@ Inference can be done in various ways.
 
 - [`AnalyticVI`](@ref) : [Variational Inference](https://en.wikipedia.org/wiki/Variational_Bayesian_methods) with closed-form updates. For non-Gaussian likelihoods, this relies on augmented version of the likelihoods. For using Stochastic Variational Inference, one can use [`AnalyticSVI`](@ref) with the size of the mini-batch as an argument
 - [`GibbsSampling`](@ref) : Gibbs Sampling of the true posterior, this also rely on an augmented version of the likelihoods, this is only valid for the `VGP` model at the moment.
+
+The two next methods rely on numerical approximation of an integral and I therefore recommend using the `VanillaGradDescent` as it will use anyway the natural gradient updates. `Adam` seem to give random results.
 - [`QuadratureVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via quadrature.
 - [`MCIntegrationVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via Monte Carlo Integration
 
@@ -63,15 +75,16 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 | Likelihood/Inference | AnalyticVI | GibbsSampling | QuadratureVI | MCIntegrationVI |
 | --- | :-: | :-: | :-: | :-: |
 | GaussianLikelihood   | ✔  | ✖  | ✖ | ✖  |
-| StudentTLikelihood   | ✔  | ✔ | (dev) | ✖  |
-| LaplaceLikelihood   | ✔ | (dev) | (dev) | ✖ |
+| StudentTLikelihood   | ✔  | ✔ | ✔ | ✖  |
+| LaplaceLikelihood   | ✔ | ✔ | ✔ | ✖ |
 | HeteroscedasticLikelihood   | ✔ | (dev)  | (dev)  | ✖ |
-| LogisticLikelihood   | ✔  | ✔  | (dev) | ✖  |
+| LogisticLikelihood   | ✔  | ✔  | ✔ | ✖  |
 | BayesianSVM   | ✔  | (dev) | ✖ | ✖  |
 | LogisticSoftMaxLikelihood   | ✔  | ✔  | ✖ | (dev)  |
 | SoftMaxLikelihood   | ✖  |  ✖  | ✖  | (dev)  |
 | Poisson   | ✔ | (dev) | ✖  |  ✖ |
-
+| NegBinomialLikelihood   | ✔ | (dev) | ✖  |  ✖ |
+|   |   |   |   |   |
 (dev) means that the feature is possible and may be developped and tested but is not available yet. All contributions or requests are very welcome!
 
 ### Additional Parameters
@@ -116,7 +129,7 @@ Once the model has been trained it is finally possible to compute predictions. T
 
 ## Miscellaneous
 
-**In construction -- Should be developed in the near future**
+🚧 **In construction -- Should be developed in the near future** 🚧
 
 Saving/Loading models
 
@@ -124,8 +137,8 @@ Once a model has been trained it is possible to save its state in a file by usin
 
 It is then possible to reload this file by using `load_trained_model(filename)`. **!!!However note that it will not be possible to train the model further!!!** This function is only meant to do further predictions.
 
-Pre-made callback functions
+🚧 Pre-made callback functions 🚧
 
 There is one (for now) premade function to return a a MVHistory object and callback function for the training of binary classification problems.
 The callback will store the ELBO and the variational parameters at every iterations included in iter_points
-If X_test and y_test are provided it will also store the test accuracy and the mean and median test loglikelihood
+If `X_test` and `y_test` are provided it will also store the test accuracy and the mean and median test loglikelihood

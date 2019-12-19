@@ -1,5 +1,5 @@
 mutable struct ConstantMean{T<:Real} <: PriorMean{T}
-    C::T
+    C::Ref{T}
     opt::Optimizer
 end
 
@@ -16,20 +16,9 @@ function ConstantMean(c::T=1.0;opt::Optimizer=Adam(α=0.01)) where {T<:Real}
     ConstantMean{T}(c,opt)
 end
 
-function update!(μ::ConstantMean{T},grad::AbstractVector{T}) where {T<:Real}
-    μ.C += update(μ.opt,sum(grad))
+function update!(opt,μ::ConstantMean{T},grad::AbstractVector{T},X) where {T<:Real}
+    μ.C[] += Flux.Optimise.apply!(opt,μ.C,sum(grad))
 end
 
-Base.:+(x::Real,y::ConstantMean{<:Real}) = x+y.C
-Base.:+(x::AbstractVector{<:Real},y::ConstantMean{<:Real}) = x.+y.C
-Base.:+(x::ConstantMean{<:Real},y::Real) = y+x.C
-Base.:+(x::ConstantMean{<:Real},y::AbstractVector{<:Real}) = y.+x.C
-Base.:+(x::ConstantMean{<:Real},y::ConstantMean{<:Real}) = ConstantMean(x.C+y.C)
-Base.:-(x::Real,y::ConstantMean) = x - y.C
-Base.:-(x::AbstractVector{<:Real},y::ConstantMean) = x .- y.C
-Base.:-(x::ConstantMean{<:Real},y::Real) = x.C - y
-Base.:-(x::ConstantMean{<:Real},y::AbstractVector{<:Real}) = x.C .- y
-Base.:-(x::ConstantMean{<:Real},y::ConstantMean{<:Real}) = ConstantMean(x.C-y.C)
-Base.:*(A::AbstractMatrix{<:Real},y::ConstantMean{T}) where {T<:Real} = y.C*A*ones(T,size(A,2))
-Base.:*(y::ConstantMean{T},A::AbstractMatrix{<:Real}) where {T<:Real} = y.C*ones(T,1,size(A,1))*A
-Base.:convert(::T1,x::ConstantMean{T2}) where {T1<:Real,T2<:Real} = T1(x.C)
+(μ::ConstantMean{T})(x::Real) where {T<:Real} = μ.C[]
+(μ::ConstantMean{T})(x::AbstractMatrix) where {T<:Real} = fill(T(μ.C[]),size(X,1))

@@ -1,10 +1,20 @@
-"""Poisson Likelihood"""
-struct PoissonLikelihood{T<:Real} <: EventLikelihood{T}
-    λ::LatentArray{T}
-    c::LatentArray{Vector{T}}
-    γ::LatentArray{Vector{T}}
-    θ::LatentArray{Vector{T}}
-    function PoissonLikelihood{T}(λ::AbstractVector{T}) where {T<:Real}
+"""
+```julia
+    Poisson Likelihood(λ::T=1.0)
+```
+[Poisson Likelihood](https://en.wikipedia.org/wiki/Poisson_distribution) where a Poisson distribution is defined at every point in space (careful, it's different from continous Poisson processes)
+```math
+    p(y|f) = Poisson(y|λσ(f))
+```
+Where `σ` is the logistic function
+Augmentation details will be released at some point (open an issue if you want to see them)
+"""
+mutable struct PoissonLikelihood{T<:Real} <: EventLikelihood{T}
+    λ::T
+    c::Vector{T}
+    γ::Vector{T}
+    θ::Vector{T}
+    function PoissonLikelihood{T}(λ::T) where {T<:Real}
         new{T}(λ)
     end
     function PoissonLikelihood{T}(λ,c,γ,θ) where {T<:Real}
@@ -13,19 +23,27 @@ struct PoissonLikelihood{T<:Real} <: EventLikelihood{T}
 end
 
 function PoissonLikelihood(λ::T=1.0) where {T<:Real}
-    PoissonLikelihood{T}([λ])
+    PoissonLikelihood{T}(λ)
 end
 
 function init_likelihood(likelihood::PoissonLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Int,nFeatures::Int) where T
     PoissonLikelihood{T}(
-    [likelihood.λ[1] for _ in 1:nLatent],
-    [zeros(T,nSamplesUsed) for _ in 1:nLatent],
-    [zeros(T,nSamplesUsed) for _ in 1:nLatent],
-    [zeros(T,nSamplesUsed) for _ in 1:nLatent])
+    likelihood.λ,
+    zeros(T,nSamplesUsed),
+    zeros(T,nSamplesUsed),
+    zeros(T,nSamplesUsed))
 end
 
 function pdf(l::PoissonLikelihood,y::Real,f::Real)
-    pdf(Poisson(l.λ[1]*logistic(f)),y) #WARNING not valid for multioutput
+    pdf(Poisson(get_p(l,l.λ,f)),y)
+end
+
+function expec_count(l::PoissonLikelihood,f)
+    get_p(l,l.λ,f)
+end
+
+function get_p(::PoissonLikelihood,λ::Real,f)
+    λ*logistic.(f)
 end
 
 function Base.show(io::IO,model::PoissonLikelihood{T}) where T
@@ -36,83 +54,35 @@ function compute_proba(l::PoissonLikelihood{T},μ::Vector{T},σ²::Vector{T}) wh
     N = length(μ)
     pred = zeros(T,N)
     for i in 1:N
-        if σ²[i] <= 0.0
-            pred[i] = l.λ[1]*logistic(μ[i]) #WARNING Not valid for multioutput
-        else
-            pred[i] =  expectation(x->l.λ[1]*logistic(x),Normal(μ[i],sqrt(σ²[i]))) #WARNING not valid for multioutput
-        end
+        x = pred_nodes.*sqrt.(max(σ²[i],zero(T))).+μ[i]
+        pred[i] =  dot(pred_weights,get_p(l,l.λ,x))
     end
     return pred
 end
 
 ## Local Updates ##
 
-function local_updates!(model::VGP{PoissonLikelihood{T},<:AnalyticVI}) where {T<:Real}
-    model.likelihood.c .= broadcast((μ,Σ)->sqrt.(abs2.(μ) + Σ) ,model.μ,diag.(model.Σ))
-    model.likelihood.γ .= broadcast((c,μ,λ)->0.5*λ*exp.(-0.5*μ)./cosh.(0.5*c),model.likelihood.c,model.μ,model.likelihood.λ)
-    model.likelihood.θ .= broadcast((y,γ,c)->(y+γ)./c.*tanh.(0.5*c),model.y,model.likelihood.γ,model.likelihood.c)
-    model.likelihood.λ .= broadcast((y,μ)->sum(y)./sum(logistic.(μ)),model.y,model.μ)
-end
-
-function local_updates!(model::SVGP{PoissonLikelihood{T},<:AnalyticVI}) where {T<:Real}
-    model.likelihood.c .= broadcast((κ,μ,Σ,K̃)->sqrt.(abs2.(κ*μ) + opt_diag(κ*Σ,κ) + K̃),model.κ,model.μ,model.Σ,model.K̃)
-    model.likelihood.γ .= broadcast((c,κμ,λ)->0.5*λ*exp.(-0.5*κμ)./cosh.(0.5*c),model.likelihood.c,model.κ.*model.μ,model.likelihood.λ)
-    model.likelihood.θ .= broadcast((y,γ,c)->(y[model.inference.MBIndices]+γ)./c.*tanh.(0.5*c),model.y,model.likelihood.γ,model.likelihood.c)
-    model.likelihood.λ .= broadcast((y,κμ)->sum(y[model.inference.MBIndices])./sum(logistic.(κμ)),model.y,model.κ.*model.μ)
+function local_updates!(l::PoissonLikelihood{T},y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+    l.c .= sqrt.(abs2.(μ) + diag_cov)
+    l.γ .= 0.5*l.λ*safe_expcosh.(-0.5*μ,0.5*l.c)
+    l.θ .= (y+l.γ)./l.c.*tanh.(0.5*l.c)
+    l.λ = sum(y)./sum(expectation.(logistic,μ,diag_cov))
 end
 
 ## Global Updates ##
 
-function cond_mean(model::VGP{PoissonLikelihood{T}},index::Integer) where {T<:Real}
-    return 0.5*(model.y[index]-model.likelihood.γ[index])
-end
-
-function ∇μ(model::VGP{PoissonLikelihood{T}}) where {T<:Real}
-    return 0.5*(model.y.-model.likelihood.γ)
-end
-
-function cond_mean(model::SVGP{PoissonLikelihood{T}},index::Integer) where {T<:Real}
-    return 0.5*(model.y[index][model.inference.MBIndices]-model.likelihood.γ[index])
-end
-
-function ∇μ(model::SVGP{PoissonLikelihood{T}}) where {T<:Real}
-    return broadcast((y,γ)->0.5*(y[model.inference.MBIndices]-γ),model.y,model.likelihood.γ)
-end
-
-function ∇Σ(model::AbstractGP{PoissonLikelihood{T}}) where {T<:Real}
-    return model.likelihood.θ
-end
+@inline ∇E_μ(l::PoissonLikelihood,::AOptimizer,y::AbstractVector) = (0.5*(y-l.γ),)
+@inline ∇E_Σ(l::PoissonLikelihood,::AOptimizer,y::AbstractVector) = (0.5*l.θ,)
 
 ## ELBO Section ##
-
-function ELBO(model::AbstractGP{<:PoissonLikelihood})
-    return expecLogLikelihood(model) - GaussianKL(model) - PoissonKL(model) - PolyaGammaKL(model)
-end
-
-function expecLogLikelihood(model::VGP{PoissonLikelihood{T},AnalyticVI{T}}) where {T<:Real}
-    model.likelihood.c .= broadcast((μ,Σ)->sqrt.(abs2.(μ) + Σ) ,model.μ,diag.(model.Σ))
-    tot = sum(broadcast((y,λ,γ)->sum(y*log(λ))-sum(lfactorial.(y))-log(2.0)*sum((y+γ)),model.y,model.likelihood.λ,model.likelihood.γ))
-    tot += sum(broadcast((μ,y,γ,c,θ)->0.5*dot(μ,(y-γ))-0.5*dot(c.^2,θ),model.μ,model.y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
+function expec_log_likelihood(l::PoissonLikelihood{T},i::AnalyticVI,y,μ::AbstractVector,Σ::AbstractVector) where {T}
+    tot = sum(y*log(l.λ))-sum(lfactorial,y)-logtwo*sum((y+l.γ))
+    tot += 0.5*(dot(μ,(y-l.γ))-dot(l.θ,abs2.(μ))-dot(l.θ,Σ))
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{PoissonLikelihood{T},AnalyticVI{T}}) where {T<:Real}
-    model.likelihood.c .= broadcast((κ,μ,Σ,K̃)->sqrt.(abs2.(κ*μ) + opt_diag(κ*Σ,κ) + K̃),model.κ,model.μ,model.Σ,model.K̃)
-    tot = sum(broadcast((y,λ,γ)->sum(y[model.inference.MBIndices]*log(λ))-sum(lfactorial.(y[model.inference.MBIndices]))-log(2.0)*sum(y[model.inference.MBIndices]+γ),model.y,model.likelihood.λ,model.likelihood.γ))
-    tot += sum(broadcast((κμ,y,γ,c,θ)->0.5*dot(κμ,(y[model.inference.MBIndices]-γ))-0.5*dot(c.^2,θ),model.κ.*model.μ,model.y,model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
-    return model.inference.ρ*tot
-end
+AugmentedKL(l::PoissonLikelihood,y::AbstractVector) = PoissonKL(l)+PolyaGammaKL(l,y)
 
-function PoissonKL(model::AbstractGP{<:PoissonLikelihood})
-    return NaN
-    #TODO replace with correct expectations
-    model.inference.ρ*sum(broadcast(PoissonKL,model.likelihood.γ,model.likelihood.λ))
-end
+PoissonKL(l::PoissonLikelihood) = PoissonKL(l.γ,l.λ)
 
-function PolyaGammaKL(model::VGP{<:PoissonLikelihood})
-    sum(broadcast(PolyaGammaKL,model.y.+model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
-end
-
-function PolyaGammaKL(model::SVGP{<:PoissonLikelihood})
-    model.inference.ρ*sum(broadcast(PolyaGammaKL,getindex.(model.y,[model.inference.MBIndices]).+model.likelihood.γ,model.likelihood.c,model.likelihood.θ))
-end
+PolyaGammaKL(l::PoissonLikelihood,y::AbstractVector) = PolyaGammaKL(y+l.γ,l.c,l.θ)

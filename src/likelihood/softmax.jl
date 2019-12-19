@@ -1,7 +1,12 @@
 """
-**SoftMax Likelihood**
+```julia
+    SoftMaxLikelihood()
+```
+Multiclass likelihood with [Softmax transformation](https://en.wikipedia.org/wiki/Softmax_function):
 
-Multiclass likelihood with Softmax transformation: ``p(y=i|{f_k}) = \\exp(f_i)/ \\sum_{j=1}\\exp(f_j) ``
+```math
+p(y=i|{fₖ}) = exp(fᵢ)/ ∑ₖexp(fₖ)
+```
 
 There is no possible augmentation for this likelihood
 """
@@ -46,13 +51,13 @@ function init_likelihood(likelihood::SoftMaxLikelihood{T},nLatent::Integer,nSamp
     end
 end
 
-function sample_local!(model::VGP{<:SoftMaxLikelihood,<:GibbsSampling})
+function sample_local!(model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling}) where {T}
     pg = PolyaGammaDist()
     model.likelihood.θ .= broadcast((y::BitVector,γ::AbstractVector{<:Real},μ::AbstractVector{<:Real},i::Int64)->draw.([pg],1.0,μ-logsumexp()),model.likelihood.Y,model.likelihood.γ,model.μ,1:model.nLatent)
-    return nothing
+    return nothing #TODO FINISH AT SOME POINT
 end
 
-function grad_samples(model::AbstractGP{<:SoftMaxLikelihood},samples::AbstractMatrix{T},index::Integer) where {T<:Real}
+function grad_samples(model::AbstractGP{T,<:SoftMaxLikelihood},samples::AbstractMatrix{T},index::Integer) where {T}
     class = model.likelihood.y_class[index]
     grad_μ = zeros(T,model.nLatent)
     grad_Σ = zeros(T,model.nLatent)
@@ -72,7 +77,7 @@ function grad_samples(model::AbstractGP{<:SoftMaxLikelihood},samples::AbstractMa
     end
 end
 
-function log_like_samples(model::AbstractGP{<:SoftMaxLikelihood},samples::AbstractMatrix,index::Integer)
+function log_like_samples(model::AbstractGP{T,<:SoftMaxLikelihood},samples::AbstractMatrix,index::Integer) where {T}
     class = model.likelihood.y_class[index]
     nSamples = size(samples,1)
     loglike = mapslices(logsumexp,samples,dims=2)/nSamples

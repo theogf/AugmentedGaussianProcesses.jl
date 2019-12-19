@@ -5,9 +5,7 @@
 
 using Distributions, StatsBase
 using LinearAlgebra, Clustering, Distances, DataStructures
-using AugmentedGaussianProcesses.KernelModule
-using GradDescent
-
+using KernelFunctions
 export KMeansInducingPoints
 export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, DPPAlg, MEC, Greedy
 export total_cost
