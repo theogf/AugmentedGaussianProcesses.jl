@@ -111,3 +111,5 @@ end
 
 get_y(model::SVGP) = model.inference.yview
 get_Z(model::SVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
+
+@traitimpl IsSparse{SVGP}

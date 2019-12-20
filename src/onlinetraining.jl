@@ -84,22 +84,6 @@ function update_parameters!(model::OnlineVGP)
 end
 
 
-"""Compute kernel matrices for online variational GPs"""
-function computeMatrices!(model::OnlineVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
-    model.invKmm .= inv.(model.Kmm)
-    model.Kab .= broadcast((Z,Zₐ,kernel)->kernelmatrix(Zₐ,Z,kernel),model.Z,model.Zₐ,model.kernel)
-    model.κₐ .= model.Kab.*model.invKmm
-    Kₐ = Symmetric.(kernelmatrix.(model.Zₐ,model.kernel)+convert(T,Jittering())*getvariance.(model.kernel).*[I])
-    model.K̃ₐ .= Kₐ .+ model.κₐ.*transpose.(model.Kab)
-    model.Knm .= kernelmatrix.([model.X],model.Z,model.kernel)
-    model.κ .= model.Knm.*model.invKmm
-    model.K̃ .= kerneldiagmatrix.([model.X],model.kernel) .+ [convert(T,Jittering())*ones(T,size(model.X,1))] - opt_diag.(model.κ,model.Knm)
-    @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
-    model.inference.HyperParametersUpdated=false
-end
-
-
 function updateZ!(model::OnlineVGP)
     if !isnothing(model.Zoptimizer)
         add_point!(model.Zalg,model.X,model.y[1],model.kernel[1],optimizer=model.Zoptimizer[1]) #TEMP FOR 1 latent

@@ -1,3 +1,5 @@
+## Gaussian Process
+
 mutable struct _GP{T} <: Abstract_GP{T}
     dim::Int
     μ::Vector{T}
@@ -21,6 +23,8 @@ function _GP{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real,opt) where {T
 end
 
 @traitimpl IsFull{_GP}
+
+## Variational Gaussian Process
 
 mutable struct _VGP{T} <: Abstract_GP{T}
     dim::Int
@@ -49,6 +53,8 @@ function _VGP{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real,opt) where {
 end
 
 @traitimpl IsFull{_VGP}
+
+## Sparse Variational Gaussian Process
 
 mutable struct _SVGP{T} <: Abstract_GP{T}
     dim::Int
@@ -88,6 +94,10 @@ function _SVGP{T}(  dim::Int,nSamplesUsed::Int,
             deepcopy(opt))
 end
 
+@traitimpl IsSparse{_SVGP}
+
+## Monte-Carlo Gaussian Process
+
 mutable struct _MCGP{T} <: Abstract_GP{T}
     dim::Int
     f::Vector{T}
@@ -107,6 +117,59 @@ function _MCGP{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real) where {T<:
 end
 
 @traitimpl IsFull{_MCGP}
+
+## Online Sparse Variational Process
+
+mutable struct _OSVGP{T} <: Abstract_GP{T}
+    dim::Int
+    μ::Vector{T}
+    Σ::Matrix{T}
+    η₁::Vector{T}
+    η₂::Symmetric{T,Matrix{T}}
+    kernel::Kernel
+    σ_k::Vector{T}
+    μ₀::PriorMean{T}
+    Z::InducingPoints
+    K::PDMat{T,Matrix{T}}
+    Knm::Matrix{T}
+    κ::Matrix{T}
+    K̃::Vector{T}
+    Zupdated::Bool
+    opt
+    Zₐ::Matrix{T}
+    Kab::Matrix{T}
+    κₐ::Matrix{T}
+    K̃ₐ::Matrix{T}
+    invDₐ::Symmetric{T,Matrix{T}}
+    prevη₁::Vector{T}
+    prev𝓛ₐ::T
+end
+
+function _OSVGP{T}(  dim::Int,nSamplesUsed::Int,
+                    Z::InducingPoints,
+                    kernel::Kernel,mean::PriorMean,σ_k::Real,
+                    opt
+                 ) where {T<:Real}
+    _OSVGP{T}(dim,
+            zeros(T,dim),
+            Matrix{T}(I,dim,dim),
+            zeros(T,dim),
+            Symmetric(Matrix{T}(-0.5*I,dim,dim)),
+            kernel,
+            [σ_k],
+            deepcopy(mean),
+            deepcopy(Z),
+            PDMat(Matrix{T}(I,dim,dim)),
+            Matrix{T}(undef,nSamplesUsed,dim),
+            Matrix{T}(undef,nSamplesUsed,dim),
+            Vector{T}(undef,nSamplesUsed),
+            false,
+            deepcopy(opt))
+end
+
+@traitimpl IsSparse{_OSVGP}
+
+## Variational Student-T Process
 
 mutable struct _VStP{T} <: Abstract_GP{T}
     dim::Int
@@ -151,7 +214,7 @@ end
 mean_f(model::AbstractGP) = mean_f.(model.f)
 
 @traitfn mean_f(gp::T) where {T<:Abstract_GP;IsFull{T}} = gp.μ
-mean_f(gp::_SVGP) = gp.κ*gp.μ
+@traitfn mean_f(gp::T) where {T<:Abstract_GP;IsSparse{T}} = gp.κ*gp.μ
 
 diag_cov_f(model::AbstractGP) = diag_cov_f.(model.f)
 
@@ -160,9 +223,23 @@ diag_cov_f(gp::_VGP) = diag(gp.Σ)
 diag_cov_f(gp::_SVGP) = opt_diag(gp.κ*gp.Σ,gp.κ) + gp.K̃
 
 @traitfn compute_K!(gp::T,X::AbstractMatrix,jitter::Real) where {T<:Abstract_GP;IsFull{T}} = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,X,obsdim=1)+jitter*I))
-compute_K!(gp::_SVGP,jitter::Real) = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitter*I))
+@traitfn compute_K!(gp::T,X::AbstractMatrix,jitter::Real) where {T<:Abstract_GP;IsSparse{T}} = gp.K = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitter*I))
 
 function compute_κ!(gp::_SVGP,X::AbstractMatrix,jitter::Real)
+    gp.Knm .= first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z, obsdim=1)
+    gp.κ .= gp.Knm / gp.K.mat
+    gp.K̃ .= first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitter) - opt_diag(gp.κ,gp.Knm)
+    @assert all(gp.K̃ .> 0) "K̃ has negative values"
+end
+
+function compute_κ!(gp::_OSVGP, X::AbstractMatrix, jitter::Real)
+    # Covariance with the model at t-1
+    gp.Kab .= kernelmatrix(gp.kernel, gp.Zₐ, gp.Z, obdsim=1)
+    gp.κₐ .= gp.Kab / gp.K.mat
+    Kₐ = Symmetric(kernelmatrix(gp.kernel, gp.Zₐ, obsdim=1)+first(gp.σ_k)*jitter*I)
+    gp.K̃ₐ .= Kₐ .+ gp.κₐ.*transpose.(gp.Kab)
+
+    # Covariance with a new batch
     gp.Knm .= first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z, obsdim=1)
     gp.κ .= gp.Knm / gp.K.mat
     gp.K̃ .= first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitter) - opt_diag(gp.κ,gp.Knm)

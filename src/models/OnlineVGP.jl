@@ -1,39 +1,15 @@
 """ Class for sparse variational Gaussian Processes """
-mutable struct OnlineVGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractVector{T}} <: SparseGP{L,I,T,V}
+mutable struct OnlineSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},N} <: AbstractGP{T,TLikelihood,TInference,N}
     X::Matrix{T} #Feature vectors
-    y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
+    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nDim::Int64 # Number of covariates per data point
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number of latent GPs
-    IndependentPriors::Bool # Use of separate priors for each latent GP
-    nPrior::Int64 # Equal to 1 or nLatent given IndependentPriors
-    kernel::LatentArray{Kernel{T}}
-    likelihood::Likelihood{T}
-    inference::Inference{T}
-    Zalg::ZAlg
-    Zupdated::Bool
-    μ::LatentArray{V}
-    Σ::LatentArray{Symmetric{T,Matrix{T}}}
-    η₁::LatentArray{V}
-    η₂::LatentArray{Symmetric{T,Matrix{T}}}
-    μ₀::LatentArray{PriorMean{T}}
-    Z::LatentArray{Matrix{T}}
-    Kmm::LatentArray{Symmetric{T,Matrix{T}}}
-    invKmm::LatentArray{Symmetric{T,Matrix{T}}}
-    Knm::LatentArray{Matrix{T}}
-    κ::LatentArray{Matrix{T}}
-    K̃::LatentArray{V}
-    Zₐ::LatentArray{Matrix{T}}
-    Kab::LatentArray{Matrix{T}}
-    κₐ::LatentArray{Matrix{T}}
-    K̃ₐ::LatentArray{Matrix{T}}
-    invDₐ::LatentArray{Symmetric{T,Matrix{T}}}
-    prevη₁::LatentArray{V}
-    prev𝓛ₐ::LatentArray{T}
+    f::NTuple{N,_OSVGP}
+    likelihood::TLikelihood
+    inference::TInference
     verbose::Int64
-    optimizer::Union{Optimizer,Nothing}
     atfrequency::Int64
-    Zoptimizer::Union{LatentArray{Optimizer},Nothing}
     Trained::Bool
 end
 
@@ -127,3 +103,5 @@ end
 function Base.show(io::IO,model::OnlineVGP{<:Likelihood,<:Inference,T}) where T
     print(io,"Online Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
+
+@traitimpl IsSparse{OnlineSVGP}
