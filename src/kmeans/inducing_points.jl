@@ -1,7 +1,7 @@
-abstract type InducingPoints{T,M<:AbstractMatrix{T}} <: AbstractMatrix{T} end
+abstract type InducingPoints{T,M<:AbstractMatrix{T},O} <: AbstractMatrix{T} end
 
 
-struct FixedInducingPoints{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M<:AbstractMatrix{T}}
+struct FixedInducingPoints{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M<:AbstractMatrix{T},O}
     Z::M
     opt::O
 end

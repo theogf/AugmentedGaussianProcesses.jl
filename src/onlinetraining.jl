@@ -10,7 +10,7 @@ there are options to change the number of max iterations,
 - `callback::Function` : Callback function called at every iteration. Should be of type `function(model,iter) ...  end`
 - `conv_function::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
-function train!(model::OnlineVGP,X::AbstractArray,y::AbstractArray;iterations::Integer=2,callback::Union{Nothing,Function}=nothing,Convergence=0)
+function train!(model::OnlineSVGP,X::AbstractArray,y::AbstractArray;iterations::Integer=2,callback::Union{Nothing,Function}=nothing,Convergence=0)
     model.X,model.y,nLatent,model.likelihood = check_data!(X,y,model.likelihood)
 
     @assert nLatent == model.nLatent "Data should always contains the same number of outputs"
@@ -78,68 +78,65 @@ end
 
 
 """Update all variational parameters of the online sparse variational GP Model"""
-function update_parameters!(model::OnlineVGP)
+function update_parameters!(model::OnlineSVGP)
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model);
 end
 
 
-function updateZ!(model::OnlineVGP)
-    if !isnothing(model.Zoptimizer)
-        add_point!(model.Zalg,model.X,model.y[1],model.kernel[1],optimizer=model.Zoptimizer[1]) #TEMP FOR 1 latent
-    else
-        add_point!(model.Zalg,model.X,model.y[1],model.kernel[1]) #TEMP FOR 1 latent
+function updateZ!(model::OnlineSVGP)
+    for gp in model.f
+        add_point!(gp.Z,model.X,model.y,gp.kernel)
     end
 end
 
-function compute_local_from_prev!(model::OnlineVGP{<:Likelihood,<:Inference,T}) where {T<:Real}
-    setZ!(model)
+function compute_local_from_prev!(model::OnlineSVGP{T}) where {T<:Real}
     model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
     model.Knm .= kernelmatrix.([model.X],model.Z,model.kernel)
     model.κ .= model.Knm.*inv.(model.Kmm)
     # local_updates!(model)
 end
 
-function setZ!(model::OnlineVGP)
-    model.nFeatures = model.Zalg.k
-    model.Zupdated = true
-    model.Z = fill(model.Zalg.centers,model.nPrior) #TEMP for 1 latent
-end
-
-function save_old_parameters!(model::OnlineVGP)
-    remove_point!(model.Zalg,kernelmatrix(model.Zalg.centers,model.kernel[1]),model.kernel[1])
-    model.Zₐ .= copy.(model.Z)
-    model.invDₐ .= Symmetric.(-2.0.*model.η₂.-model.invKmm)
-    model.prevη₁ = deepcopy(model.η₁)
-    model.prev𝓛ₐ .= -logdet.(model.Σ) + logdet.(model.Kmm) - dot.(model.μ,model.η₁)
-end
-
-function init_onlinemodel(model::OnlineVGP{<:Likelihood,<:Inference,T},X,y) where {T<:Real}
-    if !isnothing(model.Zoptimizer)
-        init!(model.Zalg,X,y[1],model.kernel[1],optimizer=model.Zoptimizer[1])
-    else
-        init!(model.Zalg,X,y[1],model.kernel[1])
+function save_old_parameters!(model::OnlineSVGP)
+    for gp in model.f
+        save_old_gp!(gp)
     end
-    nSamples = size(X,1)
-    model.nDim = size(X,2)
-    model.nFeatures = model.Zalg.k
-    model.Z = [copy(model.Zalg.centers) for _ in 1:model.nPrior]
-    model.Zₐ = copy.(model.Z)
-    model.μ = LatentArray([zeros(T,model.nFeatures) for _ in 1:model.nLatent]); model.η₁ = deepcopy(model.μ);
-    model.Σ = LatentArray([Symmetric(Matrix(Diagonal(one(T)*I,model.nFeatures))) for _ in 1:model.nLatent]);
-    model.η₂ = -0.5*inv.(model.Σ);
-    model.μ₀ = [deepcopy(model.μ₀[1]) for _ in 1:model.nPrior]
-    model.Kmm = broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
-    model.invKmm = inv.(model.Kmm)
-    model.Kab = deepcopy.(model.Kmm)
-    model.κₐ = [Diagonal{T}(I,model.nFeatures) for _ in 1:model.nPrior]
-    model.K̃ₐ = 2.0.*model.Kab
-    model.Knm = kernelmatrix.([model.X],model.Z,model.kernel)
-    model.κ = model.Knm.*model.invKmm
-    model.K̃ = kerneldiagmatrix.([model.X],model.kernel) .+ [convert(T,Jittering())*ones(T,size(model.X,1))] - opt_diag.(model.κ,model.Knm)
-    @assert sum(count.(broadcast(x->x.<0,model.K̃)))==0 "K̃ has negative values"
+end
+
+function save_old_gp!(gp::_OSVGP{T}) where {T}
+    remove_point!(gp.Z,kernelmatrix(gp.kernel, gp.Z),gp.kernel)
+    gp.Zₐ = copy(gp.Z.Z)
+    gp.invDₐ = Symmetric(-2.0*gp.η₂-inv(gp.K))
+    gp.prevη₁ = copy(gp.η₁)
+    gp.prev𝓛ₐ = -logdet(gp.Σ) + logdet(gp.K) - dot(gp.μ,gp.η₁)
+end
+
+function init_onlinemodel(model::OnlineSVGP{T},X,y) where {T<:Real}
+    for gp in model.f
+        init_onlinegp!(gp,X,y)
+    end
     model.inference.HyperParametersUpdated=false
-    model.invDₐ = LatentArray([Symmetric(zeros(T, model.nFeatures, model.nFeatures)) for _ in 1:model.nPrior])
-    model.prev𝓛ₐ  = LatentArray(zeros(model.nLatent))
-    model.prevη₁  = zero.(model.η₁)
+
+end
+
+function init_onlinegp!(gp::_OSVGP{T},X,y,jitter::T=T(Jittering())) where {T}
+    init!(gp.Z,X,y,gp.kernel)
+    nSamples = size(X,1)
+    gp.nDim = size(X,2)
+    gp.nFeatures = gp.Z.k
+    gp.Zₐ = copy(gp.Z.Z)
+    gp.μ = zeros(T,gp.nFeatures); gp.η₁ = zero(gp.μ);
+    gp.Σ = Symmetric(Matrix(Diagonal(one(T)*I,gp.Z.k)));
+    gp.η₂ = -0.5*inv(gp.Σ);
+    gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitter*I))
+    gp.Kab = copy(gp.K.mat)
+    gp.κₐ = Diagonal{T}(I,gp.nFeatures)
+    gp.K̃ₐ = 2.0*gp.Kab
+    gp.Knm = kernelmatrix(gp.kernel,X,gp.Z,obsdim=1)
+    gp.κ = gp.Knm/gp.K
+    gp.K̃ = first(gp.σ_k)*(kerneldiagmatrix(gp.kernel,X,obsdim=1) .+ jitter) - opt_diag(gp.κ,gp.Knm)
+    @assert count(broadcast(x->x.<0,gp.K̃))==0 "K̃ has negative values"
+    gp.invDₐ = Symmetric(zeros(T, gp.nFeatures, gp.nFeatures))
+    gp.prev𝓛ₐ = zeros(gp.nLatent)
+    gp.prevη₁  = zero(gp.η₁)
 end

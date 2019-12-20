@@ -1,52 +1,48 @@
-mutable struct CircleKMeans <: ZAlg
+mutable struct CircleKMeans{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     ρ_accept::Float64
     ρ_remove::Float64
+    opt::O
     k::Int64
-    centers::Matrix{Float64}
-    optimizers::Vector{Optimizer}
-    function CircleKMeans(ρ_accept::Real=0.8,ρ_remove::Real=1.0)
+    Z::M
+    function CircleKMeans(ρ_accept::Real=0.8,ρ_remove::Real=1.0,opt=Flux.ADAM(0.001))
         @assert 0.0 <= ρ_accept <= 1.0 "ρ_accept should be between 0 and 1"
         @assert 0.0 <= ρ_remove <= 1.0 "ρ_remove should be between 0 and 1"
-        return new(ρ_accept,ρ_remove)
+        return new(ρ_accept,ρ_remove,opt)
     end
 end
 
 
-function init!(alg::CircleKMeans,X,y,kernel;optimizer=Adam(α=0.005))
+function init!(alg::CircleKMeans,X,y,kernel)
     @assert size(X,1) > 9 "First batch should have at least 10 samples"
     samples = sample(1:size(X,1),10,replace=false)
-    alg.centers = copy(X[samples,:])
-    alg.k = size(alg.centers,1)
-    alg.optimizers = [deepcopy(optimizer) for _ in 1:alg.k]
-    add_point!(alg,X,y,kernel,optimizer=optimizer)
+    alg.Z = copy(X[samples,:])
+    alg.k = size(alg.Z,1)
+    add_point!(alg,X,y,kernel)
 end
 
-function add_point!(alg::CircleKMeans,X,y,kernel;optimizer=Adam(α=0.005))
+function add_point!(alg::CircleKMeans,X,y,kernel)
     b = size(X,1)
-    ρ = alg.ρ_accept*getvariance(kernel)
     for i in 1:b
-        k = kernelmatrix(X[i:i,:],alg.centers,kernel)
+        k = kernelmatrix(kernel,X[i:i,:],alg.Z,obsdim=1)
         # d = find_nearest_center(X[i,:],alg.centers,kernel)[2]
-        if maximum(k) < ρ
-            alg.centers = vcat(alg.centers,X[i,:]')
-            push!(alg.optimizers,deepcopy(optimizer))
+        if maximum(k) < alg.ρ_accept
+            alg.Z = vcat(alg.Z,X[i,:]')
             alg.k += 1
         end
     end
 end
 
-function remove_point!(alg::CircleKMeans,Kmm,kernel)
+function remove_point!(alg::CircleKMeans,K,kernel)
     # overlaps = findall((x->count(x.>alg.lim*getvariance(kernel))).(eachcol(Kmm)).>1)
     # lowerKmm = Kmm - UpperTriangular(Kmm)
     if alg.k > 10
-        ρ = alg.ρ_remove*getvariance(kernel)
-        overlapcount = (x->count(x.>ρ)).(eachrow(Kmm))
+        overlapcount = (x->count(x.>alg.ρ_remove)).(eachrow(K))
         removable = SortedSet(findall(x->x>1,overlapcount))
         toremove = []
         c = 0
         while !isempty(removable)
             i = sample(collect(removable),Weights(overlapcount[collect(removable)]))
-            connected = findall(x->x>ρ,Kmm[i,:])
+            connected = findall(x->x>alg.ρ_remove,K[i,:])
             overlapcount[connected] .-= 1
             outofloop = filter(x->overlapcount[x]<=1,connected)
             for j in outofloop
@@ -59,15 +55,14 @@ function remove_point!(alg::CircleKMeans,Kmm,kernel)
                 delete!(removable,i)
             end
         end
-        alg.centers = alg.centers[setdiff(1:alg.k,toremove),:]
-        alg.optimizers = alg.optimizers[setdiff(1:alg.k,toremove)]
-        alg.k = size(alg.centers,1)
+        alg.Z = alg.Z[setdiff(1:alg.k,toremove),:]
+        alg.k = size(alg.Z,1)
     end
 end
 
 
-function update_centers!(alg,Z_gradients)
+function update_centers!(alg,Zgrad)
     for i in 1:alg.k
-        alg.centers[i,:] .+= GradDescent.update(alg.optimizers[i],Z_gradients[i,:])
+        alg.Z[i,:] .+= apply!.([alg.opt],eachrow(alg.Z),eachrow(Zgrad))
     end
 end

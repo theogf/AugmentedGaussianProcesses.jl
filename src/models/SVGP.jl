@@ -43,12 +43,12 @@ mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N} 
     Trained::Bool
 end
 
-function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
+function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
             likelihood::TLikelihood,inference::TInference, nInducingPoints::Int;
             verbose::Int=0,optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
             Zoptimizer=false,
-            ArrayType::UnionAll=Vector) where {T1<:Real,T2,TLikelihood<:Likelihood,TInference<:Inference}
+            ArrayType::UnionAll=Vector) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
 
 
@@ -88,14 +88,14 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
                 nMinibatch = inference.nMinibatch
             end
 
-            latentf = ntuple( _ -> _SVGP{T1}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimizer),nLatent)
+            latentf = ntuple( _ -> _SVGP{T₁}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimizer),nLatent)
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nMinibatch,nFeatures)
             inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
             inference.xview = view(X,1:nMinibatch,:)
             inference.yview = view_y(likelihood,y,1:nMinibatch)
 
-            model = SVGP{T1,TLikelihood,typeof(inference),nLatent}(X,y,
+            model = SVGP{T₁,TLikelihood,typeof(inference),nLatent}(X,y,
                     nSamples, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
                     verbose,atfrequency,false)
