@@ -33,7 +33,6 @@ function train!(model::OnlineSVGP,X::AbstractArray,y::AbstractArray;iterations::
 
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
-            setZ!(model)
             if local_iter == 1
                 # println("BLAH")
                 computeMatrices!(model)
@@ -72,7 +71,6 @@ function train!(model::OnlineSVGP,X::AbstractArray,y::AbstractArray;iterations::
       # println("Training ended after $local_iter iterations. Total number of iterations $(model.inference.nIter)")
     # end
     computeMatrices!(model) #Compute final version of the matrices for prediction
-    post_process!(model)
     model.Trained = true
 end
 
