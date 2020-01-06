@@ -10,11 +10,13 @@ there are options to change the number of max iterations,
 - `callback::Function` : Callback function called at every iteration. Should be of type `function(model,iter) ...  end`
 - `conv_function::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
-function train!(model::OnlineSVGP,X::AbstractArray,y::AbstractArray;iterations::Integer=2,callback::Union{Nothing,Function}=nothing,Convergence=0)
+function train!(model::OnlineSVGP,X::AbstractArray,y::AbstractArray;iterations::Int=2,callback::Union{Nothing,Function}=nothing,Convergence=0)
     model.X,model.y,nLatent,model.likelihood = check_data!(X,y,model.likelihood)
 
     @assert nLatent == model.nLatent "Data should always contains the same number of outputs"
     @assert iterations > 0  "Number of iterations should be positive"
+    model.inference.nMinibatch = model.inference.nSamples = size(X,1)
+    model.inference.MBIndices = collect(1:size(X,1))
 
     if model.inference.nIter == 1 # The first time data is seen, initialize all parameters
         init_onlinemodel(model,X,y)
@@ -25,8 +27,6 @@ function train!(model::OnlineSVGP,X::AbstractArray,y::AbstractArray;iterations::
         compute_local_from_prev!(model)
         updateZ!(model);
     end
-    model.inference.nSamplesUsed = model.inference.nSamples = size(X,1)
-    model.inference.MBIndices = collect(1:size(X,1))
 
     # model.evol_conv = [] #Array to check on the evolution of convergence
     local_iter::Int64 = 1; conv = Inf;
@@ -36,23 +36,26 @@ function train!(model::OnlineSVGP,X::AbstractArray,y::AbstractArray;iterations::
             if local_iter == 1
                 # println("BLAH")
                 computeMatrices!(model)
-                natural_gradient!(model)
+                natural_gradient!.(
+                    ∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
+                    ∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
+                    model.inference,model.inference.vi_opt,get_Z(model),model.f)
                 global_update!(model)
             else
                 update_parameters!(model) #Update all the variational parameters
             end
             model.Trained = true
             if !isnothing(callback)
-                callback(model,model.inference.nIter) #Use a callback method if put by user
+                callback(model,model.inference.nIter) #Use a callback method if given by user
             end
-            if !isnothing(model.optimizer) && (model.inference.nIter%model.atfrequency == 0)
+            if (model.inference.nIter%model.atfrequency == 0) && model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
             if model.verbose > 2 || (model.verbose > 1  && local_iter%10==0)
                 print("Iteration : $(model.inference.nIter) ")
                 print("ELBO is : $(ELBO(model))")
                 print("\n")
-                println("kernel lengthscale : $(getlengthscales(model.kernel[1]))")
+                println("kernel lengthscale : $(model.f[1].kernel.transform.s[1])")
             end
             ### Print out informations about the convergence
             local_iter += 1; model.inference.nIter += 1
@@ -89,9 +92,12 @@ function updateZ!(model::OnlineSVGP)
 end
 
 function compute_local_from_prev!(model::OnlineSVGP{T}) where {T<:Real}
-    model.Kmm .= broadcast((Z,kernel)->Symmetric(KernelModule.kernelmatrix(Z,kernel)+getvariance(kernel)*convert(T,Jittering())*I),model.Z,model.kernel)
-    model.Knm .= kernelmatrix.([model.X],model.Z,model.kernel)
-    model.κ .= model.Knm.*inv.(model.Kmm)
+    jitter = T(Jittering())
+    for gp in model.f
+        gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitter*I))
+        gp.Knm .= kernelmatrix(gp.kernel,model.inference.xview,gp.Z,obsdim=1)
+        gp.κ .= gp.Knm/gp.K.mat
+    end
     # local_updates!(model)
 end
 
@@ -104,37 +110,38 @@ end
 function save_old_gp!(gp::_OSVGP{T}) where {T}
     remove_point!(gp.Z,kernelmatrix(gp.kernel, gp.Z),gp.kernel)
     gp.Zₐ = copy(gp.Z.Z)
-    gp.invDₐ = Symmetric(-2.0*gp.η₂-inv(gp.K))
+    gp.invDₐ = Symmetric(-2.0*gp.η₂-inv(gp.K).mat)
     gp.prevη₁ = copy(gp.η₁)
     gp.prev𝓛ₐ = -logdet(gp.Σ) + logdet(gp.K) - dot(gp.μ,gp.η₁)
 end
 
 function init_onlinemodel(model::OnlineSVGP{T},X,y) where {T<:Real}
     for gp in model.f
-        init_onlinegp!(gp,X,y)
+        init_online_gp!(gp,X,y)
     end
+    model.inference.xview = view(X,1:model.inference.nMinibatch,:)
+    model.inference.yview = view_y(model.likelihood,y,1:model.inference.nMinibatch)
+    model.inference.ρ = 1.0
     model.inference.HyperParametersUpdated=false
-
 end
 
-function init_onlinegp!(gp::_OSVGP{T},X,y,jitter::T=T(Jittering())) where {T}
+function init_online_gp!(gp::_OSVGP{T},X,y,jitter::T=T(Jittering())) where {T}
     init!(gp.Z,X,y,gp.kernel)
     nSamples = size(X,1)
-    gp.nDim = size(X,2)
-    gp.nFeatures = gp.Z.k
+    gp.dim = gp.Z.k
     gp.Zₐ = copy(gp.Z.Z)
-    gp.μ = zeros(T,gp.nFeatures); gp.η₁ = zero(gp.μ);
+    gp.μ = zeros(T,gp.dim); gp.η₁ = zero(gp.μ);
     gp.Σ = Symmetric(Matrix(Diagonal(one(T)*I,gp.Z.k)));
-    gp.η₂ = -0.5*inv(gp.Σ);
-    gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitter*I))
+    gp.η₂ = -0.5*Symmetric(inv(gp.Σ));
+    gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z.Z,obsdim=1)+jitter*I))
     gp.Kab = copy(gp.K.mat)
-    gp.κₐ = Diagonal{T}(I,gp.nFeatures)
+    gp.κₐ = Diagonal{T}(I,gp.dim)
     gp.K̃ₐ = 2.0*gp.Kab
     gp.Knm = kernelmatrix(gp.kernel,X,gp.Z,obsdim=1)
-    gp.κ = gp.Knm/gp.K
+    gp.κ = gp.Knm/gp.K.mat
     gp.K̃ = first(gp.σ_k)*(kerneldiagmatrix(gp.kernel,X,obsdim=1) .+ jitter) - opt_diag(gp.κ,gp.Knm)
     @assert count(broadcast(x->x.<0,gp.K̃))==0 "K̃ has negative values"
-    gp.invDₐ = Symmetric(zeros(T, gp.nFeatures, gp.nFeatures))
-    gp.prev𝓛ₐ = zeros(gp.nLatent)
+    gp.invDₐ = Symmetric(zeros(T, gp.dim, gp.dim))
+    gp.prev𝓛ₐ = zero(T)
     gp.prevη₁  = zero(gp.η₁)
 end

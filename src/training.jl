@@ -45,7 +45,6 @@ function train!(model::AbstractGP{T,TLike,TInf},iterations::Int=100;callback::Un
             end
             local_iter += 1; model.inference.nIter += 1
             (local_iter <= iterations) || break; #Verify if the number of maximum iterations has been reached
-            isa(model,OnlineVGP) && model.Sequential && model.dataparsed && break
             # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         catch e
             if isa(e,InterruptException)
@@ -110,16 +109,16 @@ function update_parameters!(model::VStP)
     variational_updates!(model);
 end
 
-function computeMatrices!(model::Union{GP{T},VGP{T},MCGP{T}}) where {T}
+@traitfn function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T};!IsSparse{TGP}}
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,[model.inference.xview],T(jitter))
     end
     model.inference.HyperParametersUpdated=false
 end
 
-function computeMatrices!(model::Union{SVGP{T},MOSVGP{T}}) where {T}
+@traitfn function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T};IsSparse{TGP}}
     if model.inference.HyperParametersUpdated
-        compute_K!.(model.f,T(jitter))
+        compute_K!.(model.f,[],T(jitter))
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic

@@ -1,15 +1,16 @@
 ##From paper "An Algorithm for Online K-Means Clustering" ##
 
 
-mutable struct StreamOnline <: ZAlg
+mutable struct StreamOnline{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     k_target::Int64
+    opt::O
     k_efficient::Int64
     k::Int64
     f::Float64
     q::Int64
-    centers::Array{Float64,2}
-    function StreamOnline(k_target::Int64)
-        return new(k_target)
+    Z::M
+    function StreamOnline(k_target::Int64,opt=Flux.ADAM(0.001))
+        return new{Float64,Matrix{Float64},typeof(opt)}(k_target,opt)
     end
 end
 

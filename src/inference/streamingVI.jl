@@ -4,13 +4,13 @@ mutable struct StreamingVI{T<:Real,N} <: VariationalInference{T}
     nMinibatch::Int64 #Size of mini-batches
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
-    vi_opt::Ntuple{N,AVIOptimizer}
+    vi_opt::NTuple{N,AVIOptimizer}
     MBIndices::Vector{Int64} #Indices of the minibatch
     xview::SubArray{T,2,Matrix{T}}
     yview::AbstractVector
 
     function StreamingVI{T}(ϵ::T,nIter::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,flag::Bool) where T
-        return new{T}(ϵ,nIter,nSamplesUsed,MBIndices,flag)
+        return new{T,1}(ϵ,nIter,nSamplesUsed,MBIndices,flag)
     end
     function StreamingVI{T,1}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer) where {T}
         vi_opts = ntuple(_->AVIOptimizer{T}(nFeatures,optimizer),nLatent)
@@ -35,7 +35,7 @@ function tuple_inference(inference::StreamingVI{T},nLatent::Integer,nFeatures::I
 end
 
 """Generic method for variational updates using analytical formulas"""
-function variational_updates!(model::AbstractGP{T,L,StreamingVI}) where {T,L}
+function variational_updates!(model::AbstractGP{T,TL,StreamingVI}) where {T,TL}
     #Set as old values
     println(model.inference.nIter," ",model.nFeatures)
     Kₐ = copy(model.Kmm[1])

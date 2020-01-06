@@ -111,17 +111,19 @@ end
 
 function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},K::PDMat{T,Matrix{T}},η₂::Symmetric{T,Matrix{T}}) where {T<:Real}
     -(ρκdiagθκ(ρ, κ, θ) + 0.5 * inv(K).mat) - η₂
-"""Computation of the natural gradient for the natural parameters"""
-function natural_gradient!(model::OnlineVGP{L,AnalyticVI{T}}) where {T<:Real,L<:Likelihood{T}}
-    model.η₁ .= model.invKmm.*model.μ₀ + transpose.(model.κ).*∇μ(model) .+ transpose.(model.κₐ).*model.prevη₁
-    model.η₂ .= -0.5*Symmetric.(transpose.(model.κ).*Diagonal{T}.(∇Σ(model)).*model.κ.+transpose.(model.κₐ).*model.invDₐ.*model.κₐ.+model.invKmm)
 end
+
+function natural_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,Z::AbstractMatrix,gp::_OSVGP{T}) where {T}
+    gp.η₁ .= gp.K \ gp.μ₀(Z) + transpose(gp.κ)*∇E_μ + transpose(gp.κₐ)*gp.prevη₁
+    gp.η₂ .= -Symmetric(ρκdiagθκ(1.0,gp.κ,∇E_Σ)+0.5*transpose(gp.κₐ)*gp.invDₐ*gp.κₐ+0.5*inv(gp.K))
 end
 
 global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L} = global_update!.(model.f)
 
 global_update!(gp::_VGP,opt::AVIOptimizer,i::AnalyticVI) = global_update!(gp)
 
+global_update!(model::OnlineSVGP) = global_update!.(model.f)
+global_update!(gp::_OSVGP,opt,i) = global_update!(gp)
 
 #Update of the natural parameters and conversion from natural to standard distribution parameters
 function global_update!(model::Union{SVGP{T,L,TInf},MOSVGP{T,L,TInf}}) where {T,L,TInf<:AnalyticVI}

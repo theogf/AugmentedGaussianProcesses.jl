@@ -6,6 +6,7 @@
 using Distributions, StatsBase
 using LinearAlgebra, Clustering, Distances, DataStructures
 using KernelFunctions
+using Flux
 export KMeansInducingPoints
 export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, DPPAlg, MEC, Greedy
 export total_cost
@@ -91,6 +92,7 @@ function update_matrices!(model,new_centers)
     model.DownMatrixForPrediction = 0
 end
 
+include("inducing_points.jl")
 include("DPP.jl")
 include("StreamingKMeans.jl")
 include("Webscale.jl")

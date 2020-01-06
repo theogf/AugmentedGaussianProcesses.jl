@@ -5,8 +5,6 @@ const AbstractGP1 = AbstractGP{<:Real,<:Likelihood,<:Inference,1}
 @traitdef IsFull{X}
 @traitdef IsSparse{X}
 
-abstract type SparseGP{L<:Likelihood,I<:Inference,T<:Real,V<:AbstractArray{T}} <: AbstractGP{L,I,T,V} end
-
 function Random.rand!(model::AbstractGP,A::DenseArray{T},X::AbstractArray{T}) where {T<:Real}
     rand!(MvNormal(predict_f(model,X,covf=true,fullcov=true)...),A)
 end

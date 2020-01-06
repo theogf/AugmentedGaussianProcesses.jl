@@ -7,14 +7,14 @@ mutable struct CircleKMeans{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     function CircleKMeans(ρ_accept::Real=0.8,ρ_remove::Real=1.0,opt=Flux.ADAM(0.001))
         @assert 0.0 <= ρ_accept <= 1.0 "ρ_accept should be between 0 and 1"
         @assert 0.0 <= ρ_remove <= 1.0 "ρ_remove should be between 0 and 1"
-        return new(ρ_accept,ρ_remove,opt)
+        return new{Float64,Matrix{Float64},typeof(opt)}(ρ_accept,ρ_remove,opt)
     end
 end
 
 
 function init!(alg::CircleKMeans,X,y,kernel)
     @assert size(X,1) > 9 "First batch should have at least 10 samples"
-    samples = sample(1:size(X,1),10,replace=false)
+    samples = StatsBase.sample(1:size(X,1),10,replace=false)
     alg.Z = copy(X[samples,:])
     alg.k = size(alg.Z,1)
     add_point!(alg,X,y,kernel)

@@ -1,15 +1,16 @@
-mutable struct OfflineKmeans <: ZAlg
+mutable struct OfflineKmeans{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     k::Int64
+    opt::O
     kernel::Kernel
-    centers::Array{Float64,2}
-    function OfflineKmeans(nInducingPoints::Integer)
-        return new(nInducingPoints)
+    Z::M
+    function OfflineKmeans(nInducingPoints::Integer,opt=Flux.ADAM(0.001))
+        return new{Float64,Matrix{Float64},typeof(opt)}(nInducingPoints,opt)
     end
 end
 
 function init!(alg::OfflineKmeans,X,y,kernel;tol=1e-3,nMarkov=10)
     @assert size(X,1)>=alg.k "Input data not big enough given $k"
-    alg.centers = KMeansInducingPoints(X,alg.k,nMarkov=nMarkov,tol=tol)
+    alg.Z = KMeansInducingPoints(X,alg.k,nMarkov=nMarkov,tol=tol)
 end
 
 function add_point!(alg::OfflineKmeans,X,y,model)

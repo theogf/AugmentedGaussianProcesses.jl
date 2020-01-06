@@ -6,13 +6,13 @@ mutable struct Greedy{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     function Greedy(nInducingPoints::Int,nMinibatch::Int,opt=Flux.ADAM(0.001))
         @assert nInducingPoints > 0
         @assert nMinibatch > 0
-        return new(minibatch,nInducingPoints,opt)
+        return new{T,Matrix{T},typeof(opt)}(minibatch,nInducingPoints,opt)
     end
 end
 
 function init!(alg::Greedy,X,y,kernel)
     @assert size(X,1)>=alg.k "Input data not big enough given $k"
-    alg.centers = greedy_iterations(X,y,kernel,alg.k,alg.minibatch)
+    alg.Z = greedy_iterations(X,y,kernel,alg.k,alg.minibatch)
 end
 
 function greedy_iterations(X,y,kernel,k,minibatch)
@@ -34,9 +34,9 @@ function greedy_iterations(X,y,kernel,k,minibatch)
             end
         end
         @info "Found best L :$best_L $v/$k"
-        Z = vcat(centers,X[i:i,:]); push!(set_point,i)
+        Z = vcat(Z,X[i:i,:]); push!(set_point,i)
     end
-    return centers
+    return Z
 end
 
 function ELBO_reg(Z,X,y,kernel)

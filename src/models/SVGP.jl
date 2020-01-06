@@ -73,7 +73,7 @@ function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
             if isa(Zoptimizer,Bool)
                 Zoptimizer = Zoptimizer ? ADAM(α=0.001) : nothing
             end
-            Z = InducingPoints(Z,Zoptimizer)
+            Z = FixedInducingPoints(Z,Zoptimizer)
             nFeatures = nInducingPoints
 
             if typeof(mean) <: Real

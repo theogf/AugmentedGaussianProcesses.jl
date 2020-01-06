@@ -33,11 +33,11 @@ Argument list :
 """
 function OnlineSVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
             kernel::Kernel,
-            likelihood::Likelihood{T1},inference::Inference,
+            likelihood::TLikelihood,inference::Inference,nLatent::Int,
             Z::InducingPoints=CircleKMeans(0.9,0.8),#,Sequential::Bool=false
-            nLatent::Int;verbose::Integer=0,optimizer=Flux.ADAM(0.01),atfrequency::Integer=1,
-            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-            IndependentPriors::Bool=true,ArrayType::UnionAll=Vector) where {T1<:Real,T2}
+            ;verbose::Integer=0,optimizer=Flux.ADAM(0.01),atfrequency::Integer=1,
+            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real=1.0,
+            IndependentPriors::Bool=true,ArrayType::UnionAll=Vector,T₁=Float64) where {TLikelihood<:Likelihood}
 
             @assert check_implementation(:OnlineSVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
             if isa(optimizer,Bool)
@@ -50,18 +50,22 @@ function OnlineSVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
                 mean = EmpiricalMean(mean)
             end
 
-            latentf = ntuple( _ -> _OSVGP{T1}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimizer),nLatent)
-            inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
+
+            latentf = ntuple( _ -> _OSVGP{T₁}(0,0,Z,kernel,mean,variance,optimizer),nLatent)
+            inference = tuple_inference(inference,nLatent,0,0,0)
             inference.nIter = 1
-            return OnlineVGP{T₁,TLikelihood,typeof(inference),nLatent}(
+            return OnlineSVGP{T₁,TLikelihood,typeof(inference),nLatent}(
                     Matrix{T₁}(undef,0,0), [],
                     0, 0, nLatent,
                     latentf, likelihood, inference,
                     verbose,atfrequency,false)
 end
 
-function Base.show(io::IO,model::OnlineVGP{<:Likelihood,<:Inference,T}) where T
+function Base.show(io::IO,model::OnlineSVGP{<:Likelihood,<:Inference,T}) where T
     print(io,"Online Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
 
 @traitimpl IsSparse{OnlineSVGP}
+
+get_y(model::OnlineSVGP) = model.inference.yview
+get_Z(model::OnlineSVGP) = getproperty.(getproperty.(model.f,:Z),:Z)

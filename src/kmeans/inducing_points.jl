@@ -1,13 +1,13 @@
 abstract type InducingPoints{T,M<:AbstractMatrix{T},O} <: AbstractMatrix{T} end
 
 
-struct FixedInducingPoints{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M<:AbstractMatrix{T},O}
+struct FixedInducingPoints{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     Z::M
     opt::O
 end
 
-function InducingPoints(Z::AbstractMatrix{T},opt=nothing) where {T<:Real}
-    InducingPoints{T,typeof(Z),typeof(opt)}(Z,opt)
+function FixedInducingPoints(Z::AbstractMatrix{T},opt=nothing) where {T<:Real}
+    FixedInducingPoints{T,typeof(Z),typeof(opt)}(Z,opt)
 end
 
 
