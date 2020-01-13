@@ -114,8 +114,8 @@ function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},K::P
 end
 
 function natural_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,Z::AbstractMatrix,gp::_OSVGP{T}) where {T}
-    gp.η₁ .= gp.K \ gp.μ₀(Z) + transpose(gp.κ)*∇E_μ + transpose(gp.κₐ)*gp.prevη₁
-    gp.η₂ .= -Symmetric(ρκdiagθκ(1.0,gp.κ,∇E_Σ)+0.5*transpose(gp.κₐ)*gp.invDₐ*gp.κₐ+0.5*inv(gp.K))
+    gp.η₁ = gp.K \ gp.μ₀(Z) + transpose(gp.κ)*∇E_μ + transpose(gp.κₐ)*gp.prevη₁
+    gp.η₂ = -Symmetric(ρκdiagθκ(1.0,gp.κ,∇E_Σ)+0.5*transpose(gp.κₐ)*gp.invDₐ*gp.κₐ+0.5*inv(gp.K))
 end
 
 global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L} = global_update!.(model.f)
@@ -148,4 +148,5 @@ function ELBO(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
     tot += model.inference.ρ*expec_log_likelihood(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model))
     tot -= GaussianKL(model)
     tot -= model.inference.ρ*AugmentedKL(model.likelihood,get_y(model))
+    tot -= extraKL(model)
 end

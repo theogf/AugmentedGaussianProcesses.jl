@@ -69,3 +69,4 @@ end
 
 get_y(model::OnlineSVGP) = model.inference.yview
 get_Z(model::OnlineSVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
+get_Zₐ(model::OnlineSVGP) = getproperty.(model.f,:Zₐ)

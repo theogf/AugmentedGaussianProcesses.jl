@@ -41,7 +41,7 @@ function remove_point!(alg::CircleKMeans,K,kernel)
         toremove = []
         c = 0
         while !isempty(removable)
-            i = sample(collect(removable),Weights(overlapcount[collect(removable)]))
+            i = StatsBase.sample(collect(removable),Weights(overlapcount[collect(removable)]))
             connected = findall(x->x>alg.ρ_remove,K[i,:])
             overlapcount[connected] .-= 1
             outofloop = filter(x->overlapcount[x]<=1,connected)

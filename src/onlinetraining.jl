@@ -22,9 +22,11 @@ function train!(model::OnlineSVGP,X::AbstractArray,y::AbstractArray;iterations::
         init_onlinemodel(model,X,y)
         model.likelihood = init_likelihood(model.likelihood,model.inference,model.nLatent,size(X,1),model.nFeatures)
     else
+        model.inference.xview = view(X,1:model.inference.nMinibatch,:)
+        model.inference.yview = view_y(model.likelihood,y,1:model.inference.nMinibatch)
         save_old_parameters!(model)
         model.likelihood = init_likelihood(model.likelihood,model.inference,model.nLatent,size(X,1),model.nFeatures)
-        compute_local_from_prev!(model)
+        # compute_local_from_prev!(model)
         updateZ!(model);
     end
 
@@ -35,10 +37,15 @@ function train!(model::OnlineSVGP,X::AbstractArray,y::AbstractArray;iterations::
         try #Allow for keyboard interruption without losing the model
             if local_iter == 1
                 # println("BLAH")
+                compute_old_matrices!(model)
+                local_updates!(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
+                ∇E_μs = ∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model))
+                ∇E_Σs = ∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model))
                 computeMatrices!(model)
                 natural_gradient!.(
-                    ∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
-                    ∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
+                    ∇E_μs, ∇E_Σs,
+                    # ∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
+                    # ∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
                     model.inference,model.inference.vi_opt,get_Z(model),model.f)
                 global_update!(model)
             else
@@ -55,7 +62,8 @@ function train!(model::OnlineSVGP,X::AbstractArray,y::AbstractArray;iterations::
                 print("Iteration : $(model.inference.nIter) ")
                 print("ELBO is : $(ELBO(model))")
                 print("\n")
-                println("kernel lengthscale : $(model.f[1].kernel.transform.s[1])")
+                # println("kernel lengthscale : $(model.f[1].kernel.transform.s[1])")
+                println("number of points : $(model.f[1].dim)")
             end
             ### Print out informations about the convergence
             local_iter += 1; model.inference.nIter += 1
@@ -88,17 +96,9 @@ end
 function updateZ!(model::OnlineSVGP)
     for gp in model.f
         add_point!(gp.Z,model.X,model.y,gp.kernel)
+        gp.dim = gp.Z.k
     end
-end
-
-function compute_local_from_prev!(model::OnlineSVGP{T}) where {T<:Real}
-    jitter = T(Jittering())
-    for gp in model.f
-        gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitter*I))
-        gp.Knm .= kernelmatrix(gp.kernel,model.inference.xview,gp.Z,obsdim=1)
-        gp.κ .= gp.Knm/gp.K.mat
-    end
-    # local_updates!(model)
+    model.inference.HyperParametersUpdated = true
 end
 
 function save_old_parameters!(model::OnlineSVGP)
@@ -108,11 +108,11 @@ function save_old_parameters!(model::OnlineSVGP)
 end
 
 function save_old_gp!(gp::_OSVGP{T}) where {T}
-    remove_point!(gp.Z,kernelmatrix(gp.kernel, gp.Z),gp.kernel)
     gp.Zₐ = copy(gp.Z.Z)
+    remove_point!(gp.Z, kernelmatrix(gp.kernel, gp.Z, obsdim=1), gp.kernel)
     gp.invDₐ = Symmetric(-2.0*gp.η₂-inv(gp.K).mat)
     gp.prevη₁ = copy(gp.η₁)
-    gp.prev𝓛ₐ = -logdet(gp.Σ) + logdet(gp.K) - dot(gp.μ,gp.η₁)
+    gp.prev𝓛ₐ = opt_trace(gp.invDₐ,gp.K.mat) + logdet(gp.Σ) - logdet(gp.K) + dot(gp.μ,gp.η₁)
 end
 
 function init_onlinemodel(model::OnlineSVGP{T},X,y) where {T<:Real}
@@ -125,7 +125,7 @@ function init_onlinemodel(model::OnlineSVGP{T},X,y) where {T<:Real}
     model.inference.HyperParametersUpdated=false
 end
 
-function init_online_gp!(gp::_OSVGP{T},X,y,jitter::T=T(Jittering())) where {T}
+function init_online_gp!(gp::_OSVGP{T},X,y,jitt::T=T(jitter)) where {T}
     init!(gp.Z,X,y,gp.kernel)
     nSamples = size(X,1)
     gp.dim = gp.Z.k
@@ -133,15 +133,34 @@ function init_online_gp!(gp::_OSVGP{T},X,y,jitter::T=T(Jittering())) where {T}
     gp.μ = zeros(T,gp.dim); gp.η₁ = zero(gp.μ);
     gp.Σ = Symmetric(Matrix(Diagonal(one(T)*I,gp.Z.k)));
     gp.η₂ = -0.5*Symmetric(inv(gp.Σ));
-    gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z.Z,obsdim=1)+jitter*I))
+    gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z.Z,obsdim=1)+jitt*I))
+
     gp.Kab = copy(gp.K.mat)
     gp.κₐ = Diagonal{T}(I,gp.dim)
-    gp.K̃ₐ = 2.0*gp.Kab
-    gp.Knm = kernelmatrix(gp.kernel,X,gp.Z,obsdim=1)
-    gp.κ = gp.Knm/gp.K.mat
-    gp.K̃ = first(gp.σ_k)*(kerneldiagmatrix(gp.kernel,X,obsdim=1) .+ jitter) - opt_diag(gp.κ,gp.Knm)
-    @assert count(broadcast(x->x.<0,gp.K̃))==0 "K̃ has negative values"
+    gp.K̃ₐ = zero(gp.Kab)
+
+    gp.Knm = first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z, obsdim=1)
+    gp.κ = gp.Knm / gp.K.mat
+    gp.K̃ = first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitt) - opt_diag(gp.κ, gp.Knm)
+    # @show gp.K̃
+    @assert all(gp.K̃ .> 0) "K̃ has negative values"
+
     gp.invDₐ = Symmetric(zeros(T, gp.dim, gp.dim))
     gp.prev𝓛ₐ = zero(T)
     gp.prevη₁  = zero(gp.η₁)
+end
+
+
+function compute_old_matrices!(model::OnlineSVGP{T}) where {T}
+    for gp in model.f
+        compute_old_matrices!(gp,model.inference.xview,T(jitter))
+    end
+end
+
+function compute_old_matrices!(gp::_OSVGP,X::AbstractMatrix, jitt::Real)
+    gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Zₐ,obsdim=1)+jitt*I))
+    gp.Knm = first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Zₐ, obsdim=1)
+    gp.κ = gp.Knm / gp.K.mat
+    gp.K̃ = first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitt) - opt_diag(gp.κ,gp.Knm)
+    @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

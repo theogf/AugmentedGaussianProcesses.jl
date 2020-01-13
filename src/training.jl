@@ -113,24 +113,24 @@ end
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,[model.inference.xview],T(jitter))
     end
-    model.inference.HyperParametersUpdated=false
+    model.inference.HyperParametersUpdated = false
 end
 
 @traitfn function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T};IsSparse{TGP}}
     if model.inference.HyperParametersUpdated
-        compute_K!.(model.f,[],T(jitter))
+        compute_K!.(model.f,T(jitter))
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
         compute_κ!.(model.f,[model.inference.xview],T(jitter))
     end
-    model.inference.HyperParametersUpdated=false
+    model.inference.HyperParametersUpdated = false
 end
 
 
 function computeMatrices!(model::VStP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.inference.x],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
+        compute_K!.(model.f,[],T(jitter))
         model.invL .= inv.(getproperty.(cholesky.(model.Knn),:L))
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
         # model.invKnn .= Symmetric.(model.invL.*transpose.(model.invL))

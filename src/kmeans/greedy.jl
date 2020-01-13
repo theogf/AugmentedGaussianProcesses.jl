@@ -6,7 +6,7 @@ mutable struct Greedy{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     function Greedy(nInducingPoints::Int,nMinibatch::Int,opt=Flux.ADAM(0.001))
         @assert nInducingPoints > 0
         @assert nMinibatch > 0
-        return new{T,Matrix{T},typeof(opt)}(minibatch,nInducingPoints,opt)
+        return new{Float64,Matrix{Float64},typeof(opt)}(nMinibatch,nInducingPoints,opt)
     end
 end
 
@@ -25,12 +25,13 @@ function greedy_iterations(X,y,kernel,k,minibatch)
     for v in 2:k
         i = 0
         best_L = -Inf
-        d = sample(collect(setdiff(Xset,set_point)),minibatch,replace=false)
+        d = StatsBase.sample(collect(setdiff(Xset,set_point)),minibatch,replace=false)
         for j in d
             new_Z = vcat(Z,X[j:j,:]);
             L = ELBO_reg(new_Z,X,y,kernel)
             if L > best_L
                 i = j
+                best_L = L
             end
         end
         @info "Found best L :$best_L $v/$k"
@@ -41,10 +42,10 @@ end
 
 function ELBO_reg(Z,X,y,kernel)
     jitter = Float64(Jittering())
-    Knm = kernelmatrix(X,Z,kernel)
-    Kmm = kernelmatrix(Z,kernel)+jitter*I
+    Knm = kernelmatrix(kernel,X,Z,obsdim=1)
+    Kmm = kernelmatrix(kernel,Z,obsdim=1)+jitter*I
     Qnn = Symmetric(Knm*inv(Kmm)*Knm')
-    Kt = kerneldiagmatrix(X,kernel) .+ jitter - diag(Qnn)
+    Kt = kerneldiagmatrix(kernel,X,obsdim=1) .+ jitter - diag(Qnn)
     noise = 0.1
     return Distributions.logpdf(MvNormal(Matrix(Qnn+noise*I)),y)-1.0/(2*noise^2)*sum(Kt)
 end

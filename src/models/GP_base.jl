@@ -230,26 +230,26 @@ diag_cov_f(gp::_VGP) = diag(gp.Σ)
 diag_cov_f(gp::_SVGP) = opt_diag(gp.κ*gp.Σ,gp.κ) + gp.K̃
 diag_cov_f(gp::_OSVGP) = opt_diag(gp.κ*gp.Σ,gp.κ) + gp.K̃
 
-@traitfn compute_K!(gp::T,X::AbstractMatrix,jitter::Real) where {T<:Abstract_GP;!IsSparse{T}} = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,X,obsdim=1)+jitter*I))
-@traitfn compute_K!(gp::T,jitter::Real) where {T<:Abstract_GP;IsSparse{T}} = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitter*I))
+@traitfn compute_K!(gp::T,X::AbstractMatrix,jitt::Real) where {T<:Abstract_GP;!IsSparse{T}} = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,X,obsdim=1)+jitt*I))
+@traitfn compute_K!(gp::T,jitt::Real) where {T<:Abstract_GP;IsSparse{T}} = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitt*I))
 
-function compute_κ!(gp::_SVGP,X::AbstractMatrix,jitter::Real)
+function compute_κ!(gp::_SVGP,X::AbstractMatrix,jitt::Real)
     gp.Knm .= first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z, obsdim=1)
     gp.κ .= gp.Knm / gp.K.mat
-    gp.K̃ .= first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitter) - opt_diag(gp.κ,gp.Knm)
+    gp.K̃ .= first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitt) - opt_diag(gp.κ,gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end
 
-function compute_κ!(gp::_OSVGP, X::AbstractMatrix, jitter::Real)
+function compute_κ!(gp::_OSVGP, X::AbstractMatrix, jitt::Real)
     # Covariance with the model at t-1
-    gp.Kab .= kernelmatrix(gp.kernel, gp.Zₐ, gp.Z, obsdim=1)
-    gp.κₐ .= gp.Kab / gp.K.mat
-    Kₐ = Symmetric(kernelmatrix(gp.kernel, gp.Zₐ, obsdim=1)+first(gp.σ_k)*jitter*I)
-    gp.K̃ₐ .= Kₐ .+ gp.κₐ.*transpose.(gp.Kab)
+    gp.Kab = kernelmatrix(gp.kernel, gp.Zₐ, gp.Z, obsdim=1)
+    gp.κₐ = gp.Kab / gp.K.mat
+    Kₐ = Symmetric(first(gp.σ_k)*(kernelmatrix(gp.kernel, gp.Zₐ, obsdim=1)+jitt*I))
+    gp.K̃ₐ = Kₐ - gp.κₐ*transpose(gp.Kab)
 
     # Covariance with a new batch
-    gp.Knm .= first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z, obsdim=1)
-    gp.κ .= gp.Knm / gp.K.mat
-    gp.K̃ .= first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitter) - opt_diag(gp.κ,gp.Knm)
+    gp.Knm = first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z, obsdim=1)
+    gp.κ = gp.Knm / gp.K.mat
+    gp.K̃ = first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitt) - opt_diag(gp.κ,gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

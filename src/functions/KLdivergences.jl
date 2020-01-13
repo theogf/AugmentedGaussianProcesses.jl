@@ -17,17 +17,14 @@ end
 
 """Return the extra KL term containing the divergence with the GP at time t and t+1"""
 function extraKL(model::OnlineSVGP{T}) where {T}
-    jitt = T(Jittering())
-    L = 0.0
+    KLₐ = zero(T)
     for gp in model.f
-        Kₐₐ = first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Zₐ,obsdim=1)+jitt*I)
         κₐμ = gp.κₐ*gp.μ
-        L += - gp.𝓛ₐ - opt_trace(gp.invDₐ,Kₐₐ) -
-        opt_trace(gp.invDₐ,gp.κₐ*(gp.Σ*gp.κₐ'-gp.Kab')) +
-        2*dot(gp.η₁,κₐμ) - dot(κₐμ,gp.invDₐ*κₐμ)
+        KLₐ += gp.prev𝓛ₐ
+        KLₐ += - opt_trace(gp.invDₐ,gp.κₐ*(gp.Σ*gp.κₐ'-gp.Kab'))
+        KLₐ += 2*dot(gp.prevη₁,κₐμ) - dot(κₐμ,gp.invDₐ*κₐμ)
     end
-     #Precompute this part for the next ELBO
-    return 0.5*L
+    return 0.5*KLₐ
 end
 
 

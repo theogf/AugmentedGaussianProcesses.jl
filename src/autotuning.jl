@@ -34,8 +34,8 @@ end
 function update_hyperparameters!(gp::Union{_SVGP{T},_OSVGP{T}},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T}
     if !isnothing(gp.opt)
         f_ρ,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
-        global grads =  ∇L_ρ(f_ρ,gp,X,∇E_μ,∇E_Σ,i,opt)
-        @show grads[gp.kernel.transform.s]
+        grads =  ∇L_ρ(f_ρ,gp,X,∇E_μ,∇E_Σ,i,opt)
+        # @show grads[gp.kernel.transform.s]
         grads.grads[gp.σ_k] = f_σ_k(first(gp.σ_k),∇E_Σ,i,opt)
         grads.grads[gp.μ₀] = f_μ₀()
     end
@@ -59,7 +59,7 @@ end
 
 function hyperparameter_gradient_function(gp::_GP{T},X::AbstractMatrix) where {T}
     μ₀ = gp.μ₀(X)
-    A = (inv(gp.K).mat-gp.μ*transpose(gp.μ))
+    A = (inv(gp.K).mat-(gp.μ-μ₀)*transpose(gp.μ-μ₀))
     return (function(Jnn)
                 return -hyperparameter_KL_gradient(Jnn,A)
             end,
@@ -126,9 +126,10 @@ function hyperparameter_gradient_function(gp::_OSVGP{T}) where {T<:Real}
     κₐΣ = gp.κₐ*gp.Σ
     return (function(Jmm,Jnm,Jnn,Jab,Jaa,∇E_μ,∇E_Σ,i,opt)
                 ∇E = hyperparameter_expec_gradient(gp,∇E_μ,∇E_Σ,i,opt,κΣ,Jmm,Jnm,Jnn)
-                ∇A = hyperparameter_online_gradient(gp,κₐΣ,Jmm,Jab,Jaa)
+                ∇KLₐ = hyperparameter_online_gradient(gp,κₐΣ,Jmm,Jab,Jaa)
                 ∇KL =  hyperparameter_KL_gradient(Jmm,A)
-                return ∇E + ∇A - ∇KL
+                # return ∇E - ∇KL
+                return ∇E + ∇KLₐ - ∇KL
                 end,
                 function(σ_k::Real,∇E_Σ,i,opt)
                     return one(T)/σ_k*(
@@ -164,8 +165,7 @@ end
 
 function hyperparameter_online_gradient(gp::_OSVGP{T},κₐΣ::Matrix{T},Jmm::AbstractMatrix,Jab::AbstractMatrix{T},Jaa::AbstractMatrix{T}) where {T<:Real}
     ιₐ = (Jab-gp.κₐ*Jmm)/gp.K.mat
-    # trace_term = sum(opt_trace.([model.invDₐ[index]],[Jaa,2*ιₐ*transpose(κₐΣ),-(2*Jab+model.κ[index]*Jmm)*model.invKmm[index]*transpose(model.Kab[index])]))
-    trace_term = sum(opt_trace.([gp.invDₐ],[Jaa,2*ιₐ*transpose(κₐΣ),-ιₐ*transpose(gp.Kab),- gp.κₐ*transpose(Jab)]))
+    trace_term = sum(opt_trace.([gp.invDₐ],[Jaa,2*ιₐ*transpose(κₐΣ),-ιₐ*transpose(gp.Kab),-gp.κₐ*transpose(Jab)]))
     term_1 = -2.0*dot(gp.prevη₁,ιₐ*gp.μ)
     term_2 = 2.0*dot(ιₐ*gp.μ,gp.invDₐ*gp.κₐ*gp.μ)
     return -0.5*(trace_term+term_1+term_2)
@@ -199,6 +199,7 @@ end
 
 function inducingpoints_gradient(gp::_OSVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T<:Real}
     μ₀ = gp.μ₀(gp.Z.Z)
+    # μ₀ = gp.μ₀(gp.Z.Z)
     gradients_inducing_points = similar(gp.Z.Z)
     A = (I-gp.K\(gp.Σ+(gp.µ-μ₀)*transpose(gp.μ-μ₀)))/gp.K.mat
     κΣ = gp.κ*gp.Σ

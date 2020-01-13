@@ -7,12 +7,12 @@ struct Jittering end;
 
 const jitter = Jittering()
 
-@inline Base.Float64(::Jittering) = Float64(1e-5)
-@inline Base.Float32(::Jittering) = Float32(1e-4)
-@inline Base.Float16(::Jittering) = Float16(1e-3)
-@inline Base.convert(::Type{Float64},::Jittering) = Float64(1e-5)
-@inline Base.convert(::Type{Float32},::Jittering) = Float32(1e-4)
-@inline Base.convert(::Type{Float16},::Jittering) = Float16(1e-3)
+@inline Base.Float64(::Jittering) = Float64(1e-4)
+@inline Base.Float32(::Jittering) = Float32(1e-3)
+@inline Base.Float16(::Jittering) = Float16(1e-2)
+@inline Base.convert(::Type{Float64},::Jittering) = Float64(1e-4)
+@inline Base.convert(::Type{Float32},::Jittering) = Float32(1e-3)
+@inline Base.convert(::Type{Float16},::Jittering) = Float16(1e-2)
 
 ## delta function `(i,j)`, equal `1` if `i == j`, `0` else ##
 @inline function δ(i::Integer,j::Integer)

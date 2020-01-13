@@ -45,5 +45,5 @@ function analytic_updates!(model::GP{T}) where {T}
     if !isnothing(model.likelihood.opt_noise)
         model.likelihood.σ² = mean(abs2,model.y.-first(model.f).μ)
     end
-    model.f[1].μ = first(model.f).K\(model.y - first(model.f).μ₀(model.X))
+    first(model.f).μ = first(model.f).K\(model.y - first(model.f).μ₀(model.X))
 end
