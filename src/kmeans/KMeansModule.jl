@@ -93,7 +93,8 @@ function update_matrices!(model,new_centers)
 end
 
 include("inducing_points.jl")
-include("DPP.jl")
+include("SeqDPP.jl")
+include("KDPP.jl")
 include("StreamingKMeans.jl")
 include("Webscale.jl")
 include("CircleKMeans.jl")
