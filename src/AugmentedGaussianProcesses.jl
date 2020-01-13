@@ -5,7 +5,7 @@ General Framework for the data augmented Gaussian Processes
 """
 module AugmentedGaussianProcesses
 
-    export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOSVGP
+    export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOSVGP, MOARGP
     export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
     export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood
     export LogisticLikelihood, BayesianSVM
@@ -72,6 +72,7 @@ module AugmentedGaussianProcesses
     include("models/SVGP.jl")
     include("models/VStP.jl")
     include("models/MOSVGP.jl")
+    include("models/MOARGP.jl")
 
     include("inference/inference.jl")
     include("likelihood/likelihood.jl")
