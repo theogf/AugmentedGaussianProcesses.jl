@@ -218,10 +218,3 @@ end
     # model.A .= model.A./vec(sum(model.A,dims=3))
     # model.A .= new_A
 end
-
-@traitfn function ELBO(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
-    tot = zero(T)
-    tot += model.inference.ρ*sum(expec_log_likelihood.(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model)))
-    tot -= GaussianKL(model)
-    tot -= model.inference.ρ*sum(AugmentedKL.(model.likelihood,get_y(model)))
-end

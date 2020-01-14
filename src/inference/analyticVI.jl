@@ -136,9 +136,16 @@ function global_update!(gp::_SVGP,opt::AVIOptimizer,i::AnalyticVI)
 end
 
 
-function ELBO(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
+@traitfn function ELBO(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     tot = zero(T)
     tot += model.inference.ρ*expec_log_likelihood(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model))
     tot -= GaussianKL(model)
     tot -= model.inference.ρ*AugmentedKL(model.likelihood,get_y(model))
+end
+
+@traitfn function ELBO(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
+    tot = zero(T)
+    tot += model.inference.ρ*sum(expec_log_likelihood.(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model)))
+    tot -= GaussianKL(model)
+    tot -= model.inference.ρ*sum(AugmentedKL.(model.likelihood,get_y(model)))
 end

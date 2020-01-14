@@ -64,6 +64,28 @@ end
     end
 end
 
+function _predict_f(model::MOARGP,X_test::AbstractVector{<:AbstractMatrix{<:Real}};covf::Bool=true,fullcov::Bool=false)
+    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),X_test,get_Z(model),obsdim=1)
+    μf = k_star.*(get_K(model).\get_μ(model))
+    μf = [[sum(vec(model.A[i,j,:]).*μf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
+    if !covf
+        return (μf,)
+    end
+    A = get_K(model).\([I].-get_K(model).\get_Σ(model))
+    if fullcov
+        k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),X_test,obsdim=1).+T(jitter)*[I])
+        Σf = k_starstar .-  k_star.*A.*transpose.(k_star)
+        Σf = [[sum(vec(model.A[i,j,:]).^2 .*Σf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
+        return μf,Σf
+    else
+        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),X_test,obsdim=1).+[T(jitter)*ones(T,size(X_test,1))])
+        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
+        σ²f = [[sum(vec(model.A[i,j,:]).^2 .*σ²f) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
+        return μf,σ²f
+    end
+end
+
+
 function _predict_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     f = _sample_f(model,X_test,k_star)
@@ -106,11 +128,12 @@ Return
     - the most likely class for multi-class classification
     - the expected number of events for an event likelihood
 """
-function predict_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP}
+@traitfn function predict_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;IsMultiOutput{TGP}}
     return predict_y(model.likelihood,_predict_f(model,X_test,covf=false)[1])
 end
 
-@traitfn predict_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;IsMultiOutput{TGP}}= predict_y.(model.likelihood,_predict_f(model,X_test,covf=false))
+@traitfn predict_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;IsMultiOutput{TGP}} = predict_y.(model.likelihood,_predict_f(model,X_test,covf=false))
+predict_y(model::MOARGP,X_test::AbstractVector{<:AbstractMatrix}) = predict_y.(model.likelihood,_predict_f(model,X_test,covf=false))
 
 predict_y(l::RegressionLikelihood,μ::AbstractVector{<:Real}) = μ
 predict_y(l::RegressionLikelihood,μ::AbstractVector{<:AbstractVector}) = first(μ)
@@ -139,6 +162,11 @@ Return the probability distribution p(y_test|model,X_test) :
 end
 
 @traitfn function proba_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;IsMultiOutput{TGP}}
+    μ_f,Σ_f = _predict_f(model,X_test,covf=true)
+    preds = compute_proba.(model.likelihood,μ_f,Σ_f)
+end
+
+function proba_y(model::MOARGP,X_test::AbstractVector{<:AbstractMatrix})
     μ_f,Σ_f = _predict_f(model,X_test,covf=true)
     preds = compute_proba.(model.likelihood,μ_f,Σ_f)
 end
