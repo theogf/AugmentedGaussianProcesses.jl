@@ -128,7 +128,7 @@ Return
     - the most likely class for multi-class classification
     - the expected number of events for an event likelihood
 """
-@traitfn function predict_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;IsMultiOutput{TGP}}
+@traitfn function predict_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;!IsMultiOutput{TGP}}
     return predict_y(model.likelihood,_predict_f(model,X_test,covf=false)[1])
 end
 
