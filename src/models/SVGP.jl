@@ -44,7 +44,7 @@ mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N} 
 end
 
 function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
-            likelihood::TLikelihood,inference::TInference, nInducingPoints::Int;
+            likelihood::TLikelihood,inference::TInference, nInducingPoints::Union{Int,InducingPoints};
             verbose::Int=0,optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
             Zoptimizer=false,
@@ -59,16 +59,20 @@ function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
             if isa(optimizer,Bool)
                 optimizer = optimizer ? Flux.ADAM(0.01) : nothing
             end
-
-            @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
-            if nInducingPoints > nSamples
-                @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
-                nInducingPoints = nSamples
+            if nInducingPoints isa Int
+                @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
+                if nInducingPoints > nSamples
+                    @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
+                    nInducingPoints = nSamples
+                else
+                    nInducingPoints = OfflineKmeans(nInducingPoints,nMarkov=10)
+                end
             end
             if nInducingPoints == nSamples
                 Z = X
             else
-                Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10)
+                init!(nInducingPoints,X,y,kernel)
+                Z = alg.Z
             end
             if isa(Zoptimizer,Bool)
                 Zoptimizer = Zoptimizer ? ADAM(α=0.001) : nothing
