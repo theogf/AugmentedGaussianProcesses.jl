@@ -31,9 +31,8 @@ Argument list :
 mutable struct MOARGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N,Q} <: AbstractGP{T,TLikelihood,TInference,N}
     X::Vector{Matrix{T}} #Feature vectors
     y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Int64 # Number of data points
-    nDim::Int64 # Number of covariates per data point
-    nFeatures::Int64 # Number of features of the GP (equal to number of points)
+    nSamples::Vector{Int64} # Number of data points
+    nDim::Vector{Int64} # Number of covariates per data point
     nLatent::Int64 # Number of latent GPs
     nTask::Int64
     nf_per_task::Vector{Int64}
@@ -64,26 +63,31 @@ function MOARGP(
             nf_per_task = zeros(Int64,nTask)
             corrected_y = Vector(undef,nTask)
             for i in 1:nTask
-                X,corrected_y[i],nf_per_task[i],likelihoods[i] = check_data!(X,y[i],likelihoods[i])
+                X[i],corrected_y[i],nf_per_task[i],likelihoods[i] = check_data!(X[i],y[i],likelihoods[i])
             end
             @assert check_implementation(:SVGP,likelihoods[1],inference) "The $likelihood is not compatible or implemented with the $inference"
 
-            nSamples = size(X,1); nDim = size(X,2);
+            nSamples = size.(X,1); nDim = size.(X,2);
             if isa(optimizer,Bool)
                 optimizer = optimizer ?  Flux.ADAM(0.01) : nothing
             end
             if isa(AOptimizer,Bool)
                 Aoptimizer = Aoptimizer ? Flux.ADAM(0.01) : nothing
             end
+
             @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
-            if nInducingPoints > nSamples
+            nInducingPoints = nInducingPoints*ones(Int64,nLatent)
+            if !all(nInducingPoints .< nSamples)
                 @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
-                nInducingPoints = nSamples
+                nInducingPoints .= ifelse.(nInducingPoints.>nSamples,nSamples,nInducingPoints)
             end
-            if nInducingPoints == nSamples
-                Z = X
-            else
-                Z = KMeansInducingPoints.(X,nInducingPoints,nMarkov=10)
+            Z = Vector{Matrix{T}}(undef,nLatent)
+            for i in 1:nLatent
+                if nInducingPoints[i] == nSamples[i]
+                    Z[i] = X[i]
+                else
+                    Z[i] = KMeansInducingPoints(X[i],nInducingPoints[i],nMarkov=10)
+                end
             end
             if isa(Zoptimizer,Bool)
                 Zoptimizer = Zoptimizer ? Flux.ADAM(0.01) : nothing
@@ -104,7 +108,7 @@ function MOARGP(
                 nMinibatch = inference.nMinibatch
             end
 
-            latent_f = ntuple( i -> _SVGP{T}(nFeatures,nMinibatch,Z[i],kernel,mean,variance,optimizer),nLatent)
+            latent_f = ntuple( i -> _SVGP{T}(nFeatures[i],nMinibatch[i],Z[i],kernel,mean,variance,optimizer),nLatent)
 
             dpos = Normal(0.5,0.5)
             dneg = Normal(-0.5,0.5)
@@ -115,12 +119,12 @@ function MOARGP(
             end
 
             likelihoods .= init_likelihood.(likelihoods,inference,nf_per_task,nMinibatch,nFeatures)
-            inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
-            inference.xview = view.(X,[1:nMinibatch],:)
+            inference = tuple_inference(inference,nLatent,nFeatures[1],nSamples[1],nMinibatch[1]) #TODO hardcoded
+            inference.xview = view.(X,[1:nMinibatch[1]],:)
             inference.yview = view(y,:)
 
-            model = MOARGP{T,TLikelihood,typeof(inference),_SVGP{T},nTask,nLatent}(X,corrected_y,
-                    nSamples, nDim, nFeatures, nLatent,
+            model = MOARGP{T,TLikelihood,typeof(inference),nTask,nLatent}(X,corrected_y,
+                    nSamples, nDim, nLatent,
                     nTask, nf_per_task,
                     latent_f,likelihoods,inference,A,Aoptimizer,
                     verbose,atfrequency,false)
@@ -134,104 +138,4 @@ function Base.show(io::IO,model::MOARGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Multioutput Autoregressive Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ")
 end
 
-function mean_f(model::MOARGP{T}) where {T}
-    μ_q = mean_f.(model.f)
-    μ_f = []
-    for i in 1:model.nTask
-        x = ntuple(_->zeros(T,model.inference.nMinibatch),model.nf_per_task[i])
-        for j in 1:model.nf_per_task[i]
-            x[j] .= sum(vec(model.A[i,j,:]) .* μ_q)
-        end
-        push!(μ_f,x)
-    end
-    return μ_f
-end
-
-function diag_cov_f(model::MOARGP{T}) where {T}
-    Σ_q = diag_cov_f.(model.f)
-    Σ_f = []
-    for i in 1:model.nTask
-        x = ntuple(_->zeros(T,model.inference.nMinibatch),model.nf_per_task[i])
-        for j in 1:model.nf_per_task[i]
-            x[j] .= sum(vec(model.A[i,j,:]).^2 .* Σ_q)
-        end
-        push!(Σ_f,x)
-    end
-    return Σ_f
-end
-
-get_y(model::MOARGP) = view_y.(model.likelihood,model.y,[model.inference.MBIndices])
-
-## return the linear sum of the expectation gradient given μ ##
-function ∇E_μ(model::MOARGP{T}) where {T}
-    ∇ = [zeros(T,model.inference.nMinibatch) for _ in 1:model.nLatent]
-    ∇Eμs = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
-    ∇EΣs = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
-    μ_f = mean_f.(model.f)
-    for t in 1:model.nTask
-        for j in 1:model.nf_per_task[t]
-            for q in 1:model.nLatent
-                ∇[q] .+= model.A[t,j,q] * (∇Eμs[t][j]  - 2*∇EΣs[t][j].*sum(model.A[t,j,qq]*μ_f[qq] for qq in 1:model.nLatent if qq!=q))
-            end
-        end
-    end
-    return ∇
-end
-
-## return the linear sum of the expectation gradient given diag(Σ) ##
-function ∇E_Σ(model::MOARGP{T}) where {T}
-    ∇ = [zeros(T,model.inference.nMinibatch) for _ in 1:model.nLatent]
-    ∇Es = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
-    for t in 1:model.nTask
-        for j in 1:model.nf_per_task[t]
-            for q in 1:model.nLatent
-                ∇[q] .+= model.A[t,j,q]^2 * ∇Es[t][j]
-            end
-        end
-    end
-    return ∇
-end
-
-get_Z(model::MOARGP) = getproperty.(getproperty.(model.f,:Z),:Z)
-
-
-function update_A!(model::MOARGP)
-    μ_f = mean_f.(model.f) # κμ
-    Σ_f = diag_cov_f.(model.f) #Diag(K̃ + κΣκ)
-    ∇Eμ = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
-    ∇EΣ = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
-    new_A = zero(model.A)
-    ∇A = zero(model.A)
-    for t in 1:model.nTask
-        for j in 1:model.nf_per_task[t]
-            for q in 1:model.nLatent
-                x1 = dot(∇Eμ[t][j],μ_f[q])-2*dot(∇EΣ[t][j],μ_f[q].*sum(model.A[t,j,qq]*μ_f[qq] for qq in 1:model.nLatent if qq!=q))
-                x2 = dot(∇EΣ[t][j],abs2.(μ_f[q])+Σ_f[q])
-                new_A[t,j,q] = x1/(2*x2)
-                ∇A[t,j,q] = x1 - 2*model.A[t,j,q]*x2
-            end
-            # model.A[t,j,:]./=sum(model.A[t,j,:])
-        end
-    end
-    model.A .+= Flux.Optimise.apply!(model.A_opt,model.A,∇A)
-    # model.A .= model.A./vec(sum(model.A,dims=3))
-    # model.A .= new_A
-end
-
-function ELBO(model::MOARGP{T}) where {T}
-    tot = zero(T)
-    tot += model.inference.ρ*sum(expec_log_likelihood.(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model)))
-    tot -= GaussianKL(model)
-    tot -= model.inference.ρ*sum(AugmentedKL.(model.likelihood,get_y(model)))
-end
-
-function computeMatrices!(model::MOARGP{T}) where {T}
-    if model.inference.HyperParametersUpdated
-        compute_K!.(model.f,T(jitter))
-    end
-    #If change of hyperparameters or if stochatic
-    if model.inference.HyperParametersUpdated || model.inference.Stochastic
-        compute_κ!.(model.f,model.inference.xview,T(jitter))
-    end
-    model.inference.HyperParametersUpdated=false
-end
+@traitimpl IsMultiOutput{MOARGP}

@@ -24,10 +24,10 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
     xview::AbstractArray
     yview::AbstractVector
 
-    function AnalyticVI{T}(ϵ::T,optimizer::Optimizer,nMinibatch::Int,Stochastic::Bool) where {T}
+    function AnalyticVI{T}(ϵ::T,optimizer,nMinibatch::Int,Stochastic::Bool) where {T}
         return new{T,1}(ϵ,0,Stochastic,0,nMinibatch,1.0,true,(AVIOptimizer{T}(0,optimizer),))
     end
-    function AnalyticVI{T,1}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer) where {T}
+    function AnalyticVI{T,1}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer) where {T}
         vi_opts = ntuple(_->AVIOptimizer{T}(nFeatures,optimizer),nLatent)
         new{T,nLatent}(ϵ,0,Stochastic,nSamples,nMinibatch,nSamples/nMinibatch,true,vi_opts,collect(1:nMinibatch))
     end
@@ -35,7 +35,7 @@ end
 
 
 function AnalyticVI(;ϵ::T=1e-5) where {T<:Real}
-    AnalyticVI{Float64}(ϵ,VanillaGradDescent(η=1.0),0,false)
+    AnalyticVI{Float64}(ϵ,Flux.Descent(1.0),0,false)
 end
 
 """
@@ -43,16 +43,16 @@ end
 Stochastic Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
 
 ```julia
-AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay())
+AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer=Flux.ADAM(0.01))
 ```
     - `nMinibatch::Integer` : Number of samples per mini-batches
 
 **Keywords arguments**
 
     - `ϵ::T` : convergence criteria
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `InverseDecay()` (ρ=(τ+iter)^-κ)
+    - `optimizer` : Optimizer used for the variational updates. Should be an object from the [Flux.jl](https://fluxml.ai/Flux.jl/stable/training/optimisers/). Default is `ADAM(0.01)`
 """
-function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay()) where {T<:Real}
+function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer=Flux.ADAM(0.01)) where {T<:Real}
     AnalyticVI{T}(ϵ,optimizer,nMinibatch,true)
 end
 
@@ -77,7 +77,7 @@ function variational_updates!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
     global_update!(model)
 end
 
-function variational_updates!(model::MOSVGP{T,L,<:AnalyticVI}) where {T,L}
+@traitfn function variational_updates!(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     local_updates!.(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model)) # Compute the local updates given the expectations of f
     # for i in 1:model.nLatent
     #     local_updates!.(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model)) # Compute the local updates given the expectations of f
@@ -119,7 +119,7 @@ global_update!(gp::_VGP,opt::AVIOptimizer,i::AnalyticVI) = global_update!(gp)
 
 
 #Update of the natural parameters and conversion from natural to standard distribution parameters
-function global_update!(model::Union{SVGP{T,L,TInf},MOSVGP{T,L,TInf}}) where {T,L,TInf<:AnalyticVI}
+@traitfn function global_update!(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsFull{TGP}}
     global_update!.(model.f,model.inference.vi_opt,model.inference)
 end
 

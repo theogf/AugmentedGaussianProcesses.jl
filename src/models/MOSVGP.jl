@@ -118,7 +118,7 @@ function MOSVGP(
             inference.xview = view(X,1:nMinibatch,:)
             inference.yview = view(y,:)
 
-            model = MOSVGP{T,TLikelihood,typeof(inference),_SVGP{T},nTask,nLatent}(X,corrected_y,
+            model = MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(X,corrected_y,
                     nSamples, nDim, nFeatures, nLatent,
                     nTask, nf_per_task,
                     latent_f,likelihoods,inference,A,Aoptimizer,
@@ -133,7 +133,9 @@ function Base.show(io::IO,model::MOSVGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Multioutput Sparse Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ")
 end
 
-function mean_f(model::MOSVGP{T}) where {T}
+@traitimpl IsMultiOutput{MOSVGP}
+
+@traitfn function mean_f(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     μ_q = mean_f.(model.f)
     μ_f = []
     for i in 1:model.nTask
@@ -146,7 +148,7 @@ function mean_f(model::MOSVGP{T}) where {T}
     return μ_f
 end
 
-function diag_cov_f(model::MOSVGP{T}) where {T}
+@traitfn function diag_cov_f(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     Σ_q = diag_cov_f.(model.f)
     Σ_f = []
     for i in 1:model.nTask
@@ -159,10 +161,10 @@ function diag_cov_f(model::MOSVGP{T}) where {T}
     return Σ_f
 end
 
-get_y(model::MOSVGP) = view_y.(model.likelihood,model.y,[model.inference.MBIndices])
+@traitfn get_y(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}} = view_y.(model.likelihood,model.y,[model.inference.MBIndices])
 
 ## return the linear sum of the expectation gradient given μ ##
-function ∇E_μ(model::MOSVGP{T}) where {T}
+@traitfn function ∇E_μ(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     ∇ = [zeros(T,model.inference.nMinibatch) for _ in 1:model.nLatent]
     ∇Eμs = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
     ∇EΣs = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
@@ -178,7 +180,7 @@ function ∇E_μ(model::MOSVGP{T}) where {T}
 end
 
 ## return the linear sum of the expectation gradient given diag(Σ) ##
-function ∇E_Σ(model::MOSVGP{T}) where {T}
+@traitfn function ∇E_Σ(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     ∇ = [zeros(T,model.inference.nMinibatch) for _ in 1:model.nLatent]
     ∇Es = ∇E_Σ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
     for t in 1:model.nTask
@@ -191,10 +193,10 @@ function ∇E_Σ(model::MOSVGP{T}) where {T}
     return ∇
 end
 
-get_Z(model::MOSVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
+@traitfn get_Z(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}} = getproperty.(getproperty.(model.f,:Z),:Z)
 
 
-function update_A!(model::MOSVGP)
+@traitfn function update_A!(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     μ_f = mean_f.(model.f) # κμ
     Σ_f = diag_cov_f.(model.f) #Diag(K̃ + κΣκ)
     ∇Eμ = ∇E_μ.(model.likelihood,model.inference.vi_opt[1:1],get_y(model))
@@ -212,12 +214,12 @@ function update_A!(model::MOSVGP)
             # model.A[t,j,:]./=sum(model.A[t,j,:])
         end
     end
-    model.A .+= update(model.A_opt,∇A)
+    model.A .+= Flux.Optimise.apply!(model.A_opt,model.A,∇A)
     # model.A .= model.A./vec(sum(model.A,dims=3))
     # model.A .= new_A
 end
 
-function ELBO(model::MOSVGP{T}) where {T}
+@traitfn function ELBO(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     tot = zero(T)
     tot += model.inference.ρ*sum(expec_log_likelihood.(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model)))
     tot -= GaussianKL(model)

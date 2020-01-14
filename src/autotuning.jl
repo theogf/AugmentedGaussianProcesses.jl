@@ -16,6 +16,11 @@ function update_hyperparameters!(model::MOSVGP)
     model.inference.HyperParametersUpdated = true
 end
 
+function update_hyperparameters!(model::MOARGP)
+    update_hyperparameters!.(model.f,model.inference.xview,∇E_μ(model),∇E_Σ(model),model.inference,model.inference.vi_opt)
+    model.inference.HyperParametersUpdated = true
+end
+
 ## Update all hyperparameters for the full batch GP models ##
 function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X::AbstractMatrix) where {T}
     if !isnothing(gp.opt)
@@ -31,7 +36,7 @@ function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X::AbstractMatrix) wh
 end
 
 ## Update all hyperparameters for the sparse variational GP models ##
-function update_hyperparameters!(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T}
+function update_hyperparameters!(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::InferenceOptimizer) where {T}
     if !isnothing(gp.opt)
         f_ρ,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
         grads =  ∇L_ρ(f_ρ,gp,X,∇E_μ,∇E_Σ,i,opt)
@@ -140,7 +145,7 @@ end
 
 
 ## Return a function computing the gradient of the ELBO given the inducing point locations ##
-function inducingpoints_gradient(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T<:Real}
+function inducingpoints_gradient(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::InferenceOptimizer) where {T<:Real}
     gradient_inducing_points = similar(gp.Z.Z)
     A = (I-gp.K\(gp.Σ+gp.µ*transpose(gp.μ)))/gp.K
     #preallocation

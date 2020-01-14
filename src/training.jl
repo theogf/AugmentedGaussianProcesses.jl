@@ -102,26 +102,48 @@ function update_parameters!(model::MOSVGP)
     variational_updates!(model);
 end
 
+function update_parameters!(model::MOARGP)
+    if model.inference.Stochastic
+        model.inference.MBIndices .= StatsBase.sample(1:model.inference.nSamples,model.inference.nMinibatch,replace=false)
+        model.inference.xview = view.(model.X,[model.inference.MBIndices],:)
+        model.inference.yview = view_y.(model.likelihood,model.y,[model.inference.MBIndices])
+    end
+    computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    update_A!(model)
+    variational_updates!(model);
+end
+
 function update_parameters!(model::VStP)
     computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     local_prior_updates!(model);
     variational_updates!(model);
 end
 
-function computeMatrices!(model::Union{GP{T},VGP{T},MCGP{T}}) where {T}
+function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T}}
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,[model.inference.xview],T(jitter))
     end
     model.inference.HyperParametersUpdated=false
 end
 
-function computeMatrices!(model::Union{SVGP{T},MOSVGP{T}}) where {T}
+@traitfn function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,T(jitter))
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
         compute_κ!.(model.f,[model.inference.xview],T(jitter))
+    end
+    model.inference.HyperParametersUpdated=false
+end
+
+function computeMatrices!(model::MOARGP{T}) where {T}
+    if model.inference.HyperParametersUpdated
+        compute_K!.(model.f,T(jitter))
+    end
+    #If change of hyperparameters or if stochatic
+    if model.inference.HyperParametersUpdated || model.inference.Stochastic
+        compute_κ!.(model.f,model.inference.xview,T(jitter))
     end
     model.inference.HyperParametersUpdated=false
 end

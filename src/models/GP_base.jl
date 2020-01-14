@@ -162,7 +162,7 @@ diag_cov_f(gp::_SVGP) = opt_diag(gp.κ*gp.Σ,gp.κ) + gp.K̃
 @traitfn compute_K!(gp::T,X::AbstractMatrix,jitter::Real) where {T<:Abstract_GP;IsFull{T}} = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,X,obsdim=1)+jitter*I))
 compute_K!(gp::_SVGP,jitter::Real) = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitter*I))
 
-function compute_κ!(gp::_SVGP,X::AbstractMatrix,jitter::Real)
+function compute_κ!(gp::TGP,X::AbstractMatrix,jitter::Real) where {TGP<:Abstract_GP}
     gp.Knm .= first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z, obsdim=1)
     gp.κ .= gp.Knm / gp.K.mat
     gp.K̃ .= first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitter) - opt_diag(gp.κ,gp.Knm)
