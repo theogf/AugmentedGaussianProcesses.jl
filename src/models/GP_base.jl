@@ -151,7 +151,7 @@ end
 mean_f(model::AbstractGP) = mean_f.(model.f)
 
 @traitfn mean_f(gp::T) where {T<:Abstract_GP;IsFull{T}} = gp.μ
-mean_f(gp::_SVGP) = gp.κ*gp.μ
+@traitfn mean_f(gp::T) where {T<:Abstract_GP;!IsFull{T}} = gp.κ*gp.μ
 
 diag_cov_f(model::AbstractGP) = diag_cov_f.(model.f)
 

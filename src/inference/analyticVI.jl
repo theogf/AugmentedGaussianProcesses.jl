@@ -68,7 +68,7 @@ end
 
 
 ## Generic method for variational updates using analytical formulas ##
-function variational_updates!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
+@traitfn function variational_updates!(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     local_updates!(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
     natural_gradient!.(
         ∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),

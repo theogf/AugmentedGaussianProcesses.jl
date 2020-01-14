@@ -7,7 +7,7 @@ Compute the mean of the predicted latent distribution of `f` on `X_test` for the
 
 Return also the diagonal variance if `covf=true` and the full covariance if `fullcov=true`
 """
-function _predict_f(model::AbstractGP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T}
+@traitfn function _predict_f(model::TGP,X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
     k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     μf = k_star.*(get_K(model).\get_μ(model))
     if !covf
@@ -43,7 +43,7 @@ function _predict_f(model::GP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,
     end
 end
 
-function _predict_f(model::MOSVGP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T}
+@traitfn function _predict_f(model::TGP,X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     μf = k_star.*(get_K(model).\get_μ(model))
     μf = [[sum(vec(model.A[i,j,:]).*μf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
@@ -106,11 +106,11 @@ Return
     - the most likely class for multi-class classification
     - the expected number of events for an event likelihood
 """
-function predict_y(model::AbstractGP{T},X_test::AbstractMatrix{T}) where {T}
+function predict_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP}
     return predict_y(model.likelihood,_predict_f(model,X_test,covf=false)[1])
 end
 
-predict_y(model::MOSVGP,X_test::AbstractMatrix) = predict_y.(model.likelihood,_predict_f(model,X_test,covf=false))
+@traitfn predict_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;IsMultiOutput{TGP}}= predict_y.(model.likelihood,_predict_f(model,X_test,covf=false))
 
 predict_y(l::RegressionLikelihood,μ::AbstractVector{<:Real}) = μ
 predict_y(l::RegressionLikelihood,μ::AbstractVector{<:AbstractVector}) = first(μ)
@@ -133,12 +133,12 @@ Return the probability distribution p(y_test|model,X_test) :
     - Vector of probabilities of y_test = 1 for binary classification
     - Dataframe with columns and probability per class for multi-class classification
 """
-function proba_y(model::AbstractGP,X_test::AbstractMatrix)
+@traitfn function proba_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;!IsMultiOutput{TGP}}
     μ_f,Σ_f = _predict_f(model,X_test,covf=true)
     pred = compute_proba(model.likelihood,μ_f,Σ_f)
 end
 
-function proba_y(model::MOSVGP,X_test::AbstractMatrix)
+@traitfn function proba_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;IsMultiOutput{TGP}}
     μ_f,Σ_f = _predict_f(model,X_test,covf=true)
     preds = compute_proba.(model.likelihood,μ_f,Σ_f)
 end
