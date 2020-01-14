@@ -64,7 +64,7 @@ end
     end
 end
 
-function _predict_f(model::MOARGP,X_test::AbstractVector{<:AbstractMatrix{<:Real}};covf::Bool=true,fullcov::Bool=false)
+function _predict_f(model::MOARGP{T},X_test::AbstractVector{<:AbstractMatrix{<:Real}};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),X_test,get_Z(model),obsdim=1)
     μf = k_star.*(get_K(model).\get_μ(model))
     μf = [[sum(vec(model.A[i,j,:]).*μf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
