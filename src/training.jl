@@ -119,7 +119,7 @@ function update_parameters!(model::VStP)
     variational_updates!(model);
 end
 
-function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
+@traitfn function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,[model.inference.xview],T(jitter))
     end
