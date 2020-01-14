@@ -78,7 +78,7 @@ function _predict_f(model::MOARGP{T},X_test::AbstractVector{<:AbstractMatrix{<:R
         Σf = [[sum(vec(model.A[i,j,:]).^2 .*Σf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
         return μf,Σf
     else
-        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),X_test,obsdim=1).+[T(jitter)*ones(T,size(X_test,1))])
+        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),X_test,obsdim=1).+[T(jitter)*ones(T,size(X_test[1],1))]) #TODO HARDCODED
         σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
         σ²f = [[sum(vec(model.A[i,j,:]).^2 .*σ²f) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
         return μf,σ²f
