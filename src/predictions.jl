@@ -76,7 +76,7 @@ function _predict_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::Abstract
         Σf = Symmetric.(k_starstar .- invquad.(get_K(model),k_star) .+  cov.(f))
         return μf, Σf
     else
-        global k_starstar = get_σ_k(model).*kerneldiagmatrix.(get_kernel(model),[X_test]) .+ [T(jitter)*ones(T,size(X_test,1))]
+        k_starstar = get_σ_k(model).*kerneldiagmatrix.(get_kernel(model),[X_test]) .+ [T(jitter)*ones(T,size(X_test,1))]
         σ²f = k_starstar .- opt_diag.(k_star,get_K(model).\k_star) .+  diag.(cov.(f,dims=2))
         return μf,σ²f
     end

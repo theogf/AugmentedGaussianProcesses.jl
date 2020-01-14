@@ -68,14 +68,14 @@ function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
                     nInducingPoints = OfflineKmeans(nInducingPoints,nMarkov=10)
                 end
             end
-            if nInducingPoints == nSamples
+            if nInducingPoints isa Int && nInducingPoints == nSamples
                 Z = X
             else
                 init!(nInducingPoints,X,y,kernel)
                 Z = alg.Z
             end
             if isa(Zoptimizer,Bool)
-                Zoptimizer = Zoptimizer ? ADAM(α=0.001) : nothing
+                Zoptimizer = Zoptimizer ? Flux.ADAM(0.001) : nothing
             end
             Z = FixedInducingPoints(Z,Zoptimizer)
             nFeatures = nInducingPoints
