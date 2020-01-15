@@ -9,7 +9,7 @@ using KernelFunctions
 using DeterminantalPointProcesses
 using Flux
 export KMeansInducingPoints
-export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, kDPP, DPP, SeqDPP, MEC, Greedy
+export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, kDPP, StdDPP, SeqDPP, MEC, Greedy
 export total_cost
 export init!, add_point!, remove_point!, update_centers!
 
@@ -96,7 +96,7 @@ end
 include("inducing_points.jl")
 include("SeqDPP.jl")
 include("KDPP.jl")
-include("DPP.jl")
+include("StdDPP.jl")
 include("StreamingKMeans.jl")
 include("Webscale.jl")
 include("CircleKMeans.jl")

@@ -72,13 +72,13 @@ function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
                 Z = X
             else
                 init!(nInducingPoints,X,y,kernel)
-                Z = alg.Z
+                Z = nInducingPoints.Z
             end
             if isa(Zoptimizer,Bool)
                 Zoptimizer = Zoptimizer ? Flux.ADAM(0.001) : nothing
             end
             Z = FixedInducingPoints(Z,Zoptimizer)
-            nFeatures = nInducingPoints
+            nFeatures = size(Z,1)
 
             if typeof(mean) <: Real
                 mean = ConstantMean(mean)

@@ -65,7 +65,7 @@ mutable struct _SVGP{T} <: Abstract_GP{T}
     kernel::Kernel
     σ_k::Vector{T}
     μ₀::PriorMean{T}
-    Z::InducingPoints
+    Z::FixedInducingPoints
     K::PDMat{T,Matrix{T}}
     Knm::Matrix{T}
     κ::Matrix{T}
