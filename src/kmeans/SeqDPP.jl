@@ -26,13 +26,12 @@ function init!(alg::SeqDPP{T},X,y,kernel;opt=Flux.ADAM(0.001)) where {T}
     alg.k = length(samp)
     alg.K = Symmetric(kernelmatrix(alg.kernel,reshape(X[samp,:],alg.k,size(X,2)),obsdim=1)+jitt*I)
 end
-
 function add_point!(alg::SeqDPP{T},X,y,kernel) where {T}
     jitt = T(Jittering())
     L = Symmetric(kernelmatrix(kernel,vcat(alg.Z,X),obsdim=1)+jitt*I)
-    Iₐ = diagm(zeros(alg.k),ones(size(X,1)))
-    Lₐ = inv(view(inv(L-Iₐ),(alg.k+1):end),:)-I
-    new_dpp = DPP(Lₐ)
+    Iₐ = diagm(vcat(zeros(alg.k),ones(size(X,1))))
+    Lₐ = inv(view(inv(L+Iₐ),(alg.k+1):size(L,1),(alg.k+1):size(L,1)))-I
+    new_dpp = DPP(Symmetric(Lₐ))
     new_samp = rand(new_dpp,1)[1]
     alg.Z = vcat(alg.Z,X[new_samp,:])
     alg.k += length(new_samp)
