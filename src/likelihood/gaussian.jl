@@ -35,8 +35,6 @@ function logpdf(l::GaussianLikelihood,y::Real,f::Real)
     logpdf(Normal(y,l.σ²),f)
 end
 
-export noise
-
 noise(l::GaussianLikelihood) = l.σ²
 
 function Base.show(io::IO,model::GaussianLikelihood{T}) where T

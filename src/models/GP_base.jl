@@ -215,7 +215,6 @@ end
 
 @traitimpl IsFull{_VStP}
 
-
 ### Functions
 
 mean_f(model::AbstractGP) = mean_f.(model.f)
@@ -229,6 +228,8 @@ diag_cov_f(gp::_GP{T}) where {T} = zeros(T,gp.dim)
 diag_cov_f(gp::_VGP) = diag(gp.Σ)
 diag_cov_f(gp::_SVGP) = opt_diag(gp.κ*gp.Σ,gp.κ) + gp.K̃
 diag_cov_f(gp::_OSVGP) = opt_diag(gp.κ*gp.Σ,gp.κ) + gp.K̃
+
+get_Z(gp::AbstractGP) = gp.Z.Z
 
 @traitfn compute_K!(gp::T,X::AbstractMatrix,jitt::Real) where {T<:Abstract_GP;!IsSparse{T}} = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,X,obsdim=1)+jitt*I))
 @traitfn compute_K!(gp::T,jitt::Real) where {T<:Abstract_GP;IsSparse{T}} = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitt*I))
@@ -248,7 +249,7 @@ function compute_κ!(gp::_OSVGP, X::AbstractMatrix, jitt::Real)
     gp.K̃ₐ = Kₐ - gp.κₐ*transpose(gp.Kab)
 
     # Covariance with a new batch
-    gp.Knm = first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z, obsdim=1)
+    gp.Knm = first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z.Z, obsdim=1)
     gp.κ = gp.Knm / gp.K.mat
     gp.K̃ = first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitt) - opt_diag(gp.κ,gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"

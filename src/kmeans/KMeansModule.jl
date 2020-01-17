@@ -9,7 +9,7 @@ using KernelFunctions
 using DeterminantalPointProcesses
 using Flux
 export KMeansInducingPoints
-export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, kDPP, StdDPP, SeqDPP, MEC, Greedy
+export ZAlg, StreamOnline, Webscale, CircleKMeans, DataSelection, OfflineKmeans, kDPP, StdDPP, SeqDPP, MEC, Greedy, UniformSampling
 export total_cost
 export init!, add_point!, remove_point!, update_centers!
 
@@ -104,6 +104,7 @@ include("DataSelection.jl")
 include("OfflineKMeans.jl")
 include("MEC.jl")
 include("greedy.jl")
+include("Uniform.jl")
 ####
 function KLGP(mu,sig,f,sig_f)
     tot = -0.5*length(f)

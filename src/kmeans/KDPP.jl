@@ -15,7 +15,7 @@ function init!(alg::kDPP{T},X,y,kernel) where {T}
     jitt = T(Jittering())
     K = Symmetric(kernelmatrix(alg.kernel,X,obsdim=1)+jitt*I)
     dpp = DPP(K)
-    samp = rand(dpp,1,alg.k)
+    samp = rand(dpp,1,alg.k)[1]
     alg.Z = X[samp,:]
     alg.k = length(samp)
 end
