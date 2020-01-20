@@ -229,7 +229,7 @@ diag_cov_f(gp::_VGP) = diag(gp.Σ)
 diag_cov_f(gp::_SVGP) = opt_diag(gp.κ*gp.Σ,gp.κ) + gp.K̃
 diag_cov_f(gp::_OSVGP) = opt_diag(gp.κ*gp.Σ,gp.κ) + gp.K̃
 
-get_Z(gp::AbstractGP) = gp.Z.Z
+get_Z(gp::Abstract_GP) = gp.Z.Z
 
 @traitfn compute_K!(gp::T,X::AbstractMatrix,jitt::Real) where {T<:Abstract_GP;!IsSparse{T}} = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,X,obsdim=1)+jitt*I))
 @traitfn compute_K!(gp::T,jitt::Real) where {T<:Abstract_GP;IsSparse{T}} = gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitt*I))

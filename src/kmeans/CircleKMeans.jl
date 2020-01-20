@@ -3,6 +3,7 @@ mutable struct CircleKMeans{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     ρ_remove::Float64
     opt::O
     k::Int64
+    kmax::Float64
     Z::M
     function CircleKMeans(ρ_accept::Real=0.8,ρ_remove::Real=1.0,opt=Flux.ADAM(0.001))
         @assert 0.0 <= ρ_accept <= 1.0 "ρ_accept should be between 0 and 1"

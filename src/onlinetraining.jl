@@ -112,7 +112,7 @@ function save_old_gp!(gp::_OSVGP{T}) where {T}
     remove_point!(gp.Z, kernelmatrix(gp.kernel, gp.Z, obsdim=1), gp.kernel)
     gp.invDₐ = Symmetric(-2.0*gp.η₂-inv(gp.K).mat)
     gp.prevη₁ = copy(gp.η₁)
-    gp.prev𝓛ₐ = opt_trace(gp.invDₐ,gp.K.mat) + logdet(gp.Σ) - logdet(gp.K) + dot(gp.μ,gp.η₁)
+    gp.prev𝓛ₐ = - logdet(gp.Σ) + logdet(gp.K) - dot(gp.μ,gp.η₁)
 end
 
 function init_onlinemodel(model::OnlineSVGP{T},X,y) where {T<:Real}
