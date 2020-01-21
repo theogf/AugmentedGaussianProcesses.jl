@@ -165,20 +165,12 @@ end
 
 function hyperparameter_online_gradient(gp::_OSVGP{T},κₐΣ::Matrix{T},Jmm::AbstractMatrix,Jab::AbstractMatrix{T},Jaa::AbstractMatrix{T}) where {T<:Real}
     ιₐ = (Jab-gp.κₐ*Jmm)/gp.K.mat
-    trace_term = sum(opt_trace.([gp.invDₐ],[Jaa,2*ιₐ*transpose(κₐΣ),-ιₐ*transpose(gp.Kab),-gp.κₐ*transpose(Jab)]))
-    term_1 = -2.0*dot(gp.prevη₁,ιₐ*gp.μ)
-    term_2 = 2.0*dot(ιₐ*gp.μ,gp.invDₐ*gp.κₐ*gp.μ)
-    return -0.5*(trace_term+term_1+term_2)
+    trace_term = -0.5*sum(opt_trace.([gp.invDₐ],[Jaa,2*ιₐ*transpose(κₐΣ),-ιₐ*transpose(gp.Kab),-gp.κₐ*transpose(Jab)]))
+    term_1 = dot(gp.prevη₁,ιₐ*gp.μ)
+    term_2 = -dot(ιₐ*gp.μ,gp.invDₐ*gp.κₐ*gp.μ)
+    return trace_term+term_1+term_2
 end
 
-# function hyperparameter_online_gradient(model::OnlineVGP{<:Likelihood{T},<:Inference{T},T},ιₐ::Matrix{T},κₐΣ::Vector{Matrix{T}},Jmm::Symmetric{T,Matrix{T}},Jab::Matrix{T},Jaa::Symmetric{T,Matrix{T}},index::Integer) where {T<:Real}
-#     mul!(ιₐ,(Jab-model.κₐ[1]*Jmm),model.invKmm[1])
-#     J_q = Jaa - (ιₐ*transpose(model.Kab[1]) + model.κₐ[1]*transpose(Jab))
-#     trace_term = sum(sum(opt_trace.([model.invDₐ[j]],[J_q,2*ιₐ*transpose(κₐΣ[j])])) for j in 1:model.nLatent)
-#     term_1 = sum(-2.0*dot(model.prevη₁[j],ιₐ*model.μ[j]) for j in 1:model.nLatent)
-#     term_2 = sum(2.0*dot(ιₐ*model.μ[j],model.invDₐ[j]*model.κₐ[1]*model.μ[j]) for j in 1:model.nLatent)
-#     return -0.5*(trace_term+term_1+term_2)
-# end
 
 ## Return a function computing the gradient of the ELBO given the inducing point locations ##
 function inducingpoints_gradient(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T<:Real}

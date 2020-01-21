@@ -21,10 +21,10 @@ function extraKL(model::OnlineSVGP{T}) where {T}
     for gp in model.f
         κₐμ = gp.κₐ*gp.μ
         KLₐ += gp.prev𝓛ₐ
-        KLₐ += -sum(opt_trace.([gp.invDₐ],[gp.K̃ₐ,gp.κₐ*gp.Σ*transpose(gp.κₐ)]))
-        KLₐ += 2*dot(gp.prevη₁,κₐμ) - dot(κₐμ,gp.invDₐ*κₐμ)
+        KLₐ += -0.5 *  sum(opt_trace.([gp.invDₐ],[gp.K̃ₐ,gp.κₐ*gp.Σ*transpose(gp.κₐ)]))
+        KLₐ += dot(gp.prevη₁, κₐμ) - 0.5 * dot(κₐμ, gp.invDₐ * κₐμ)
     end
-    return 0.5*KLₐ
+    return KLₐ
 end
 
 
