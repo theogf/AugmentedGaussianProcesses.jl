@@ -21,12 +21,12 @@ function init!(alg::StreamOnline,X,y,kernel)
     if alg.k_efficient+10 > size(X,1)
          alg.k_efficient = 0
     end
-    alg.centers = X[sample(1:size(X,1),alg.k_efficient+10,replace=false),:]
+    alg.Z = X[StatsBase.sample(1:size(X,1),alg.k_efficient+10,replace=false),:]
     # alg.centers = X[1:(alg.k_efficient+10),:]
     alg.k = alg.k_efficient+10
     w=zeros(alg.k)
     for i in 1:alg.k
-        w[i] = 0.5*find_nearest_center(alg.centers[i,:],alg.centers[1:alg.k.!=i,:])[2]
+        w[i] = 0.5*find_nearest_center(alg.Z[i,:],alg.Z[1:alg.k.!=i,:])[2]
         # w[i] = 0.5*find_nearest_center(X[i,:],alg.centers[1:alg.k.!=i,:])[2]
     end
     alg.f = sum(sort(w)[1:10]) #Take the 10 smallest values
@@ -37,10 +37,10 @@ function add_point!(alg::StreamOnline,X,y,model)
     b = size(X,1)
     # new_centers = Matrix(undef,0,size(X,2))
     for i in 1:b
-        val = find_nearest_center(X[i,:],alg.centers)[2]
+        val = find_nearest_center(X[i,:],alg.Z)[2]
         if val>(alg.f*rand())
             # new_centers = vcat(new_centers,X[i,:]')
-            alg.centers = vcat(alg.centers,X[i,:]')
+            alg.Z = vcat(alg.Z,X[i,:]')
             alg.q += 1
             alg.k += 1
         end
