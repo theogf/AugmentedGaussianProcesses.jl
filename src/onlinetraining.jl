@@ -112,7 +112,7 @@ function save_old_gp!(gp::_OSVGP{T}) where {T}
     remove_point!(gp.Z, kernelmatrix(gp.kernel, gp.Z, obsdim=1), gp.kernel)
     gp.invDₐ = Symmetric(-2.0*gp.η₂-inv(gp.K).mat)
     gp.prevη₁ = copy(gp.η₁)
-    gp.prev𝓛ₐ = - logdet(gp.Σ) + logdet(gp.K) - dot(gp.μ,gp.η₁)
+    gp.prev𝓛ₐ = -0.5*logdet(gp.Σ) + 0.5*logdet(gp.K) - 0.5*dot(gp.μ,gp.η₁)
 end
 
 function init_onlinemodel(model::OnlineSVGP{T},X,y) where {T<:Real}
@@ -156,6 +156,7 @@ function compute_old_matrices!(model::OnlineSVGP{T}) where {T}
         compute_old_matrices!(gp,model.inference.xview,T(jitter))
     end
 end
+
 
 function compute_old_matrices!(gp::_OSVGP,X::AbstractMatrix, jitt::Real)
     gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Zₐ,obsdim=1)+jitt*I))

@@ -2,13 +2,15 @@ mutable struct CircleKMeans{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     ρ_accept::Float64
     ρ_remove::Float64
     opt::O
-    k::Int64
     kmax::Float64
+    η::Float64
+    k::Int64
     Z::M
-    function CircleKMeans(ρ_accept::Real=0.8,ρ_remove::Real=1.0,opt=Flux.ADAM(0.001))
+    function CircleKMeans(ρ_accept::Real=0.8,η::Real=0.95,ρ_remove::Real=1.0,opt=Flux.ADAM(0.001);kmax=Inf)
         @assert 0.0 <= ρ_accept <= 1.0 "ρ_accept should be between 0 and 1"
+        @assert 0.0 <= η <= 1.0 "η should be between 0 and 1"
         @assert 0.0 <= ρ_remove <= 1.0 "ρ_remove should be between 0 and 1"
-        return new{Float64,Matrix{Float64},typeof(opt)}(ρ_accept,ρ_remove,opt)
+        return new{Float64,Matrix{Float64},typeof(opt)}(ρ_accept,ρ_remove,opt,kmax)
     end
 end
 
@@ -27,8 +29,17 @@ function add_point!(alg::CircleKMeans,X,y,kernel)
         k = kernelmatrix(kernel,X[i:i,:],alg.Z,obsdim=1)
         # d = find_nearest_center(X[i,:],alg.centers,kernel)[2]
         if maximum(k) < alg.ρ_accept
-            alg.Z = vcat(alg.Z,X[i,:]')
+            alg.Z.Z = vcat(alg.Z.Z,X[i,:]')
             alg.k += 1
+        end
+    end
+    while alg.k > alg.kmax
+        K = kernelmatrix(kernel,alg.Z.Z,obsdim=1)
+        m = maximum(K-Diagonal(K))
+        alg.ρ_remove = alg.η*m
+        remove_point!(alg,K,kernel)
+        if alg.ρ_remove < alg.ρ_accept
+            alg.ρ_accept = alg.η*alg.ρ_remove
         end
     end
 end
