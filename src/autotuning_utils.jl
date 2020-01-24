@@ -1,10 +1,10 @@
 ### Compute the gradients using a gradient function and matrices Js ###
-for k in (:SqExponentialKernel,:Matern32Kernel,:LinearKernel,:KernelSum,:KernelProduct)
-    @eval Flux.@functor($k)
+for k in (SqExponentialKernel,Matern32Kernel,LinearKernel,KernelSum,KernelProduct)
+    Flux.@functor(k)
 end
 
-for t in (:ARDTransform,:ScaleTransform,:LowRankTransform)
-    @eval Flux.@functor($t)
+for t in (ARDTransform,ScaleTransform,LowRankTransform)
+    Flux.@functor(t)
 end
 
 

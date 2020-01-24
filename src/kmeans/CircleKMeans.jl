@@ -12,6 +12,7 @@ mutable struct CircleKMeans{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
         @assert 0.0 <= ρ_remove <= 1.0 "ρ_remove should be between 0 and 1"
         return new{Float64,Matrix{Float64},typeof(opt)}(ρ_accept,ρ_remove,opt,kmax,η)
     end
+    #TODO Create a new constructor for fixed kmax
 end
 
 

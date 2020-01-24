@@ -145,7 +145,7 @@ function init_online_gp!(gp::_OSVGP{T},X,y,jitt::T=T(jitter)) where {T}
     # @show gp.K̃
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 
-    gp.invDₐ = Symmetric(zeros(T, gp.dim, gp.dim))
+    gp.invDₐ = Symmetric(Matrix{T}(I,gp.dim, gp.dim))
     gp.prev𝓛ₐ = zero(T)
     gp.prevη₁  = zero(gp.η₁)
 end
