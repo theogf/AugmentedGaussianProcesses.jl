@@ -45,10 +45,15 @@ function ELBO_reg(Z,X,y,kernel)
     jitter = Float64(Jittering())
     Knm = kernelmatrix(kernel,X,Z,obsdim=1)
     Kmm = kernelmatrix(kernel,Z,obsdim=1)+jitter*I
-    Qnn = Symmetric(Knm*inv(Kmm)*Knm')
+    # Qff = Symmetric(Knm*inv(Kmm)*Knm')
     Kt = kerneldiagmatrix(kernel,X,obsdim=1) .+ jitter - diag(Qnn)
+    Σ = inv(Kmm)+noise^(-2)*Knm*Knm'
+    invQnn = noise^(-2)*I-noise^(-4)*Knm*inv(Σ)*Knm'
+    logdetQnn = logdet(Σ)+logdet(Kmm)
     noise = 0.01
-    return Distributions.logpdf(MvNormal(Matrix(Qnn+noise*I)),y)-1.0/(2*noise^2)*sum(Kt)
+    return
+    -0.5*dot(y,invQnn*y)-0.5*logdetQnn-1.0/(2*noise^2)*sum(Kt)
+     # Distributions.logpdf(MvNormal(Matrix(Qnn+noise*I)),y)-1.0/(2*noise^2)*sum(Kt)
 end
 
 function add_point!(alg::Greedy,X,y,model)
