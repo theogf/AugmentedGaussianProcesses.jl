@@ -18,17 +18,18 @@ end
 function greedy_iterations(X,y,kernel,k,minibatch)
     minibatch = min(size(X,1),minibatch)
     Z = zeros(0,size(X,2))
-    Xset = Set(1:size(X,1))
     set_point = Set{Int64}()
     i = rand(1:size(X,1))
     Z = vcat(Z,X[i:i,:]); push!(set_point,i)
     for v in 2:k
+        X_sub = StatsBase.sample(1:size(X,1),min(10000,size(X,1)),replace=false)
+        Xset = Set(X_sub)
         i = 0
         best_L = -Inf
         d = StatsBase.sample(collect(setdiff(Xset,set_point)),minibatch,replace=false)
         for j in d
             new_Z = vcat(Z,X[j:j,:]);
-            L = ELBO_reg(new_Z,X,y,kernel)
+            L = ELBO_reg(new_Z,X[X_sub,:],y[X_sub],kernel)
             if L > best_L
                 i = j
                 best_L = L
@@ -46,7 +47,7 @@ function ELBO_reg(Z,X,y,kernel)
     Kmm = kernelmatrix(kernel,Z,obsdim=1)+jitter*I
     Qnn = Symmetric(Knm*inv(Kmm)*Knm')
     Kt = kerneldiagmatrix(kernel,X,obsdim=1) .+ jitter - diag(Qnn)
-    noise = 0.1
+    noise = 0.01
     return Distributions.logpdf(MvNormal(Matrix(Qnn+noise*I)),y)-1.0/(2*noise^2)*sum(Kt)
 end
 
