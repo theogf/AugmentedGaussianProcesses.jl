@@ -29,7 +29,8 @@ function greedy_iterations(X,y,kernel,k,minibatch)
         d = StatsBase.sample(collect(setdiff(Xset,set_point)),minibatch,replace=false)
         for j in d
             new_Z = vcat(Z,X[j:j,:]);
-            L = ELBO_reg(new_Z,X[X_sub,:],y[X_sub],kernel)
+            L = ELBO_reg(new_Z,X[X_sub,:],y[X_sub],kernel,0.01)
+            @show L, best_L
             if L > best_L
                 i = j
                 best_L = L
@@ -41,18 +42,17 @@ function greedy_iterations(X,y,kernel,k,minibatch)
     return Z
 end
 
-function ELBO_reg(Z,X,y,kernel)
+function ELBO_reg(Z,X,y,kernel,noise)
     jitter = Float64(Jittering())
     Knm = kernelmatrix(kernel,X,Z,obsdim=1)
     Kmm = kernelmatrix(kernel,Z,obsdim=1)+jitter*I
     Qff = Symmetric(Knm*inv(Kmm)*Knm')
     Kt = kerneldiagmatrix(kernel,X,obsdim=1) .+ jitter - diag(Qff)
-    Σ = inv(Kmm)+noise^(-2)*Knm*Knm'
+    Σ = inv(Kmm)+noise^(-2)*Knm'*Knm
     invQnn = noise^(-2)*I-noise^(-4)*Knm*inv(Σ)*Knm'
     logdetQnn = logdet(Σ)+logdet(Kmm)
     noise = 0.01
-    return
-    -0.5*dot(y,invQnn*y)-0.5*logdetQnn-1.0/(2*noise^2)*sum(Kt)
+    return -0.5*dot(y,invQnn*y)-0.5*logdetQnn-1.0/(2*noise^2)*sum(Kt)
      # Distributions.logpdf(MvNormal(Matrix(Qnn+noise*I)),y)-1.0/(2*noise^2)*sum(Kt)
 end
 

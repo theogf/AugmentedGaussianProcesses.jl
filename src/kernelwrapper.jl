@@ -56,7 +56,7 @@ function create_opts(kernel::Kernel,opt::OptorNothing)
     return opts
 end
 
-function create_opts(kernel::Kernel{T,<:ChainTransform},opt::OptorNothing) where {T}
+function create_opts(kernel::Kernel,opt::OptorNothing) where {T}
     opts = []
     t_opts = []
     ps = KernelFunctions.opt_params(kernel)

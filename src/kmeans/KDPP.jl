@@ -22,8 +22,7 @@ function init!(alg::kDPP{T},X,y,kernel) where {T}
         kᵢᵢ = kernelmatrix(kernel,X[i:i,:],obsdim=1)
         kᵢZ = kernelmatrix(kernel,X[i:i,:],alg.Z,obsdim=1)
         Vᵢ = kᵢᵢ - kᵢZ*tZᵢ
-        if
-
+        if false
             alg.Z = vcat(Z,X[i:i,:])
             κ = vcat()
             k = size(alg.Z,1)
