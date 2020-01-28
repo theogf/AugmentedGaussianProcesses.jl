@@ -3,8 +3,8 @@ mutable struct StdDPP{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     opt::O
     k::Int64
     Z::M
-    function StdDPP(kernel::Kernel{T},opt=Flux.ADAM(0.001)) where {T}
-        return new{T,Matrix{T},typeof(opt)}(kernel,opt)
+    function StdDPP(kernel::Kernel,opt=Flux.ADAM(0.001)) where {T}
+        return new{Float64,Matrix{Float64},typeof(opt)}(kernel,opt)
     end
 end
 

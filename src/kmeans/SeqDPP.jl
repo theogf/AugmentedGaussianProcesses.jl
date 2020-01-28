@@ -7,8 +7,8 @@ mutable struct SeqDPP{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     dpp::DPP
     K::Symmetric{Float64,Matrix{Float64}}
     Z::M
-    function SeqDPP(kernel::Kernel{T},opt=Flux.ADAM(0.001)) where {T}
-        return new{T,Matrix{T},typeof(opt)}(kernel,opt)
+    function SeqDPP(kernel::Kernel,opt=Flux.ADAM(0.001)) where {T}
+        return new{Float64,Matrix{Float64},typeof(opt)}(kernel,opt)
     end
 end
 
