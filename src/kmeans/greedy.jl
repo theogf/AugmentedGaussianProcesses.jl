@@ -45,8 +45,8 @@ function ELBO_reg(Z,X,y,kernel)
     jitter = Float64(Jittering())
     Knm = kernelmatrix(kernel,X,Z,obsdim=1)
     Kmm = kernelmatrix(kernel,Z,obsdim=1)+jitter*I
-    # Qff = Symmetric(Knm*inv(Kmm)*Knm')
-    Kt = kerneldiagmatrix(kernel,X,obsdim=1) .+ jitter - diag(Qnn)
+    Qff = Symmetric(Knm*inv(Kmm)*Knm')
+    Kt = kerneldiagmatrix(kernel,X,obsdim=1) .+ jitter - diag(Qff)
     Σ = inv(Kmm)+noise^(-2)*Knm*Knm'
     invQnn = noise^(-2)*I-noise^(-4)*Knm*inv(Σ)*Knm'
     logdetQnn = logdet(Σ)+logdet(Kmm)
