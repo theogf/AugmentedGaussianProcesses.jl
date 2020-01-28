@@ -22,7 +22,7 @@ function greedy_iterations(X,y,kernel,k,minibatch)
     i = rand(1:size(X,1))
     Z = vcat(Z,X[i:i,:]); push!(set_point,i)
     for v in 2:k
-        X_sub = StatsBase.sample(1:size(X,1),min(10000,size(X,1)),replace=false)
+        X_sub = StatsBase.sample(1:size(X,1),min(1000,size(X,1)),replace=false)
         Xset = Set(X_sub)
         i = 0
         best_L = -Inf
@@ -30,7 +30,6 @@ function greedy_iterations(X,y,kernel,k,minibatch)
         for j in d
             new_Z = vcat(Z,X[j:j,:]);
             L = ELBO_reg(new_Z,X[X_sub,:],y[X_sub],kernel,0.01)
-            @show L, best_L
             if L > best_L
                 i = j
                 best_L = L
@@ -51,7 +50,6 @@ function ELBO_reg(Z,X,y,kernel,noise)
     Σ = inv(Kmm)+noise^(-2)*Knm'*Knm
     invQnn = noise^(-2)*I-noise^(-4)*Knm*inv(Σ)*Knm'
     logdetQnn = logdet(Σ)+logdet(Kmm)
-    noise = 0.01
     return -0.5*dot(y,invQnn*y)-0.5*logdetQnn-1.0/(2*noise^2)*sum(Kt)
      # Distributions.logpdf(MvNormal(Matrix(Qnn+noise*I)),y)-1.0/(2*noise^2)*sum(Kt)
 end
