@@ -61,7 +61,7 @@ module AugmentedGaussianProcesses
     include("functions/utils.jl")
     include("prior/priormean.jl")
     # include("models/inducing_points.jl")
-    include("kernelwrapper.jl")
+    # include("kernelwrapper.jl")
 
     include("models/AbstractGP.jl")
     include("models/GP_base.jl")
