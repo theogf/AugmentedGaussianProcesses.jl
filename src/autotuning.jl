@@ -1,5 +1,6 @@
-include("zygote_rules.jl")
 include("autotuning_utils.jl")
+include("zygote_rules.jl")
+include("forwarddiff_rules.jl")
 
 function update_hyperparameters!(model::Union{GP,VGP})
     update_hyperparameters!.(model.f,get_Z(model))
@@ -20,10 +21,15 @@ end
 function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X::AbstractMatrix) where {T}
     if !isnothing(gp.opt)
         f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp,X)
-        grads = ∇L_ρ(f_l,gp,X)
-        grads.grads[gp.σ_k] = f_v(first(gp.σ_k))
-        grads.grads[gp.μ₀] = f_μ₀()
-
+        global grads = if ADBACKEND[] == :forward_diff
+            @info "Going forward"
+            ∇L_ρ_forward(f_l,gp,X)
+        elseif ADBACKEND[] == :reverse_diff
+            @info "Going reverse"
+            ∇L_ρ_reverse(f_l,gp,X)
+        end
+        grads[gp.σ_k] = f_v(first(gp.σ_k))
+        grads[gp.μ₀] = f_μ₀()
         apply_grads_kernel_params!(gp.opt,gp.kernel,grads) # Apply gradients to the kernel parameters
         apply_grads_kernel_variance!(gp.opt,gp,grads[gp.σ_k]) #Send the derivative of the matrix to the specific gradient of the model
         apply_gradients_mean_prior!(gp.opt,gp.μ₀,grads[gp.μ₀],X)
@@ -34,10 +40,14 @@ end
 function update_hyperparameters!(gp::Union{_SVGP{T},_OSVGP{T}},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T}
     if !isnothing(gp.opt)
         f_ρ,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
-        grads =  ∇L_ρ(f_ρ,gp,X,∇E_μ,∇E_Σ,i,opt)
+        if ADBACKEND == :forward_diff
+            grads =  ∇L_ρ_forward(f_ρ,gp,X,∇E_μ,∇E_Σ,i,opt,ADBACKEND)
+        elseif ADBACKEND == :reverse_diff
+            grads =  ∇L_ρ_reverse(f_ρ,gp,X,∇E_μ,∇E_Σ,i,opt,ADBACKEND)
+        end
         # @show grads[gp.kernel.transform.s]
-        grads.grads[gp.σ_k] = f_σ_k(first(gp.σ_k),∇E_Σ,i,opt)
-        grads.grads[gp.μ₀] = f_μ₀()
+        grads[gp.σ_k] = f_σ_k(first(gp.σ_k),∇E_Σ,i,opt)
+        grads[gp.μ₀] = f_μ₀()
     end
     if !isnothing(gp.Z.opt)
         Z_gradients = inducingpoints_gradient(gp,X,∇E_μ,∇E_Σ,i,opt) #Compute the gradient given the inducing points location

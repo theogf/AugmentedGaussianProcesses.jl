@@ -1,3 +1,10 @@
+const ADBACKEND = Ref(:forward_diff)
+
+function setadbackend(backend_sym)
+    @assert backend_sym == :forward_diff || backend_sym == :reverse_diff
+    ADBACKEND[] = backend_sym
+end
+
 ### Compute the gradients using a gradient function and matrices Js ###
 for k in (SqExponentialKernel,Matern32Kernel,LinearKernel,KernelSum,KernelProduct)
     Flux.@functor(k)
@@ -7,18 +14,8 @@ for t in (ARDTransform,ScaleTransform,LowRankTransform)
     Flux.@functor(t)
 end
 
-
-function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,J::IdDict)
-    ps = Flux.params(k)
-    Δ = IdDict()
-    for p in ps
-        Δ[p] = vec(mapslices(gradient_function,J[p],dims=[1,2]))
-    end
-    return Δ
-end
-
 ##
-function apply_grads_kernel_params!(opt,k::Kernel,Δ::Zygote.Grads)
+function apply_grads_kernel_params!(opt,k::Kernel,Δ::IdDict)
     ps = Flux.params(k)
     for p in ps
       Δ[p] == nothing && continue

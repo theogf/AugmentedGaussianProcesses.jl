@@ -34,7 +34,7 @@ module AugmentedGaussianProcesses
     using LinearAlgebra, Random
     using GradDescent
     @reexport using KernelFunctions
-    using Zygote
+    using Zygote, ForwardDiff
     using Flux
     using PDMats
     using AdvancedHMC, MCMCChains
