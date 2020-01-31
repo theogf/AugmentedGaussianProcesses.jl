@@ -40,10 +40,10 @@ end
 function update_hyperparameters!(gp::Union{_SVGP{T},_OSVGP{T}},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T}
     if !isnothing(gp.opt)
         f_ρ,f_σ_k,f_μ₀ = hyperparameter_gradient_function(gp)
-        if ADBACKEND == :forward_diff
-            grads =  ∇L_ρ_forward(f_ρ,gp,X,∇E_μ,∇E_Σ,i,opt,ADBACKEND)
-        elseif ADBACKEND == :reverse_diff
-            grads =  ∇L_ρ_reverse(f_ρ,gp,X,∇E_μ,∇E_Σ,i,opt,ADBACKEND)
+        global grads = if ADBACKEND[] == :forward_diff
+            ∇L_ρ_forward(f_ρ,gp,X,∇E_μ,∇E_Σ,i,opt)
+        elseif ADBACKEND[] == :reverse_diff
+            ∇L_ρ_reverse(f_ρ,gp,X,∇E_μ,∇E_Σ,i,opt)
         end
         # @show grads[gp.kernel.transform.s]
         grads[gp.σ_k] = f_σ_k(first(gp.σ_k),∇E_Σ,i,opt)

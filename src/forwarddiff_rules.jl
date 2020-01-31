@@ -1,28 +1,28 @@
 function ∇L_ρ_forward(f,gp,X)
-    Jnn = first(gp.σ_k)*kernelderivative(gp.kernel,X,obsdim=1)
+    Jnn = first(gp.σ_k)*kernelderivativematrix(gp.kernel,X,obsdim=1)
     grads = map(f,Jnn)
     return IdDict{Any,Any}(first(KernelFunctions.params(gp.kernel))=>grads)
 end
 
 function ∇L_ρ_forward(f,gp::_SVGP,X,∇E_μ,∇E_Σ,i,opt)
-    Jmm = σ*kernelderivativematrix(gp.kernel,gp.Z.Z,obsdim=1)
-    Jnm = σ*kernelderivativematrix(gp.kernel,X,gp.Z.Z,obsdim=1)
-    Jnn = σ*diag(kernelderivativematrix(gp.kernel,X,obsdim=1)) # TO FIX ONCE Zygote#429 is fixed.
-    grads = map(f,Jmm,Jnm,Jnn,Ref(∇E_μ),Ref(∇E_Σ),Ref(i),Ref(gp.opt))
+    Jmm = first(gp.σ_k).*kernelderivativematrix(gp.kernel,gp.Z.Z,obsdim=1)
+    Jnm = first(gp.σ_k).*kernelderivativematrix(gp.kernel,X,gp.Z.Z,obsdim=1)
+    Jnn = first(gp.σ_k).*kerneldiagderivativematrix(gp.kernel,X,obsdim=1)
+    grads = f.(Jmm,Jnm,Jnn,Ref(∇E_μ),Ref(∇E_Σ),Ref(i),Ref(opt))
     return IdDict{Any,Any}(first(KernelFunctions.params(gp.kernel))=>grads)
 end
 
 function ∇L_ρ_forward(f,gp::_OSVGP,X,∇E_μ,∇E_Σ,i,opt)
-    Jmm = σ*kernelderivativematrix(gp.kernel,gp.Z.Z,obsdim=1)
-    Jnm = σ*kernelderivativematrix(gp.kernel,X,gp.Z.Z,obsdim=1)
-    Jnn = σ*diag(kernelderivativematrix(gp.kernel,X,obsdim=1)) # TO FIX ONCE Zygote#429 is fixed.
-    Jaa = σ*kernelderivativematrix(kernel,gp.Zₐ,obsdim=1)
-    Jab = σ*kernelderivativematrix(kernel,gp.Zₐ,gp.Z.Z,obsdim=1)
+    Jmm = first(gp.σ_k)*kernelderivativematrix(gp.kernel,gp.Z.Z,obsdim=1)
+    Jnm = first(gp.σ_k)*kernelderivativematrix(gp.kernel,X,gp.Z.Z,obsdim=1)
+    Jnn = first(gp.σ_k)*kerneldiagderivativematrix(gp.kernel,X,obsdim=1)
+    Jaa = first(gp.σ_k)*kernelderivativematrix(kernel,gp.Zₐ,obsdim=1)
+    Jab = first(gp.σ_k)*kernelderivativematrix(kernel,gp.Zₐ,gp.Z.Z,obsdim=1)
     grads = map(f,Jmm,Jnm,Jnn,Jaa,Jab,Ref(∇E_μ),Ref(∇E_Σ),Ref(i),Ref(opt))
     return IdDict{Any,Any}(first(KernelFunctions.params(gp.kernel))=>grads)
 end
 
-function kernelderivative(kernel::Kernel,X::AbstractMatrix;obsdim=obsdim)
+function kernelderivativematrix(kernel::Kernel,X::AbstractMatrix;obsdim=obsdim)
     global p = first(KernelFunctions.params(kernel))
     @assert p isa AbstractVector "ForwardDiff backend only works for simple kernels with ARD or ScaleTransform"
     if length(p) == 1
@@ -33,7 +33,7 @@ function kernelderivative(kernel::Kernel,X::AbstractMatrix;obsdim=obsdim)
     return [J[:,:,i] for i in 1:length(p)]
 end
 
-function kernelderivative(kernel::Kernel,X::AbstractMatrix,Y::AbstractMatrix;obsdim=obsdim)
+function kernelderivativematrix(kernel::Kernel,X::AbstractMatrix,Y::AbstractMatrix;obsdim=obsdim)
     p = first(KernelFunctions.params(kernel))
     @assert p isa AbstractVector
     if length(p) == 1
@@ -44,7 +44,7 @@ function kernelderivative(kernel::Kernel,X::AbstractMatrix,Y::AbstractMatrix;obs
     return [J[:,:,i] for i in 1:length(p)]
 end
 
-function kerneldiagderivative(kernel::Kernel,X::AbstractMatrix;obsdim=obsdim)
+function kerneldiagderivativematrix(kernel::Kernel,X::AbstractMatrix;obsdim=obsdim)
     p = first(KernelFunctions.params(kernel))
     @assert p isa AbstractVector
     if length(p) == 1
