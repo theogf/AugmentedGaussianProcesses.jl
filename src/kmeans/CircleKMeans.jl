@@ -42,6 +42,7 @@ function add_point!(alg::CircleKMeans,X,y,kernel)
             if alg.ρ_remove < alg.ρ_accept
                 alg.ρ_accept = alg.η*alg.ρ_remove
             end
+            @info "ρ_accept reset to : $(alg.ρ_accept)"
         end
     end
 end
