@@ -1,3 +1,5 @@
+
+### Global constant allowing to chose between forward_diff and reverse_diff for hyperparameter optimization ###
 const ADBACKEND = Ref(:forward_diff)
 
 function setadbackend(backend_sym)
@@ -5,7 +7,7 @@ function setadbackend(backend_sym)
     ADBACKEND[] = backend_sym
 end
 
-### Compute the gradients using a gradient function and matrices Js ###
+### To be replaced later by a self method of KernelFunctions ###
 for k in (SqExponentialKernel,Matern32Kernel,LinearKernel,KernelSum,KernelProduct)
     Flux.@functor(k)
 end
@@ -25,9 +27,8 @@ function apply_grads_kernel_params!(opt,k::Kernel,Δ::IdDict)
 end
 
 function apply_grads_kernel_variance!(opt,gp::Abstract_GP,grad::Real)
-    logσ = log.(gp.σ_k)
-    logσ .+= Flux.Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
-    gp.σ_k .= exp.(logσ)
+    Δlogσ = Flux.Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
+    gp.σ_k .= exp.(log.(gp.σ_k).+Δlogσ)
 end
 
 function apply_gradients_mean_prior!(opt,μ::PriorMean,g::AbstractVector,X::AbstractMatrix)
@@ -46,4 +47,11 @@ end
 
 function indpoint_derivative(kernel::Kernel,X,Z::InducingPoints)
     reshape(ForwardDiff.jacobian(x->kernelmatrix(kernel,X,x,obsdim=1),Z),size(X,1),size(Z,1),size(Z,1),size(Z,2))
+end
+
+
+function ELBO_given_theta(model)
+    model.inference.HyperParametersUpdated = true
+    computeMatrices!(model)
+    ELBO(model)
 end

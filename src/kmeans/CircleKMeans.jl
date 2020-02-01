@@ -26,22 +26,22 @@ end
 
 function add_point!(alg::CircleKMeans,X,y,kernel)
     b = size(X,1)
-    for i in 1:b
+    for i in 1:b # Parse all points from X
         k = kernelmatrix(kernel,X[i:i,:],alg.Z,obsdim=1)
         # d = find_nearest_center(X[i,:],alg.centers,kernel)[2]
-        if maximum(k) < alg.ρ_accept
-            alg.Z = vcat(alg.Z,X[i,:]')
+        if maximum(k) < alg.ρ_accept #If biggest correlation is smaller than threshold add point
+            alg.Z = vcat(alg.Z,X[i:i,:])
             alg.k += 1
         end
-    end
-    while alg.k > alg.kmax
-        K = kernelmatrix(kernel,alg.Z,obsdim=1)
-        m = maximum(K-Diagonal(K))
-        @info (alg.k,alg.kmax,m)
-        alg.ρ_remove = alg.η*m
-        remove_point!(alg,K,kernel)
-        if alg.ρ_remove < alg.ρ_accept
-            alg.ρ_accept = alg.η*alg.ρ_remove
+        while alg.k > alg.kmax ## If maximum number of points is reached, readapt the threshold
+            K = kernelmatrix(kernel,alg.Z,obsdim=1)
+            m = maximum(K-Diagonal(K))
+            @info (alg.k,alg.kmax,m)
+            alg.ρ_remove = alg.η*m
+            remove_point!(alg,K,kernel)
+            if alg.ρ_remove < alg.ρ_accept
+                alg.ρ_accept = alg.η*alg.ρ_remove
+            end
         end
     end
 end

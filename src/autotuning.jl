@@ -22,16 +22,14 @@ function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X::AbstractMatrix) wh
     if !isnothing(gp.opt)
         f_l,f_v,f_μ₀ = hyperparameter_gradient_function(gp,X)
         global grads = if ADBACKEND[] == :forward_diff
-            @info "Going forward"
             ∇L_ρ_forward(f_l,gp,X)
         elseif ADBACKEND[] == :reverse_diff
-            @info "Going reverse"
             ∇L_ρ_reverse(f_l,gp,X)
         end
         grads[gp.σ_k] = f_v(first(gp.σ_k))
         grads[gp.μ₀] = f_μ₀()
         apply_grads_kernel_params!(gp.opt,gp.kernel,grads) # Apply gradients to the kernel parameters
-        apply_grads_kernel_variance!(gp.opt,gp,grads[gp.σ_k]) #Send the derivative of the matrix to the specific gradient of the model
+        # apply_grads_kernel_variance!(gp.opt,gp,grads[gp.σ_k]) #Send the derivative of the matrix to the specific gradient of the model
         apply_gradients_mean_prior!(gp.opt,gp.μ₀,grads[gp.μ₀],X)
     end
 end
@@ -55,7 +53,7 @@ function update_hyperparameters!(gp::Union{_SVGP{T},_OSVGP{T}},X,∇E_μ::Abstra
     end
     if !isnothing(gp.opt)
         apply_grads_kernel_params!(gp.opt,gp.kernel,grads) # Apply gradients to the kernel parameters
-        apply_grads_kernel_variance!(gp.opt,gp,grads[gp.σ_k]) #Send the derivative of the matrix to the specific gradient of the model
+        apply_grads_kernel_variance!(gp.opt,gp,grads[gp.σ_k]) # Apply gradient on the kernel variance
         apply_gradients_mean_prior!(gp.opt,gp.μ₀,grads[gp.μ₀],X)
     end
 end
@@ -155,9 +153,9 @@ end
 ## Gradient with respect to hyperparameter for analytical VI ##
 function hyperparameter_expec_gradient(gp::Union{_SVGP{T},_OSVGP{T}},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,κΣ::AbstractMatrix{<:Real},Jmm::AbstractMatrix{<:Real},Jnm::AbstractMatrix{<:Real},Jnn::AbstractVector{<:Real}) where {T<:Real}
     ι = (Jnm-gp.κ*Jmm)/gp.K.mat
-    Jnn = Jnn - (opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm))
+    J̃ = Jnn - (opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm))
     dμ = dot(∇E_μ,ι*gp.μ)
-    dΣ = -dot(∇E_Σ,Jnn)
+    dΣ = -dot(∇E_Σ,J̃)
     dΣ += -dot(∇E_Σ,2.0*(opt_diag(ι,κΣ)))
     dΣ += -dot(∇E_Σ,2.0*(ι*gp.μ).*(gp.κ*gp.μ))
     return i.ρ*(dμ+dΣ)
