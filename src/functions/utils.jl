@@ -63,6 +63,8 @@ function opt_add_diag_mat(v::AbstractVector{T},B::AbstractMatrix{T}) where {T<:R
     A
 end
 
+Base.:/(c::AbstractMatrix,a::PDMat) = c*inv(a.chol)
+
 ## Temp fix until the deepcopy of the main package is fixed
 function Base.copy(opt::Optimizer)
     f = length(fieldnames(typeof(opt)))

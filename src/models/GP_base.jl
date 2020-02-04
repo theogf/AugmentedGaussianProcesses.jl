@@ -236,7 +236,7 @@ get_Z(gp::Abstract_GP) = gp.Z.Z
 
 function compute_κ!(gp::_SVGP,X::AbstractMatrix,jitt::Real)
     gp.Knm .= first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z, obsdim=1)
-    gp.κ .= gp.Knm / gp.K.mat
+    gp.κ .= gp.Knm / gp.K
     gp.K̃ .= first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitt) - opt_diag(gp.κ,gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end
@@ -244,13 +244,13 @@ end
 function compute_κ!(gp::_OSVGP, X::AbstractMatrix, jitt::Real)
     # Covariance with the model at t-1
     gp.Kab = kernelmatrix(gp.kernel, gp.Zₐ, gp.Z, obsdim=1)
-    gp.κₐ = gp.Kab / gp.K.mat
+    gp.κₐ = gp.Kab / gp.K
     Kₐ = Symmetric(first(gp.σ_k)*(kernelmatrix(gp.kernel, gp.Zₐ, obsdim=1)+jitt*I))
     gp.K̃ₐ = Kₐ - gp.κₐ*transpose(gp.Kab)
 
     # Covariance with a new batch
     gp.Knm = first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z.Z, obsdim=1)
-    gp.κ = gp.Knm / gp.K.mat
+    gp.κ = gp.Knm / gp.K
     gp.K̃ = first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitt) - opt_diag(gp.κ,gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

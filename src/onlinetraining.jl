@@ -140,7 +140,7 @@ function init_online_gp!(gp::_OSVGP{T},X,y,jitt::T=T(jitter)) where {T}
     gp.K̃ₐ = zero(gp.Kab)
 
     gp.Knm = first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Z, obsdim=1)
-    gp.κ = gp.Knm / gp.K.mat
+    gp.κ = gp.Knm / gp.K
     gp.K̃ = first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitt) - opt_diag(gp.κ, gp.Knm)
     # @show gp.K̃
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
@@ -161,7 +161,7 @@ end
 function compute_old_matrices!(gp::_OSVGP,X::AbstractMatrix, jitt::Real)
     gp.K = PDMat(first(gp.σ_k)*(kernelmatrix(gp.kernel,gp.Zₐ,obsdim=1)+jitt*I))
     gp.Knm = first(gp.σ_k) * kernelmatrix(gp.kernel, X, gp.Zₐ, obsdim=1)
-    gp.κ = gp.Knm / gp.K.mat
+    gp.κ = gp.Knm / gp.K
     gp.K̃ = first(gp.σ_k) * (kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitt) - opt_diag(gp.κ,gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

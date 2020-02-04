@@ -2,9 +2,23 @@
 ### Global constant allowing to chose between forward_diff and reverse_diff for hyperparameter optimization ###
 const ADBACKEND = Ref(:forward_diff)
 
+const Z_ADBACKEND = Ref(:auto)
+
+const K_ADBACKEND = Ref(:auto)
+
 function setadbackend(backend_sym)
     @assert backend_sym == :forward_diff || backend_sym == :reverse_diff
     ADBACKEND[] = backend_sym
+end
+
+function setKadbackend(backend_sym)
+    @assert backend_sym == :forward_diff || backend_sym == :reverse_diff || backend_sym == :auto
+    K_ADBACKEND[] = backend_sym
+end
+
+function setZadbackend(backend_sym)
+    @assert backend_sym == :forward_diff || backend_sym == :reverse_diff || backend_sym == :auto
+    Z_ADBACKEND[] = backend_sym
 end
 
 ### To be replaced later by a self method of KernelFunctions ###
@@ -40,15 +54,6 @@ recursive_hadamard(A::AbstractMatrix,V::AbstractVector) = recursive_hadamard.([A
 recursive_hadamard(A::AbstractMatrix,V::AbstractMatrix) = hadamard(A,V)
 recursive_hadamard(A::AbstractVector,V::AbstractVector) = recursive_hadamard.([A],V)
 recursive_hadamard(A::AbstractVector,V::AbstractVector{<:Real}) = hadamard(A,V)
-
-function indpoint_derivative(kernel::Kernel,Z::InducingPoints)
-    reshape(ForwardDiff.jacobian(x->kernelmatrix(kernel,x,obsdim=1),Z),size(Z,1),size(Z,1),size(Z,1),size(Z,2))
-end
-
-function indpoint_derivative(kernel::Kernel,X,Z::InducingPoints)
-    reshape(ForwardDiff.jacobian(x->kernelmatrix(kernel,X,x,obsdim=1),Z),size(X,1),size(Z,1),size(Z,1),size(Z,2))
-end
-
 
 function ELBO_given_theta(model)
     model.inference.HyperParametersUpdated = true

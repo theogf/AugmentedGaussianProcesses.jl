@@ -16,5 +16,5 @@ end
 function add_point!(alg::OfflineKmeans,X,y,model)
 end
 
-function remove_point!(alg::OfflineKmeans,X,y,model)
+function remove_point!(alg::OfflineKmeans,K,kernel)
 end

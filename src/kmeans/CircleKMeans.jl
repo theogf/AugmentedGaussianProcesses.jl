@@ -55,7 +55,7 @@ function remove_point!(alg::CircleKMeans,K,kernel)
         removable = SortedSet(findall(x->x>1,overlapcount))
         toremove = []
         c = 0
-        while !isempty(removable)
+        while !isempty(removable) && alg.k > 10
             i = StatsBase.sample(collect(removable),Weights(overlapcount[collect(removable)]))
             connected = findall(x->x>alg.ρ_remove,K[i,:])
             overlapcount[connected] .-= 1
@@ -69,6 +69,7 @@ function remove_point!(alg::CircleKMeans,K,kernel)
             if issubset(i,removable)
                 delete!(removable,i)
             end
+            alg.k -= 1
         end
         alg.Z = alg.Z[setdiff(1:alg.k,toremove),:]
         alg.k = size(alg.Z,1)
