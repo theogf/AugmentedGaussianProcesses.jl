@@ -1,10 +1,12 @@
-include("learning_rate/alrsvi.jl")
-include("learning_rate/inversedecay.jl")
 include("vi_optimizers.jl")
 include("analytic.jl")
 include("analyticVI.jl")
 include("numericalVI.jl")
 include("sampling.jl")
+include("optimisers.jl")
+
+export RobbinsMonro, ALRSVI
+
 
 function post_process!(model::AbstractGP{T,<:Likelihood,<:Inference}) where {T}
     nothing

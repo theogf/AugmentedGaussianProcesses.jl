@@ -10,19 +10,19 @@ There is no augmentation needed for this likelihood which is already conjugate t
 """
 mutable struct GaussianLikelihood{T<:Real} <: RegressionLikelihood{T}
     σ²::T
-    opt_noise::Union{Nothing,Optimizer}
+    opt_noise
     θ::Vector{T}
-    function GaussianLikelihood{T}(σ²::T,opt_noise::Union{Bool,Nothing,Optimizer}) where {T<:Real}
+    function GaussianLikelihood{T}(σ²::T,opt_noise) where {T<:Real}
         new{T}(σ²,opt_noise)
     end
-    function GaussianLikelihood{T}(σ²::T,opt_noise::Union{Bool,Nothing,Optimizer},θ::AbstractVector{T}) where {T<:Real}
+    function GaussianLikelihood{T}(σ²::T,opt_noise,θ::AbstractVector{T}) where {T<:Real}
         new{T}(σ²,opt_noise,θ)
     end
 end
 
-function GaussianLikelihood(σ²::T=1e-3;opt_noise::Union{Bool,Nothing,Optimizer}=Adam(α=0.05)) where {T<:Real}
+function GaussianLikelihood(σ²::T=1e-3;opt_noise=false) where {T<:Real}
     if isa(opt_noise,Bool)
-        opt_noise = opt_noise ? Adam(α=0.05) : nothing
+        opt_noise = opt_noise ? ADAM(0.05) : nothing
     end
     GaussianLikelihood{T}(σ²,opt_noise)
 end

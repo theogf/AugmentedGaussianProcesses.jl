@@ -40,7 +40,7 @@ function update_hyperparameters!(gp::_SVGP{T},X,∇E_μ::AbstractVector{T},∇E_
     end
     if !isnothing(gp.Z.opt)
         Z_gradients = inducingpoints_gradient(gp,X,∇E_μ,∇E_Σ,i,opt) #Compute the gradient given the inducing points location
-        gp.Z.Z .+= Flux.apply!(gp.Z.opt,gp.Z.Z,Z_gradients) #Apply the gradients on the location
+        gp.Z.Z .+= apply!(gp.Z.opt,gp.Z.Z,Z_gradients) #Apply the gradients on the location
     end
     if !isnothing(gp.opt)
         apply_grads_kernel_params!(gp.opt,gp.kernel,grads) # Apply gradients to the kernel parameters

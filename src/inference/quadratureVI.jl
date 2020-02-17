@@ -4,14 +4,14 @@
 Variational Inference solver by approximating gradients via numerical integration via Quadrature
 
 ```julia
-QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Momentum(η=0.0001))
+QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser=Momentum(0.0001))
 ```
 
 **Keyword arguments**
 
     - `ϵ::T` : convergence criteria
     - `nGaussHermite::Int` : Number of points for the integral estimation
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Momentum(η=0.0001)`
+    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
 """
 mutable struct QuadratureVI{T<:Real,N} <: NumericalVI{T}
     ϵ::T #Convergence criteria
@@ -30,19 +30,19 @@ mutable struct QuadratureVI{T<:Real,N} <: NumericalVI{T}
     xview::SubArray{T,2,Matrix{T}}
     yview::SubArray
 
-    function QuadratureVI{T}(ϵ::T,nPoints::Integer,optimizer::Optimizer,Stochastic::Bool,clipping::Real,nMinibatch::Int) where {T}
-        return new{T,1}(ϵ,0,nPoints,[],[],clipping,Stochastic,0,nMinibatch,1.0,true,(NVIOptimizer{T}(0,0,optimizer),))
+    function QuadratureVI{T}(ϵ::T,nPoints::Integer,optimiser,Stochastic::Bool,clipping::Real,nMinibatch::Int) where {T}
+        return new{T,1}(ϵ,0,nPoints,[],[],clipping,Stochastic,0,nMinibatch,1.0,true,(NVIOptimizer{T}(0,0,optimiser),))
     end
 
-    function QuadratureVI{T,1}(ϵ::T,Stochastic::Bool,nPoints::Int,clipping::Real,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer) where {T}
+    function QuadratureVI{T,1}(ϵ::T,Stochastic::Bool,nPoints::Int,clipping::Real,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimiser) where {T}
         gh = gausshermite(nPoints)
-        vi_opts = ntuple(_->NVIOptimizer{T}(nFeatures,nMinibatch,optimizer),nLatent)
+        vi_opts = ntuple(_->NVIOptimizer{T}(nFeatures,nMinibatch,optimiser),nLatent)
         new{T,nLatent}(ϵ,0,nPoints,gh[1].*sqrt2,gh[2]./sqrtπ,clipping,Stochastic,nSamples,nMinibatch,nSamples/nMinibatch,true,vi_opts,collect(1:nMinibatch))
     end
 end
 
-function QuadratureVI(;ϵ::T=1e-5,nGaussHermite::Integer=100,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
-    QuadratureVI{T}(ϵ,nGaussHermite,optimizer,false,clipping,1)
+function QuadratureVI(;ϵ::T=1e-5,nGaussHermite::Integer=100,optimiser=Momentum(1e-5),clipping::Real=0.0) where {T<:Real}
+    QuadratureVI{T}(ϵ,nGaussHermite,optimiser,false,clipping,1)
 end
 
 
@@ -52,7 +52,7 @@ end
 Stochastic Variational Inference solver by approximating gradients via numerical integration via Quadrature
 
 ```julia
-QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))
+QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser=Momentum(0.0001))
 ```
     -`nMinibatch::Integer` : Number of samples per mini-batches
 
@@ -60,14 +60,14 @@ QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimizer
 
     - `ϵ::T` : convergence criteria, which can be user defined
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `Momentum(η=0.001)`
+    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
 """
-function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=100,optimizer::Optimizer=Momentum(η=1e-5),clipping::Real=0.0) where {T<:Real}
-    QuadratureVI{T}(ϵ,nGaussHermite,optimizer,clipping,nMinibatch)
+function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=100,optimiser=Momentum(1e-5),clipping::Real=0.0) where {T<:Real}
+    QuadratureVI{T}(ϵ,nGaussHermite,optimiser,clipping,nMinibatch)
 end
 
 function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nMinibatch::Integer) where {TInf <: QuadratureVI}
-    return TInf(i.ϵ,i.Stochastic,i.nPoints,i.clipping,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimizer)
+    return TInf(i.ϵ,i.Stochastic,i.nPoints,i.clipping,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimiser)
 end
 
 function expec_log_likelihood(model::VGP{T,L,<:QuadratureVI}) where {T,L}

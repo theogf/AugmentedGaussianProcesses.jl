@@ -4,7 +4,7 @@ Class for Gaussian Processes models
 ```julia
 GP(X::AbstractArray{T}, y::AbstractArray, kernel::Kernel;
     noise::Real=1e-5, opt_noise::Bool=true, verbose::Int=0,
-    optimizer::Bool=Adam(α=0.01),atfrequency::Int=1,
+    optimiser=ADAM(0.01),atfrequency::Int=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
     IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
 ```
@@ -22,7 +22,7 @@ Argument list :
  - `opt_noise` : Flag for optimizing the noise σ=Σ(y-f)^2/N
  - `mean` : Option for putting a prior mean
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl)) or set it to `false` to keep hyperparameters fixed
+- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
  - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
@@ -46,7 +46,7 @@ end
 
 function GP(X::AbstractArray{T}, y::AbstractArray,kernel::Kernel;
                 noise::Real=1e-5, opt_noise::Bool=true, verbose::Int=0,
-                optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
+                optimiser=ADAM(0.01),atfrequency::Int=1,
                 mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),variance::Real = 1.0,
                 ArrayType::UnionAll=Vector) where {T<:Real}
             likelihood = GaussianLikelihood(noise,opt_noise=opt_noise)
@@ -54,11 +54,11 @@ function GP(X::AbstractArray{T}, y::AbstractArray,kernel::Kernel;
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
 
             nFeatures = nSamples = size(X,1); nDim = size(X,2);
-            if isa(optimizer,Bool)
-                optimizer = optimizer ? Flux.ADAM(0.01) : nothing
+            if isa(optimiser,Bool)
+                optimiser = optimiser ? ADAM(0.01) : nothing
             end
 
-            latentf = ntuple(_->_GP{T}(nFeatures,kernel,mean,variance,optimizer),nLatent)
+            latentf = ntuple(_->_GP{T}(nFeatures,kernel,mean,variance,optimiser),nLatent)
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamples,nFeatures)
             inference = init_inference(inference,nLatent,nSamples,nSamples,nSamples)

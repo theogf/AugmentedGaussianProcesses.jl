@@ -47,7 +47,7 @@ function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractV
             # for _ in 1:nSamples
             # end
     end
-    return DataFrame(pred,Symbol.(l.class_mapping))
+    return NamedTuple{Symbol.(l.class_mapping)}(eachcol(pred))
 end
 
 function expec_logpdf(model::AbstractGP{T,<:MultiClassLikelihood,<:NumericalVI}) where {T}

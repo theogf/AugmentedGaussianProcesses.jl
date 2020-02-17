@@ -30,7 +30,7 @@ mutable struct GibbsSampling{T<:Real,N} <: SamplingInference{T}
         return new{T,1}(nBurnin,samplefrequency,ϵ)
     end
     function GibbsSampling{T,1}(nBurnin::Int,samplefrequency::Int,ϵ::Real,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int) where {T}
-        opts = ntuple(_->SOptimizer{T}(VanillaGradDescent(η=1.0)),nLatent)
+        opts = ntuple(_->SOptimizer{T}(Descent(1.0)),nLatent)
         new{T,nLatent}(nBurnin,samplefrequency,ϵ,0,false,nSamples,nMinibatch,nSamples/nMinibatch,true,opts)
     end
 end

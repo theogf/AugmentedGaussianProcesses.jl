@@ -122,11 +122,10 @@ mutable struct _VStP{T} <: Abstract_GP{T}
     ν::T # Number of degrees of freedom
     l²::T # Expectation of ||L^{-1}(f-μ⁰)||₂²
     χ::T  # Expectation of σ
-    opt_kernel
-    opt_σ::OptorNothing
+    opt
 end
 
-function _VStP{T}(ν::Real,dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real,opt_kernel,opt_σ::OptorNothing) where {T<:Real}
+function _VStP{T}(ν::Real,dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real,opt_kernel) where {T<:Real}
     _VGP{T}(dim,
             zeros(T,dim),
             Matrix{T}(I,dim,dim),

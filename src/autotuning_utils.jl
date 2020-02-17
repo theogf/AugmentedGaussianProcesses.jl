@@ -1,15 +1,15 @@
 ### Compute the gradients using a gradient function and matrices Js ###
-for k in (:SqExponentialKernel,:Matern32Kernel,:LinearKernel,:KernelSum,:KernelProduct)
-    @eval Flux.@functor($k)
+for k in (:SqExponentialKernel,:Matern32Kernel,:LinearKernel,:KernelSum,:KernelProduct,:TransformedKernel,:ScaledKernel)
+    @eval functorm(KernelFunctions.$k)
 end
 
 for t in (:ARDTransform,:ScaleTransform,:LowRankTransform)
-    @eval Flux.@functor($t)
+    @eval functorm($t)
 end
 
 
 function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,J::IdDict)
-    ps = Flux.params(k)
+    ps = params(k)
     Δ = IdDict()
     for p in ps
         Δ[p] = vec(mapslices(gradient_function,J[p],dims=[1,2]))
@@ -19,17 +19,17 @@ end
 
 ##
 function apply_grads_kernel_params!(opt,k::Kernel,Δ::Zygote.Grads)
-    ps = Flux.params(k)
+    ps = params(k)
     for p in ps
       Δ[p] == nothing && continue
-      p .+= Flux.Optimise.apply!(opt, p, vec(Δ[p]))
+      p .+= Optimise.apply!(opt, p, vec(Δ[p]))
       #logσ .+= Flux.Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
     end
 end
 
 function apply_grads_kernel_variance!(opt,gp::Abstract_GP,grad::Real)
     logσ = log.(gp.σ_k)
-    logσ .+= Flux.Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
+    logσ .+= Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
     gp.σ_k .= exp.(logσ)
 end
 

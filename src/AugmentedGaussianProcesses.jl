@@ -32,14 +32,13 @@ module AugmentedGaussianProcesses
     #General modules
     using Reexport
     using LinearAlgebra, Random
-    using GradDescent
     @reexport using KernelFunctions
     using ForwardDiff
     using Zygote
-    using Flux
+    using Flux: functorm, params
+    @reexport using Flux.Optimise
     using PDMats
     using AdvancedHMC, MCMCChains
-    using DataFrames
     using StatsBase, StatsFuns, SpecialFunctions, Distributions, FastGaussQuadrature
     using ProgressMeter, SimpleTraits
     #Exported modules
@@ -62,7 +61,6 @@ module AugmentedGaussianProcesses
     include("functions/utils.jl")
     include("prior/priormean.jl")
     include("models/inducing_points.jl")
-    include("kernelwrapper.jl")
 
     include("models/AbstractGP.jl")
     include("models/GP_base.jl")
