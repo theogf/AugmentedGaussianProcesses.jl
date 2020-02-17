@@ -12,9 +12,3 @@ function init!(alg::UniformSampling,X,y,kernel)
     samp = StatsBase.sample(1:size(X,1),alg.k,replace=false)
     alg.Z = X[samp,:]
 end
-
-function add_point!(alg::UniformSampling,X,y,model)
-end
-
-function remove_point!(alg::UniformSampling,X,y,model)
-end

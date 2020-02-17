@@ -1,4 +1,13 @@
-mutable struct CircleKMeans{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
+"""
+```
+    OIPS()
+```
+Online Inducing Points Selection.
+Method from the paper include reference here.
+
+
+"""
+mutable struct OIPS{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     ρ_accept::Float64
     ρ_remove::Float64
     opt::O
@@ -6,7 +15,7 @@ mutable struct CircleKMeans{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     η::Float64
     k::Int64
     Z::M
-    function CircleKMeans(ρ_accept::Real=0.8,η::Real=0.95,ρ_remove::Real=1.0,opt=Flux.ADAM(0.001);kmax=Inf)
+    function OIPS(ρ_accept::Real=0.8,η::Real=0.95,ρ_remove::Real=1.0,opt=Flux.ADAM(0.001);kmax=Inf)
         @assert 0.0 <= ρ_accept <= 1.0 "ρ_accept should be between 0 and 1"
         @assert 0.0 <= η <= 1.0 "η should be between 0 and 1"
         @assert 0.0 <= ρ_remove <= 1.0 "ρ_remove should be between 0 and 1"
@@ -16,7 +25,7 @@ mutable struct CircleKMeans{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
 end
 
 
-function init!(alg::CircleKMeans,X,y,kernel)
+function init!(alg::OIPS,X,y,kernel)
     @assert size(X,1) > 9 "First batch should have at least 10 samples"
     samples = StatsBase.sample(1:size(X,1),10,replace=false)
     alg.Z = copy(X[samples,:])
@@ -24,7 +33,7 @@ function init!(alg::CircleKMeans,X,y,kernel)
     add_point!(alg,X,y,kernel)
 end
 
-function add_point!(alg::CircleKMeans,X,y,kernel)
+function add_point!(alg::OIPS,X,y,kernel)
     b = size(X,1)
     for i in 1:b # Parse all points from X
         k = kernelmatrix(kernel,X[i:i,:],alg.Z,obsdim=1)
@@ -47,9 +56,7 @@ function add_point!(alg::CircleKMeans,X,y,kernel)
     end
 end
 
-function remove_point!(alg::CircleKMeans,K,kernel)
-    # overlaps = findall((x->count(x.>alg.lim*getvariance(kernel))).(eachcol(Kmm)).>1)
-    # lowerKmm = Kmm - UpperTriangular(Kmm)
+function remove_point!(alg::OIPS,K,kernel)
     if alg.k > 10
         overlapcount = (x->count(x.>alg.ρ_remove)).(eachrow(K))
         removable = SortedSet(findall(x->x>1,overlapcount))

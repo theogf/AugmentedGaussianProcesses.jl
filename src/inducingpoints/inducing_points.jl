@@ -10,6 +10,8 @@ function FixedInducingPoints(Z::AbstractMatrix{T},opt=nothing) where {T<:Real}
     FixedInducingPoints{T,typeof(Z),typeof(opt)}(Z,opt)
 end
 
+add_point!(alg::InducingPoints,X,y,kernel) = nothing
+remove_point!(alg::InducingPoints,K,kernel) = nothing
 
 Base.size(Z::InducingPoints) = size(Z.Z)
 Base.size(Z::InducingPoints,i::Int) = size(Z.Z,i)

@@ -3,7 +3,7 @@ mutable struct Webscale{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     opt::O
     v::Array{Int64,1}
     Z::M
-    function Webscale(k::Int,opt=Flux.ADAM(0.001))
+    function Webscale(k::Int,opt=ADAM(0.001))
         return new{Float64,Matrix{Float64},typeof(opt)}(k,opt)
     end
 end

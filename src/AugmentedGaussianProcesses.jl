@@ -16,14 +16,14 @@ module AugmentedGaussianProcesses
     export PriorMean, ZeroMean, ConstantMean, EmpiricalMean, AffineMean
 
     #Useful functions and module
-    include("kmeans/KMeansModule.jl")
+    include("inducingpoints/IPModule.jl")
     include("functions/PGSampler.jl")
     include("functions/GIGSampler.jl")
     #include("functions/PerturbativeCorrection.jl")
     # include("functions/GPAnalysisTools.jl")
     # include("functions/IO_model.jl")
     #Custom modules
-    # using .KMeansModule
+    using .IPModule
     using .PGSampler
     using .GIGSampler
     # using .PerturbativeCorrection

@@ -1,5 +1,3 @@
-using DeterminantalPointProcesses
-
 mutable struct SeqDPP{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     kernel::Kernel
     opt::O
@@ -54,7 +52,4 @@ function add_point_old!(alg::SeqDPP,X,y,kernel)
             alg.k = size(alg.Z,1)
         end
     end
-end
-
-function remove_point!(alg::SeqDPP,K,kernel)
 end

@@ -17,9 +17,3 @@ function init!(alg::StdDPP{T},X,y,kernel) where {T}
     alg.Z = X[samp,:]
     alg.k = length(samp)
 end
-
-function add_point!(alg::StdDPP,X,y,kernel)
-end
-
-function remove_point!(alg::StdDPP,K,kernel)
-end

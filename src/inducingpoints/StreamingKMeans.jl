@@ -27,7 +27,6 @@ function init!(alg::StreamOnline,X,y,kernel)
     w=zeros(alg.k)
     for i in 1:alg.k
         w[i] = 0.5*find_nearest_center(alg.Z[i,:],alg.Z[1:alg.k.!=i,:])[2]
-        # w[i] = 0.5*find_nearest_center(X[i,:],alg.centers[1:alg.k.!=i,:])[2]
     end
     alg.f = sum(sort(w)[1:10]) #Take the 10 smallest values
     alg.q = 0
@@ -35,7 +34,6 @@ end
 
 function add_point!(alg::StreamOnline,X,y,model)
     b = size(X,1)
-    # new_centers = Matrix(undef,0,size(X,2))
     for i in 1:b
         val = find_nearest_center(X[i,:],alg.Z)[2]
         if val>(alg.f*rand())
@@ -52,6 +50,25 @@ function add_point!(alg::StreamOnline,X,y,model)
     # alg.centers = vcat(alg.centers,new_centers)
 end
 
-function remove_point!(alg::StreamOnline,X,model)
+"Find the closest center to X among C, return the index and the distance"
+function find_nearest_center(X,C,kernel=0)
+    nC = size(C,1)
+    best = Int64(1); best_val = Inf
+    for i in 1:nC
+        val = distance(X,C[i,:],kernel)
+        if val < best_val
+            best_val = val
+            best = i
+        end
+    end
+    return best,best_val
+end
 
+"Compute the distance (kernel if included) between a point and a find_nearest_center"
+function distance(X,C,k=nothing)
+    if isnothing(k)
+        return norm(X-C,2)^2
+    else
+        k(X,C)
+    end
 end

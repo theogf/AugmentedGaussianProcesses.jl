@@ -1,11 +1,9 @@
-using DeterminantalPointProcesses
-
 mutable struct kDPP{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     k::Int64
     kernel::Kernel
     opt::O
     Z::M
-    function kDPP(k::Int,kernel::Kernel,opt=Flux.ADAM(0.001)) where {T}
+    function kDPP(k::Int,kernel::Kernel,opt=ADAM(0.001)) where {T}
         return new{Float64,Matrix{Float64},typeof(opt)}(k,kernel,opt)
     end
 end
