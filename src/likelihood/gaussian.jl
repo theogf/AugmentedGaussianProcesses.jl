@@ -35,8 +35,6 @@ function logpdf(l::GaussianLikelihood,y::Real,f::Real)
     logpdf(Normal(y,l.σ²),f)
 end
 
-export noise
-
 noise(l::GaussianLikelihood) = l.σ²
 
 function Base.show(io::IO,model::GaussianLikelihood{T}) where T
@@ -54,9 +52,9 @@ end
 function local_updates!(l::GaussianLikelihood{T},y::AbstractVector,μ::AbstractVector,diag_cov_f::AbstractVector) where {T}
     if !isnothing(l.opt_noise)
         if l.opt_noise.t<=10
-            update(l.opt_noise,zero(T))
+            # update(l.opt_noise,zero(T))
         else
-            l.σ² = exp(log(l.σ²)+update(l.opt_noise,0.5*((sum(abs2,y-μ)+sum(diag_cov_f))/l.σ²-length(y))))
+            l.σ² = exp(log(l.σ²)+Flux.Optimise.apply!(l.opt_noise,l.σ²,0.5*((sum(abs2,y-μ)+sum(diag_cov_f))/l.σ²-length(y))))
         end
     end
     l.θ .= inv(l.σ²)
@@ -64,12 +62,6 @@ end
 
 @inline ∇E_μ(l::GaussianLikelihood{T},::AOptimizer,y::AbstractVector) where {T} = (y./l.σ²,)
 @inline ∇E_Σ(l::GaussianLikelihood{T},::AOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
-
-### Special case where the ELBO is equal to the marginal likelihood
-function ELBO(model::GP{T}) where {T}
-    model.f[1].Σ = Symmetric(inv(model.f[1].K+model.likelihood.σ²*I).mat)
-    return -0.5*dot(model.y,model.f[1].Σ*model.y) - logdet(model.f[1].Σ)+ model.nFeatures*log(twoπ)
-end
 
 function expec_log_likelihood(l::GaussianLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     return -0.5*i.ρ*(length(y)*(log(twoπ)+log(l.σ²))+sum(abs2.(y-μ)+diag_cov)/l.σ²)

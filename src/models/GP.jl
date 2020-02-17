@@ -80,3 +80,9 @@ get_y(model::GP) = model.inference.yview
 get_Z(model::GP) = [model.inference.xview]
 
 @traitimpl IsFull{GP}
+
+### Special case where the ELBO is equal to the marginal likelihood
+function ELBO(model::GP{T}) where {T}
+    first(model.f).Σ = Symmetric(inv(first(model.f).K+model.likelihood.σ²*I).mat)
+    return -0.5*(dot(model.y,first(model.f).Σ*model.y) + logdet(first(model.f).Σ)+ model.nFeatures*log(twoπ))
+end

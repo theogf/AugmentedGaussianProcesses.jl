@@ -17,6 +17,8 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
             return true
         elseif (model == :SVGP || model == :VStP) && inference isa AnalyticVI
             return true
+        elseif model == :OnlineSVGP
+            return true
         else
             return false
         end

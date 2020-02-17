@@ -113,10 +113,18 @@ function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},K::P
     -(ρκdiagθκ(ρ, κ, θ) + 0.5 * inv(K).mat) - η₂
 end
 
+## Natural gradient for the ONLINE model (OSVGP) ##
+function natural_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,Z::AbstractMatrix,gp::_OSVGP{T}) where {T}
+    gp.η₁ = gp.K \ gp.μ₀(Z) + transpose(gp.κ)*∇E_μ + transpose(gp.κₐ)*gp.prevη₁
+    gp.η₂ = -Symmetric(ρκdiagθκ(1.0,gp.κ,∇E_Σ)+0.5*transpose(gp.κₐ)*gp.invDₐ*gp.κₐ+0.5*inv(gp.K))
+end
+
 global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L} = global_update!.(model.f)
 
 global_update!(gp::_VGP,opt::AVIOptimizer,i::AnalyticVI) = global_update!(gp)
 
+global_update!(model::OnlineSVGP) = global_update!.(model.f)
+global_update!(gp::_OSVGP,opt,i) = global_update!(gp)
 
 #Update of the natural parameters and conversion from natural to standard distribution parameters
 function global_update!(model::Union{SVGP{T,L,TInf},MOSVGP{T,L,TInf}}) where {T,L,TInf<:AnalyticVI}
@@ -141,4 +149,5 @@ function ELBO(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
     tot += model.inference.ρ*expec_log_likelihood(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model))
     tot -= GaussianKL(model)
     tot -= model.inference.ρ*AugmentedKL(model.likelihood,get_y(model))
+    tot -= extraKL(model)
 end

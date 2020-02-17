@@ -1,36 +1,48 @@
-### Compute the gradients using a gradient function and matrices Js ###
-for k in (:SqExponentialKernel,:Matern32Kernel,:LinearKernel,:KernelSum,:KernelProduct,:TransformedKernel,:ScaledKernel)
-    @eval functorm(KernelFunctions.$k)
+
+### Global constant allowing to chose between forward_diff and reverse_diff for hyperparameter optimization ###
+const ADBACKEND = Ref(:forward_diff)
+
+const Z_ADBACKEND = Ref(:auto)
+
+const K_ADBACKEND = Ref(:auto)
+
+function setadbackend(backend_sym)
+    @assert backend_sym == :forward_diff || backend_sym == :reverse_diff
+    ADBACKEND[] = backend_sym
 end
 
-for t in (:ARDTransform,:ScaleTransform,:LowRankTransform)
-    @eval functorm($t)
+function setKadbackend(backend_sym)
+    @assert backend_sym == :forward_diff || backend_sym == :reverse_diff || backend_sym == :auto
+    K_ADBACKEND[] = backend_sym
 end
 
+function setZadbackend(backend_sym)
+    @assert backend_sym == :forward_diff || backend_sym == :reverse_diff || backend_sym == :auto
+    Z_ADBACKEND[] = backend_sym
+end
 
-function compute_hyperparameter_gradient(k::Kernel,gradient_function::Function,J::IdDict)
-    ps = params(k)
-    Δ = IdDict()
-    for p in ps
-        Δ[p] = vec(mapslices(gradient_function,J[p],dims=[1,2]))
-    end
-    return Δ
+### To be replaced later by a self method of KernelFunctions ###
+for k in (SqExponentialKernel,Matern32Kernel,LinearKernel,KernelSum,KernelProduct)
+    Flux.@functor(k)
+end
+
+for t in (ARDTransform,ScaleTransform,LowRankTransform)
+    Flux.@functor(t)
 end
 
 ##
-function apply_grads_kernel_params!(opt,k::Kernel,Δ::Zygote.Grads)
-    ps = params(k)
+function apply_grads_kernel_params!(opt,k::Kernel,Δ::IdDict)
+    ps = Flux.params(k)
     for p in ps
-      Δ[p] == nothing && continue
-      p .+= Optimise.apply!(opt, p, vec(Δ[p]))
-      #logσ .+= Flux.Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
+        Δ[p] == nothing && continue
+        Δlogp = Flux.Optimise.apply!(opt, p, p.*vec(Δ[p]))
+        p .= exp.(log.(p).+Δlogp)
     end
 end
 
 function apply_grads_kernel_variance!(opt,gp::Abstract_GP,grad::Real)
-    logσ = log.(gp.σ_k)
-    logσ .+= Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
-    gp.σ_k .= exp.(logσ)
+    Δlogσ = Flux.Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
+    gp.σ_k .= exp.(log.(gp.σ_k).+Δlogσ)
 end
 
 function apply_gradients_mean_prior!(opt,μ::PriorMean,g::AbstractVector,X::AbstractMatrix)
@@ -43,10 +55,8 @@ recursive_hadamard(A::AbstractMatrix,V::AbstractMatrix) = hadamard(A,V)
 recursive_hadamard(A::AbstractVector,V::AbstractVector) = recursive_hadamard.([A],V)
 recursive_hadamard(A::AbstractVector,V::AbstractVector{<:Real}) = hadamard(A,V)
 
-function indpoint_derivative(kernel::Kernel,Z::InducingPoints)
-    reshape(ForwardDiff.jacobian(x->kernelmatrix(kernel,x,obsdim=1),Z),size(Z,1),size(Z,1),size(Z,1),size(Z,2))
-end
-
-function indpoint_derivative(kernel::Kernel,X,Z::InducingPoints)
-    reshape(ForwardDiff.jacobian(x->kernelmatrix(kernel,X,x,obsdim=1),Z),size(X,1),size(Z,1),size(Z,1),size(Z,2))
+function ELBO_given_theta(model)
+    model.inference.HyperParametersUpdated = true
+    computeMatrices!(model)
+    ELBO(model)
 end

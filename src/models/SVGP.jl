@@ -43,12 +43,14 @@ mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N} 
     Trained::Bool
 end
 
-function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
-            likelihood::TLikelihood,inference::TInference, nInducingPoints::Int;
-            verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Int=1,
+function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
+            likelihood::TLikelihood,inference::TInference, nInducingPoints::Union{Int,InducingPoints};
+            verbose::Int=0,optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
             Zoptimizer=false,
-            ArrayType::UnionAll=Vector) where {T1<:Real,T2,TLikelihood<:Likelihood,TInference<:Inference}
+            ArrayType::UnionAll=Vector) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+
+
 
             X,y,nLatent,likelihood = check_data!(X,y,likelihood)
             @assert check_implementation(:SVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
@@ -57,22 +59,26 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
             if isa(optimiser,Bool)
                 optimiser = optimiser ? ADAM(0.001) : nothing
             end
-
-            @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
-            if nInducingPoints > nSamples
-                @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
-                nInducingPoints = nSamples
+            if nInducingPoints isa Int
+                @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
+                if nInducingPoints > nSamples
+                    @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
+                    nInducingPoints = nSamples
+                else
+                    nInducingPoints = OfflineKmeans(nInducingPoints,nMarkov=10)
+                end
             end
-            if nInducingPoints == nSamples
+            if nInducingPoints isa Int && nInducingPoints == nSamples
                 Z = X
             else
-                Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10)
+                init!(nInducingPoints,X,y,kernel)
+                Z = nInducingPoints.Z
             end
             if isa(Zoptimizer,Bool)
-                Zoptimizer = Zoptimizer ? ADAM(α=0.001) : nothing
+                Zoptimizer = Zoptimizer ? Flux.ADAM(0.001) : nothing
             end
-            Z = InducingPoints(Z,Zoptimizer)
-            nFeatures = nInducingPoints
+            Z = FixedInducingPoints(Z,Zoptimizer)
+            nFeatures = size(Z,1)
 
             if typeof(mean) <: Real
                 mean = ConstantMean(mean)
@@ -86,14 +92,14 @@ function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
                 nMinibatch = inference.nMinibatch
             end
 
-            latentf = ntuple( _ -> _SVGP{T1}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimiser),nLatent)
+            latentf = ntuple( _ -> _SVGP{T₁}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimizer),nLatent)
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nMinibatch,nFeatures)
             inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
             inference.xview = view(X,1:nMinibatch,:)
             inference.yview = view_y(likelihood,y,1:nMinibatch)
 
-            model = SVGP{T1,TLikelihood,typeof(inference),nLatent}(X,y,
+            model = SVGP{T₁,TLikelihood,typeof(inference),nLatent}(X,y,
                     nSamples, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
                     verbose,atfrequency,false)
@@ -109,3 +115,5 @@ end
 
 get_y(model::SVGP) = model.inference.yview
 get_Z(model::SVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
+
+@traitimpl IsSparse{SVGP}
