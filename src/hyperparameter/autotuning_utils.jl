@@ -1,6 +1,6 @@
 
 ### Global constant allowing to chose between forward_diff and reverse_diff for hyperparameter optimization ###
-const ADBACKEND = Ref(:forward_diff)
+const ADBACKEND = Ref(:reverse_diff)
 
 const Z_ADBACKEND = Ref(:auto)
 

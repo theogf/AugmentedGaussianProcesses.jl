@@ -49,7 +49,7 @@ end
 
 function kernelderivativematrix(kernel::Kernel,X::AbstractMatrix;obsdim=obsdim)
     global p = first(Flux.params(kernel))
-    @assert p isa AbstractVector "ForwardDiff backend only works for simple kernels with ARD or ScaleTransform"
+    @assert p isa AbstractVector "ForwardDiff backend only works for simple kernels with ARD or ScaleTransform, use `setadbackend(:reverse_diff)` to use reverse differentiation"
     if length(p) == 1
         J = reshape(ForwardDiff.jacobian(x->kernelmatrix(KernelFunctions.base_kernel(kernel)(first(x)),X,obsdim=obsdim),p),size(X,1),size(X,1),1)
     else
