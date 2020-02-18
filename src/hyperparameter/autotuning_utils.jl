@@ -26,7 +26,7 @@ for t in (:ARDTransform,:ScaleTransform,:LowRankTransform)
     @eval Flux.@functor(KernelFunctions.$t)
 end
 
-for k in (:SqExponentialKernel,:Matern32Kernel,:LinearKernel,:KernelSum,:KernelProduct,:TransformedKernel,:ScaledKernel)
+for k in (:SqExponentialKernel,:Matern32Kernel,:LinearKernel,:KernelSum,:KernelProduct)# For next version of KernelFunctions:,:TransformedKernel,:ScaledKernel)
     @eval Flux.@functor(KernelFunctions.$k)
 end
 
