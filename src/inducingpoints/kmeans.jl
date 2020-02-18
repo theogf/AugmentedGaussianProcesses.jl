@@ -46,9 +46,9 @@ end
 function kmeans_ip(X::AbstractArray{T,N},nC::Integer;nMarkov::Integer=10,kweights::Vector{T}=[0.0],tol=1e-3) where {T,N}
     C = copy(transpose(kmeans_seeding(X,nC,nMarkov)))
     if kweights!=[0.0]
-        Clustering.kmeans!(copy(transpose(X)),C,weights=kweights,tol=tol)
+        kmeans!(copy(transpose(X)),C,weights=kweights,tol=tol)
     else
-        Clustering.kmeans!(copy(transpose(X)),C)
+        kmeans!(copy(transpose(X)),C)
     end
     return copy(transpose(C))
 end

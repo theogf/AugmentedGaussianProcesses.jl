@@ -3,8 +3,12 @@
 """
 module IPModule
 
-using Distributions, StatsBase
-using LinearAlgebra, Clustering, Distances, DataStructures
+using Distributions
+using StatsBase: Weights, sample
+using LinearAlgebra#: Symmetric, Eigen, eigen, eigvals, I, logdet, diag, norm
+using Clustering: kmeans!
+using Distances
+using DataStructures
 using KernelFunctions
 using Random: rand, bitrand, AbstractRNG, MersenneTwister
 using Flux.Optimise
@@ -14,15 +18,15 @@ export init!, add_point!, remove_point!
 
 include("inducing_points.jl")
 include("dpp_base.jl")
-include("SeqDPP.jl")
-include("KDPP.jl")
-include("StdDPP.jl")
-include("StreamingKMeans.jl")
-include("Webscale.jl")
-include("OIPS.jl")
-include("KMeans.jl")
+include("seqdpp.jl")
+include("kdpp.jl")
+include("stddpp.jl")
+include("streamingkmeans.jl")
+include("webscale.jl")
+include("oips.jl")
+include("kmeans.jl")
 include("greedy.jl")
-include("Uniform.jl")
+include("uniform.jl")
 
 
 

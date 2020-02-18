@@ -3,7 +3,7 @@
 General Framework for the data augmented Gaussian Processes
 
 """
-module AugmentedGaussianProcesses
+# module AugmentedGaussianProcesses
 
     export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOSVGP, OnlineSVGP
     export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
@@ -38,8 +38,12 @@ module AugmentedGaussianProcesses
     using Flux #Remove full dependency on Flux once params for KernelFunctions is set
     @reexport using Flux.Optimise
     using PDMats: PDMat, invquad
-    using AdvancedHMC, MCMCChains
-    using StatsBase, StatsFuns, SpecialFunctions, Distributions
+    using AdvancedHMC
+    using MCMCChains
+    using StatsBase
+    using StatsFuns
+    using SpecialFunctions
+    using Distributions
     using FastGaussQuadrature: gausshermite
     using ProgressMeter, SimpleTraits
     #Exported modules
@@ -84,4 +88,4 @@ module AugmentedGaussianProcesses
     include("onlinetraining.jl")
     include("hyperparameter/autotuning.jl")
     include("predictions.jl")
-end #End Module
+# end #End Module

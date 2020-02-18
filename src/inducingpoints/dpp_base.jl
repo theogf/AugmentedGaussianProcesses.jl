@@ -32,11 +32,11 @@ function Base.rand(dpp::DeterminantalPointProcess, N::Int)
     M = AbstractMatrix{Bool}(zeros(Bool, dpp.size, N))
 
     # step I: sample masks for elementary DPPs
-    pmap((i, seed) -> _sample_mask(Λ, M, i, seed),
+    map((i, seed) -> _sample_mask(Λ, M, i, seed),
          1:N, abs.(rand(dpp.rng, Int, N)))
 
     # step II: iteratively sample from a mixture of elementary DPPs
-    pmap((i, seed) -> _sample_from_elementary(V, M, i, seed),
+    map((i, seed) -> _sample_from_elementary(V, M, i, seed),
          1:N, abs.(rand(dpp.rng, Int, N)))
 end
 
@@ -51,11 +51,11 @@ function Base.rand(dpp::DeterminantalPointProcess, N::Int, k::Int)
     E = AbstractMatrix{Float64}(elem_symm_poly(dpp.Lfact.values, k))
 
     # step I: sample masks for elementary DPPs
-    pmap((i, seed) -> _sample_k_mask(Λ, M, E, k, i, seed),
+    map((i, seed) -> _sample_k_mask(Λ, M, E, k, i, seed),
          1:N, abs.(rand(dpp.rng, Int, N)))
 
     # step II: iteratively sample from a mixture of elementary DPPs
-    pmap((i, seed) -> _sample_from_elementary(V, M, i, seed),
+    map((i, seed) -> _sample_from_elementary(V, M, i, seed),
          1:N, abs.(rand(dpp.rng, Int, N)))
 end
 
@@ -157,7 +157,6 @@ function _sample_from_elementary(V::AbstractMatrix,
             L[:, mask] = Matrix(qr(L[:, mask]).Q)
         end
     end
-
     sort(Y)
 end
 
