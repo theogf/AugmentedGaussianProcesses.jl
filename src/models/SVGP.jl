@@ -45,7 +45,7 @@ end
 
 function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
             likelihood::TLikelihood,inference::TInference, nInducingPoints::Union{Int,InducingPoints};
-            verbose::Int=0,optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
+            verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Int=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
             Zoptimizer=false,
             ArrayType::UnionAll=Vector) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
@@ -92,7 +92,7 @@ function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
                 nMinibatch = inference.nMinibatch
             end
 
-            latentf = ntuple( _ -> _SVGP{T₁}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimizer),nLatent)
+            latentf = ntuple( _ -> _SVGP{T₁}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimiser),nLatent)
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nMinibatch,nFeatures)
             inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)

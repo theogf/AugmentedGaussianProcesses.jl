@@ -92,8 +92,8 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 #### Hyperparameter optimization
 
 One can optimize the kernel hyperparameters as well as the inducing points location by maximizing the ELBO. All derivations are already hand-coded (no AD needed). One can select the optimization scheme via :
-- The `optimizer` keyword, can be `nothing` or `false` for no optimization or can be an optimizer from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. By default it is set to `Adam(α=0.01)`
-- The `Zoptimizer` keyword, similar to `optimizer` it is used for optimizing the inducing points locations, it is by default set to `nothing` (no optimization)
+- The `optimiser` keyword, can be `nothing` or `false` for no optimization or can be an optimiser from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/).
+- The `Zoptimiser` keyword, similar to `optimiser` it is used for optimizing the inducing points locations, it is by default set to `nothing` (no optimization)
 
 #### [PriorMean](@id meanprior)
 

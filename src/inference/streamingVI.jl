@@ -12,8 +12,8 @@ mutable struct StreamingVI{T<:Real,N} <: VariationalInference{T}
     function StreamingVI{T}(ϵ::T,nIter::Integer,nSamplesUsed::Integer,MBIndices::AbstractVector,flag::Bool) where T
         return new{T,1}(ϵ,nIter,nSamplesUsed,MBIndices,flag)
     end
-    function StreamingVI{T,1}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer) where {T}
-        vi_opts = ntuple(_->AVIOptimizer{T}(nFeatures,optimizer),nLatent)
+    function StreamingVI{T,1}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimiser) where {T}
+        vi_opts = ntuple(_->AVIOptimizer{T}(nFeatures,optimiser),nLatent)
         new{T,nLatent}(ϵ,0,Stochastic,nSamples,nMinibatch,nSamples/nMinibatch,true,vi_opts,collect(1:nMinibatch))
     end
 end

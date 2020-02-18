@@ -133,7 +133,7 @@ end
 
 function global_update!(gp::_SVGP,opt::AVIOptimizer,i::AnalyticVI)
     if isstochastic(i)
-        Δ = GradDescent.update(opt.optimiser,vcat(opt.∇η₁,opt.∇η₂[:]))
+        Δ = Optimise.apply!(opt.optimiser,gp.η₁,vcat(opt.∇η₁,opt.∇η₂[:]))
         gp.η₁ .+= Δ[1:gp.dim]
         gp.η₂ .= Symmetric(gp.η₂ + reshape(Δ[(gp.dim+1):end],gp.dim,gp.dim))
     else

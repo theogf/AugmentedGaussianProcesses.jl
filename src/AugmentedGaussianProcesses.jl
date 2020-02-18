@@ -36,9 +36,10 @@ module AugmentedGaussianProcesses
     using Zygote, ForwardDiff
     using Flux: functorm, params
     @reexport using Flux.Optimise
-    using PDMats
+    using PDMats: PDMat
     using AdvancedHMC, MCMCChains
-    using StatsBase, StatsFuns, SpecialFunctions, Distributions, FastGaussQuadrature
+    using StatsBase, StatsFuns, SpecialFunctions, Distributions
+    using FastGaussQuadrature: gausshermite
     using ProgressMeter, SimpleTraits
     #Exported modules
     # export KMeansModule
@@ -59,7 +60,6 @@ module AugmentedGaussianProcesses
     const LatentArray = Vector #For future optimization : How collection of latent GP parameters and local variables are stored
     include("functions/utils.jl")
     include("prior/priormean.jl")
-    # include("models/inducing_points.jl")
 
     include("models/AbstractGP.jl")
     include("models/GP_base.jl")

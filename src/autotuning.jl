@@ -97,7 +97,7 @@ function hyperparameter_gradient_function(gp::_VGP{T},X::AbstractMatrix) where {
                 return -one(T)/σ_k*hyperparameter_KL_gradient(gp.K.mat,A)
             end,
             function()
-                return -gp.K\(μ₀-gp.μ)
+                return gp.K\(gp.μ-μ₀)
             end)
 end
 
@@ -118,7 +118,7 @@ function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
                         - hyperparameter_KL_gradient(gp.K.mat,A))
             end,
             function()
-                return -(gp.K\(μ₀-gp.μ))
+                return gp.K\(gp.μ-μ₀)
             end)
 end
 
