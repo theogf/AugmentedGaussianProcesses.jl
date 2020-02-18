@@ -110,14 +110,7 @@ function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
         # gp.η₁ .+= α*Δ₁
 
         ## Save the new scaling on the optimizer
-        if isa(opt.optimizer,Adam)
-            opt.optimizer.α = min(opt.optimizer.α * α* 2.0,0.1)
-        elseif isa(opt.optimizer,Union{VanillaGradDescent,Momentum,RMSprop})
-            opt.optimizer.η = min(opt.optimizer.η*α*1.1,0.1)
-        elseif isa(opt.optimizer,ALRSVI)
-        elseif isa(opt.optimizer,InverseDecay)
-        end
-
+        #TODO
         ## Reparametrize to the normal distribution
         global_update!.(model.f)
     end

@@ -3,6 +3,7 @@ using Test
 using Random: seed!
 seed!(42)
 
+AGP.setadbackend(:forward_diff)
 # Global flags for the tests
 @testset "Test for AugmentedGaussianProcesses" begin
 include("test_GP.jl")

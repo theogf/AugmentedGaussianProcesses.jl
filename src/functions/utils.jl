@@ -63,13 +63,6 @@ end
 
 Base.:/(c::AbstractMatrix,a::PDMat) = c*inv(a.chol)
 
-## Temp fix until the deepcopy of the main package is fixed
-function Base.copy(opt::Optimizer)
-    f = length(fieldnames(typeof(opt)))
-    copied_params = [deepcopy(getfield(opt, k)) for k = 1:f]
-    return typeof(opt)(copied_params...)
-end
-
 ## Compute exp(μ)/cosh(c) safely if there is an overflow ##
 function safe_expcosh(μ::Real,c::Real)
     return isfinite(exp(μ)/cosh(c)) ? exp(μ)/cosh(c) : 2*logistic(2.0*max(μ,c))
