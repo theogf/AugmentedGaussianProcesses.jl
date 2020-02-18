@@ -4,17 +4,15 @@
 module IPModule
 
 using Distributions, StatsBase
-using DeterminantalPointProcesses
 using LinearAlgebra, Clustering, Distances, DataStructures
 using KernelFunctions
 using DeterminantalPointProcesses
 using Flux: Optimise
-export Webscale, OIPS, Kmeans, kDPP, StdDPP, SeqDPP, Greedy, UniformSampling
+export Webscale, OIPS, Kmeans, kDPP, StdDPP, SeqDPP, Greedy, UniformSampling, InducingPoints, FixedInducingPoints
 export init!, add_point!, remove_point!
 
-"Abstract type for kmeans algorithm"
 include("inducing_points.jl")
-
+include("dpp_base.jl")
 include("SeqDPP.jl")
 include("KDPP.jl")
 include("StdDPP.jl")

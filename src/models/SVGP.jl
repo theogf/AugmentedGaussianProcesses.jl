@@ -75,7 +75,7 @@ function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
                 Z = nInducingPoints.Z
             end
             if isa(Zoptimizer,Bool)
-                Zoptimizer = Zoptimizer ? Flux.ADAM(0.001) : nothing
+                Zoptimizer = Zoptimizer ? ADAM(0.001) : nothing
             end
             Z = FixedInducingPoints(Z,Zoptimizer)
             nFeatures = size(Z,1)
