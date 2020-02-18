@@ -126,7 +126,7 @@ function init_onlinemodel(model::OnlineSVGP{T},X,y) where {T<:Real}
 end
 
 function init_online_gp!(gp::_OSVGP{T},X,y,jitt::T=T(jitter)) where {T}
-    init!(gp.Z,X,y,gp.kernel)
+    IPModule.init!(gp.Z,X,y,gp.kernel)
     nSamples = size(X,1)
     gp.dim = gp.Z.k
     gp.Zₐ = copy(gp.Z.Z)

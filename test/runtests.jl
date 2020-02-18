@@ -9,5 +9,6 @@ AGP.setadbackend(:reverse_diff)
 include("test_GP.jl")
 include("test_VGP.jl")
 include("test_SVGP.jl")
+include("test_OnlineSVGP")
 # @test include("test_IO.jl")
 end

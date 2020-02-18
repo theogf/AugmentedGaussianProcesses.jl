@@ -3,7 +3,7 @@
 """
 module IPModule
 
-using Distributions
+# using Distributions
 using StatsBase: Weights, sample
 using LinearAlgebra#: Symmetric, Eigen, eigen, eigvals, I, logdet, diag, norm
 using Clustering: kmeans!

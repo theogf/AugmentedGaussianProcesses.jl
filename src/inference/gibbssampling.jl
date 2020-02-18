@@ -83,8 +83,6 @@ function logpdf(model::AbstractGP{T,<:Likelihood,<:GibbsSampling}) where {T}
 end
 
 function sample_global!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,gp::_MCGP{T}) where {T}
-    # @info ∇E_Σ
-    # @info eigvals(Matrix(gp.K))
     global Σ = inv(Symmetric(2.0*Diagonal(∇E_Σ)+inv(gp.K)))
     gp.f .= rand(MvNormal(Σ*(∇E_μ+gp.K\gp.μ₀),Σ))
     return nothing

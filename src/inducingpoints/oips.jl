@@ -15,19 +15,24 @@ mutable struct OIPS{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     η::Float64
     k::Int64
     Z::M
-    function OIPS(ρ_accept::Real=0.8,η::Real=0.95,ρ_remove::Real=1.0,opt=Flux.ADAM(0.001);kmax=Inf)
+    function OIPS(ρ_accept::Real=0.8,opt=ADAM(0.001);η::Real=0.95,kmax=Inf,ρ_remove::Real=Inf)
         @assert 0.0 <= ρ_accept <= 1.0 "ρ_accept should be between 0 and 1"
         @assert 0.0 <= η <= 1.0 "η should be between 0 and 1"
+        ρ_remove = isinf(ρ_remove) ? sqrt(ρ_accept) : ρ_remove
         @assert 0.0 <= ρ_remove <= 1.0 "ρ_remove should be between 0 and 1"
         return new{Float64,Matrix{Float64},typeof(opt)}(ρ_accept,ρ_remove,opt,kmax,η)
     end
-    #TODO Create a new constructor for fixed kmax
+    function OIPS(kmax::Int,η::Real=0.98,opt=ADAM(0.001))
+        @assert kmax > 0 "kmax should be bigger than 0"
+        @assert 0.0 <= η <= 1.0 "η should be between 0 and 1"
+        return new{Float64,Matrix{Float64},typeof(opt)}(0.95,sqrt(0.95),opt,kmax,η)
+    end
 end
 
 
 function init!(alg::OIPS,X,y,kernel)
     @assert size(X,1) > 9 "First batch should have at least 10 samples"
-    samples = StatsBase.sample(1:size(X,1),10,replace=false)
+    samples = sample(1:size(X,1),10,replace=false)
     alg.Z = copy(X[samples,:])
     alg.k = size(alg.Z,1)
     add_point!(alg,X,y,kernel)
@@ -63,7 +68,7 @@ function remove_point!(alg::OIPS,K,kernel)
         toremove = []
         c = 0
         while !isempty(removable) && alg.k > 10
-            i = StatsBase.sample(collect(removable),Weights(overlapcount[collect(removable)]))
+            i = sample(collect(removable),Weights(overlapcount[collect(removable)]))
             connected = findall(x->x>alg.ρ_remove,K[i,:])
             overlapcount[connected] .-= 1
             outofloop = filter(x->overlapcount[x]<=1,connected)
@@ -80,12 +85,5 @@ function remove_point!(alg::OIPS,K,kernel)
         end
         alg.Z = alg.Z[setdiff(1:alg.k,toremove),:]
         alg.k = size(alg.Z,1)
-    end
-end
-
-
-function update_centers!(alg,Zgrad)
-    for i in 1:alg.k
-        alg.Z[i,:] .+= apply!.([alg.opt],eachrow(alg.Z),eachrow(Zgrad))
     end
 end
