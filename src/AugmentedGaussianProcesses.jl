@@ -33,10 +33,11 @@ module AugmentedGaussianProcesses
     using Reexport
     using LinearAlgebra, Random
     @reexport using KernelFunctions
-    using Zygote, ForwardDiff
-    using Flux: functorm, params
+    using Zygote: gradient
+    using ForwardDiff: jacobian
+    using Flux #Remove full dependency on Flux once params for KernelFunctions is set
     @reexport using Flux.Optimise
-    using PDMats: PDMat
+    using PDMats: PDMat, invquad
     using AdvancedHMC, MCMCChains
     using StatsBase, StatsFuns, SpecialFunctions, Distributions
     using FastGaussQuadrature: gausshermite
@@ -81,6 +82,6 @@ module AugmentedGaussianProcesses
     #Training Functions
     include("training.jl")
     include("onlinetraining.jl")
-    include("autotuning.jl")
+    include("hyperparameter/autotuning.jl")
     include("predictions.jl")
 end #End Module

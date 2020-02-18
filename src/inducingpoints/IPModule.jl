@@ -6,8 +6,9 @@ module IPModule
 using Distributions, StatsBase
 using LinearAlgebra, Clustering, Distances, DataStructures
 using KernelFunctions
-using DeterminantalPointProcesses
-using Flux: Optimise
+using Random: rand, bitrand, AbstractRNG, MersenneTwister
+using Flux.Optimise
+import Base: rand
 export Webscale, OIPS, Kmeans, kDPP, StdDPP, SeqDPP, Greedy, UniformSampling, InducingPoints, FixedInducingPoints
 export init!, add_point!, remove_point!
 
@@ -23,17 +24,8 @@ include("KMeans.jl")
 include("greedy.jl")
 include("Uniform.jl")
 
-# #Compute the minimum distance
-# function mindistance(x::AbstractArray{T,N1},C::AbstractArray{T,N2},nC::Integer) where {T,N1,N2}#Point to look for, collection of centers, number of centers computed
-#   mindist = Inf
-#   for i in 1:nC
-#     mindist = min.(norm(x.-C[i])^2,mindist)
-#   end
-#   return mindist
-# end
-#
-#
-#
+
+
 # "Return the total cost of the current dataset given a set of centers"
 # function total_cost(X,C,kernel)
 #     n = size(X,1)

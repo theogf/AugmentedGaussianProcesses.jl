@@ -1,9 +1,9 @@
-using AugmentedGaussianProcesses
+using AugmentedGaussianProcesses; const AGP = AugmentedGaussianProcesses
 using Test
 using Random: seed!
 seed!(42)
 
-AGP.setadbackend(:forward_diff)
+AGP.setadbackend(:reverse_diff)
 # Global flags for the tests
 @testset "Test for AugmentedGaussianProcesses" begin
 include("test_GP.jl")

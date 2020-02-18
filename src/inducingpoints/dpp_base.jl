@@ -20,6 +20,8 @@ mutable struct DeterminantalPointProcess
     end
 end
 
+const DPP = DeterminantalPointProcess
+
 ### Sampling
 
 """Exact sampling from a DPP [1].

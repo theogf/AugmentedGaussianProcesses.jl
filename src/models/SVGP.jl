@@ -65,13 +65,13 @@ function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
                     @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
                     nInducingPoints = nSamples
                 else
-                    nInducingPoints = OfflineKmeans(nInducingPoints,nMarkov=10)
+                    nInducingPoints = Kmeans(nInducingPoints,nMarkov=10)
                 end
             end
             if nInducingPoints isa Int && nInducingPoints == nSamples
                 Z = X
             else
-                init!(nInducingPoints,X,y,kernel)
+                IPModule.init!(nInducingPoints,X,y,kernel)
                 Z = nInducingPoints.Z
             end
             if isa(Zoptimizer,Bool)

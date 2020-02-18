@@ -3,7 +3,7 @@ mutable struct Kmeans{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     opt::O
     nMarkov::Int64
     Z::M
-    function Kmeans(nInducingPoints::Integer,opt=Flux.ADAM(0.001);nMarkov=10)
+    function Kmeans(nInducingPoints::Integer,opt=ADAM(0.001);nMarkov=10)
         return new{Float64,Matrix{Float64},typeof(opt)}(nInducingPoints,opt,nMarkov)
     end
 end
@@ -51,4 +51,14 @@ function kmeans_ip(X::AbstractArray{T,N},nC::Integer;nMarkov::Integer=10,kweight
         Clustering.kmeans!(copy(transpose(X)),C)
     end
     return copy(transpose(C))
+end
+
+
+#Compute the minimum distance
+function mindistance(x::AbstractArray{T,N1},C::AbstractArray{T,N2},nC::Integer) where {T,N1,N2}#Point to look for, collection of centers, number of centers computed
+  mindist = Inf
+  for i in 1:nC
+    mindist = min.(norm(x.-C[i])^2,mindist)
+  end
+  return mindist
 end
