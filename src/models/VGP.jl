@@ -5,7 +5,7 @@ Class for variational Gaussian Processes models (non-sparse)
 VGP(X::AbstractArray{T},y::AbstractVector,
 kernel::Kernel,
     likelihood::LikelihoodType,inference::InferenceType;
-    verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
+    verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Integer=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
     IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
 ```
@@ -23,7 +23,7 @@ Argument list :
 **Keyword arguments**
 
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
-- `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl)) or set it to `false` to keep hyperparameters fixed
+- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
 - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
 - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
@@ -47,7 +47,7 @@ end
 
 function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             likelihood::TLikelihood,inference::TInference;
-            verbose::Int=0,optimizer=ADAM(0.01),atfrequency::Integer=1,
+            verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Integer=1,
             mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
             ArrayType::UnionAll=Vector) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
@@ -55,8 +55,8 @@ function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             @assert check_implementation(:VGP, likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
             nFeatures = nSamples = size(X,1); nDim = size(X,2);
 
-            if isa(optimizer,Bool)
-                optimizer = optimizer ? ADAM(0.01) : nothing
+            if isa(optimiser,Bool)
+                optimiser = optimiser ? ADAM(0.01) : nothing
             end
 
             if typeof(mean) <: Real
@@ -65,7 +65,7 @@ function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
                 mean = EmpiricalMean(mean)
             end
 
-            latentf = ntuple(_->_VGP{T}(nFeatures,kernel,mean,variance,optimizer),nLatent)
+            latentf = ntuple(_->_VGP{T}(nFeatures,kernel,mean,variance,optimiser),nLatent)
 
             likelihood = init_likelihood(likelihood,inference,nLatent,nSamples,nFeatures)
             inference = tuple_inference(inference,nLatent,nSamples,nSamples,nSamples)

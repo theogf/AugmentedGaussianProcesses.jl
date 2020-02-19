@@ -64,7 +64,7 @@ Inference can be done in various ways.
 - [`AnalyticVI`](@ref) : [Variational Inference](https://en.wikipedia.org/wiki/Variational_Bayesian_methods) with closed-form updates. For non-Gaussian likelihoods, this relies on augmented version of the likelihoods. For using Stochastic Variational Inference, one can use [`AnalyticSVI`](@ref) with the size of the mini-batch as an argument
 - [`GibbsSampling`](@ref) : Gibbs Sampling of the true posterior, this also rely on an augmented version of the likelihoods, this is only valid for the `VGP` model at the moment.
 
-The two next methods rely on numerical approximation of an integral and I therefore recommend using the `VanillaGradDescent` as it will use anyway the natural gradient updates. `Adam` seem to give random results.
+The two next methods rely on numerical approximation of an integral and I therefore recommend using the classical `Descent` approach as it will use anyway the natural gradient updates. `ADAM` seem to give random results.
 - [`QuadratureVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via quadrature.
 - [`MCIntegrationVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via Monte Carlo Integration
 
@@ -92,8 +92,8 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 #### Hyperparameter optimization
 
 One can optimize the kernel hyperparameters as well as the inducing points location by maximizing the ELBO. All derivations are already hand-coded (no AD needed). One can select the optimization scheme via :
-- The `optimizer` keyword, can be `nothing` or `false` for no optimization or can be an optimizer from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. By default it is set to `Adam(α=0.01)`
-- The `Zoptimizer` keyword, similar to `optimizer` it is used for optimizing the inducing points locations, it is by default set to `nothing` (no optimization)
+- The `optimiser` keyword, can be `nothing` or `false` for no optimization or can be an optimiser from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/).
+- The `Zoptimiser` keyword, similar to `optimiser` it is used for optimizing the inducing points locations, it is by default set to `nothing` (no optimization)
 
 #### [PriorMean](@id meanprior)
 

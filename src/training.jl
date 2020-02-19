@@ -81,6 +81,7 @@ function update_parameters!(model::VGP)
     variational_updates!(model);
 end
 
+"""Update all variational parameters of the sparse variational GP Model"""
 function update_parameters!(model::SVGP)
     if model.inference.Stochastic
         model.inference.MBIndices .= StatsBase.sample(1:model.inference.nSamples,model.inference.nMinibatch,replace=false)
@@ -108,14 +109,14 @@ function update_parameters!(model::VStP)
     variational_updates!(model);
 end
 
-function computeMatrices!(model::Union{GP{T},VGP{T},MCGP{T}}) where {T}
+@traitfn function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T};!IsSparse{TGP}}
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,[model.inference.xview],T(jitter))
     end
-    model.inference.HyperParametersUpdated=false
+    model.inference.HyperParametersUpdated = false
 end
 
-function computeMatrices!(model::Union{SVGP{T},MOSVGP{T}}) where {T}
+@traitfn function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T};IsSparse{TGP}}
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,T(jitter))
     end
@@ -123,13 +124,13 @@ function computeMatrices!(model::Union{SVGP{T},MOSVGP{T}}) where {T}
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
         compute_κ!.(model.f,[model.inference.xview],T(jitter))
     end
-    model.inference.HyperParametersUpdated=false
+    model.inference.HyperParametersUpdated = false
 end
 
 
 function computeMatrices!(model::VStP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
-        model.Knn .= Symmetric.(KernelModule.kernelmatrix.([model.inference.x],model.kernel) .+ getvariance.(model.kernel).*T(jitter).*[I])
+        compute_K!.(model.f,[],T(jitter))
         model.invL .= inv.(getproperty.(cholesky.(model.Knn),:L))
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
         # model.invKnn .= Symmetric.(model.invL.*transpose.(model.invL))

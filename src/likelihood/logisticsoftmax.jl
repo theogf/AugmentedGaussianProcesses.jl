@@ -111,7 +111,7 @@ PoissonKL(l::LogisticSoftMaxLikelihood) =     sum(broadcast(PoissonKL,l.γ,[l.α
 
 ##  Compute the equivalent of KL divergence between an improper prior p(λ) (``1_{[0,\\infty]}``) and a variational Gamma distribution ##
 function GammaEntropy(l::LogisticSoftMaxLikelihood)
-    return -sum(l.α)+sum(log,l.β[1])-sum(lgamma,l.α)-dot(1.0.-l.α,digamma.(l.α))
+    return -sum(l.α)+sum(log,l.β[1])-sum(x->first(logabsgamma(x)),l.α)-dot(1.0.-l.α,digamma.(l.α))
 end
 
 ## Numerical Gradient Section ##

@@ -4,9 +4,9 @@ Class for multi-output sparse variational Gaussian Processes
 ```julia
 MOSVGP(X::AbstractArray{T},y::AbstractVector{AbstractArray{T}},kernel::Kernel,
     likelihood::AbstractVector{Likelihoods},inference::InferenceType, nInducingPoints::Int;
-    verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
+    verbose::Int=0,optimiser=ADAM(0.001),atfrequency::Int=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-    Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
+    Zoptimizer=false,
     ArrayType::UnionAll=Vector)
 ```
 
@@ -21,11 +21,11 @@ Argument list :
  - `nInducingPoints` : number of inducing points
 **Optional arguments**
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
+- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
  - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `optimizer` : Optimizer for inducing point locations (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
+- `Zoptimiser` : Optimiser used for inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
 mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N,Q} <: AbstractGP{T,TLikelihood,TInference,N}
@@ -52,8 +52,8 @@ end
 function MOSVGP(
             X::AbstractArray{T},y::AbstractVector{<:AbstractVector},kernel::Kernel,
             likelihood::TLikelihood,inference::TInference,nLatent::Int,nInducingPoints::Int;
-            verbose::Int=0,optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
-            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,Aoptimizer=Adam(α=0.01),
+            verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Int=1,
+            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,Aoptimiser=ADAM(0.01),
             Zoptimizer=false,
             ArrayType::UnionAll=Vector) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
@@ -68,11 +68,11 @@ function MOSVGP(
             @assert check_implementation(:SVGP,likelihoods[1],inference) "The $likelihood is not compatible or implemented with the $inference"
 
             nSamples = size(X,1); nDim = size(X,2);
-            if isa(optimizer,Bool)
-                optimizer = optimizer ? Adam(α=0.01) : nothing
+            if isa(optimiser,Bool)
+                optimiser = optimiser ? ADAM(0.01) : nothing
             end
-            if isa(AOptimizer,Bool)
-                Aoptimizer = Aoptimizer ? Adam(α=0.01) : nothing
+            if isa(AOptimiser,Bool)
+                Aoptimiser = Aoptimiser ? ADAM(0.01) : nothing
             end
             @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
             if nInducingPoints > nSamples
@@ -103,7 +103,7 @@ function MOSVGP(
                 nMinibatch = inference.nMinibatch
             end
 
-            latent_f = ntuple( _ -> _SVGP{T}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimizer),nLatent)
+            latent_f = ntuple( _ -> _SVGP{T}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimiser),nLatent)
 
             dpos = Normal(0.5,0.5)
             dneg = Normal(-0.5,0.5)

@@ -3,10 +3,30 @@ GaussianKL(model::AbstractGP) = sum(broadcast(GaussianKL,model.f,get_Z(model)))
 
 GaussianKL(gp::Abstract_GP,X::AbstractMatrix) = GaussianKL(gp.μ,gp.μ₀(X),gp.Σ,gp.K)
 
+## See https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Multivariate_normal_distributions ##
 function GaussianKL(μ::AbstractVector{T},μ₀::AbstractVector,Σ::Matrix{T},K::PDMat{T,Matrix{T}}) where {T<:Real}
-    0.5*(-logdet(Σ)+logdet(K)+tr(K\Σ)+invquad(K,μ-μ₀)-length(μ))
+    0.5*(logdet(K)-logdet(Σ)+tr(K\Σ)+invquad(K,μ-μ₀)-length(μ))
 end
 
+function extraKL(model::VGP)
+    return 0
+end
+
+function extraKL(model::SVGP)
+    return 0
+end
+
+"""Return the extra KL term containing the divergence with the GP at time t and t+1"""
+function extraKL(model::OnlineSVGP{T}) where {T}
+    KLₐ = zero(T)
+    for gp in model.f
+        κₐμ = gp.κₐ*gp.μ
+        KLₐ += gp.prev𝓛ₐ
+        KLₐ += -0.5 *  sum(opt_trace.([gp.invDₐ], [gp.K̃ₐ, gp.κₐ * gp.Σ * transpose(gp.κₐ)]))
+        KLₐ += dot(gp.prevη₁, κₐμ) - 0.5 * dot(κₐμ, gp.invDₐ * κₐμ)
+    end
+    return KLₐ
+end
 
 
 

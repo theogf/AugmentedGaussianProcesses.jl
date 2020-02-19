@@ -24,18 +24,18 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
     xview::SubArray{T,2,Matrix{T}}
     yview::AbstractVector
 
-    function AnalyticVI{T}(ϵ::T,optimizer::Optimizer,nMinibatch::Int,Stochastic::Bool) where {T}
-        return new{T,1}(ϵ,0,Stochastic,0,nMinibatch,1.0,true,(AVIOptimizer{T}(0,optimizer),))
+    function AnalyticVI{T}(ϵ::T,optimiser,nMinibatch::Int,Stochastic::Bool) where {T}
+        return new{T,1}(ϵ,0,Stochastic,0,nMinibatch,1.0,true,(AVIOptimizer{T}(0,optimiser),))
     end
-    function AnalyticVI{T,1}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimizer::Optimizer) where {T}
-        vi_opts = ntuple(_->AVIOptimizer{T}(nFeatures,optimizer),nLatent)
+    function AnalyticVI{T,1}(ϵ::T,Stochastic::Bool,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int,optimiser) where {T}
+        vi_opts = ntuple(_->AVIOptimizer{T}(nFeatures,optimiser),nLatent)
         new{T,nLatent}(ϵ,0,Stochastic,nSamples,nMinibatch,nSamples/nMinibatch,true,vi_opts,collect(1:nMinibatch))
     end
 end
 
 
 function AnalyticVI(;ϵ::T=1e-5) where {T<:Real}
-    AnalyticVI{Float64}(ϵ,VanillaGradDescent(η=1.0),0,false)
+    AnalyticVI{Float64}(ϵ,Descent(1.0),0,false)
 end
 
 """
@@ -43,17 +43,17 @@ end
 Stochastic Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
 
 ```julia
-AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay())
+AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimiser=RobbinsMonro())
 ```
     - `nMinibatch::Integer` : Number of samples per mini-batches
 
 **Keywords arguments**
 
     - `ϵ::T` : convergence criteria
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl) package. Default is `InverseDecay()` (ρ=(τ+iter)^-κ)
+    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `RobbinsMonro()` (ρ=(τ+iter)^-κ)
 """
-function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimizer::Optimizer=InverseDecay()) where {T<:Real}
-    AnalyticVI{T}(ϵ,optimizer,nMinibatch,true)
+function AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimiser=RobbinsMonro()) where {T<:Real}
+    AnalyticVI{T}(ϵ,optimiser,nMinibatch,true)
 end
 
 function Base.show(io::IO,inference::AnalyticVI{T}) where T
@@ -63,7 +63,7 @@ end
 
 ## Initialize the final version of the inference object ##
 function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nMinibatch::Integer) where {TInf <: AnalyticVI}
-    return TInf(i.ϵ,i.Stochastic,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimizer)
+    return TInf(i.ϵ,i.Stochastic,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimiser)
 end
 
 
@@ -113,10 +113,18 @@ function ∇η₂(θ::AbstractVector{T},ρ::Real,κ::AbstractMatrix{<:Real},K::P
     -(ρκdiagθκ(ρ, κ, θ) + 0.5 * inv(K).mat) - η₂
 end
 
+## Natural gradient for the ONLINE model (OSVGP) ##
+function natural_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::AnalyticVI,opt::AVIOptimizer,Z::AbstractMatrix,gp::_OSVGP{T}) where {T}
+    gp.η₁ = gp.K \ gp.μ₀(Z) + transpose(gp.κ)*∇E_μ + transpose(gp.κₐ)*gp.prevη₁
+    gp.η₂ = -Symmetric(ρκdiagθκ(1.0,gp.κ,∇E_Σ)+0.5*transpose(gp.κₐ)*gp.invDₐ*gp.κₐ+0.5*inv(gp.K))
+end
+
 global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L} = global_update!.(model.f)
 
 global_update!(gp::_VGP,opt::AVIOptimizer,i::AnalyticVI) = global_update!(gp)
 
+global_update!(model::OnlineSVGP) = global_update!.(model.f)
+global_update!(gp::_OSVGP,opt,i) = global_update!(gp)
 
 #Update of the natural parameters and conversion from natural to standard distribution parameters
 function global_update!(model::Union{SVGP{T,L,TInf},MOSVGP{T,L,TInf}}) where {T,L,TInf<:AnalyticVI}
@@ -125,7 +133,7 @@ end
 
 function global_update!(gp::_SVGP,opt::AVIOptimizer,i::AnalyticVI)
     if isstochastic(i)
-        Δ = GradDescent.update(opt.optimizer,vcat(opt.∇η₁,opt.∇η₂[:]))
+        Δ = Optimise.apply!(opt.optimiser,gp.η₁,vcat(opt.∇η₁,opt.∇η₂[:]))
         gp.η₁ .+= Δ[1:gp.dim]
         gp.η₂ .= Symmetric(gp.η₂ + reshape(Δ[(gp.dim+1):end],gp.dim,gp.dim))
     else
@@ -141,4 +149,5 @@ function ELBO(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
     tot += model.inference.ρ*expec_log_likelihood(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model))
     tot -= GaussianKL(model)
     tot -= model.inference.ρ*AugmentedKL(model.likelihood,get_y(model))
+    tot -= extraKL(model)
 end

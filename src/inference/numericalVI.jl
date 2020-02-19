@@ -11,7 +11,7 @@ include("quadratureVI.jl")
 include("MCVI.jl")
 
 
-""" `NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))`
+""" `NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimiser=Momentum(0.001))`
 
 General constructor for Variational Inference via numerical approximation.
 
@@ -24,19 +24,19 @@ General constructor for Variational Inference via numerical approximation.
     - `ϵ::T` : convergence criteria, which can be user defined
     - `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
+    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
 """
-function NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer::Optimizer=Momentum(η=1e-5)) where {T<:Real}
+function NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimiser=Momentum(1e-3)) where {T<:Real}
     if integration_technique == :quad
-        QuadratureVI{T}(ϵ,nGaussHermite,optimizer,false,0)
+        QuadratureVI{T}(ϵ,nGaussHermite,optimiser,false,0)
     elseif integration_technique == :mc
-        MCIntegrationVI{T}(ϵ,nMC,optimizer,false,0)
+        MCIntegrationVI{T}(ϵ,nMC,optimiser,false,0)
     else
         @error "Only possible integration techniques are quadrature : :quad or mcmc integration :mcmc"
     end
 end
 
-""" `NumericalSVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer::Optimizer=Adam(α=0.1))`
+""" `NumericalSVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer=Momentum(0.001))`
 
 General constructor for Stochastic Variational Inference via numerical approximation.
 
@@ -50,9 +50,9 @@ General constructor for Stochastic Variational Inference via numerical approxima
     - `ϵ::T` : convergence criteria, which can be user defined
     - `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
     - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `optimizer::Optimizer` : Optimizer used for the variational updates. Should be an Optimizer object from the [GradDescent.jl]() package. Default is `Adam()`
+    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
 """
-function NumericalSVI(nMinibatch::Integer,integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimizer::Optimizer=Momentum(η=1e-5)) where {T<:Real}
+function NumericalSVI(nMinibatch::Integer,integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimiser=Momentum(1e-3)) where {T<:Real}
     if integration_technique == :quad
         QuadratureVI{T}(ϵ,nGaussHermite,optimizer,true,nMinibatch)
     elseif integration_technique == :mc
@@ -102,7 +102,6 @@ function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
         opt.L = LowerTriangular(opt.L+α*Δ₂)
         gp.η₂ .= Symmetric(-opt.L*opt.L')
         display(gp.η₁)
-        # display(opt.optimizer.η)
         display(Δ₁)
 
         gp.η₁ .+= α*Δ₁
@@ -111,14 +110,7 @@ function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
         # gp.η₁ .+= α*Δ₁
 
         ## Save the new scaling on the optimizer
-        if isa(opt.optimizer,Adam)
-            opt.optimizer.α = min(opt.optimizer.α * α* 2.0,0.1)
-        elseif isa(opt.optimizer,Union{VanillaGradDescent,Momentum,RMSprop})
-            opt.optimizer.η = min(opt.optimizer.η*α*1.1,0.1)
-        elseif isa(opt.optimizer,ALRSVI)
-        elseif isa(opt.optimizer,InverseDecay)
-        end
-
+        #TODO
         ## Reparametrize to the normal distribution
         global_update!.(model.f)
     end
