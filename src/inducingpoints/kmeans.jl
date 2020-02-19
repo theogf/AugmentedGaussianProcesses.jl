@@ -26,14 +26,13 @@ function kmeans_seeding(X::AbstractArray{T,N},nC::Integer,nMarkov::Integer) wher
   end
   sumq = sum(q)
   q = Weights(q/sumq .+ 1.0/(2*NSamples),1)
-  uniform = Distributions.Uniform(0,1)
   for i in 2:nC
     x = X[sample(1:NSamples,q,1),:] #weighted sampling,
     mindist = mindistance(x,C,i-1)
     for j in 2:nMarkov
       y = X[sample(q),:] #weighted sampling
       dist = mindistance(y,C,i-1)
-      if (dist/mindist > rand(uniform))
+      if (dist/mindist > rand())
         x = y;  mindist = dist
       end
     end
