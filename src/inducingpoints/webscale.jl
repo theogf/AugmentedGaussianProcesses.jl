@@ -12,7 +12,7 @@ end
 function init!(alg::Webscale,X,y,kernel)
     @assert size(X,1)>=alg.k "Input data not big enough given $k"
     alg.v = zeros(Int64,alg.k);
-    alg.Z = X[StatsBase.sample(1:size(X,1),alg.k,replace=false),:];
+    alg.Z = X[sample(1:size(X,1),alg.k,replace=false),:];
 end
 
 function add_point!(alg::Webscale,X,y,model)

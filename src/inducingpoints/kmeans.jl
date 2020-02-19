@@ -17,7 +17,7 @@ end
 function kmeans_seeding(X::AbstractArray{T,N},nC::Integer,nMarkov::Integer) where {T,N} #X is the data, nC the number of centers wanted, m the number of Markov iterations
   NSamples = size(X,1)
   #Preprocessing, sample first random center
-  init = StatsBase.sample(1:NSamples,1)
+  init = sample(1:NSamples,1)
   C = zeros(nC,size(X,2))
   C[1,:] = X[init,:]
   q = zeros(NSamples)
@@ -28,10 +28,10 @@ function kmeans_seeding(X::AbstractArray{T,N},nC::Integer,nMarkov::Integer) wher
   q = Weights(q/sumq .+ 1.0/(2*NSamples),1)
   uniform = Distributions.Uniform(0,1)
   for i in 2:nC
-    x = X[StatsBase.sample(1:NSamples,q,1),:] #weighted sampling,
+    x = X[sample(1:NSamples,q,1),:] #weighted sampling,
     mindist = mindistance(x,C,i-1)
     for j in 2:nMarkov
-      y = X[StatsBase.sample(q),:] #weighted sampling
+      y = X[sample(q),:] #weighted sampling
       dist = mindistance(y,C,i-1)
       if (dist/mindist > rand(uniform))
         x = y;  mindist = dist

@@ -21,7 +21,7 @@ function init!(alg::StreamOnline,X,y,kernel)
     if alg.k_efficient+10 > size(X,1)
          alg.k_efficient = 0
     end
-    alg.Z = X[StatsBase.sample(1:size(X,1),alg.k_efficient+10,replace=false),:]
+    alg.Z = X[sample(1:size(X,1),alg.k_efficient+10,replace=false),:]
     # alg.centers = X[1:(alg.k_efficient+10),:]
     alg.k = alg.k_efficient+10
     w=zeros(alg.k)

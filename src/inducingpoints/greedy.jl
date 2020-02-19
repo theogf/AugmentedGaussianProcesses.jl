@@ -23,11 +23,11 @@ function greedy_iterations(X,y,kernel,k,minibatch,noise)
     i = rand(1:size(X,1))
     Z = vcat(Z,X[i:i,:]); push!(set_point,i)
     for v in 2:k
-        X_sub = StatsBase.sample(1:size(X,1),min(1000,size(X,1)),replace=false)
+        X_sub = sample(1:size(X,1),min(1000,size(X,1)),replace=false)
         Xset = Set(X_sub)
         i = 0
         best_L = -Inf
-        d = StatsBase.sample(collect(setdiff(Xset,set_point)),minibatch,replace=false)
+        d = sample(collect(setdiff(Xset,set_point)),minibatch,replace=false)
         for j in d
             new_Z = vcat(Z,X[j:j,:]);
             L = ELBO_reg(new_Z,X[X_sub,:],y[X_sub],kernel,noise)

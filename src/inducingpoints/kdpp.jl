@@ -23,7 +23,7 @@ function init!(alg::kDPP{T},X,y,kernel) where {T}
         KZ = kernelmatrix(kernel,alg.Z,obsdim=1) + jitt*I
         Vᵢ = kᵢᵢ[collect(Xset)] - opt_diag(kᵢZ*inv(KZ),kᵢZ)
         pᵢ = Vᵢ/sum(Vᵢ)
-        j = StatsBase.sample(collect(Xset),Weights(pᵢ))
+        j = sample(collect(Xset),Weights(pᵢ))
         push!(Zset,j)
         alg.Z = vcat(alg.Z,X[j:j,:])
         k += 1

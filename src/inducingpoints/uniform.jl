@@ -9,6 +9,6 @@ end
 
 function init!(alg::UniformSampling,X,y,kernel)
     @assert size(X,1)>=alg.k "Input data not big enough given $k"
-    samp = StatsBase.sample(1:size(X,1),alg.k,replace=false)
+    samp = sample(1:size(X,1),alg.k,replace=false)
     alg.Z = X[samp,:]
 end

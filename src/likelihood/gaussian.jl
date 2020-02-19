@@ -28,11 +28,11 @@ function GaussianLikelihood(σ²::T=1e-3;opt_noise=false) where {T<:Real}
 end
 
 function pdf(l::GaussianLikelihood,y::Real,f::Real)
-    pdf(Normal(y,l.σ²),f)
+    Distributions.pdf(Normal(y,l.σ²),f)
 end
 
 function logpdf(l::GaussianLikelihood,y::Real,f::Real)
-    logpdf(Normal(y,l.σ²),f)
+    Distributions.logpdf(Normal(y,l.σ²),f)
 end
 
 noise(l::GaussianLikelihood) = l.σ²
