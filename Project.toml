@@ -44,6 +44,7 @@ RecipesBase = "0"
 SpecialFunctions = "0"
 StatsBase = "0.32.0"
 StatsFuns = "0.8.0"
+Zygote = "0.4"
 julia = "1.1"
 
 [extras]
