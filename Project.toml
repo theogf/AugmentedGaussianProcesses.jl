@@ -32,7 +32,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 [compat]
 AdvancedHMC = "0.2.13"
 Clustering = "0.13.3"
-Distributions = "0.21.5"
+Distributions = "0.21.5, 0.22"
 FastGaussQuadrature = "0.4.0"
 Flux = "0.10.0"
 ForwardDiff = "0.10.6"
