@@ -7,13 +7,15 @@ Compute the mean of the predicted latent distribution of `f` on `X_test` for the
 
 Return also the diagonal variance if `covf=true` and the full covariance if `fullcov=true`
 """
+predict_f
+
 function _predict_f(model::AbstractGP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     μf = k_star.*(get_K(model).\get_μ(model))
     if !covf
         return (μf,)
     end
-    A = get_K(model).\([I].-get_K(model).\get_Σ(model))
+    A = get_K(model).\(Ref(I).-get_Σ(model)./get_K(model))
     if fullcov
         k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
         Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
@@ -31,7 +33,7 @@ function _predict_f(model::GP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,
     if !covf
         return (μf,)
     end
-    A = [inv(model.f[1].K+model.likelihood.σ²*I).mat]
+    A = [inv(model.f[1].K).mat]
     if fullcov
         k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
         Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
@@ -50,7 +52,7 @@ function _predict_f(model::MOSVGP{T},X_test::AbstractMatrix{<:Real};covf::Bool=t
     if !covf
         return (μf,)
     end
-    A = get_K(model).\([I].-get_K(model).\get_Σ(model))
+    A = get_K(model).\([I].-get_Σ(model)./get_K(model))
     if fullcov
         k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
         Σf = k_starstar .-  k_star.*A.*transpose.(k_star)
@@ -64,7 +66,7 @@ function _predict_f(model::MOSVGP{T},X_test::AbstractMatrix{<:Real};covf::Bool=t
     end
 end
 
-function _predict_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
+function _predict_f(model::MCGP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     f = _sample_f(model,X_test,k_star)
     μf = Tuple(vec(mean(f[k],dims=2)) for k in 1:model.nLatent)
@@ -72,12 +74,12 @@ function _predict_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::Abstract
         return (μf,)
     end
     if fullcov
-        k_starstar = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test])
+        k_starstar = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],obsdim=1)
         Σf = Symmetric.(k_starstar .- invquad.(get_K(model),k_star) .+  cov.(f))
         return μf, Σf
     else
-        k_starstar = get_σ_k(model).*kerneldiagmatrix.(get_kernel(model),[X_test]) .+ [T(jitter)*ones(T,size(X_test,1))]
-        σ²f = k_starstar .- opt_diag.(k_star,get_K(model).\k_star) .+  diag.(cov.(f,dims=2))
+        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1) .+ [T(jitter)*ones(T,size(X_test,1))])
+        σ²f = k_starstar .- opt_diag.(k_star./get_K(model),k_star) .+  diag.(cov.(f,dims=2))
         return μf,σ²f
     end
 end

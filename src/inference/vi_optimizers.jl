@@ -29,3 +29,7 @@ end
 mutable struct SOptimizer{T<:Real,O} <: AOptimizer{T}
     optimiser::O
 end
+
+function SOptimizer{T}(opt::O) where {T,O}
+    SOptimizer{T,O}(opt)
+end

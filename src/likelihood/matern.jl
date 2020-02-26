@@ -120,10 +120,10 @@ end
 
 ## PDF and Log PDF Gradients ## (verified gradients)
 
-function grad_log_pdf(l::Matern3_2Likelihood{T},y::Real,f::Real) where {T<:Real}
+function grad_logpdf(l::Matern3_2Likelihood{T},y::Real,f::Real) where {T<:Real}
     3.0 * (y-f) / (l.ρ*(abs(f-y)*sqrt(3)+l.ρ))
 end
 
-function hessian_log_pdf(l::Matern3_2Likelihood{T},y::Real,f::Real) where {T<:Real}
+function hessian_logpdf(l::Matern3_2Likelihood{T},y::Real,f::Real) where {T<:Real}
     3.0 / (l.ρ+sqrt(3)*abs(f-y))^2
 end

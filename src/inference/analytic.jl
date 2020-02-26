@@ -42,8 +42,8 @@ function init_inference(inference::Analytic{T},nLatent::Integer,nFeatures::Integ
 end
 
 function analytic_updates!(model::GP{T}) where {T}
+    first(model.f).μ = first(model.f).K\(model.y - first(model.f).μ₀(model.X))
     if !isnothing(model.likelihood.opt_noise)
         model.likelihood.σ² = mean(abs2,model.y.-first(model.f).μ)
     end
-    first(model.f).μ = first(model.f).K\(model.y - first(model.f).μ₀(model.X))
 end

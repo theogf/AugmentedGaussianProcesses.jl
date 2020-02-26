@@ -109,6 +109,11 @@ function update_parameters!(model::VStP)
     variational_updates!(model);
 end
 
+function computeMatrices!(model::GP{T}) where {T}
+    compute_K!.(model.f,[model.inference.xview],T(jitter)+model.likelihood.σ²)
+    model.inference.HyperParametersUpdated = false
+end
+
 @traitfn function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T};!IsSparse{TGP}}
     if model.inference.HyperParametersUpdated
         compute_K!.(model.f,[model.inference.xview],T(jitter))
