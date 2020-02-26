@@ -7,6 +7,8 @@ Compute the mean of the predicted latent distribution of `f` on `X_test` for the
 
 Return also the diagonal variance if `covf=true` and the full covariance if `fullcov=true`
 """
+predict_f
+
 function _predict_f(model::AbstractGP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T}
     k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     μf = k_star.*(get_K(model).\get_μ(model))
@@ -31,7 +33,7 @@ function _predict_f(model::GP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,
     if !covf
         return (μf,)
     end
-    A = [inv(model.f[1].K+model.likelihood.σ²*I).mat]
+    A = [inv(model.f[1].K).mat]
     if fullcov
         k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
         Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))

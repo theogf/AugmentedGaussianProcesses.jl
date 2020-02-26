@@ -73,8 +73,7 @@ end
 
 
 function hyperparameter_gradient_function(gp::_GP{T},X::AbstractMatrix) where {T}
-    μ₀ = gp.μ₀(X)
-    A = (inv(gp.K).mat-(gp.μ-μ₀)*transpose(gp.μ-μ₀))
+    A = (inv(gp.K).mat-(gp.μ)*transpose(gp.μ))# μ = inv(K+σ²)*(y-μ₀)
     return (function(Jnn)
                 return -hyperparameter_KL_gradient(Jnn,A)
             end,
