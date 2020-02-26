@@ -110,7 +110,7 @@ end
 function _MCGP{T}(dim::Int,kernel::Kernel,mean::PriorMean,σ_k::Real) where {T<:Real}
     _MCGP{T}(dim,
             zeros(T,dim),
-            wrapper(kernel,nothing),
+            kernel,
             [σ_k],
             deepcopy(mean),
             PDMat(Matrix{T}(I,dim,dim)))

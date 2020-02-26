@@ -7,6 +7,7 @@ Variational Inference solver by approximating gradients via MC Integration.
 
     - `ϵ::T` : convergence criteria, which can be user defined
     - `nMC::Int` : Number of samples per data point for the integral evaluation
+    - `natural::Bool` : Use natural gradients
     - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.01)`
 """
 mutable struct MCIntegrationVI{T<:Real,N} <: NumericalVI{T}
@@ -16,20 +17,21 @@ mutable struct MCIntegrationVI{T<:Real,N} <: NumericalVI{T}
     Stochastic::Bool #Use of mini-batches
     nSamples::Int64 #Number of samples of the data
     nMinibatch::Int64 #Size of mini-batches
+    NaturalGradient::Bool
     ρ::T #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     vi_opt::NTuple{N,NVIOptimizer}
     MBIndices::Vector #Indices of the minibatch
     xview::SubArray{T,2,Matrix{T}}
     yview::SubArray
-    function MCIntegrationVI{T}(ϵ::T,nMC::Integer,optimiser,Stochastic::Bool,nSamplesUsed::Integer=1) where {T<:Real}
-        return new{T,1}(ϵ,0,nMC,Stochastic,1,nSamplesUsed)
+    function MCIntegrationVI{T}(ϵ::T,nMC::Integer,optimiser,Stochastic::Bool,nSamplesUsed::Integer=1,natural::Bool=true) where {T<:Real}
+        return new{T,1}(ϵ,0,nMC,Stochastic,1,nSamplesUsed,natural)
     end
 end
 
 
-function MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimiser=Momentum(0.01)) where {T<:Real}
-    MCIntegrationVI{T}(ϵ,nMC,optimiser,false,1)
+function MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimiser=Momentum(0.01),natural::Bool=true) where {T<:Real}
+    MCIntegrationVI{T}(ϵ,nMC,optimiser,false,1,natural)
 end
 
 """
@@ -45,10 +47,11 @@ Stochastic Variational Inference solver by approximating gradients via Monte Car
 
     - `ϵ::T` : convergence criteria, which can be user defined
     - `nMC::Int` : Number of samples per data point for the integral evaluation
+    - `natural::Bool` : Use natural gradients
     - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum()` (ρ=(τ+iter)^-κ)
 """
-function MCIntegrationSVI(nMinibatch::Integer;ϵ::T=1e-5,nMC::Integer=200,optimiser=Momentum(0.001)) where {T<:Real}
-    MCIntegrationVI{T}(ϵ,nMC,0,optimiser,true,nMinibatch)
+function MCIntegrationSVI(nMinibatch::Integer;ϵ::T=1e-5,nMC::Integer=200,optimiser=Momentum(0.001),natural::Bool=true) where {T<:Real}
+    MCIntegrationVI{T}(ϵ,nMC,0,optimiser,true,nMinibatch,natural)
 end
 
 function compute_grad_expectations!(model::VGP{T,L,<:MCIntegrationVI}) where {T,L}
