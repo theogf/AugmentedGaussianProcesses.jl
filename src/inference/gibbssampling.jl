@@ -65,6 +65,7 @@ function sample_parameters(model::MCGP{T,L,<:GibbsSampling},nSamples::Int,callba
         sample_global!.(
         ∇E_μ(model.likelihood,model.inference.opt[1],get_y(model)),
         ∇E_Σ(model.likelihood,model.inference.opt[1],get_y(model)),
+        get_Z(model),
         model.f)
         if model.inference.nIter > model.inference.nBurnin && (model.inference.nIter-model.inference.nBurnin)%model.inference.samplefrequency==0
             store_variables!(model.inference,get_f(model))
@@ -82,9 +83,9 @@ function logpdf(model::AbstractGP{T,<:Likelihood,<:GibbsSampling}) where {T}
     return 0.0
 end
 
-function sample_global!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,gp::_MCGP{T}) where {T}
-    global Σ = inv(Symmetric(2.0*Diagonal(∇E_Σ)+inv(gp.K)))
-    gp.f .= rand(MvNormal(Σ*(∇E_μ+gp.K\gp.μ₀),Σ))
+function sample_global!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,X::AbstractMatrix,gp::_MCGP{T}) where {T}
+    global Σ = inv(Symmetric(2.0*Diagonal(∇E_Σ)+inv(gp.K).mat))
+    gp.f .= rand(MvNormal(Σ*(∇E_μ+inv(gp.K)*gp.μ₀(X)),Σ))
     return nothing
 end
 

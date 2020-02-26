@@ -70,7 +70,7 @@ function MCGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
             inference = tuple_inference(inference,nLatent,nSamples,nSamples)
             inference.xview = view(X,:,:)
             inference.yview = view_y(likelihood,y,1:nSamples)
-            MCGP{T,TLikelihood,typeof(inference),_MCGP{T},nLatent}(X,y,
+            MCGP{T,TLikelihood,typeof(inference),nLatent}(X,y,
                     nFeatures, nDim, nFeatures, nLatent,
                     latentf,likelihood,inference,
                     verbose,atfrequency,false)

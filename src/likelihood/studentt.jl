@@ -94,11 +94,11 @@ end
 
 ## PDF and Log PDF Gradients ## (verified gradients)
 
-function grad_log_pdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
+function grad_logpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
     (one(T)+l.ν) * (y-f) / ((f-y)^2 + l.σ^2*l.ν)
 end
 
-function hessian_log_pdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
+function hessian_logpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
     v = l.ν * l.σ^2; Δ² = (f-y)^2
     (one(T)+l.ν) * (-v + Δ²) / (v+Δ²)^2
 end
