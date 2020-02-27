@@ -23,10 +23,11 @@ AGP.jl stands for AugmentedGaussianProcesses.jl and GP.jl for GaussianProcesses.
 | Inference | AGP.jl | Stheno.jl | GP.jl |
 | --- | :-: | :-: | :-: |
 | Analytic (Gaussian only) | ✓ | ✓ | ✓ |
-| Variational Inference | ✓ (Analytic and Num. Appr.)  | ✖ | ✖ |
-| Gibbs-Sampling | ✓  |   ✖  |   ✖  |
-| MCMC |  ✖ | ✖  | ✓ |
-| Expec. Propag.  |  ✖ | ✖  | ✖  |
+| Variational Inference | ✓ (Analytic and Num. Appr.) | ✖ | ✖ |
+| Streaming VI | ✓ | ✖ | ✖ |
+| Gibbs-Sampling | ✓ | ✖ | ✖ |
+| MCMC | ✖ | ✖ | ✓ |
+| Expec. Propag. | ✖ | ✖ | ✖ |
 
 # Kernels
 
@@ -53,4 +54,5 @@ Note that the kernels will be defered to `MLKernels.jl` in the future.
 | Sparse GP | ✓ | ✖ | ✓  |
 | Custom prior Mean | ✓ | ✓ | ✓ |
 | Hyperparam. Opt. | ✓ | ? | ✓ |
-| MultiOutput | ✖ | ✓ | ✖ |
+| MultiOutput | ✓ | ✓ | ✖ |
+| Online  | ✓ | ✖ | ✖ |

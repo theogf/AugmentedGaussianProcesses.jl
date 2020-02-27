@@ -1,5 +1,7 @@
 # Kernels (Covariance functions)
 
+In the next release, AugmentedGaussianProcesses.jl will rely on the [KernelFunctions.jl](https://github.com/theogf/KernelFunctions.jl) package, you can see [the documentation here](https://theogf.github.io/KernelFunctions.jl/dev/)
+
 The **kernel function** or **covariance function** is a crucial part of Gaussian Processes. It determines the covariance matrices between set of points, and its behaviour and parameters determines almost completely a GP behaviour.
 
 ## Kernels available
@@ -24,12 +26,13 @@ However the module for kernels should be replaced in the future by [KernelFuncti
 
 ## Hyperparameter optimization
 
-The advantage of Gaussian Processes is that it is possible to optimize all the hyperparameters of the model by optimizing the lower bound on the loglikelihood. One can compute the gradient of it and apply a classical gradient descent algorithm.
+The advantage of Gaussian Processes is that it is possible to optimize all the hyperparameters of the model by optimizing the lower bound on the log evidence. One can compute the gradient of it and apply a classical gradient descent algorithm.
 
-Unlike most other packages, the derivatives are all computed analytically. Since the hyperparameters intervene in gradients one needs to compute the matrix derivatives via the kernel derivatives. If $K$ was defined via $k(x,x')$ then :
+Unlike most other packages, the derivatives are computed analytically. One needs to compute the matrix derivatives via the kernel derivatives. If $K$ was defined via $k(x,x')$ then :
 
 $$ \frac{d K}{d\theta}  = J_\theta$$
 
-Where $J_\theta$ was defined via $\frac{dk(x,x')}{d\theta}$, the rest of the work is simply matrix algebra.
+Where $J_\theta$ was defined via $\frac{dk(x,x')}{d\theta}$.
+This part is done by automatic differentiation. To chose between Zygote or ForwardDiff use `AGP.setKadbackend(:reverse_diff)` or `AGP.setKadbackend(:forward_diff)` respectively.
 
-## !!! In construction !!!
+The rest of the work is simply matrix algebra.

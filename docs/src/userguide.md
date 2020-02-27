@@ -102,15 +102,11 @@ The `mean` keyword allows you to add different types of prior means:
 - [`ConstantMean`](@ref), a constant mean that can be optimized
 - [`EmpiricalMean`](@ref), a vector mean with a different value for each point
 
-#### IndependentPriors
-
-When having multiple latent Gaussian Processes one can decide to have a common prior for all of them or to have a separate prior for each latent GP. Having a common prior has the advantage that less computations are required to optimize hyperparameters.
-
 ## [Training](@id train)
 
 Training is straightforward after initializing the `model` by running :
 ```julia
-train!(model;iterations=100,callback=callbackfunction)
+train!(model,100l;callback=callbackfunction)
 ```
 Where the `callback` option is for running a function at every iteration. `callback function should be defined as`
 ```julia
