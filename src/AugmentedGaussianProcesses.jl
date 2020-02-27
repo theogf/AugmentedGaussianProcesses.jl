@@ -11,7 +11,7 @@ module AugmentedGaussianProcesses
     export LogisticLikelihood, BayesianSVM
     export SoftMaxLikelihood, LogisticSoftMaxLikelihood
     export PoissonLikelihood, NegBinomialLikelihood
-    export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI
+    export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, HMCSampling, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI
     export NumericalVI, NumericalSVI
     export PriorMean, ZeroMean, ConstantMean, EmpiricalMean, AffineMean
     #Useful functions

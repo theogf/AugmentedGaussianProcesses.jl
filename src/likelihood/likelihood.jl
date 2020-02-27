@@ -19,5 +19,5 @@ Base.iterate(l::Likelihood, ::Any) = nothing
 
 Base.setindex!(veclike::NTuple{N,L},l::Likelihood,i::Int) where {N,L<:Likelihood} = veclike[i] = l
 
-@inline grad_log_pdf(l::Likelihood{T},y::Real,f::AbstractVector) where {T<:Real} = ForwardDiff.gradient(x->logpdf(l,y,x),f)
-@inline hessian_log_pdf(l::Likelihood{T},y::Real,f::AbstractVector) where {T<:Real} = diag(ForwardDiff.hessian(x->logpdf(l,y,x),f))
+@inline grad_logpdf(l::Likelihood{T},y::Real,f::AbstractVector) where {T<:Real} = gradient(x->AugmentedGaussianProcesses.logpdf(l,y,x),f)
+@inline hessian_logpdf(l::Likelihood{T},y::Real,f::AbstractVector) where {T<:Real} = diag(hessian(x->Distributions.logpdf(l,y,x),f))

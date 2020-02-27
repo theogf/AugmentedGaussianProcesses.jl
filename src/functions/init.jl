@@ -55,7 +55,7 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
     elseif likelihood isa LogisticLikelihood
         if inference isa AnalyticVI || inference isa QuadratureVI
             return true
-        elseif model == :MCGP && inference isa GibbsSampling
+        elseif model == :MCGP && inference isa SamplingInference
             return true
         else
             return false
