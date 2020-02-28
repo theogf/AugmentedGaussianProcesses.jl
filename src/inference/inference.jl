@@ -39,17 +39,17 @@ end
 
 ## Default function for getting gradient ##
 function grad_logpdf(l::Likelihood,y::Real,f::Real)
-    gradient(x->logpdf(l,y,x[1]),[f])[1]
+    ForwardDiff.gradient(x->AugmentedGaussianProcesses.logpdf(l,y,x[1]),[f])[1]
 end
 
 function grad_logpdf(l::Likelihood,y::Real,f::AbstractVector)
-    gradient(x->logpdf(l,y,x),f)
+    ForwardDiff.gradient(x->AugmentedGaussianProcesses.logpdf(l,y,x),f)
 end
 
 function hessian_logpdf(l::Likelihood,y::Real,f::Real)
-    hessian(x->logpdf(l,y,x[1]),[f])[1]
+    ForwardDiff.hessian(x->AugmentedGaussianProcesses.logpdf(l,y,x[1]),[f])[1]
 end
 
 function hessian_logpdf(l::Likelihood,y::Real,f::AbstractVector)
-    hessian(x->logpdf(l,y,x),f)
+    ForwardDiff.hessian(x->AugmentedGaussianProcesses.logpdf(l,y,x),f)
 end

@@ -25,8 +25,8 @@ module AugmentedGaussianProcesses
     using LinearAlgebra
     using Random
     @reexport using KernelFunctions
-    using Zygote: gradient
-    using ForwardDiff: jacobian
+    using Zygote
+    using ForwardDiff
     using Flux #Remove full dependency on Flux once params for KernelFunctions is set
     @reexport using Flux.Optimise
     using PDMats: PDMat, invquad
@@ -46,6 +46,7 @@ module AugmentedGaussianProcesses
     include("inducingpoints/IPModule.jl")
     include("functions/PGSampler.jl")
     include("functions/GIGSampler.jl")
+    include("functions/invlapdistribution.jl")
     #include("functions/PerturbativeCorrection.jl")
     # include("functions/GPAnalysisTools.jl")
     # include("functions/IO_model.jl")

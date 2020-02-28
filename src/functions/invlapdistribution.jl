@@ -1,11 +1,8 @@
-using InverseLaplace
 using Random
-using StatsFuns, SpecialFunctions
-using ForwardDiff
 
-struct LaplaceTransformDistribution{T,TAlg}
+struct LaplaceTransformDistribution{T,TAlg} <: Distributions.UnivariateDistribution{T}
     f::Function # Laplace transform of the pdf
-    c²::T
+    c²::T # Exponential tilting parameter
     alg::TAlg # Algorithm to compute the inverse Laplace transform
     function LaplaceTransformDistribution{T,TAlg}(f::Function,c²::T=0.0,alg::TAlg=BromwichInverseLaplace()) where {T<:Real,TAlg}
         @assert _check_f(f) "The function passed is not valid"# Do series of check on f
@@ -15,7 +12,7 @@ struct LaplaceTransformDistribution{T,TAlg}
 end
 
 function _check_f(f)
-    return true
+    return true # TODO Add tests for complete monotonicity / PDR
 end
 _gradf(d::LaplaceTransformDistribution,x::Real) = ForwardDiff.gradient(dist.f,[x])[1]
 _gradlogf(d::LaplaceTransformDistribution,x::Real) = ForwardDiff.gradient(log∘dist.f,[x])[1]
@@ -100,15 +97,15 @@ function invlaplace(f::Function,t::Real,alg::BromwichInverseLaplace)
     end
     acoeff = alg.eA2l*scaled_t
     cumsum!(alg.s,acoeff.*alg.b.*alg.altern)
-    return dot(view(alg.s,(alg.n+1):end),alg.coeffs)
+    return dot(view(alg.s,(alg.n+1):length(alg.s)),alg.coeffs)
 end
 
 # Laplace transform implemented from "Computational Probability Grassmann 2000"
-function laptrans(dist::LaplaceTransformSampler;n::Int=10,jmax::Int=500,kmax::Int=1000,b::Real=2.0,τ::Real=1e-7)
+function laptrans(dist::LaplaceTransformDistribution;n::Int=10,jmax::Int=500,kmax::Int=1000,b::Real=2.0,τ::Real=1e-7)
     # Step 1
-    global u = sort!(rand(n))
+    u = sort!(rand(n))
     # Step 2
-    global xmax = 0.1
+    xmax = 0.1
     j = 0
     while apply_F(dist,xmax) < u[end] && j < jmax
         xmax = b*xmax
