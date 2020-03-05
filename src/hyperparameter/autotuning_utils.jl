@@ -49,15 +49,3 @@ end
 function apply_gradients_mean_prior!(opt,μ::PriorMean,g::AbstractVector,X::AbstractMatrix)
     update!(opt,μ,g,X)
 end
-
-# Kernel Product
-recursive_hadamard(A::AbstractMatrix,V::AbstractVector) = recursive_hadamard.([A],V)
-recursive_hadamard(A::AbstractMatrix,V::AbstractMatrix) = hadamard(A,V)
-recursive_hadamard(A::AbstractVector,V::AbstractVector) = recursive_hadamard.([A],V)
-recursive_hadamard(A::AbstractVector,V::AbstractVector{<:Real}) = hadamard(A,V)
-
-function ELBO_given_theta(model)
-    model.inference.HyperParametersUpdated = true
-    computeMatrices!(model)
-    ELBO(model)
-end

@@ -1,23 +1,23 @@
 function ∇L_ρ_forward(f,gp,X)
-    Jnn = first(gp.σ_k)*kernelderivativematrix(gp.kernel,X,obsdim=1)
+    Jnn = kernelderivativematrix(gp.kernel,X,obsdim=1)
     grads = map(f,Jnn)
     return IdDict{Any,Any}(first(Flux.params(gp.kernel))=>grads)
 end
 
 function ∇L_ρ_forward(f,gp::_SVGP,X,∇E_μ,∇E_Σ,i,opt)
-    Jmm = first(gp.σ_k).*kernelderivativematrix(gp.kernel,gp.Z.Z,obsdim=1)
-    Jnm = first(gp.σ_k).*kernelderivativematrix(gp.kernel,X,gp.Z.Z,obsdim=1)
-    Jnn = first(gp.σ_k).*kerneldiagderivativematrix(gp.kernel,X,obsdim=1)
+    Jmm = kernelderivativematrix(gp.kernel,gp.Z.Z,obsdim=1)
+    Jnm = kernelderivativematrix(gp.kernel,X,gp.Z.Z,obsdim=1)
+    Jnn = kerneldiagderivativematrix(gp.kernel,X,obsdim=1)
     grads = f.(Jmm,Jnm,Jnn,Ref(∇E_μ),Ref(∇E_Σ),Ref(i),Ref(opt))
     return IdDict{Any,Any}(first(Flux.params(gp.kernel))=>grads)
 end
 
 function ∇L_ρ_forward(f,gp::_OSVGP,X,∇E_μ,∇E_Σ,i,opt)
-    Jmm = first(gp.σ_k)*kernelderivativematrix(gp.kernel,gp.Z.Z,obsdim=1)
-    Jnm = first(gp.σ_k)*kernelderivativematrix(gp.kernel,X,gp.Z.Z,obsdim=1)
-    Jnn = first(gp.σ_k)*kerneldiagderivativematrix(gp.kernel,X,obsdim=1)
-    Jaa = first(gp.σ_k)*kernelderivativematrix(gp.kernel,gp.Zₐ,obsdim=1)
-    Jab = first(gp.σ_k)*kernelderivativematrix(gp.kernel,gp.Zₐ,gp.Z.Z,obsdim=1)
+    Jmm = kernelderivativematrix(gp.kernel,gp.Z.Z,obsdim=1)
+    Jnm = kernelderivativematrix(gp.kernel,X,gp.Z.Z,obsdim=1)
+    Jnn = kerneldiagderivativematrix(gp.kernel,X,obsdim=1)
+    Jaa = kernelderivativematrix(gp.kernel,gp.Zₐ,obsdim=1)
+    Jab = kernelderivativematrix(gp.kernel,gp.Zₐ,gp.Z.Z,obsdim=1)
     grads = map(f,Jmm,Jnm,Jnn,Jab,Jaa,Ref(∇E_μ),Ref(∇E_Σ),Ref(i),Ref(opt))
     return IdDict{Any,Any}(first(Flux.params(gp.kernel))=>grads)
 end

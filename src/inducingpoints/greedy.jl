@@ -42,12 +42,11 @@ function greedy_iterations(X,y,kernel,k,minibatch,noise)
     return Z
 end
 
-function ELBO_reg(Z,X,y,kernel,noise)
-    jitter = Float64(Jittering())
+function ELBO_reg(Z::AbstractArray{T},X,y,kernel,noise) where T
     Knm = kernelmatrix(kernel,X,Z,obsdim=1)
-    Kmm = kernelmatrix(kernel,Z,obsdim=1)+jitter*I
+    Kmm = kernelmatrix(kernel,Z,obsdim=1)+T(jitt)*I
     Qff = Symmetric(Knm*inv(Kmm)*Knm')
-    Kt = kerneldiagmatrix(kernel,X,obsdim=1) .+ jitter - diag(Qff)
+    Kt = kerneldiagmatrix(kernel,X,obsdim=1) .+ T(jitt) - diag(Qff)
     Σ = inv(Kmm)+noise^(-2)*Knm'*Knm
     invQnn = noise^(-2)*I-noise^(-4)*Knm*inv(Σ)*Knm'
     logdetQnn = logdet(Σ)+logdet(Kmm)

@@ -110,24 +110,24 @@ function update_parameters!(model::VStP)
 end
 
 function computeMatrices!(model::GP{T}) where {T}
-    compute_K!.(model.f,[model.inference.xview],T(jitter)+model.likelihood.σ²)
+    compute_K!.(model.f,[model.inference.xview],T(jitt)+model.likelihood.σ²)
     model.inference.HyperParametersUpdated = false
 end
 
 @traitfn function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T};!IsSparse{TGP}}
     if model.inference.HyperParametersUpdated
-        compute_K!.(model.f,[model.inference.xview],T(jitter))
+        compute_K!.(model.f,[model.inference.xview],T(jitt))
     end
     model.inference.HyperParametersUpdated = false
 end
 
 @traitfn function computeMatrices!(model::TGP) where {T,TGP<:AbstractGP{T};IsSparse{TGP}}
     if model.inference.HyperParametersUpdated
-        compute_K!.(model.f,T(jitter))
+        compute_K!.(model.f,T(jitt))
     end
     #If change of hyperparameters or if stochatic
     if model.inference.HyperParametersUpdated || model.inference.Stochastic
-        compute_κ!.(model.f,[model.inference.xview],T(jitter))
+        compute_κ!.(model.f,[model.inference.xview],T(jitt))
     end
     model.inference.HyperParametersUpdated = false
 end
@@ -135,7 +135,7 @@ end
 
 function computeMatrices!(model::VStP{T,<:Likelihood,<:Inference}) where {T}
     if model.inference.HyperParametersUpdated
-        compute_K!.(model.f,[],T(jitter))
+        compute_K!.(model.f,[],T(jitt))
         model.invL .= inv.(getproperty.(cholesky.(model.Knn),:L))
         model.invKnn .= Symmetric.(inv.(cholesky.(model.Knn)))
         # model.invKnn .= Symmetric.(model.invL.*transpose.(model.invL))

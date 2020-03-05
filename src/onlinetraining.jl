@@ -125,7 +125,7 @@ function init_onlinemodel(model::OnlineSVGP{T},X,y) where {T<:Real}
     model.inference.HyperParametersUpdated=false
 end
 
-function init_online_gp!(gp::_OSVGP{T},X,y,jitt::T=T(jitter)) where {T}
+function init_online_gp!(gp::_OSVGP{T},X,y,jitt::T=T(jitt)) where {T}
     IPModule.init!(gp.Z,X,y,gp.kernel)
     nSamples = size(X,1)
     gp.dim = gp.Z.k
@@ -153,7 +153,7 @@ end
 
 function compute_old_matrices!(model::OnlineSVGP{T}) where {T}
     for gp in model.f
-        compute_old_matrices!(gp,model.inference.xview,T(jitter))
+        compute_old_matrices!(gp,model.inference.xview,T(jitt))
     end
 end
 

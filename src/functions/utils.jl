@@ -3,7 +3,7 @@
 ## Jittering object adapting to the type of the GP ##
 struct Jittering end;
 
-const jitter = Jittering()
+const jitt = Jittering()
 
 @inline Base.Float64(::Jittering) = Float64(1e-4)
 @inline Base.Float32(::Jittering) = Float32(1e-3)
