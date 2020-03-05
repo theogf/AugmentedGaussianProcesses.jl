@@ -6,6 +6,7 @@ seed!(42)
 AGP.setadbackend(:reverse_diff)
 # Global flags for the tests
 @testset "Test for AugmentedGaussianProcesses" begin
+include("test_prior.jl")
 include("test_GP.jl")
 include("test_VGP.jl")
 include("test_SVGP.jl")

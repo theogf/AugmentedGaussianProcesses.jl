@@ -15,16 +15,16 @@ Construct an affine operation on `X` : `μ₀(X) = X*w + b` where `w` is a vecto
 Optionally give an optimiser `opt` (`Adam(α=0.01)` by default)
 """
 function AffineMean(w::V,b::T,;opt=ADAM(0.01)) where {V<:AbstractVector{<:Real},T<:Real}
-    AffineMean{eltype(w),V,typeof(opt)}(w,Ref(b),length(w),opt)
+    AffineMean{eltype(w),V,typeof(opt)}(copy(w),Ref(b),length(w),opt)
 end
 
 function AffineMean(dims::Int;opt=ADAM(0.01))
     AffineMean{Float64,Vector{Float64},typeof(opt)}(randn(dims),Ref(0.0),dims,opt)
 end
 
-function update!(opt,μ::AffineMean{T},grad::AbstractVector{T},X::AbstractMatrix) where {T<:Real}
-    μ.w .+= Optimise.apply!(opt,μ.w,X'*grad)
-    μ.b[] += Optimise.apply!(opt,μ.b,sum(grad))
+function update!(μ::AffineMean{T},grad::AbstractVector{<:Real},X::AbstractMatrix) where {T<:Real}
+    μ.w .+= Optimise.apply!(μ.opt,μ.w,X'*grad)
+    μ.b[] += first(Optimise.apply!(μ.opt,μ.b,[sum(grad)]))
 end
 
 function (μ::AffineMean{T})(x::AbstractMatrix) where {T<:Real}

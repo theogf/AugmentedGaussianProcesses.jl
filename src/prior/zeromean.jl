@@ -11,7 +11,7 @@ function ZeroMean()
     ZeroMean{Float64}()
 end
 
-update!(opt,μ::ZeroMean{T},grad::AbstractVector{T},x) where {T<:Real} = nothing
+update!(μ::ZeroMean{T},grad::AbstractVector{T},x) where {T<:Real} = nothing
 
 array(μ::ZeroMean{T},length::Int) where {T<:Real} = zeros(T,length)
 
