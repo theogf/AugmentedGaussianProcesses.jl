@@ -73,15 +73,6 @@ function logcosh(c::Real)
     return log(exp(-2.0*c)+1.0)+c-logtwo
 end
 
-
-function logisticsoftmax(f::AbstractVector{<:Real})
-    return normalize!(logistic.(f),1)
-end
-
-function logisticsoftmax(f::AbstractVector{<:Real},i::Integer)
-    return logisticsoftmax(f)[i]
-end
-
 function symcat(S::Symmetric,v::AbstractVector,vv::Real)
     S = vcat(S,v')
     S = hcat(S,vcat(v,vv))

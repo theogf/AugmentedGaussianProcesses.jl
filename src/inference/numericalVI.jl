@@ -85,7 +85,7 @@ function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     global_update!(model)
 end
 
-function classical_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, Z::AbstractMatrix, gp::_VGP{T}) where {T<:Real}
+function classical_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, X::AbstractMatrix, gp::_VGP{T}) where {T<:Real}
     opt.∇η₂ .= Diagonal(∇E_Σ) - 0.5 * (inv(gp.K).mat - inv(gp.Σ))
     opt.∇η₁ .= ∇E_μ - gp.K \ (gp.μ - gp.μ₀(X))
 end
@@ -118,7 +118,7 @@ function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     end
 end
 
-
+## ELBO
 
 expec_log_likelihood(l::Likelihood,i::NumericalVI,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = expec_log_likelihood(l,i,y,first(μ),first(Σ))
 

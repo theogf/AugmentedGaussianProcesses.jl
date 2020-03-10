@@ -160,10 +160,7 @@ end
 
 predict_y(model::MOSVGP,X_test::AbstractMatrix) = predict_y.(model.likelihood,_predict_f(model,X_test,covf=false))
 
-predict_y(l::RegressionLikelihood,μ::AbstractVector{<:Real}) = μ
-predict_y(l::RegressionLikelihood,μ::AbstractVector{<:AbstractVector}) = first(μ)
-predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:Real}) = sign.(μ)
-predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:AbstractVector}) = sign.(first(μ))
+
 predict_y(l::MultiClassLikelihood,μs::AbstractVector{<:AbstractVector{<:Real}}) = [l.class_mapping[argmax([μ[i] for μ in μs])] for i in 1:length(μs[1])]
 predict_y(l::MultiClassLikelihood,μs::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}}) = predict_y(l,first(μs))
 predict_y(l::EventLikelihood,μ::AbstractVector{<:Real}) = expec_count(l,μ)
@@ -198,25 +195,7 @@ end
 
 compute_proba(l::Likelihood,μ::AbstractVector{<:AbstractVector},σ²::AbstractVector{<:AbstractVector}) = compute_proba(l,first(μ),first(σ²))
 
-function proba_y(model::MCGP{T,<:Union{<:RegressionLikelihood{T},<:ClassificationLikelihood{T}},<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
-    N_test = size(X_test,1)
-    f = _sample_f(model,X_test)
-    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
-    K̃ = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+ [zeros(size(X_test,1)) for i in 1:model.nLatent]
-    nf = length(model.inference.sample_store[1])
-    proba = [zeros(size(X_test,1)) for i in 1:model.nLatent]
-    sig_proba = [zeros(size(X_test,1)) for i in 1:model.nLatent]
-    for i in 1:nf
-        for k in 1:model.nLatent
-            proba[k], sig_proba[k] = (proba[k],sig_proba[k]) .+ compute_proba(model.likelihood, getindex.(f,[i])[k],K̃[k])
-        end
-    end
-    if model.nLatent == 1
-        return (proba[1]/nf, sig_proba[1]/nf)
-    else
-        return (proba./nf, sig_proba./nf)
-    end
-end
+
 
 function proba_y(model::VGP{T,<:MultiClassLikelihood{T},<:GibbsSampling{T}},X_test::AbstractMatrix{T};nSamples::Int=200) where {T}
     k_star = kernelmatrix.([X_test],[model.inference.x],model.kernel)

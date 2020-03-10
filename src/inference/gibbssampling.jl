@@ -72,7 +72,11 @@ function sample_parameters(model::MCGP{T,L,<:GibbsSampling},nSamples::Int,callba
         end
     end
     symbols = ["f_"*string(i) for i in 1:model.nFeatures]
-    chains = [Chains(reshape(model.inference.sample_store[:,:,i],:,model.nFeatures,1),symbols) for i in 1:model.nLatent]
+    if model.nLatent == 1
+        return Chains(reshape(model.inference.sample_store[:,:,1],:,model.nFeatures,1),symbols)
+    else
+        return [Chains(reshape(model.inference.sample_store[:,:,i],:,model.nFeatures,1),symbols) for i in 1:model.nLatent]
+    end
 end
 
 sample_local!(l::Likelihood,y,f::Tuple{<:AbstractVector{T}}) where {T} =sample_local!(l,y,first(f))

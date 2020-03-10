@@ -65,8 +65,8 @@ QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser
     - `natural::Bool` : Use natural gradients
     - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
 """
-function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=100,optimiser=Momentum(1e-5),clipping::Real=0.0) where {T<:Real}
-    QuadratureVI{T}(ϵ,nGaussHermite,optimiser,clipping,nMinibatch)
+function QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=100,optimiser=Momentum(1e-5),clipping::Real=0.0,natural=true) where {T<:Real}
+    QuadratureVI{T}(ϵ,nGaussHermite,optimiser,true,clipping,nMinibatch,natural)
 end
 
 function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::Integer,nMinibatch::Integer) where {TInf <: QuadratureVI}
@@ -84,30 +84,14 @@ function expec_log_likelihood(model::VGP{T,L,<:QuadratureVI}) where {T,L}
     return tot
 end
 
-function expec_log_likelihood(l::Likelihood,i::QuadratureVI,y,μ::AbstractVector,Σ::AbstractVector)
-    sum(apply_quad.(y,μ,Σ,i,l))
+function expec_log_likelihood(l::Likelihood,i::QuadratureVI,y,μ::AbstractVector,diag_cov::AbstractVector)
+    sum(apply_quad.(y,μ,diag_cov,i,l))
 end
 
 function apply_quad(y::Real,μ::Real,σ²::Real,i::QuadratureVI,l::Likelihood) where {T}
-    x = i.nodes*sqrt(max(σ², zero(σ²))) .+ μ
-    return dot(i.weights,x)
-    # return dot(i.weights,logpdf.(l,y,x))
+    x = i.nodes*sqrt(σ²) .+ μ
+    return dot(i.weights,AGP.logpdf.(l,y,x))
 end
-
-function expec_log_likelihood(model::SVGP{T,L,<:QuadratureVI}) where {T,L}
-    tot = 0.0
-    y = get_y(model)
-    for gp in model.f
-        μ = mean_f(gp)
-        Σ = opt_diag(gp.κ*gp.Σ,gp.κ)
-        for i in 1:model.inference.nMinibatch
-            x = model.inference.nodes*sqrt(max(Σ[i],zero(T))) .+ μ[i]
-            tot += dot(model.inference.weights,logpdf.(model.likelihood,y[i],x))
-        end
-    end
-    return tot
-end
-
 
 function compute_grad_expectations!(model::AbstractGP{T,L,<:QuadratureVI}) where {T,L}
     y = get_y(model)

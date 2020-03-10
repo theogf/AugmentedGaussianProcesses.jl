@@ -13,33 +13,46 @@ This likelihood has the same properties as [softmax](https://en.wikipedia.org/wi
 
 For the analytical version, the likelihood is augmented multiple times. More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670)
 """
-struct LogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
-    Y::AbstractVector{BitVector} #Mapping from instances to classes
+mutable struct LogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
+    nClasses::Int
     class_mapping::AbstractVector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
+    Y::AbstractVector{BitVector} #Mapping from instances to classes (one hot encoding)
     y_class::AbstractVector{Int64} # GP Index for each sample
     c::AbstractVector{AbstractVector{T}} # Second moment of fₖ
-    α::AbstractVector{T} # Variational parameter of Gamma distribution
-    β::AbstractVector{T} # Variational parameter of Gamma distribution
+    α::AbstractVector{T} # First variational parameter of Gamma distribution
+    β::AbstractVector{T} # Second variational parameter of Gamma distribution
     θ::AbstractVector{AbstractVector{T}} # Variational parameter of Polya-Gamma distribution
     γ::AbstractVector{AbstractVector{T}} # Variational parameter of Poisson distribution
-    function LogisticSoftMaxLikelihood{T}() where {T<:Real}
-        new{T}()
+    function LogisticSoftMaxLikelihood{T}(nClasses::Int) where {T<:Real}
+        new{T}(nClasses)
     end
-    function LogisticSoftMaxLikelihood{T}(Y::AbstractVector{<:BitVector},
+    function LogisticSoftMaxLikelihood{T}(nClasses::Int,labels::AbstractVector,ind_mapping::Dict) where {T<:Real}
+        new{T}(nClasses,labels,ind_mapping)
+    end
+    function LogisticSoftMaxLikelihood{T}(nClasses::Int,Y::AbstractVector{<:BitVector},
     class_mapping::AbstractVector, ind_mapping::Dict{<:Any,<:Int},y_class::AbstractVector{<:Int}) where {T<:Real}
-        new{T}(Y,class_mapping,ind_mapping,y_class)
+        new{T}(nClasses,class_mapping,ind_mapping,Y,y_class)
     end
-    function LogisticSoftMaxLikelihood{T}(Y::AbstractVector{<:BitVector},
+    function LogisticSoftMaxLikelihood{T}(nClasses,Y::AbstractVector{<:BitVector},
     class_mapping::AbstractVector, ind_mapping::Dict{<:Any,<:Int},y_class::AbstractVector{<:Int},
     c::AbstractVector{<:AbstractVector{<:Real}}, α::AbstractVector{<:Real},
     β::AbstractVector, θ::AbstractVector{<:AbstractVector},γ::AbstractVector{<:AbstractVector{<:Real}}) where {T<:Real}
-        new{T}(Y,class_mapping,ind_mapping,y_class,c,α,β,θ,γ)
+        new{T}(nClasses,class_mapping,ind_mapping,Y,y_class,c,α,β,θ,γ)
     end
 end
 
-function LogisticSoftMaxLikelihood()
-    LogisticSoftMaxLikelihood{Float64}()
+LogisticSoftMaxLikelihood(nClasses::Int) =
+    LogisticSoftMaxLikelihood{Float64}(nClasses)
+LogisticSoftMaxLikelihood(ylabels::AbstractVector) =
+    LogisticSoftMaxLikelihood{Float64}(length(ylabels),ylabels,Dict(value => key for (key,value) in enumerate(ylabels)))
+
+function logisticsoftmax(f::AbstractVector{<:Real})
+    return normalize!(logistic.(f),1)
+end
+
+function logisticsoftmax(f::AbstractVector{<:Real},i::Integer)
+    return logisticsoftmax(f)[i]
 end
 
 function pdf(l::LogisticSoftMaxLikelihood,f::AbstractVector)
@@ -56,16 +69,16 @@ function Base.show(io::IO,model::LogisticSoftMaxLikelihood{T}) where T
 end
 
 
-function init_likelihood(likelihood::LogisticSoftMaxLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer,nFeatures::Integer) where T
+function init_likelihood(l::LogisticSoftMaxLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer,nFeatures::Integer) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
         c = [ones(T,nSamplesUsed) for i in 1:nLatent]
         α = nLatent*ones(T,nSamplesUsed)
         β = nLatent*ones(T,nSamplesUsed)
         θ = [abs.(rand(T,nSamplesUsed))*2 for i in 1:nLatent]
         γ = [abs.(rand(T,nSamplesUsed)) for i in 1:nLatent]
-        LogisticSoftMaxLikelihood{T}(likelihood.Y,likelihood.class_mapping,likelihood.ind_mapping,likelihood.y_class,c,α,β,θ,γ)
+        LogisticSoftMaxLikelihood{T}(num_class(l),l.Y,l.class_mapping,l.ind_mapping,l.y_class,c,α,β,θ,γ)
     else
-        return likelihood
+        return l
     end
 end
 
@@ -86,7 +99,7 @@ function sample_local!(l::LogisticSoftMaxLikelihood{T},y::AbstractVector,f) wher
     l.γ .= broadcast(f->rand.(Poisson.(0.5*l.α.*safe_expcosh.(-0.5*f,0.5*f))), f)
     l.α .= rand.(Gamma.(one(T).+(l.γ...),1.0./l.β))
     pg = PolyaGammaDist()
-    set_ω!(l,broadcast((y,γ,f)->draw.([pg],y.+γ,μ),y,l.γ,f))
+    set_ω!(l,broadcast((y,γ,f)->draw.([pg],y.+γ,f),y,l.γ,f))
     return nothing
 end
 
@@ -131,8 +144,8 @@ function grad_samples(model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:Numerica
         grad_Σ += diaghessian_logisticsoftmax(samples[i,:],σ,class)/s - abs2.(g_μ)
     end
     for k in 1:model.nLatent
-        model.inference.ν[k][index] = -grad_μ[k]/nSamples
-        model.inference.λ[k][index] = grad_Σ[k]/nSamples
+        model.inference.vi_opt[k].ν[index] = -grad_μ[k]/nSamples
+        model.inference.vi_opt[k].λ[index] = grad_Σ[k]/nSamples
     end
 end
 

@@ -2,7 +2,6 @@ include("vi_optimizers.jl")
 include("analytic.jl")
 include("analyticVI.jl")
 include("numericalVI.jl")
-include("streamingVI.jl")
 include("sampling.jl")
 include("optimisers.jl")
 

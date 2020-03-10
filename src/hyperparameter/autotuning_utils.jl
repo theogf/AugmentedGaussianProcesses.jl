@@ -26,7 +26,7 @@ for t in (:ARDTransform,:ScaleTransform,:LowRankTransform)
     @eval Flux.@functor(KernelFunctions.$t)
 end
 
-for k in (:SqExponentialKernel,:Matern32Kernel,:LinearKernel,:KernelSum,:KernelProduct)# For next version of KernelFunctions:,:TransformedKernel,:ScaledKernel)
+for k in (:SqExponentialKernel,:Matern32Kernel,:LinearKernel,:KernelSum,:KernelProduct,:TransformedKernel,:ScaledKernel)
     @eval Flux.@functor(KernelFunctions.$k)
 end
 
@@ -46,6 +46,6 @@ function apply_grads_kernel_variance!(opt,gp::Abstract_GP,grad::Real)
     gp.σ_k .= exp.(log.(gp.σ_k).+Δlogσ)
 end
 
-function apply_gradients_mean_prior!(opt,μ::PriorMean,g::AbstractVector,X::AbstractMatrix)
-    update!(opt,μ,g,X)
+function apply_gradients_mean_prior!(μ::PriorMean,g::AbstractVector,X::AbstractMatrix)
+    update!(μ,g,X)
 end

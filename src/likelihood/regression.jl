@@ -15,7 +15,7 @@ end
 predict_y(l::RegressionLikelihood,μ::AbstractVector{<:Real}) = μ
 predict_y(l::RegressionLikelihood,μ::AbstractVector{<:AbstractVector}) = first(μ)
 
-function proba_y(model::MCGP{T,<:Union{<:RegressionLikelihood{T},<:ClassificationLikelihood{T}},<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
+function proba_y(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
     N_test = size(X_test,1)
     f = _sample_f(model,X_test)
     k_starstar = kerneldiagmatrix.([X_test],model.kernel)

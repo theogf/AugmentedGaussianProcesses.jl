@@ -44,32 +44,52 @@ mutable struct GP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},N}
 end
 
 
-function GP(X::AbstractArray{T}, y::AbstractArray,kernel::Kernel;
-                noise::Real=1e-5, opt_noise::Bool=true, verbose::Int=0,
-                optimiser=ADAM(0.01),atfrequency::Int=1,
-                mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),variance::Real = 1.0,
-                ArrayType::UnionAll=Vector) where {T<:Real}
-            likelihood = GaussianLikelihood(noise,opt_noise=opt_noise)
-            inference = Analytic()
-            X,y,nLatent,likelihood = check_data!(X,y,likelihood)
+function GP(
+    X::AbstractArray{T},
+    y::AbstractArray,
+    kernel::Kernel;
+    noise::Real = 1e-5,
+    opt_noise = true,
+    verbose::Int = 0,
+    optimiser = ADAM(0.01),
+    atfrequency::Int = 1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
+    ArrayType::UnionAll = Vector,
+) where {T<:Real}
+    likelihood = GaussianLikelihood(T(noise), opt_noise = opt_noise)
+    inference = Analytic()
+    X, y, nLatent, likelihood = check_data!(X, y, likelihood)
 
-            nFeatures = nSamples = size(X,1); nDim = size(X,2);
-            if isa(optimiser,Bool)
-                optimiser = optimiser ? ADAM(0.01) : nothing
-            end
+    nFeatures = nSamples = size(X, 1)
+    nDim = size(X, 2)
+    if isa(optimiser, Bool)
+        optimiser = optimiser ? ADAM(0.01) : nothing
+    end
 
-            latentf = ntuple(_->_GP{T}(nFeatures,kernel,mean,variance,optimiser),nLatent)
+    latentf = ntuple(_ -> _GP{T}(nFeatures, kernel, mean, optimiser), nLatent)
 
-            likelihood = init_likelihood(likelihood,inference,nLatent,nSamples,nFeatures)
-            inference = init_inference(inference,nLatent,nSamples,nSamples,nSamples)
-            inference.xview = view(X,:,:)
-            inference.yview = view_y(likelihood,y,1:nSamples)
-            model = GP{T,GaussianLikelihood{T},typeof(inference),1}(X,y,nFeatures,
-            nDim, nFeatures, nLatent,latentf,likelihood,inference,
-            verbose,atfrequency,false)
-            computeMatrices!(model)
-            model.Trained = true
-            return model
+    likelihood =
+        init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
+    inference = init_inference(inference, nLatent, nSamples, nSamples, nSamples)
+    inference.xview = view(X, :, :)
+    inference.yview = view_y(likelihood, y, 1:nSamples)
+    model = GP{T,GaussianLikelihood{T},typeof(inference),1}(
+        X,
+        y,
+        nFeatures,
+        nDim,
+        nFeatures,
+        nLatent,
+        latentf,
+        likelihood,
+        inference,
+        verbose,
+        atfrequency,
+        false,
+    )
+    computeMatrices!(model)
+    model.Trained = true
+    return model
 end
 
 function Base.show(io::IO,model::GP{T,<:Likelihood,<:Inference}) where {T}
@@ -83,6 +103,6 @@ get_Z(model::GP) = [model.inference.xview]
 
 ### Special case where the ELBO is equal to the marginal likelihood
 function ELBO(model::GP{T}) where {T}
-    first(model.f).Σ = Symmetric(inv(first(model.f).K+model.likelihood.σ²*I).mat)
+    first(model.f).Σ = Symmetric(inv(first(model.f).K+first(model.likelihood.σ²)*I).mat)
     return -0.5*(dot(model.y,first(model.f).Σ*model.y) + logdet(first(model.f).Σ)+ model.nFeatures*log(twoπ))
 end

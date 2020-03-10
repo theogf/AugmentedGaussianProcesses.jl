@@ -23,39 +23,29 @@ function check_implementation(model::Symbol,likelihood::L,inference::I) where {I
             return false
         end
     elseif likelihood isa StudentTLikelihood
-        if inference isa AnalyticVI || inference isa QuadratureVI
-            return true
-        elseif model == :VGP && inference isa GibbsSampling
+        if inference isa Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}
             return true
         else
             return false
         end
     elseif likelihood isa LaplaceLikelihood
-        if inference isa AnalyticVI || inference isa QuadratureVI
+        if inference isa Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}
+            return true
+        else
+            return false
+        end
+    elseif likelihood isa HeteroscedasticLikelihood
+        if inference isa AnalyticVI #|| inference isa QuadratureVI
             return true
         elseif model == :MCGP && inference isa GibbsSampling
-            return true
-        else
             return false
-        end
-    elseif likelihood isa HeteroscedasticLikelihood
-        if inference isa AnalyticVI
-            return true
-        else
-            return false
-        end
-    elseif likelihood isa HeteroscedasticLikelihood
-        if inference isa AnalyticVI || inference isa QuadratureVI
-            return true
-        elseif model == :VGP && inference isa GibbsSampling
-            return true
         else
             return false
         end
     elseif likelihood isa LogisticLikelihood
         if inference isa AnalyticVI || inference isa QuadratureVI
             return true
-        elseif model == :MCGP && inference isa SamplingInference
+        elseif model == :MCGP && inference isa GibbsSampling
             return true
         else
             return false

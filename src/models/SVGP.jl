@@ -43,70 +43,94 @@ mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N} 
     Trained::Bool
 end
 
-function SVGP(X::AbstractArray{T₁},y::AbstractVector,kernel::Kernel,
-            likelihood::TLikelihood,inference::TInference, nInducingPoints::Union{Int,InducingPoints};
-            verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Int=1,
-            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
-            Zoptimizer=false,
-            ArrayType::UnionAll=Vector) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+function SVGP(
+    X::AbstractArray{T₁},
+    y::AbstractVector,
+    kernel::Kernel,
+    likelihood::TLikelihood,
+    inference::TInference,
+    nInducingPoints::Union{Int,InducingPoints};
+    verbose::Int = 0,
+    optimiser = ADAM(0.01),
+    atfrequency::Int = 1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
+    Zoptimiser = false,
+    ArrayType::UnionAll = Vector,
+) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
 
 
-            X,y,nLatent,likelihood = check_data!(X,y,likelihood)
-            @assert check_implementation(:SVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
+    X, y, nLatent, likelihood = check_data!(X, y, likelihood)
+    @assert check_implementation(:SVGP, likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
-            nSamples = size(X,1); nDim = size(X,2);
-            if isa(optimiser,Bool)
-                optimiser = optimiser ? ADAM(0.001) : nothing
-            end
-            if nInducingPoints isa Int
-                @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
-                if nInducingPoints > nSamples
-                    @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
-                    nInducingPoints = nSamples
-                else
-                    nInducingPoints = Kmeans(nInducingPoints,nMarkov=10)
-                end
-            end
-            if nInducingPoints isa Int && nInducingPoints == nSamples
-                Z = X
-            else
-                IPModule.init!(nInducingPoints,X,y,kernel)
-                Z = nInducingPoints.Z
-            end
-            if isa(Zoptimizer,Bool)
-                Zoptimizer = Zoptimizer ? ADAM(0.001) : nothing
-            end
-            Z = FixedInducingPoints(Z,Zoptimizer)
-            nFeatures = size(Z,1)
+    nSamples = size(X, 1)
+    nDim = size(X, 2)
+    if isa(optimiser, Bool)
+        optimiser = optimiser ? ADAM(0.001) : nothing
+    end
+    if nInducingPoints isa Int
+        @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
+        if nInducingPoints > nSamples
+            @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
+            nInducingPoints = nSamples
+        else
+            nInducingPoints = Kmeans(nInducingPoints, nMarkov = 10)
+        end
+    end
+    if nInducingPoints isa Int && nInducingPoints == nSamples
+        Z = X
+    else
+        IPModule.init!(nInducingPoints, X, y, kernel)
+        Z = nInducingPoints.Z
+    end
+    if isa(Zoptimiser, Bool)
+        Zoptimiser = Zoptimiser ? ADAM(0.001) : nothing
+    end
+    Z = FixedInducingPoints(Z, Zoptimiser)
+    nFeatures = size(Z, 1)
 
-            if typeof(mean) <: Real
-                mean = ConstantMean(mean)
-            elseif typeof(mean) <: AbstractVector{<:Real}
-                mean = EmpiricalMean(mean)
-            end
+    if typeof(mean) <: Real
+        mean = ConstantMean(mean)
+    elseif typeof(mean) <: AbstractVector{<:Real}
+        mean = EmpiricalMean(mean)
+    end
 
-            nMinibatch = nSamples
-            if inference.Stochastic
-                @assert inference.nMinibatch > 0 && inference.nMinibatch < nSamples "The size of mini-batch $(inference.nMinibatch) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
-                nMinibatch = inference.nMinibatch
-            end
+    nMinibatch = nSamples
+    if inference.Stochastic
+        @assert inference.nMinibatch > 0 && inference.nMinibatch < nSamples "The size of mini-batch $(inference.nMinibatch) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
+        nMinibatch = inference.nMinibatch
+    end
 
-            latentf = ntuple( _ -> _SVGP{T₁}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimiser),nLatent)
+    latentf = ntuple(
+        _ -> _SVGP{T₁}(nFeatures, nMinibatch, Z, kernel, mean, optimiser),
+        nLatent,
+    )
 
-            likelihood = init_likelihood(likelihood,inference,nLatent,nMinibatch,nFeatures)
-            inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
-            inference.xview = view(X,1:nMinibatch,:)
-            inference.yview = view_y(likelihood,y,1:nMinibatch)
+    likelihood =
+        init_likelihood(likelihood, inference, nLatent, nMinibatch, nFeatures)
+    inference =
+        tuple_inference(inference, nLatent, nFeatures, nSamples, nMinibatch)
+    inference.xview = view(X, 1:nMinibatch, :)
+    inference.yview = view_y(likelihood, y, 1:nMinibatch)
 
-            model = SVGP{T₁,TLikelihood,typeof(inference),nLatent}(X,y,
-                    nSamples, nDim, nFeatures, nLatent,
-                    latentf,likelihood,inference,
-                    verbose,atfrequency,false)
-            if isa(optimiser,ALRSVI)
-                init!(model)
-            end
-            return model
+    model = SVGP{T₁,TLikelihood,typeof(inference),nLatent}(
+        X,
+        y,
+        nSamples,
+        nDim,
+        nFeatures,
+        nLatent,
+        latentf,
+        likelihood,
+        inference,
+        verbose,
+        atfrequency,
+        false,
+    )
+    if isa(optimiser, ALRSVI)
+        init!(model)
+    end
+    return model
 end
 
 function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}

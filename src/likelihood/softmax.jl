@@ -10,14 +10,17 @@ p(y=i|{fₖ}) = exp(fᵢ)/ ∑ₖexp(fₖ)
 
 There is no possible augmentation for this likelihood
 """
-struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
-    Y::AbstractVector{BitVector} #Mapping from instances to classes
+mutable struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
+    nClasses::Int
     class_mapping::AbstractVector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
+    Y::AbstractVector{BitVector} #Mapping from instances to classes
     y_class::AbstractVector{Int64} #GP Index for each sample
-    θ::AbstractVector{AbstractVector{T}} # Variational parameter of Polya-Gamma distribution
-    function SoftMaxLikelihood{T}() where {T<:Real}
-        new{T}()
+    function SoftMaxLikelihood{T}(nClasses::Int) where {T<:Real}
+        new{T}(nClasses)
+    end
+    function SoftMaxLikelihood{T}(nClasses::Int, labels::AbstractVector, ind_mapping::Dict) where {T<:Real}
+        new{T}(nClasses,labels,ind_mapping)
     end
     function SoftMaxLikelihood{T}(Y::AbstractVector{<:BitVector},
     class_mapping::AbstractVector, ind_mapping::Dict{<:Any,<:Int},y_class::AbstractVector{<:Int}) where {T<:Real}
@@ -25,9 +28,10 @@ struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
     end
 end
 
-function SoftMaxLikelihood()
-    SoftMaxLikelihood{Float64}()
-end
+SoftMaxLikelihood(nClasses::Int) =
+    SoftMaxLikelihood{Float64}(nClasses)
+SoftMaxLikelihood(ylabels::AbstractVector) =
+    SoftMaxLikelihood{Float64}(length(ylabels),ylabels,Dict(value => key for (key,value) in enumerate(ylabels)))
 
 function pdf(l::SoftMaxLikelihood,f::AbstractVector)
     StatsFuns.softmax(f)
@@ -42,7 +46,7 @@ function Base.show(io::IO,model::SoftMaxLikelihood{T}) where T
 end
 
 
-function init_likelihood(likelihood::SoftMaxLikelihood{T},nLatent::Integer,nSamplesUsed::Integer) where T
+function init_likelihood(likelihood::SoftMaxLikelihood{T}, inference::Inference{T}, nLatent::Int, nSamplesUsed::Int, nFeatures::Int) where {T}
     if inference isa GibbsSampling
         θ = [abs.(rand(T,nSamplesUsed))*2 for i in 1:nLatent]
         LogisticSoftMaxLikelihood{T}(likelihood.Y,likelihood.class_mapping,likelihood.ind_mapping,likelihood.y_class,θ)
@@ -65,15 +69,15 @@ function grad_samples(model::AbstractGP{T,<:SoftMaxLikelihood},samples::Abstract
     samples .= mapslices(StatsFuns.softmax,samples,dims=2)
     t = 0.0
     @inbounds for i in 1:nSamples
-        s = samples[i,class]::T
+        s = samples[i,class]
         @views g_μ = grad_softmax(samples[i,:],class)/s
         grad_μ += g_μ
         @views h = diaghessian_softmax(samples[i,:],class)/s
         grad_Σ += h - abs2.(g_μ)
     end
     for k in 1:model.nLatent
-        model.inference.∇μE[k][index] = grad_μ[k]/nSamples
-        model.inference.∇ΣE[k][index] = 0.5.*grad_Σ[k]/nSamples
+        model.inference.vi_opt[k].ν[index] = -grad_μ[k]/nSamples
+        model.inference.vi_opt[k].λ[index] = grad_Σ[k]/nSamples
     end
 end
 

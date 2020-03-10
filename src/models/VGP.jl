@@ -45,37 +45,57 @@ mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},N
 end
 
 
-function VGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
-            likelihood::TLikelihood,inference::TInference;
-            verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Integer=1,
-            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
-            ArrayType::UnionAll=Vector) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+function VGP(
+    X::AbstractArray{T},
+    y::AbstractVector,
+    kernel::Kernel,
+    likelihood::TLikelihood,
+    inference::TInference;
+    verbose::Int = 0,
+    optimiser = ADAM(0.01),
+    atfrequency::Integer = 1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
+    ArrayType::UnionAll = Vector,
+) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
-            X, y, nLatent, likelihood = check_data!(X, y, likelihood)
-            @assert check_implementation(:VGP, likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
-            nFeatures = nSamples = size(X,1); nDim = size(X,2);
+    X, y, nLatent, likelihood = check_data!(X, y, likelihood)
+    @assert check_implementation(:VGP, likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    nFeatures = nSamples = size(X, 1)
+    nDim = size(X, 2)
 
-            if isa(optimiser,Bool)
-                optimiser = optimiser ? ADAM(0.01) : nothing
-            end
+    if isa(optimiser, Bool)
+        optimiser = optimiser ? ADAM(0.01) : nothing
+    end
 
-            if typeof(mean) <: Real
-                mean = ConstantMean(mean)
-            elseif typeof(mean) <: AbstractVector{<:Real}
-                mean = EmpiricalMean(mean)
-            end
+    if typeof(mean) <: Real
+        mean = ConstantMean(mean)
+    elseif typeof(mean) <: AbstractVector{<:Real}
+        mean = EmpiricalMean(mean)
+    end
 
-            latentf = ntuple(_->_VGP{T}(nFeatures,kernel,mean,variance,optimiser),nLatent)
+    latentf = ntuple(_ -> _VGP{T}(nFeatures, kernel, mean, optimiser), nLatent)
 
-            likelihood = init_likelihood(likelihood,inference,nLatent,nSamples,nFeatures)
-            inference = tuple_inference(inference,nLatent,nSamples,nSamples,nSamples)
-            inference.xview = view(X,:,:)
-            inference.yview = view_y(likelihood,y,1:nSamples)
-            inference.MBIndices = collect(1:nSamples)
-            VGP{T, TLikelihood, typeof(inference), nLatent}(
-                    X, y, nFeatures, nDim, nFeatures, nLatent,
-                    latentf, likelihood, inference,
-                    verbose, atfrequency, false)
+    likelihood =
+        init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
+    inference =
+        tuple_inference(inference, nLatent, nSamples, nSamples, nSamples)
+    inference.xview = view(X, :, :)
+    inference.yview = view_y(likelihood, y, 1:nSamples)
+    inference.MBIndices = collect(1:nSamples)
+    VGP{T,TLikelihood,typeof(inference),nLatent}(
+        X,
+        y,
+        nFeatures,
+        nDim,
+        nFeatures,
+        nLatent,
+        latentf,
+        likelihood,
+        inference,
+        verbose,
+        atfrequency,
+        false,
+    )
 end
 
 function Base.show(io::IO,model::VGP{T,<:Likelihood,<:Inference}) where {T}

@@ -110,7 +110,7 @@ function update_parameters!(model::VStP)
 end
 
 function computeMatrices!(model::GP{T}) where {T}
-    compute_K!.(model.f,[model.inference.xview],T(jitt)+model.likelihood.σ²)
+    compute_K!.(model.f,[model.inference.xview],T(jitt)+model.likelihood.σ²[])
     model.inference.HyperParametersUpdated = false
 end
 

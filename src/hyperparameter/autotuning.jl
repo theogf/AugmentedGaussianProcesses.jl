@@ -99,7 +99,7 @@ function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
                 return (hyperparameter_expec_gradient(gp,∇E_μ,∇E_Σ,i,opt,κΣ,Jmm,Jnm,Jnn)-hyperparameter_KL_gradient(Jmm,A))
             end,
             function(Jmm,Jnm,∇E_μ,∇E_Σ,i,opt)
-                hyperparameter_expec_gradient(gp,∇E_μ,∇E_Σ,i,opt,ι,κΣ,Jmm,Jnm,zero(gp.K̃))-hyperparameter_KL_gradient(Jmm,A)
+                hyperparameter_expec_gradient(gp,∇E_μ,∇E_Σ,i,opt,κΣ,Jmm,Jnm,zero(gp.K̃))-hyperparameter_KL_gradient(Jmm,A)
             end,
             function()
                 return gp.K\(gp.μ-μ₀)
@@ -157,11 +157,11 @@ end
 
 
 ## Gradient with respect to hyperparameters for numerical VI ##
-function hyperparameter_expec_gradient(gp::_SVGP{T},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::NumericalVI,opt::NVIOptimizer,ι::AbstractMatrix{T},κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{<:Real},Jnm::AbstractMatrix{<:Real},Jnn::AbstractVector{<:Real}) where {T<:Real}
-    ι .= (Jnm-gp.κ*Jmm)/gp.K
-    Jnn .-= opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm)
+function hyperparameter_expec_gradient(gp::_SVGP{T},∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::NumericalVI,opt::NVIOptimizer,κΣ::AbstractMatrix{T},Jmm::AbstractMatrix{<:Real},Jnm::AbstractMatrix{<:Real},Jnn::AbstractVector{<:Real}) where {T<:Real}
+    ι = (Jnm-gp.κ*Jmm)/gp.K
+    J̃ = Jnn - (opt_diag(ι,gp.Knm) + opt_diag(gp.κ,Jnm))
     dμ = dot(∇E_μ,ι*gp.μ)
-    dΣ = dot(∇E_Σ,Jnn+2.0*opt_diag(ι,κΣ))
+    dΣ = dot(∇E_Σ,J̃+2.0*opt_diag(ι,κΣ))
     return i.ρ*(dμ+dΣ)
 end
 

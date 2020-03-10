@@ -66,7 +66,7 @@ function local_updates!(l::StudentTLikelihood{T},y::AbstractVector,μ::AbstractV
 end
 
 function sample_local!(l::StudentTLikelihood{T},y::AbstractVector,f::AbstractVector) where {T}
-    l.c .= rand.(InverseGamma.(l.α,0.5*(abs2.(μ-y).+l.σ^2*l.ν)))
+    l.c .= rand.(InverseGamma.(l.α,0.5*(abs2.(f-y).+l.σ^2*l.ν)))
     set_ω!(l,inv.(l.c))
     return nothing
 end
