@@ -46,7 +46,7 @@ function update_hyperparameters!(gp::Union{_SVGP{T},_OSVGP{T}},X,∇E_μ::Abstra
         # @show grads[gp.kernel.transform.s]
         grads[gp.μ₀] = f_μ₀()
     end
-    if !isnothing(gp.Z.opt)
+    if !isnothing(gp.Z.opt) && !isnothing(gp.opt)
         Z_aduse = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]
         global Z_gradients = if Z_aduse == :forward_diff
                Z_gradient_forward(gp,f_Z,X,∇E_μ,∇E_Σ,i,opt) #Compute the gradient given the inducing points location
@@ -123,25 +123,18 @@ function hyperparameter_gradient_function(gp::_OSVGP{T}) where {T<:Real}
     A = (Diagonal{T}(I,gp.dim)-gp.K\(gp.Σ+(gp.µ-μ₀)*transpose(gp.μ-μ₀)))/gp.K
     κΣ = gp.κ*gp.Σ
     κₐΣ = gp.κₐ*gp.Σ
-    return (function(Jmm,Jnm,Jnn,Jab,Jaa,∇E_μ,∇E_Σ,i,opt)
-                ∇E = hyperparameter_expec_gradient(gp,∇E_μ,∇E_Σ,i,opt,κΣ,Jmm,Jnm,Jnn)
-                ∇KLₐ = hyperparameter_online_gradient(gp,κₐΣ,Jmm,Jab,Jaa)
-                ∇KL =  hyperparameter_KL_gradient(Jmm,A)
-                # return ∇E - ∇KL
+    return (function(Jmm, Jnm, Jnn, Jab, Jaa, ∇E_μ, ∇E_Σ, i, opt)
+                ∇E = hyperparameter_expec_gradient(gp, ∇E_μ, ∇E_Σ, i, opt, κΣ, Jmm, Jnm, Jnn)
+                ∇KLₐ = hyperparameter_online_gradient(gp, κₐΣ, Jmm, Jab, Jaa)
+                ∇KL =  hyperparameter_KL_gradient(Jmm, A)
                 return ∇E + ∇KLₐ - ∇KL
-                end,
-                function(Jmm,Jnm,Jab,∇E_μ,∇E_Σ,i,opt)
-                    hyperparameter_expec_gradient(gp,∇E_μ,∇E_Σ,i,opt,κΣ,Jmm,Jnm,zero(gp.K̃))+ hyperparameter_online_gradient(gp,κₐΣ,Jmm,Jab,zeros(T,size(gp.Zₐ,1),size(gp.Zₐ,1)))-hyperparameter_KL_gradient(Jmm,A)
-                end,
-                function(σ_k::Real,∇E_Σ,i,opt)
-                    return one(T)/σ_k*(
-                                - i.ρ*dot(∇E_Σ,gp.K̃)
-                                - 0.5*opt_trace(gp.invDₐ,gp.K̃ₐ)
-                                - hyperparameter_KL_gradient(gp.K.mat,A))
-                end,
-                function()
-                    return -(gp.K\(μ₀-gp.μ))
-                end)
+            end, # Function gradient given kernel parameters
+            function(Jmm, Jnm, Jab, ∇E_μ,∇E_Σ,i,opt)
+                hyperparameter_expec_gradient(gp,∇E_μ,∇E_Σ,i,opt,κΣ,Jmm,Jnm,zero(gp.K̃)) +  hyperparameter_online_gradient(gp,κₐΣ,Jmm,Jab,zeros(T,size(gp.Zₐ,1),size(gp.Zₐ,1))) - hyperparameter_KL_gradient(Jmm,A)
+            end, # Function gradient given inducing points locations
+            function()
+                return -(gp.K \ (μ₀ - gp.μ))
+            end) # Function gradient given mean prior
 end
 
 ## Gradient with respect to hyperparameter for analytical VI ##

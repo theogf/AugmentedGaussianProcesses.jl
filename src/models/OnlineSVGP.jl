@@ -28,20 +28,22 @@ Argument list :
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
  - `Autotuning` : Flag for optimizing hyperparameters
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `optimizer` : Flux optimizer
+ - `optimiser` : Flux optimizer
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
 function OnlineSVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
             kernel::Kernel,
-            likelihood::TLikelihood,inference::Inference,nLatent::Int,
+            likelihood::TLikelihood,inference::Inference,
             Z::InducingPoints=CircleKMeans(0.9,0.8),#,Sequential::Bool=false
-            ;verbose::Integer=0,optimizer=Flux.ADAM(0.01),atfrequency::Integer=1,
-            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real=1.0,
+            ;verbose::Integer=0,optimiser=ADAM(0.01),atfrequency::Integer=1,
+            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
             IndependentPriors::Bool=true,ArrayType::UnionAll=Vector,T₁=Float64) where {TLikelihood<:Likelihood}
 
-            @assert check_implementation(:OnlineSVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
-            if isa(optimizer,Bool)
-                optimizer = optimizer ? Flux.ADAM(0.01) : nothing
+            @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
+            @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+
+            if isa(optimiser,Bool)
+                optimiser = optimiser ? ADAM(0.01) : nothing
             end
 
             if typeof(mean) <: Real
@@ -50,8 +52,8 @@ function OnlineSVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
                 mean = EmpiricalMean(mean)
             end
 
-
-            latentf = ntuple( _ -> _OSVGP{T₁}(0,0,Z,kernel,mean,variance,optimizer),nLatent)
+            nLatent = num_latent(likelihood)
+            latentf = ntuple( _ -> _OSVGP{T₁}(0,0,Z,kernel,mean,optimiser),nLatent)
             inference = tuple_inference(inference,nLatent,0,0,0)
             inference.nIter = 1
             return OnlineSVGP{T₁,TLikelihood,typeof(inference),nLatent}(
@@ -61,7 +63,7 @@ function OnlineSVGP(#X::AbstractArray{T1},y::AbstractArray{T2},
                     verbose,atfrequency,false)
 end
 
-function Base.show(io::IO,model::OnlineSVGP{<:Likelihood,<:Inference,T}) where T
+function Base.show(io::IO,model::OnlineSVGP{T,<:Likelihood,<:Inference}) where T
     print(io,"Online Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
 

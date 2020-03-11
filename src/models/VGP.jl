@@ -59,7 +59,10 @@ function VGP(
 ) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
     X, y, nLatent, likelihood = check_data!(X, y, likelihood)
-    @assert check_implementation(:VGP, likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
+    @assert !isa(likelihood,GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
+    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+
     nFeatures = nSamples = size(X, 1)
     nDim = size(X, 2)
 

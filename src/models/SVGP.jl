@@ -61,7 +61,8 @@ function SVGP(
 
 
     X, y, nLatent, likelihood = check_data!(X, y, likelihood)
-    @assert check_implementation(:SVGP, likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
+    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
     nSamples = size(X, 1)
     nDim = size(X, 2)

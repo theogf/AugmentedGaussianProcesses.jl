@@ -1,5 +1,7 @@
 abstract type MultiClassLikelihood{T<:Real} <: Likelihood{T} end
 
+num_latent(l::MultiClassLikelihood) = num_class(l)
+
 num_class(l::MultiClassLikelihood) = l.nClasses
 
 ## Return the labels in a vector of vectors for multiple outputs ##
@@ -16,7 +18,7 @@ function init_multiclass_likelihood!(l::L,y::AbstractVector) where {L<:MultiClas
     create_one_hot!(l,y)
 end
 
-view_y(l::MultiClassLikelihood,y::AbstractVector,i::AbstractVector) = view(view.(y,[i]),:)
+view_y(l::MultiClassLikelihood,y::AbstractVector,indices::AbstractVector) = view(view.(l.Y,Ref(indices)),:)
 
 onehot_to_ind(y::AbstractVector) = findfirst(y.==1)
 

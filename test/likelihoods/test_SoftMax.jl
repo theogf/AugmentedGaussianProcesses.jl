@@ -23,6 +23,7 @@ tests_likelihood(
     Dict(
         "VGP" => Dict("AVI" => false, "QVI" => false, "MCVI" => true),
         "SVGP" => Dict("AVI" => false, "QVI" => false, "MCVI" => true),
+        "OSVGP" => Dict("AVI" => false, "QVI" => false, "MCVI" => false),
         "MCGP" => Dict("Gibbs" => false, "HMC" => false),
     ),
     floattypes,

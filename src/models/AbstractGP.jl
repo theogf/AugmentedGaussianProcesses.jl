@@ -25,6 +25,4 @@ get_μ(model::AbstractGP) = getproperty.(model.f,:μ)
 
 get_Σ(model::AbstractGP) = getproperty.(model.f,:Σ)
 
-get_σ_k(model::AbstractGP) = first.(getproperty.(model.f,:σ_k))
-
 get_kernel(model::AbstractGP) = getproperty.(model.f,:kernel)

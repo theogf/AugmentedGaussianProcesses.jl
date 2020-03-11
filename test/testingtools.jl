@@ -1,7 +1,8 @@
 using LinearAlgebra, Distributions
 using AugmentedGaussianProcesses
+using MLDataUtils
 
-ϵ = 1.0; M = 10
+M = 10
 function generate_f(N,d,k;X= rand(N,d))
     f = rand(MvNormal(zeros(N),kernelmatrix(k,X,obsdim=1)+1e-5I))
     return X,f
@@ -15,6 +16,20 @@ function tests(model1,model2,X,f,y,problem)
     @test testconv(model1,problem,X,f,y)
     @test all(proba_y(model1,X)[2].>0)
     train!(model2,6)
+    @test testconv(model2,problem,X,f,y)
+    @test all(proba_y(model2,X)[2].>0)
+end
+
+function tests(model1::OnlineSVGP,model2,X,f,y,problem)
+    for (X_,y_) in eachbatch((X,y),obsdim=1,size=10)
+        train!(model1,X_,y_,iterations=1)
+    end
+    L = ELBO(model1)
+    @test testconv(model1,problem,X,f,y)
+    @test all(proba_y(model1,X)[2].>0)
+    for (X_,y_) in eachbatch((X,y),obsdim=1,size=10)
+        train!(model2,X_,y_,iterations=1)
+    end
     @test testconv(model2,problem,X,f,y)
     @test all(proba_y(model2,X)[2].>0)
 end
@@ -38,7 +53,7 @@ function tests_likelihood(name::String,l::Likelihood,ltype::Type{<:Likelihood},d
                 @testset "AnalyticVI" begin
                     if dictvgp["AVI"]
                         model = VGP(X,y,k,l,AnalyticVI(),optimiser=false,verbose=0)
-                        @test typeof(model) <: VGP{floattype,ltype{floattype},AnalyticVI{floattype,nLatent},nLatent}
+                        @test model isa VGP{floattype,ltype{floattype},AnalyticVI{floattype,nLatent},nLatent}
                         model_opt = VGP(X,y,k,l,AnalyticVI(),optimiser=true,verbose=0)
                         tests(model,model_opt,X,f,y,problem)
                     else
@@ -48,7 +63,7 @@ function tests_likelihood(name::String,l::Likelihood,ltype::Type{<:Likelihood},d
                 @testset "NumericalVI" begin
                     if dictvgp["QVI"]
                         model = VGP(X,y,k,l,QuadratureVI(),optimiser=false)
-                        @test typeof(model) <: VGP{floattype,ltype{floattype},QuadratureVI{floattype,nLatent},nLatent}
+                        @test model isa VGP{floattype,ltype{floattype},QuadratureVI{floattype,nLatent},nLatent}
                         model_opt = VGP(X,y,k,l,QuadratureVI(),optimiser=true,verbose=0)
                         tests(model,model_opt,X,f,y,problem)
                     else
@@ -56,7 +71,7 @@ function tests_likelihood(name::String,l::Likelihood,ltype::Type{<:Likelihood},d
                     end
                     if dictvgp["MCVI"]
                         model = VGP(X,y,k,l,MCIntegrationVI(),optimiser=false)
-                        @test typeof(model) <: VGP{floattype,ltype{floattype},MCIntegrationVI{floattype,nLatent},nLatent}
+                        @test model isa VGP{floattype,ltype{floattype},MCIntegrationVI{floattype,nLatent},nLatent}
                         model_opt = VGP(X,y,k,l,MCIntegrationVI(),optimiser=true,verbose=0)
                         tests(model,model_opt,X,f,y,problem)
                     else
@@ -65,13 +80,47 @@ function tests_likelihood(name::String,l::Likelihood,ltype::Type{<:Likelihood},d
                 end # Loop on Numerical VI
             end # Loop on float types
         end # VGP
+        @testset "OSVGP" begin
+            dictosvgp = dict["OSVGP"]
+            for floattype in floattypes
+                dictvgp = dict["VGP"]
+                @testset "AnalyticVI" begin
+                    if dictosvgp["AVI"]
+                        model = OnlineSVGP(k,l,AnalyticVI(),OIPS(),optimiser=false,verbose=0)
+                        @test model isa OnlineSVGP{floattype,ltype{floattype},AnalyticVI{floattype,nLatent},nLatent}
+                        model_opt = OnlineSVGP(k,l,AnalyticVI(),OIPS(),optimiser=true,verbose=0)
+                        tests(model,model_opt,X,f,y,problem)
+                    else
+                        @test_throws AssertionError OnlineSVGP(k,l,AnalyticVI(),OIPS(),optimiser=false,verbose=0)
+                    end
+                end  # Analytic VI
+                @testset "NumericalVI" begin
+                    if dictosvgp["QVI"]
+                        model = OnlineSVGP(k,l,QuadratureVI(),OIPS(),optimiser=false)
+                        @test model isa OnlineSVGP{floattype,ltype{floattype},QuadratureVI{floattype,nLatent},nLatent}
+                        model_opt = OnlineSVGP(k,l,QuadratureVI(),OIPS(),optimiser=true,verbose=0)
+                        tests(model,model_opt,X,f,y,problem)
+                    else
+                        @test_throws AssertionError OnlineSVGP(k,l,QuadratureVI(),OIPS(),optimiser=false,verbose=0)
+                    end
+                    if dictosvgp["MCVI"]
+                        model = OnlineSVGP(k,l,MCIntegrationVI(),OIPS(),optimiser=false)
+                        @test model isa OnlineVGP{floattype,ltype{floattype},MCIntegrationVI{floattype,nLatent},nLatent}
+                        model_opt = OnlineSVGP(k,l,MCIntegrationVI(),OIPS(),optimiser=true,verbose=0)
+                        tests(model,model_opt,X,f,y,problem)
+                    else
+                        @test_throws AssertionError OnlineSVGP(k,l,MCIntegrationVI(),OIPS(),optimiser=false,verbose=0)
+                    end
+                end # Loop on Numerical VI
+            end # Loop on float types
+        end #Loop on Online SVGP
         @testset "SVGP" begin
             dictsvgp = dict["SVGP"]
             for floattype in floattypes
                 @testset "AnalyticVI" begin
                     if dictsvgp["AVI"]
                         model = SVGP(X,y,k,l,AnalyticVI(),M,optimiser=false,verbose=0)
-                        @test typeof(model) <: SVGP{floattype,ltype{floattype},AnalyticVI{floattype,nLatent},nLatent}
+                        @test model isa SVGP{floattype,ltype{floattype},AnalyticVI{floattype,nLatent},nLatent}
                         model_opt = SVGP(X,y,k,l,AnalyticVI(),M,optimiser=true,Zoptimiser=true,verbose=0)
                         tests(model,model_opt,X,f,y,problem)
 
@@ -84,7 +133,7 @@ function tests_likelihood(name::String,l::Likelihood,ltype::Type{<:Likelihood},d
                 @testset "NumericalVI" begin
                     if dictsvgp["QVI"]
                         model = SVGP(X,y,k,l,QuadratureVI(),M,optimiser=false)
-                        @test typeof(model) <: SVGP{floattype,ltype{floattype},QuadratureVI{floattype,nLatent},nLatent}
+                        @test model isa SVGP{floattype,ltype{floattype},QuadratureVI{floattype,nLatent},nLatent}
                         model_opt = SVGP(X,y,k,l,QuadratureVI(),M,optimiser=true,Zoptimiser=true,verbose=0)
                         tests(model,model_opt,X,f,y,problem)
 
@@ -95,7 +144,7 @@ function tests_likelihood(name::String,l::Likelihood,ltype::Type{<:Likelihood},d
                     end
                     if dictsvgp["MCVI"]
                         model = SVGP(X,y,k,l,MCIntegrationVI(),M,optimiser=false)
-                        @test typeof(model) <: SVGP{floattype,ltype{floattype},MCIntegrationVI{floattype,nLatent},nLatent}
+                        @test model isa SVGP{floattype,ltype{floattype},MCIntegrationVI{floattype,nLatent},nLatent}
                         model_opt = SVGP(X,y,k,l,MCIntegrationVI(),M,optimiser=true,Zoptimiser=true,verbose=0)
                         tests(model,model_opt,X,f,y,problem)
 
@@ -113,7 +162,7 @@ function tests_likelihood(name::String,l::Likelihood,ltype::Type{<:Likelihood},d
                 @testset "Gibbs Sampling" begin
                     if dictmcgp["Gibbs"]
                         model = MCGP(X,y,k,l,GibbsSampling())
-                        @test typeof(model) <: MCGP{floattype,ltype{floattype},GibbsSampling{floattype,nLatent},nLatent}
+                        @test model isa MCGP{floattype,ltype{floattype},GibbsSampling{floattype,nLatent},nLatent}
                         samples = AGP.sample(model,100)
                         @test_broken samples2 = AGP.sample(model,100,cat_samples=true)
                     else
@@ -121,7 +170,7 @@ function tests_likelihood(name::String,l::Likelihood,ltype::Type{<:Likelihood},d
                     end
                     if dictmcgp["HMC"]
                         model = MCGP(X,y,k,l,HMCSampling())
-                        @test typeof(model) <: MCGP{floattype,ltype{floattype},HMCSampling{floattype,nLatent},nLatent}
+                        @test model isa MCGP{floattype,ltype{floattype},HMCSampling{floattype,nLatent},nLatent}
                         samples = AGP.sample(model,20)
                         @test_broken samples2 = AGP.sample(model,20,cat_samples=true)
                     else

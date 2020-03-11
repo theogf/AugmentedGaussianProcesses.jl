@@ -58,7 +58,9 @@ function MCGP(
 ) where {T<:Real,TLikelihood<:Likelihood,TInference<:SamplingInference}
 
     X, y, nLatent, likelihood = check_data!(X, y, likelihood)
-    @assert check_implementation(:MCGP, likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    @assert inference isa SamplingInference "The inference object should be of type `SamplingInference` : either `GibbsSampling` or `HMCSampling`"
+    @assert !isa(likelihood,GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
+    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
     nFeatures = nSamples = size(X, 1)
     nDim = size(X, 2)

@@ -50,6 +50,7 @@ using Distributions
         AGP.create_one_hot!(l,y)
         @test l.Y == [BitArray([1,0,1,1]),BitArray([0,1,0,0]),BitArray([0,0,0,0])]
         @test l.y_class == [1,2,1,1]
+        @test AGP.num_latent(l) == 3
 
         y = ["b","a","c","a","a"]
         l = LogisticSoftMaxLikelihood(3)
@@ -79,6 +80,8 @@ using Distributions
         @test AGP.treat_labels!(y,l) == (y,1,l)
         @test_throws AssertionError AGP.treat_labels!(rand(10),l)
     end
+end
+@testset "Likelihoods" begin
     @testset "Gaussian" begin
         include("likelihoods/test_Gaussian.jl")
     end

@@ -27,12 +27,14 @@ function GaussianLikelihood(σ²::T=1e-3;opt_noise=false) where {T<:Real}
     GaussianLikelihood{T}(σ²,opt_noise)
 end
 
+implemented(::GaussianLikelihood,::Union{<:AnalyticVI,<:Analytic}) = true
+
 function pdf(l::GaussianLikelihood,y::Real,f::Real)
-    Distributions.pdf(Normal(y,first(l.σ²)),f)
+    Distributions.pdf(Normal(y,sqrt(first(l.σ²))),f)
 end
 
 function logpdf(l::GaussianLikelihood,y::Real,f::Real)
-    Distributions.logpdf(Normal(y,first(l.σ²)),f)
+    Distributions.logpdf(Normal(y,sqrt(first(l.σ²))),f)
 end
 
 noise(l::GaussianLikelihood) = first(l.σ²)

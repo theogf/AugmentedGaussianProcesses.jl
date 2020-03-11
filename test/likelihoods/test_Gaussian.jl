@@ -10,6 +10,18 @@ X,f = generate_f(N,d,k)
 y = f + σ*randn(N)
 floattypes = [Float64]
 @testset "Gaussian Likelihood" begin
+    @testset "Likelihood" begin
+        σ² = 1e-3
+        l = GaussianLikelihood(σ²)
+        f = 0.5
+        y = 0.2
+        @test AGP.noise(l) == σ²
+        @test AGP.pdf(l,y,f) == pdf(Normal(f,sqrt(σ²)),y)
+        @test AGP.logpdf(l,y,f) == logpdf(Normal(f,sqrt(σ²)),y)
+        @test_nowarn show(l)
+        @test AGP.AugmentedKL(l,[]) == 0.0
+        @test AGP.num_latent(l) == 1
+    end
     @testset "GP" begin
         for floattype in floattypes
             @test typeof(GP(X,y,k)) <: GP{floattype,GaussianLikelihood{floattype},Analytic{floattype},1}
@@ -39,6 +51,7 @@ floattypes = [Float64]
         end
     end
     @testset "MCGP" begin
-        # @test_throws AssertionError SVGP(X,y,k,GaussianLikelihood(),MCIntegrationVI(),20)
+        @test_throws AssertionError MCGP(X,y,k,GaussianLikelihood(),GibbsSampling())
+        @test_throws AssertionError MCGP(X,y,k,GaussianLikelihood(),HMCSampling())
     end
 end

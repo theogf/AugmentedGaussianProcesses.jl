@@ -33,6 +33,8 @@ function LogisticLikelihood()
     LogisticLikelihood{Float64}()
 end
 
+implemented(::LogisticLikelihood,::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}) = true
+
 function init_likelihood(likelihood::LogisticLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
         LogisticLikelihood{T}(abs.(rand(T,nSamplesUsed)),zeros(T,nSamplesUsed))

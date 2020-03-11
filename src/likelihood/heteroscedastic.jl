@@ -30,6 +30,9 @@ function HeteroscedasticLikelihood(λ::T=1.0) where {T<:Real}
         HeteroscedasticLikelihood{T}(λ)
 end
 
+implemented(::HeteroscedasticLikelihood,::AnalyticVI) = true
+
+
 function pdf(l::HeteroscedasticLikelihood,y::Real,f::AbstractVector)
     pdf(Normal(y,inv(sqrt(l.λ*logistic(f[2])))),f[1])
 end
@@ -41,6 +44,8 @@ end
 function Base.show(io::IO,model::HeteroscedasticLikelihood{T}) where T
     print(io,"Gaussian likelihood with heteroscedastic noise")
 end
+
+num_latent(::HeteroscedasticLikelihood) = 2
 
 function treat_labels!(y::AbstractVector{T},likelihood::L) where {T,L<:HeteroscedasticLikelihood}
     @assert T<:Real "For regression target(s) should be real valued"

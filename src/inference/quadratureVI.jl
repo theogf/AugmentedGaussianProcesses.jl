@@ -73,17 +73,6 @@ function tuple_inference(i::TInf,nLatent::Integer,nFeatures::Integer,nSamples::I
     return TInf(i.ϵ,i.Stochastic,i.nPoints,i.clipping,nFeatures,nSamples,nMinibatch,nLatent,i.vi_opt[1].optimiser,i.NaturalGradient)
 end
 
-function expec_log_likelihood(model::VGP{T,L,<:QuadratureVI}) where {T,L}
-    tot = 0.0
-    for gp in model.f
-        for i in 1:model.nSamples
-            x = model.inference.nodes*sqrt(max(gp.Σ[i,i],0.0)) .+ gp.μ[i]
-            tot += dot(model.inference.weights,logpdf.(model.likelihood,model.y[i],x))
-        end
-    end
-    return tot
-end
-
 function expec_log_likelihood(l::Likelihood,i::QuadratureVI,y,μ::AbstractVector,diag_cov::AbstractVector)
     sum(apply_quad.(y,μ,diag_cov,i,l))
 end

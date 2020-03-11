@@ -124,13 +124,13 @@ function _predict_f(model::MCGP{T},X_test::AbstractMatrix{<:Real};covf::Bool=tru
         Σf = Symmetric.(k_starstar .- invquad.(get_K(model),k_star) .+  cov.(f))
         return μf, Σf
     else
-        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1) .+ [T(jitt)*ones(T,size(X_test,1))])
+        k_starstar = kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1) .+ [T(jitt)*ones(T,size(X_test,1))]
         σ²f = k_starstar .- opt_diag.(k_star./get_K(model),k_star) .+  diag.(cov.(f,dims=2))
         return μf,σ²f
     end
 end
 
-function _sample_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T},k_star=get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model))) where {T}
+function _sample_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T},k_star=kernelmatrix.(get_kernel(model),[X_test],get_Z(model))) where {T}
     return f = [k_star[k]*(model.f[k].K\model.inference.sample_store[:,:,k]') for k in 1:model.nLatent]
 end
 

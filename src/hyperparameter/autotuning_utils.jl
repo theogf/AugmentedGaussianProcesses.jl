@@ -41,11 +41,6 @@ function apply_grads_kernel_params!(opt,k::Kernel,Δ::IdDict)
     end
 end
 
-function apply_grads_kernel_variance!(opt,gp::Abstract_GP,grad::Real)
-    Δlogσ = Flux.Optimise.apply!(opt,gp.σ_k,gp.σ_k.*[grad])
-    gp.σ_k .= exp.(log.(gp.σ_k).+Δlogσ)
-end
-
 function apply_gradients_mean_prior!(μ::PriorMean,g::AbstractVector,X::AbstractMatrix)
     update!(μ,g,X)
 end

@@ -30,6 +30,8 @@ function BayesianSVM()
     BayesianSVM{Float64}()
 end
 
+implemented(::BayesianSVM,::AnalyticVI) = true
+
 function init_likelihood(likelihood::BayesianSVM{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer,nFeatures::Integer) where T
     BayesianSVM{T}(abs.(rand(T,nSamplesUsed)),zeros(T,nSamplesUsed))
 end

@@ -21,7 +21,7 @@ function ∇L_ρ_reverse(f,gp::_OSVGP,X,∇E_μ,∇E_Σ,i,opt)
 end
 
 ## Gradient ersatz for OSVGP ##
-function _∇L_ρ_reverse(f,kernel,σ,Z,X,Zₐ,∇E_μ,∇E_Σ,i,opt)
+function _∇L_ρ_reverse(f,kernel,Z,X,Zₐ,∇E_μ,∇E_Σ,i,opt)
     Kmm = kernelmatrix(kernel,Z,obsdim=1)
     Knm = kernelmatrix(kernel,X,Z,obsdim=1)
     Knn = diag(kernelmatrix(kernel,X,obsdim=1)) # TO FIX ONCE Zygote#429 is fixed.

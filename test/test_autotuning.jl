@@ -21,18 +21,15 @@ Z_init = rand(M,D)*2 .-1.0
 ##
 AGP.setadbackend(:reverse_diff)
 grads_reverse = []
-gradσ_reverse = []
 ELBO_reverse = []
 l_reverse = []
 σ_reverse = []
 function cb_reverse(model,iter)
     if iter > 3
         push!(grads_reverse,AGP.grads[first(Flux.params(model.f[1].kernel))])
-        push!(gradσ_reverse,first(AGP.grads[model.f[1].σ_k]))
     end
     push!(ELBO_reverse,ELBO(model))
     push!(l_reverse,first(model.f[1].kernel.transform.s))
-    push!(σ_reverse,first(model.f[1].σ_k))
 end
 model = fullgp ? VGP(X,sign.(y),deepcopy(kernel),LogisticLikelihood(),AnalyticVI()) : SVGP(X,sign.(y),deepcopy(kernel),LogisticLikelihood(),AnalyticVI(),M)
 
@@ -51,11 +48,9 @@ l_forward = []
 function cb_forward(model,iter)
     if iter > 3
         push!(grads_forward,AGP.grads[first(Flux.params(model.f[1].kernel))])
-        push!(gradσ_forward,first(AGP.grads[model.f[1].σ_k]))
     end
     push!(ELBO_forward,ELBO(model))
     push!(l_forward,first(model.f[1].kernel.transform.s))
-    push!(σ_forward,first(model.f[1].σ_k))
 end
 # model = OnlineSVGP(deepcopy(kernel),LogisticLikelihood(),AnalyticVI(),)
 model = fullgp ? VGP(X,sign.(y),deepcopy(kernel),LogisticLikelihood(),AnalyticVI()) : SVGP(X,sign.(y),deepcopy(kernel),LogisticLikelihood(),AnalyticVI(),M)

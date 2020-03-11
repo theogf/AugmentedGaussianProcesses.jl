@@ -33,6 +33,8 @@ SoftMaxLikelihood(nClasses::Int) =
 SoftMaxLikelihood(ylabels::AbstractVector) =
     SoftMaxLikelihood{Float64}(length(ylabels),ylabels,Dict(value => key for (key,value) in enumerate(ylabels)))
 
+implemented(::SoftMaxLikelihood,::MCIntegrationVI) = true
+
 function pdf(l::SoftMaxLikelihood,f::AbstractVector)
     StatsFuns.softmax(f)
 end

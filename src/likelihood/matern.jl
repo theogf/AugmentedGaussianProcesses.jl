@@ -36,6 +36,8 @@ function Matern3_2Likelihood(ρ::T=1.0) where {T<:Real}
     Matern3_2Likelihood{T}(ρ)
 end
 
+implemented(::Matern3_2Likelihood,::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}) = true
+
 function init_likelihood(likelihood::Matern3_2Likelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
         Matern3_2Likelihood{T}(

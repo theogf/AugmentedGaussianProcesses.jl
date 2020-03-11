@@ -34,6 +34,8 @@ function LaplaceLikelihood(β::T=1.0) where {T<:Real}
     LaplaceLikelihood{T}(β)
 end
 
+implemented(::LaplaceLikelihood,::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}) = true
+
 function init_likelihood(likelihood::LaplaceLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
         LaplaceLikelihood{T}(

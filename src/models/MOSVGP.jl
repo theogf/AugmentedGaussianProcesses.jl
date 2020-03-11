@@ -65,7 +65,9 @@ function MOSVGP(
             for i in 1:nTask
                 X,corrected_y[i],nf_per_task[i],likelihoods[i] = check_data!(X,y[i],likelihoods[i])
             end
-            @assert check_implementation(:SVGP,likelihoods[1],inference) "The $likelihood is not compatible or implemented with the $inference"
+
+            @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
+            @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
             nSamples = size(X,1); nDim = size(X,2);
             if isa(optimiser,Bool)

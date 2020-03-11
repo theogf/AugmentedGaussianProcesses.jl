@@ -30,11 +30,11 @@ General constructor for Variational Inference via numerical approximation.
 """
 function NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimiser=Momentum(1e-3),natural::Bool=true) where {T<:Real}
     if integration_technique == :quad
-        QuadratureVI{T}(ϵ,nGaussHermite,optimiser,false,0,natural)
+        QuadratureVI{T}(ϵ,nGaussHermite,optimiser,false,0.0,0,natural)
     elseif integration_technique == :mc
         MCIntegrationVI{T}(ϵ,nMC,optimiser,false,0,natural)
     else
-        @error "Only possible integration techniques are quadrature : :quad or mcmc integration :mcmc"
+        throw(ErrorException("Only possible integration techniques are quadrature : :quad or mcmc integration :mcmc"))
     end
 end
 
@@ -57,11 +57,11 @@ General constructor for Stochastic Variational Inference via numerical approxima
 """
 function NumericalSVI(nMinibatch::Integer,integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimiser=Momentum(1e-3),natural::Bool=true) where {T<:Real}
     if integration_technique == :quad
-        QuadratureVI{T}(ϵ,nGaussHermite,optimizer,true,nMinibatch,natural)
+        QuadratureVI{T}(ϵ,nGaussHermite,optimiser,true,0.0,nMinibatch,natural)
     elseif integration_technique == :mc
-        MCIntegrationVI{T}(ϵ,nMC,optimizer,true,nMinibatch,natural)
+        MCIntegrationVI{T}(ϵ,nMC,optimiser,true,nMinibatch,natural)
     else
-        @error "Only possible integration techniques are quadrature : :quad or mcmc integration :mc"
+        throw(ErrorException("Only possible integration techniques are quadrature : :quad or mcmc integration :mc"))
     end
 end
 

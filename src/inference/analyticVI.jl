@@ -35,7 +35,7 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
             Stochastic,
             0,
             nMinibatch,
-            1.0,
+            T(1.0),
             true,
             (AVIOptimizer{T}(0, optimiser),),
         )
@@ -56,7 +56,7 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
             Stochastic,
             nSamples,
             nMinibatch,
-            nSamples / nMinibatch,
+            T(nSamples / nMinibatch),
             true,
             vi_opts,
             collect(1:nMinibatch),
@@ -66,7 +66,7 @@ end
 
 
 function AnalyticVI(; ϵ::T = 1e-5) where {T<:Real}
-    AnalyticVI{Float64}(ϵ, Descent(1.0), 0, false)
+    AnalyticVI{T}(ϵ, Descent(1.0), 0, false)
 end
 
 """

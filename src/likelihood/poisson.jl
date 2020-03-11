@@ -26,6 +26,8 @@ function PoissonLikelihood(λ::T=1.0) where {T<:Real}
     PoissonLikelihood{T}(λ)
 end
 
+implemented(::PoissonLikelihood,::AnalyticVI) = true
+
 function init_likelihood(likelihood::PoissonLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Int,nFeatures::Int) where T
     PoissonLikelihood{T}(
     likelihood.λ,
