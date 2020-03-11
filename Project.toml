@@ -51,10 +51,3 @@ StatsBase = "0.32.0"
 StatsFuns = "0.8.0, 0.9"
 Zygote = "0.4"
 julia = "1.2"
-
-[extras]
-Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]
