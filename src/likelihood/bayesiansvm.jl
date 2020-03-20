@@ -30,6 +30,8 @@ function BayesianSVM()
     BayesianSVM{Float64}()
 end
 
+implemented(::BayesianSVM,::AnalyticVI) = true
+
 function init_likelihood(likelihood::BayesianSVM{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Integer,nFeatures::Integer) where T
     BayesianSVM{T}(abs.(rand(T,nSamplesUsed)),zeros(T,nSamplesUsed))
 end
@@ -65,8 +67,7 @@ function compute_proba(l::BayesianSVM{T},μ::Vector{T},σ²::Vector{T}) where {T
     return pred, sig_pred
 end
 
-###############################################################################
-
+## Updates
 
 function local_updates!(l::BayesianSVM{T},y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     l.ω .= abs2.(one(T) .- y.*μ) + diag_cov
@@ -75,6 +76,8 @@ end
 
 @inline ∇E_μ(l::BayesianSVM{T},::AOptimizer,y::AbstractVector) where {T} = (y.*(l.θ.+one(T)),)
 @inline ∇E_Σ(l::BayesianSVM{T},::AOptimizer,y::AbstractVector) where {T} = (0.5.*l.θ,)
+
+## Lower bounds
 
 function expec_log_likelihood(l::BayesianSVM{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
     tot = -(0.5*length(y)*logtwo)

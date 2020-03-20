@@ -1,21 +1,25 @@
-using InverseLaplace
 using Random
-using StatsFuns, SpecialFunctions
-using ForwardDiff
 
-struct LaplaceTransformDistribution{T,TAlg}
+###
+# Distribution only based on its laplace transform function `f` and exponential tilting `c²`.
+# The sampling is from Ridout, M. S. (2009). Generating random numbers from a distribution specified by its laplace transform. Statistics and Computing, 19(4):439.
+# And the inverse laplace operation is done via Grassmann, W. K. (Ed.). (2000). Computational Probability. International Series in #Operations Research & Management Science. doi:10.1007/978-1-4757-4828-4
+
+struct LaplaceTransformDistribution{T,TAlg} <: Distributions.ContinuousUnivariateDistribution
     f::Function # Laplace transform of the pdf
-    c²::T
+    c²::T # Exponential tilting parameter
     alg::TAlg # Algorithm to compute the inverse Laplace transform
-    function LaplaceTransformDistribution{T,TAlg}(f::Function,c²::T=0.0,alg::TAlg=BromwichInverseLaplace()) where {T<:Real,TAlg}
+    function LaplaceTransformDistribution{T,TAlg}(f::Function,c²::T,alg::TAlg) where {T<:Real,TAlg}
         @assert _check_f(f) "The function passed is not valid"# Do series of check on f
-        @assert c²>0 "c² has to a be non-negative real"
+        @assert c²>=0 "c² has to a be non-negative real"
         new{T,TAlg}(f,c²,alg)
     end
 end
 
+LaplaceTransformDistribution(f::Function,c²::T=0.0,alg::TAlg=BromwichInverseLaplace()) where {T,TAlg} = LaplaceTransformDistribution{T,TAlg}(f,c²,alg)
+
 function _check_f(f)
-    return true
+    return true # TODO Add tests for complete monotonicity / PDR
 end
 _gradf(d::LaplaceTransformDistribution,x::Real) = ForwardDiff.gradient(dist.f,[x])[1]
 _gradlogf(d::LaplaceTransformDistribution,x::Real) = ForwardDiff.gradient(log∘dist.f,[x])[1]
@@ -25,28 +29,11 @@ Distributions.pdf(dist::LaplaceTransformDistribution,x::Real) = apply_f(dist,x)
 Distributions.mean(dist::LaplaceTransformDistribution) = _gradf(dist,dist.c²)/dist.f(dist.c²)
 Distributions.var(dist::LaplaceTransformDistribution) = _hessianlogf(dist,dist.c²)/dist.f(dist.c²)-mean(dist)^2
 
-struct BromwichInverseLaplace{T}
-    A::Int
-    l::Int
-    m::Int
-    n::Int
-    expA2l::T
-    ijπl::Vector{Complex{T}}
-    expijπl::Vector{Complex{T}}
-    coefs::Vector{T}
-    altern::Vector{Int}
-    b::Vector{T}
-    function BromwichInverseLaplace(A::Int=19,l::Int=1,m::Int=11,n::Int=28)
-        @assert A>0 "A should be a positive integer"
-        @assert l>0 "l should be a positive integer"
-        @assert m>0 "m should be a positive integer"
-        @assert n>0 "n should be a positive integer"
-        T = typeof(exp(A/(2*l)))
-        ijπl = 1im.*(1:l).*π/l
-        new{T}(A,l,m,n,exp(A/(2*l)),ijπl,exp.(ijπl),binomial.(m,0:m)./(2^m),(-1).^(0:(n+m)),zeros(n+m),zeros())
-    end
+function Random.rand(dist::LaplaceTransformDistribution)
+    first(rand(dist,1))
 end
 
+# Sampling from Ridout (09)
 function Random.rand(dist::LaplaceTransformDistribution,n::Int)
     nTries = 100
     i = 0
@@ -69,6 +56,29 @@ function Random.rand(dist::LaplaceTransformDistribution,n::Int)
     @error "Sampler failed to converge"
 end
 
+struct BromwichInverseLaplace{T}
+    A::Int
+    l::Int
+    m::Int
+    n::Int
+    expA2l::T
+    ijπl::Vector{Complex{T}}
+    expijπl::Vector{Complex{T}}
+    coefs::Vector{T}
+    altern::Vector{Int}
+    b::Vector{T}
+    s::Vector{T}
+    function BromwichInverseLaplace(A::Int=19,l::Int=1,m::Int=11,n::Int=28)
+        @assert A>0 "A should be a positive integer"
+        @assert l>0 "l should be a positive integer"
+        @assert m>0 "m should be a positive integer"
+        @assert n>0 "n should be a positive integer"
+        T = typeof(exp(A/(2*l)))
+        ijπl = 1im.*(1:l).*π/l
+        new{T}(A,l,m,n,exp(A/(2*l)),ijπl,exp.(ijπl),binomial.(m,0:m)./(2^m),(-1).^(0:(n+m)),zeros(n+m+1),zeros(n+m+1))
+    end
+end
+
 @inline function apply_f(dist::LaplaceTransformDistribution,t)
     if t==0
         return zero(t)
@@ -78,7 +88,6 @@ end
 end
 
 @inline function apply_F(dist::LaplaceTransformDistribution,t)
-    #Take care of the spe
     if t == 0
         return zero(t)
     else
@@ -98,17 +107,17 @@ function invlaplace(f::Function,t::Real,alg::BromwichInverseLaplace)
     @inbounds for k in 1:(alg.n+alg.m)
         alg.b[k+1] = 2*sum(real.(f.(alg.A*scaled_t .+ alg.ijπl./t .+ 1im*π*k/t).*alg.expijπl))
     end
-    acoeff = alg.eA2l*scaled_t
+    acoeff = alg.expA2l*scaled_t
     cumsum!(alg.s,acoeff.*alg.b.*alg.altern)
-    return dot(view(alg.s,(alg.n+1):end),alg.coeffs)
+    return dot(view(alg.s,(alg.n+1):length(alg.s)),alg.coefs)
 end
 
 # Laplace transform implemented from "Computational Probability Grassmann 2000"
-function laptrans(dist::LaplaceTransformSampler;n::Int=10,jmax::Int=500,kmax::Int=1000,b::Real=2.0,τ::Real=1e-7)
+function laptrans(dist::LaplaceTransformDistribution;n::Int=10,jmax::Int=500,kmax::Int=1000,b::Real=2.0,τ::Real=1e-7)
     # Step 1
-    global u = sort!(rand(n))
+    u = sort!(rand(n))
     # Step 2
-    global xmax = 0.1
+    xmax = 0.1
     j = 0
     while apply_F(dist,xmax) < u[end] && j < jmax
         xmax = b*xmax
@@ -137,19 +146,3 @@ function laptrans(dist::LaplaceTransformSampler;n::Int=10,jmax::Int=500,kmax::In
     # Step 4
     return shuffle!(x)
 end
-
-ν=3.0
-
-testfunction(x) = (1+x/ν)^(-0.5*(ν+1))
-testfunction(x) = sech(sqrt(x/2))
-testfunction(x) = (1+sqrt(3*x))*exp(-sqrt(3*x))
-testfunction(x) = (1+sqrt(5*x)+5/3*x)*exp(-sqrt(5*x))
-testdist = LaplaceTransformSampler(testfunction,nothing)
-
-laptrans(testdist,n=1)[1]
-using Plots
-using AugmentedGaussianProcesses
-p = histogram(rand(testdist,10000),bins=range(0,3,length=100),normalize=true)|>display
-using Distributions
-histogram!(rand(Gamma((ν+1)/2,1/ν),10000),alpha=0.5,bins=range(0,10,length=100),normalize=true)
-histogram!([AugmentedGaussianProcesses.draw(AugmentedGaussianProcesses.PolyaGammaDist(),1,0) for i in 1:10000],alpha=0.5,bins=range(0,10,length=100),normalize=true)

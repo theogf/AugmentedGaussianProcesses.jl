@@ -1,4 +1,4 @@
-""" Solve the classical GP Regression (especially valid for augmented likelihoods) """
+""" Solve the classical GP Regression """
 mutable struct Analytic{T<:Real} <: Inference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
@@ -24,7 +24,7 @@ Analytic inference structure for the classical GP regression
     - `ϵ::T` : convergence criteria, which can be user defined
 """
 function Analytic(;ϵ::T=1e-5) where {T<:Real}
-    Analytic{T}(ϵ,0,false,1,collect(1:1),1.0,true)
+    Analytic{T}(ϵ,0,false,1,collect(1:1),T(1.0),true)
 end
 
 
@@ -42,8 +42,8 @@ function init_inference(inference::Analytic{T},nLatent::Integer,nFeatures::Integ
 end
 
 function analytic_updates!(model::GP{T}) where {T}
+    first(model.f).μ = first(model.f).K\(model.y - first(model.f).μ₀(model.X))
     if !isnothing(model.likelihood.opt_noise)
-        model.likelihood.σ² = mean(abs2,model.y.-first(model.f).μ)
+        model.likelihood.σ² .= mean(abs2,model.y.-first(model.f).μ)
     end
-    model.f[1].μ = first(model.f).K\(model.y - first(model.f).μ₀(model.X))
 end

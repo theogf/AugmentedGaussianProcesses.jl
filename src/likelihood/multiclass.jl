@@ -1,35 +1,60 @@
 abstract type MultiClassLikelihood{T<:Real} <: Likelihood{T} end
 
+num_latent(l::MultiClassLikelihood) = num_class(l)
+
+num_class(l::MultiClassLikelihood) = l.nClasses
+
 ## Return the labels in a vector of vectors for multiple outputs ##
 function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:MultiClassLikelihood}
     @assert N <= 1 "Target should be a vector of labels"
-    likelihood = init_multiclass_likelihood(likelihood,y)
-    return likelihood.Y,length(likelihood.Y),likelihood
+    init_multiclass_likelihood!(likelihood,y)
+    return likelihood.Y,num_class(likelihood),likelihood
 end
 
-function init_multiclass_likelihood(likelihood::L,y::AbstractVector) where {L<:MultiClassLikelihood}
-    L(one_of_K_mapping(y)...)
+function init_multiclass_likelihood!(l::L,y::AbstractVector) where {L<:MultiClassLikelihood}
+    if !isdefined(l,:ind_mapping)
+        create_mapping!(l,y)
+    end
+    create_one_hot!(l,y)
 end
 
-view_y(l::MultiClassLikelihood,y::AbstractVector,i::AbstractVector) = view(view.(y,[i]),:)
+view_y(l::MultiClassLikelihood,y::AbstractVector,indices::AbstractVector) = view(view.(l.Y,Ref(indices)),:)
+
+onehot_to_ind(y::AbstractVector) = findfirst(y.==1)
+
+function logpdf(l::MultiClassLikelihood,y::AbstractVector,f::AbstractVector)
+    logpdf(l,onehot_to_ind(y),f)
+end
 
 
-""" Given the labels, return one hot encoding, and the mapping of each class """
-function one_of_K_mapping(y)
-    y_values = unique(y)
-    Y = [falses(length(y)) for i in 1:length(y_values)]
-    y_class = zeros(Int64,length(y))
+function create_mapping!(l::MultiClassLikelihood,y::AbstractVector)
+    nClasses = num_class(l)
+    if !isdefined(l,:class_mapping)
+        l.class_mapping = unique(y)
+        if length(l.class_mapping) <= nClasses && issubset(l.class_mapping,collect(1:nClasses))
+            l.class_mapping = collect(1:nClasses)
+        elseif length(l.class_mapping) > nClasses
+            throw(ErrorException("The number of unique labels in the data : $(l.class_mapping) is not of the same size then the predefined class number ; $nClasses"))
+        end
+    end
+    l.ind_mapping = Dict(value => key for (key,value) in enumerate(l.class_mapping))
+end
+
+
+""" Given the labels, return one hot encoding, and the mapping of each class"""
+function create_one_hot!(l,y)
+    @assert issubset(unique(y), l.class_mapping)
+    l.Y = [falses(length(y)) for i in 1:num_class(l)]
+    l.y_class = zeros(Int64,length(y))
     for i in 1:length(y)
-        for j in 1:length(y_values)
-            if y[i]==y_values[j]
-                Y[j][i] = true;
-                y_class[i] = j;
+        for j in 1:num_class(l)
+            if y[i] == l.class_mapping[j]
+                l.Y[j][i] = true;
+                l.y_class[i] = j;
                 break;
             end
         end
     end
-    ind_values = Dict(value => key for (key,value) in enumerate(y_values))
-    return Y,y_values,ind_values,y_class
 end
 
 function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractVector{T}},σ²::AbstractVector{<:AbstractVector{T}},nSamples::Integer=200) where {T<:Real}
@@ -47,7 +72,7 @@ function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractV
             # for _ in 1:nSamples
             # end
     end
-    return DataFrame(pred,Symbol.(l.class_mapping))
+    return NamedTuple{Tuple(Symbol.(l.class_mapping))}(eachcol(pred))
 end
 
 function expec_logpdf(model::AbstractGP{T,<:MultiClassLikelihood,<:NumericalVI}) where {T}

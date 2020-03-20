@@ -4,6 +4,7 @@ const AbstractGP1 = AbstractGP{<:Real,<:Likelihood,<:Inference,1}
 
 @traitdef IsFull{X}
 @traitdef IsMultiOutput{X}
+@traitdef IsSparse{X}
 
 function Random.rand!(model::AbstractGP,A::DenseArray{T},X::AbstractArray{T}) where {T<:Real}
     rand!(MvNormal(predict_f(model,X,covf=true,fullcov=true)...),A)
@@ -24,7 +25,5 @@ get_K(model::AbstractGP) = getproperty.(model.f,:K)
 get_μ(model::AbstractGP) = getproperty.(model.f,:μ)
 
 get_Σ(model::AbstractGP) = getproperty.(model.f,:Σ)
-
-get_σ_k(model::AbstractGP) = first.(getproperty.(model.f,:σ_k))
 
 get_kernel(model::AbstractGP) = getproperty.(model.f,:kernel)

@@ -30,7 +30,7 @@ mutable struct GibbsSampling{T<:Real,N} <: SamplingInference{T}
         return new{T,1}(nBurnin,samplefrequency,ϵ)
     end
     function GibbsSampling{T,1}(nBurnin::Int,samplefrequency::Int,ϵ::Real,nFeatures::Int,nSamples::Int,nMinibatch::Int,nLatent::Int) where {T}
-        opts = ntuple(_->SOptimizer{T}(VanillaGradDescent(η=1.0)),nLatent)
+        opts = ntuple(_->SOptimizer{T}(Descent(1.0)),nLatent)
         new{T,nLatent}(nBurnin,samplefrequency,ϵ,0,false,nSamples,nMinibatch,nSamples/nMinibatch,true,opts)
     end
 end
@@ -65,13 +65,18 @@ function sample_parameters(model::MCGP{T,L,<:GibbsSampling},nSamples::Int,callba
         sample_global!.(
         ∇E_μ(model.likelihood,model.inference.opt[1],get_y(model)),
         ∇E_Σ(model.likelihood,model.inference.opt[1],get_y(model)),
+        get_Z(model),
         model.f)
         if model.inference.nIter > model.inference.nBurnin && (model.inference.nIter-model.inference.nBurnin)%model.inference.samplefrequency==0
             store_variables!(model.inference,get_f(model))
         end
     end
     symbols = ["f_"*string(i) for i in 1:model.nFeatures]
-    chains = [Chains(reshape(model.inference.sample_store[:,:,i],:,model.nFeatures,1),symbols) for i in 1:model.nLatent]
+    if model.nLatent == 1
+        return Chains(reshape(model.inference.sample_store[:,:,1],:,model.nFeatures,1),symbols)
+    else
+        return [Chains(reshape(model.inference.sample_store[:,:,i],:,model.nFeatures,1),symbols) for i in 1:model.nLatent]
+    end
 end
 
 sample_local!(l::Likelihood,y,f::Tuple{<:AbstractVector{T}}) where {T} =sample_local!(l,y,first(f))
@@ -82,11 +87,9 @@ function logpdf(model::AbstractGP{T,<:Likelihood,<:GibbsSampling}) where {T}
     return 0.0
 end
 
-function sample_global!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,gp::_MCGP{T}) where {T}
-    # @info ∇E_Σ
-    # @info eigvals(Matrix(gp.K))
-    global Σ = inv(Symmetric(2.0*Diagonal(∇E_Σ)+inv(gp.K)))
-    gp.f .= rand(MvNormal(Σ*(∇E_μ+gp.K\gp.μ₀),Σ))
+function sample_global!(∇E_μ::AbstractVector,∇E_Σ::AbstractVector,X::AbstractMatrix,gp::_MCGP{T}) where {T}
+    global Σ = inv(Symmetric(2.0*Diagonal(∇E_Σ)+inv(gp.K).mat))
+    gp.f .= rand(MvNormal(Σ*(∇E_μ+inv(gp.K)*gp.μ₀(X)),Σ))
     return nothing
 end
 

@@ -35,6 +35,8 @@ function StudentTLikelihood(ν::T,σ::T=one(T)) where {T<:Real}
     StudentTLikelihood{T}(ν,σ)
 end
 
+implemented(::StudentTLikelihood,::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}) = true
+
 function init_likelihood(likelihood::StudentTLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
         StudentTLikelihood{T}(
@@ -66,7 +68,7 @@ function local_updates!(l::StudentTLikelihood{T},y::AbstractVector,μ::AbstractV
 end
 
 function sample_local!(l::StudentTLikelihood{T},y::AbstractVector,f::AbstractVector) where {T}
-    l.c .= rand.(InverseGamma.(l.α,0.5*(abs2.(μ-y).+l.σ^2*l.ν)))
+    l.c .= rand.(InverseGamma.(l.α,0.5*(abs2.(f-y).+l.σ^2*l.ν)))
     set_ω!(l,inv.(l.c))
     return nothing
 end
@@ -94,11 +96,11 @@ end
 
 ## PDF and Log PDF Gradients ## (verified gradients)
 
-function grad_log_pdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
+function grad_logpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
     (one(T)+l.ν) * (y-f) / ((f-y)^2 + l.σ^2*l.ν)
 end
 
-function hessian_log_pdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
+function hessian_logpdf(l::StudentTLikelihood{T},y::Real,f::Real) where {T<:Real}
     v = l.ν * l.σ^2; Δ² = (f-y)^2
     (one(T)+l.ν) * (-v + Δ²) / (v+Δ²)^2
 end

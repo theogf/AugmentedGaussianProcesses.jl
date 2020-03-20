@@ -33,6 +33,8 @@ function LogisticLikelihood()
     LogisticLikelihood{Float64}()
 end
 
+implemented(::LogisticLikelihood,::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}) = true
+
 function init_likelihood(likelihood::LogisticLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
         LogisticLikelihood{T}(abs.(rand(T,nSamplesUsed)),zeros(T,nSamplesUsed))
@@ -99,6 +101,6 @@ end
 
 ### Gradient Section ###
 
-@inline grad_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T} = y*logistic(-y*f)
+@inline grad_logpdf(::LogisticLikelihood{T},y::Real,f::Real) where {T} = y*logistic(-y*f)
 
-@inline hessian_log_pdf(::LogisticLikelihood{T},y::Real,f::Real) where {T<:Real} = -exp(y*f)/logistic(-y*f)^2
+@inline hessian_logpdf(::LogisticLikelihood{T},y::Real,f::Real) where {T<:Real} = -exp(y*f)/logistic(-y*f)^2

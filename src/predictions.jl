@@ -1,66 +1,103 @@
 #File treating all the prediction functions
 
-const pred_nodes,pred_weights = gausshermite(100) |> x->(x[1].*sqrt2,x[2]./sqrtπ)
+const pred_nodes,pred_weights = gausshermite(100) |> x->(x[1] .* sqrt2, x[2] ./ sqrtπ)
 
 """
 Compute the mean of the predicted latent distribution of `f` on `X_test` for the variational GP `model`
 
 Return also the diagonal variance if `covf=true` and the full covariance if `fullcov=true`
 """
+predict_f
 @traitfn function _predict_f(model::TGP,X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
-    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
-    μf = k_star.*(get_K(model).\get_μ(model))
+    k_star =
+        kernelmatrix.(get_kernel(model), [X_test], get_Z(model), obsdim = 1)
+    μf = k_star .* (get_K(model) .\ get_μ(model))
     if !covf
         return (μf,)
     end
-    A = get_K(model).\([I].-get_K(model).\get_Σ(model))
+    A = get_K(model) .\ (Ref(I) .- get_Σ(model) ./ get_K(model))
     if fullcov
-        k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
-        Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
-        return μf,Σf
+        k_starstar =
+            kernelmatrix.(get_kernel(model), [X_test], obsdim = 1) .+
+            T(jitt) * [I]
+        Σf = Symmetric.(k_starstar .- k_star .* A .* transpose.(k_star))
+        return μf, Σf
     else
-        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1).+[T(jitter)*ones(T,size(X_test,1))])
-        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
-        return μf,σ²f
+        k_starstar =
+            kerneldiagmatrix.(get_kernel(model), [X_test], obsdim = 1) .+
+            [T(jitt) * ones(T, size(X_test, 1))]
+        σ²f = k_starstar .- opt_diag.(k_star .* A, k_star)
+        return μf, σ²f
     end
 end
 
-function _predict_f(model::GP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T}
-    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
-    μf = k_star.*mean_f(model)
+function _predict_f(
+    model::GP{T},
+    X_test::AbstractMatrix{<:Real};
+    covf::Bool = true,
+    fullcov::Bool = false,
+) where {T}
+    k_star =
+        kernelmatrix.(get_kernel(model), [X_test], get_Z(model), obsdim = 1)
+    μf = k_star .* mean_f(model)
     if !covf
         return (μf,)
     end
-    A = [inv(model.f[1].K+model.likelihood.σ²*I).mat]
+    A = [inv(model.f[1].K).mat]
     if fullcov
-        k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
-        Σf = Symmetric.(k_starstar .- k_star.*A.*transpose.(k_star))
-        return μf,Σf
+        k_starstar =
+            kernelmatrix.(get_kernel(model), [X_test], obsdim = 1) .+
+            T(jitt) * [I]
+        Σf = Symmetric.(k_starstar .- k_star .* A .* transpose.(k_star))
+        return μf, Σf
     else
-        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1).+[T(jitter)*ones(T,size(X_test,1))])
-        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
-        return μf,σ²f
+        k_starstar =
+            kerneldiagmatrix.(get_kernel(model), [X_test], obsdim = 1) .+
+            [T(jitt) * ones(T, size(X_test, 1))]
+        σ²f = k_starstar .- opt_diag.(k_star .* A, k_star)
+        return μf, σ²f
     end
 end
 
 @traitfn function _predict_f(model::TGP,X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
-    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
-    μf = k_star.*(get_K(model).\get_μ(model))
-    μf = [[sum(vec(model.A[i,j,:]).*μf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
+    k_star =
+        kernelmatrix.(get_kernel(model), [X_test], get_Z(model), obsdim = 1)
+    μf = k_star .* (get_K(model) .\ get_μ(model))
+    μf = [
+        [sum(vec(model.A[i, j, :]) .* μf) for j = 1:model.nf_per_task[i]]
+        for i = 1:model.nTask
+    ]
     if !covf
         return (μf,)
     end
-    A = get_K(model).\([I].-get_K(model).\get_Σ(model))
+    A = get_K(model) .\ ([I] .- get_Σ(model) ./ get_K(model))
     if fullcov
-        k_starstar = get_σ_k(model).*(kernelmatrix.(get_kernel(model),[X_test],obsdim=1).+T(jitter)*[I])
-        Σf = k_starstar .-  k_star.*A.*transpose.(k_star)
-        Σf = [[sum(vec(model.A[i,j,:]).^2 .*Σf) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
-        return μf,Σf
+        k_starstar = (
+            kernelmatrix.(get_kernel(model), [X_test], obsdim = 1) .+
+                T(jitt) * [I]
+        )
+        Σf = k_starstar .- k_star .* A .* transpose.(k_star)
+        Σf = [
+            [
+                sum(vec(model.A[i, j, :]) .^ 2 .* Σf)
+                for j = 1:model.nf_per_task[i]
+            ]
+            for i = 1:model.nTask
+        ]
+        return μf, Σf
     else
-        k_starstar = get_σ_k(model).*(kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1).+[T(jitter)*ones(T,size(X_test,1))])
-        σ²f = k_starstar .- opt_diag.(k_star.*A,k_star)
-        σ²f = [[sum(vec(model.A[i,j,:]).^2 .*σ²f) for j in 1:model.nf_per_task[i]] for i in 1:model.nTask]
-        return μf,σ²f
+        k_starstar =
+            kerneldiagmatrix.(get_kernel(model), [X_test], obsdim = 1) .+
+            [T(jitt) * ones(T, size(X_test, 1))]
+        σ²f = k_starstar .- opt_diag.(k_star .* A, k_star)
+        σ²f = [
+            [
+                sum(vec(model.A[i, j, :]) .^ 2 .* σ²f)
+                for j = 1:model.nf_per_task[i]
+            ]
+            for i = 1:model.nTask
+        ]
+        return μf, σ²f
     end
 end
 
@@ -86,25 +123,25 @@ function _predict_f(model::MOARGP{T},X_test::AbstractVector{<:AbstractMatrix{<:R
 end
 
 
-function _predict_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T};covf::Bool=true,fullcov::Bool=false) where {T}
-    k_star = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
+function _predict_f(model::MCGP{T},X_test::AbstractMatrix{<:Real};covf::Bool=true,fullcov::Bool=false) where {T}
+    k_star = kernelmatrix.(get_kernel(model),[X_test],get_Z(model),obsdim=1)
     f = _sample_f(model,X_test,k_star)
     μf = Tuple(vec(mean(f[k],dims=2)) for k in 1:model.nLatent)
     if !covf
         return (μf,)
     end
     if fullcov
-        k_starstar = get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test])
+        k_starstar = kernelmatrix.(get_kernel(model),[X_test],obsdim=1) + T(jitt)
         Σf = Symmetric.(k_starstar .- invquad.(get_K(model),k_star) .+  cov.(f))
         return μf, Σf
     else
-        global k_starstar = get_σ_k(model).*kerneldiagmatrix.(get_kernel(model),[X_test]) .+ [T(jitter)*ones(T,size(X_test,1))]
-        σ²f = k_starstar .- opt_diag.(k_star,get_K(model).\k_star) .+  diag.(cov.(f,dims=2))
+        k_starstar = kerneldiagmatrix.(get_kernel(model),[X_test],obsdim=1) .+ [T(jitt)*ones(T,size(X_test,1))]
+        σ²f = k_starstar .- opt_diag.(k_star./get_K(model),k_star) .+  diag.(cov.(f,dims=2))
         return μf,σ²f
     end
 end
 
-function _sample_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T},k_star=get_σ_k(model).*kernelmatrix.(get_kernel(model),[X_test],get_Z(model))) where {T}
+function _sample_f(model::MCGP{T,<:Likelihood,<:GibbsSampling},X_test::AbstractMatrix{T},k_star=kernelmatrix.(get_kernel(model),[X_test],get_Z(model))) where {T}
     return f = [k_star[k]*(model.f[k].K\model.inference.sample_store[:,:,k]') for k in 1:model.nLatent]
 end
 
@@ -135,10 +172,7 @@ end
 @traitfn predict_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;IsMultiOutput{TGP}} = predict_y.(model.likelihood,_predict_f(model,X_test,covf=false))
 predict_y(model::MOARGP,X_test::AbstractVector{<:AbstractMatrix}) = predict_y.(model.likelihood,_predict_f(model,X_test,covf=false))
 
-predict_y(l::RegressionLikelihood,μ::AbstractVector{<:Real}) = μ
-predict_y(l::RegressionLikelihood,μ::AbstractVector{<:AbstractVector}) = first(μ)
-predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:Real}) = sign.(μ)
-predict_y(l::ClassificationLikelihood,μ::AbstractVector{<:AbstractVector}) = sign.(first(μ))
+
 predict_y(l::MultiClassLikelihood,μs::AbstractVector{<:AbstractVector{<:Real}}) = [l.class_mapping[argmax([μ[i] for μ in μs])] for i in 1:length(μs[1])]
 predict_y(l::MultiClassLikelihood,μs::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}}) = predict_y(l,first(μs))
 predict_y(l::EventLikelihood,μ::AbstractVector{<:Real}) = expec_count(l,μ)
@@ -178,25 +212,7 @@ end
 
 compute_proba(l::Likelihood,μ::AbstractVector{<:AbstractVector},σ²::AbstractVector{<:AbstractVector}) = compute_proba(l,first(μ),first(σ²))
 
-function proba_y(model::MCGP{T,<:Union{<:RegressionLikelihood{T},<:ClassificationLikelihood{T}},<:GibbsSampling},X_test::AbstractMatrix{T};nSamples::Int=200) where {T<:Real}
-    N_test = size(X_test,1)
-    f = _sample_f(model,X_test)
-    k_starstar = kerneldiagmatrix.([X_test],model.kernel)
-    K̃ = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+ [zeros(size(X_test,1)) for i in 1:model.nLatent]
-    nf = length(model.inference.sample_store[1])
-    proba = [zeros(size(X_test,1)) for i in 1:model.nLatent]
-    sig_proba = [zeros(size(X_test,1)) for i in 1:model.nLatent]
-    for i in 1:nf
-        for k in 1:model.nLatent
-            proba[k], sig_proba[k] = (proba[k],sig_proba[k]) .+ compute_proba(model.likelihood, getindex.(f,[i])[k],K̃[k])
-        end
-    end
-    if model.nLatent == 1
-        return (proba[1]/nf, sig_proba[1]/nf)
-    else
-        return (proba./nf, sig_proba./nf)
-    end
-end
+
 
 function proba_y(model::VGP{T,<:MultiClassLikelihood{T},<:GibbsSampling{T}},X_test::AbstractMatrix{T};nSamples::Int=200) where {T}
     k_star = kernelmatrix.([X_test],[model.inference.x],model.kernel)

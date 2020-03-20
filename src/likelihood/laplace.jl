@@ -34,6 +34,8 @@ function LaplaceLikelihood(β::T=1.0) where {T<:Real}
     LaplaceLikelihood{T}(β)
 end
 
+implemented(::LaplaceLikelihood,::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}) = true
+
 function init_likelihood(likelihood::LaplaceLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
     if inference isa AnalyticVI || inference isa GibbsSampling
         LaplaceLikelihood{T}(
@@ -97,12 +99,12 @@ end
 
 function grad_quad(likelihood::LaplaceLikelihood{T},y::Real,μ::Real,σ²::Real,inference::Inference) where {T<:Real}
     nodes = inference.nodes*sqrt(σ²) .+ μ
-    Edlogpdf = dot(inference.weights,grad_log_pdf.(likelihood,y,nodes))
+    Edlogpdf = dot(inference.weights,grad_logpdf.(likelihood,y,nodes))
     Ed²logpdf =  (1/sqrt(twoπ*σ²))/(likelihood.β^2)
     return -Edlogpdf::T, Ed²logpdf::T
 end
 
 
-@inline grad_log_pdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real} = sign(y-f)./l.β
+@inline grad_logpdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real} = sign(y-f)./l.β
 
-@inline hessian_log_pdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real} = zero(T)
+@inline hessian_logpdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real} = zero(T)

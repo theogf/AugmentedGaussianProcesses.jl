@@ -1,6 +1,6 @@
 using BenchmarkTools
 using AugmentedGaussianProcesses
-using Distances, LinearAlgebra, CSV
+using LinearAlgebra, CSV
 using Random
 const AGP = AugmentedGaussianProcesses
 

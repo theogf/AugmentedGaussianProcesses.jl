@@ -26,6 +26,8 @@ function PoissonLikelihood(λ::T=1.0) where {T<:Real}
     PoissonLikelihood{T}(λ)
 end
 
+implemented(::PoissonLikelihood,::AnalyticVI) = true
+
 function init_likelihood(likelihood::PoissonLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Int,nFeatures::Int) where T
     PoissonLikelihood{T}(
     likelihood.λ,
@@ -76,7 +78,7 @@ end
 
 ## ELBO Section ##
 function expec_log_likelihood(l::PoissonLikelihood{T},i::AnalyticVI,y,μ::AbstractVector,Σ::AbstractVector) where {T}
-    tot = sum(y*log(l.λ))-sum(lfactorial,y)-logtwo*sum((y+l.γ))
+    tot = sum(y*log(l.λ))-sum(logfactorial,y)-logtwo*sum((y+l.γ))
     tot += 0.5*(dot(μ,(y-l.γ))-dot(l.θ,abs2.(μ))-dot(l.θ,Σ))
     return tot
 end

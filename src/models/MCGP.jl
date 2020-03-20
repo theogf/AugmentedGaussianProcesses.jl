@@ -4,7 +4,7 @@ Class for variational Gaussian Processes models (non-sparse)
 ```julia
 MCGP(X::AbstractArray{T1,N1},y::AbstractArray{T2,N2},kernel::Union{Kernel,AbstractVector{<:Kernel}},
     likelihood::LikelihoodType,inference::InferenceType;
-    verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
+    verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Integer=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
     IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
 ```
@@ -22,7 +22,7 @@ Argument list :
 **Keyword arguments**
 
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
-- `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
+- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
 - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
 - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
@@ -44,36 +44,57 @@ mutable struct MCGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},
 end
 
 
-function MCGP(X::AbstractArray{T},y::AbstractVector,kernel::Kernel,
-            likelihood::Union{TLikelihood,Distribution},inference::TInference;
-            verbose::Int=0,optimizer::Union{Bool,Optimizer,Nothing}=Adam(α=0.01),atfrequency::Integer=1,
-            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real=1.0,
-            ArrayType::UnionAll=Vector) where {T<:Real,TLikelihood<:Likelihood,TInference<:SamplingInference}
+function MCGP(
+    X::AbstractArray{T},
+    y::AbstractVector,
+    kernel::Kernel,
+    likelihood::Union{TLikelihood,Distribution},
+    inference::TInference;
+    verbose::Int = 0,
+    optimiser = ADAM(0.01),
+    atfrequency::Integer = 1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
+    ArrayType::UnionAll = Vector,
+) where {T<:Real,TLikelihood<:Likelihood,TInference<:SamplingInference}
 
-            X,y,nLatent,likelihood = check_data!(X,y,likelihood)
-            @assert check_implementation(:MCGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
+    X, y, nLatent, likelihood = check_data!(X, y, likelihood)
+    @assert inference isa SamplingInference "The inference object should be of type `SamplingInference` : either `GibbsSampling` or `HMCSampling`"
+    @assert !isa(likelihood,GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
+    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
-            nFeatures = nSamples = size(X,1); nDim = size(X,2);
-            if isa(optimizer,Bool)
-                optimizer = optimizer ? Adam(α=0.01) : nothing
-            end
+    nFeatures = nSamples = size(X, 1)
+    nDim = size(X, 2)
+    if isa(optimiser, Bool)
+        optimiser = optimiser ? ADAM(0.01) : nothing
+    end
 
-            if typeof(mean) <: Real
-                mean = ConstantMean(mean)
-            elseif typeof(mean) <: AbstractVector{<:Real}
-                mean = EmpiricalMean(mean)
-            end
+    if typeof(mean) <: Real
+        mean = ConstantMean(mean)
+    elseif typeof(mean) <: AbstractVector{<:Real}
+        mean = EmpiricalMean(mean)
+    end
 
-            latentf = ntuple(_->_MCGP{T}(nFeatures,kernel,mean,variance),nLatent)
+    latentf = ntuple(_ -> _MCGP{T}(nFeatures, kernel, mean), nLatent)
 
-            likelihood = init_likelihood(likelihood,inference,nLatent,nSamples,nFeatures)
-            inference = tuple_inference(inference,nLatent,nSamples,nSamples)
-            inference.xview = view(X,:,:)
-            inference.yview = view_y(likelihood,y,1:nSamples)
-            MCGP{T,TLikelihood,typeof(inference),_MCGP{T},nLatent}(X,y,
-                    nFeatures, nDim, nFeatures, nLatent,
-                    latentf,likelihood,inference,
-                    verbose,atfrequency,false)
+    likelihood =
+        init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
+    inference = tuple_inference(inference, nLatent, nSamples, nSamples)
+    inference.xview = view(X, :, :)
+    inference.yview = view_y(likelihood, y, 1:nSamples)
+    MCGP{T,TLikelihood,typeof(inference),nLatent}(
+        X,
+        y,
+        nFeatures,
+        nDim,
+        nFeatures,
+        nLatent,
+        latentf,
+        likelihood,
+        inference,
+        verbose,
+        atfrequency,
+        false,
+    )
 end
 
 function Base.show(io::IO,model::MCGP{T,<:Likelihood,<:Inference}) where {T}

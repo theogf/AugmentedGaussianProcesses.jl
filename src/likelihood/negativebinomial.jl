@@ -26,6 +26,8 @@ function NegBinomialLikelihood(r::Int=10) where {T<:Real}
     NegBinomialLikelihood{Float64}(r)
 end
 
+implemented(::NegBinomialLikelihood,::AnalyticVI) = true
+
 function init_likelihood(likelihood::NegBinomialLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Int,nFeatures::Int) where T
     NegBinomialLikelihood{T}(
     likelihood.r,

@@ -4,9 +4,9 @@ Class for sparse variational Gaussian Processes
 ```julia
 SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
     likelihood::LikelihoodType,inference::InferenceType, nInducingPoints::Int;
-    verbose::Int=0,optimizer::Union{Optimizer,Nothing,Bool}=Adam(α=0.01),atfrequency::Int=1,
+    verbose::Int=0,optimiser=ADAM(0.001),atfrequency::Int=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-    Zoptimizer::Union{Optimizer,Nothing,Bool}=false,
+    Zoptimiser=false,
     ArrayType::UnionAll=Vector)
 ```
 
@@ -21,11 +21,11 @@ Argument list :
  - `nInducingPoints` : number of inducing points
 **Optional arguments**
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `optimizer` : Optimizer for kernel hyperparameters (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl)) or set it to `false` to keep hyperparameters fixed
+- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
  - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `optimizer` : Optimizer for inducing point locations (to be selected from [GradDescent.jl](https://github.com/jacobcvt12/GradDescent.jl))
+- `Zoptimiser` : Optimiser used for the inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
 mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N} <: AbstractGP{T,TLikelihood,TInference,N}
@@ -43,64 +43,95 @@ mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N} 
     Trained::Bool
 end
 
-function SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
-            likelihood::TLikelihood,inference::TInference, nInducingPoints::Int;
-            verbose::Int=0,optimizer=Flux.ADAM(0.01),atfrequency::Int=1,
-            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,
-            Zoptimizer=false,
-            ArrayType::UnionAll=Vector) where {T1<:Real,T2,TLikelihood<:Likelihood,TInference<:Inference}
+function SVGP(
+    X::AbstractArray{T₁},
+    y::AbstractVector,
+    kernel::Kernel,
+    likelihood::TLikelihood,
+    inference::TInference,
+    nInducingPoints::Union{Int,InducingPoints};
+    verbose::Int = 0,
+    optimiser = ADAM(0.01),
+    atfrequency::Int = 1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
+    Zoptimiser = false,
+    ArrayType::UnionAll = Vector,
+) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
-            X,y,nLatent,likelihood = check_data!(X,y,likelihood)
-            @assert check_implementation(:SVGP,likelihood,inference) "The $likelihood is not compatible or implemented with the $inference"
 
-            nSamples = size(X,1); nDim = size(X,2);
-            if isa(optimizer,Bool)
-                optimizer = optimizer ? Flux.ADAM(0.01) : nothing
-            end
 
-            @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
-            if nInducingPoints > nSamples
-                @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
-                nInducingPoints = nSamples
-            end
-            if nInducingPoints == nSamples
-                Z = X
-            else
-                Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10)
-            end
-            if isa(Zoptimizer,Bool)
-                Zoptimizer = Zoptimizer ? ADAM(α=0.001) : nothing
-            end
-            Z = InducingPoints(Z,Zoptimizer)
-            nFeatures = nInducingPoints
+    X, y, nLatent, likelihood = check_data!(X, y, likelihood)
+    @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
+    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
-            if typeof(mean) <: Real
-                mean = ConstantMean(mean)
-            elseif typeof(mean) <: AbstractVector{<:Real}
-                mean = EmpiricalMean(mean)
-            end
+    nSamples = size(X, 1)
+    nDim = size(X, 2)
+    if isa(optimiser, Bool)
+        optimiser = optimiser ? ADAM(0.001) : nothing
+    end
+    if nInducingPoints isa Int
+        @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
+        if nInducingPoints > nSamples
+            @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
+            nInducingPoints = nSamples
+        else
+            nInducingPoints = Kmeans(nInducingPoints, nMarkov = 10)
+        end
+    end
+    if nInducingPoints isa Int && nInducingPoints == nSamples
+        Z = X
+    else
+        IPModule.init!(nInducingPoints, X, y, kernel)
+        Z = nInducingPoints.Z
+    end
+    if isa(Zoptimiser, Bool)
+        Zoptimiser = Zoptimiser ? ADAM(0.001) : nothing
+    end
+    Z = FixedInducingPoints(Z, Zoptimiser)
+    nFeatures = size(Z, 1)
 
-            nMinibatch = nSamples
-            if inference.Stochastic
-                @assert inference.nMinibatch > 0 && inference.nMinibatch < nSamples "The size of mini-batch $(inference.nMinibatch) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
-                nMinibatch = inference.nMinibatch
-            end
+    if typeof(mean) <: Real
+        mean = ConstantMean(mean)
+    elseif typeof(mean) <: AbstractVector{<:Real}
+        mean = EmpiricalMean(mean)
+    end
 
-            latentf = ntuple( _ -> _SVGP{T1}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimizer),nLatent)
+    nMinibatch = nSamples
+    if inference.Stochastic
+        @assert inference.nMinibatch > 0 && inference.nMinibatch < nSamples "The size of mini-batch $(inference.nMinibatch) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
+        nMinibatch = inference.nMinibatch
+    end
 
-            likelihood = init_likelihood(likelihood,inference,nLatent,nMinibatch,nFeatures)
-            inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
-            inference.xview = view(X,1:nMinibatch,:)
-            inference.yview = view_y(likelihood,y,1:nMinibatch)
+    latentf = ntuple(
+        _ -> _SVGP{T₁}(nFeatures, nMinibatch, Z, kernel, mean, optimiser),
+        nLatent,
+    )
 
-            model = SVGP{T1,TLikelihood,typeof(inference),nLatent}(X,y,
-                    nSamples, nDim, nFeatures, nLatent,
-                    latentf,likelihood,inference,
-                    verbose,atfrequency,false)
-            # if isa(inference.optimizer,ALRSVI)
-                # init!(model.inference,model)
-            # end
-            # return model
+    likelihood =
+        init_likelihood(likelihood, inference, nLatent, nMinibatch, nFeatures)
+    inference =
+        tuple_inference(inference, nLatent, nFeatures, nSamples, nMinibatch)
+    inference.xview = view(X, 1:nMinibatch, :)
+    inference.yview = view_y(likelihood, y, 1:nMinibatch)
+
+    model = SVGP{T₁,TLikelihood,typeof(inference),nLatent}(
+        X,
+        y,
+        nSamples,
+        nDim,
+        nFeatures,
+        nLatent,
+        latentf,
+        likelihood,
+        inference,
+        verbose,
+        atfrequency,
+        false,
+    )
+    if isa(optimiser, ALRSVI)
+        init!(model)
+    end
+    return model
 end
 
 function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}
@@ -109,3 +140,5 @@ end
 
 get_y(model::SVGP) = model.inference.yview
 get_Z(model::SVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
+
+@traitimpl IsSparse{SVGP}
