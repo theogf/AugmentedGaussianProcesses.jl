@@ -80,7 +80,8 @@ module AugmentedGaussianProcesses
     include("models/MOARGP.jl")
     include("models/MOVGP.jl")
     include("models/OnlineSVGP.jl")
-    include("models/multi_outpus_utils.jl")
+    include("models/single_output_utils.jl")
+    include("models/multi_output_utils.jl")
 
     include("inference/inference.jl")
     include("likelihood/likelihood.jl")

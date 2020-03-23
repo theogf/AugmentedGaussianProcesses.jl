@@ -107,18 +107,12 @@ function MOSVGP(
 
             latent_f = ntuple( _ -> _SVGP{T}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimiser),nLatent)
 
-            dpos = Normal(0.5,0.5)
-            dneg = Normal(-0.5,0.5)
-            A = zeros(T,nTask,nf_per_task[1],nLatent)
-            for i in eachindex(A)
-                p = rand(0:1)
-                A[i] =  rand(Normal(0.0,1.0))#p*rand(dpos) + (1-p)*rand(dneg)
-            end
+            A = [[randn(nLatent) |> x->x/sqrt(sum(abs2,x)) for i in 1:nf_per_task[j]] for j in 1:nTask]
 
             likelihoods .= init_likelihood.(likelihoods,inference,nf_per_task,nMinibatch,nFeatures)
             inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
-            inference.xview = view(X,1:nMinibatch,:)
-            inference.yview = view(y,:)
+            inference.xview = view.(X, range.(1, nMinibatch, step = 1), :)
+            inference.yview = view(y, :)
 
             model = MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(X,corrected_y,
                     nSamples, nDim, nFeatures, nLatent,

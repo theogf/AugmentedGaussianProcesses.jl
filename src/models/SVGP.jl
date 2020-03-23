@@ -138,7 +138,8 @@ function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
 
-get_y(model::SVGP) = model.inference.yview
-get_Z(model::SVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
+get_y(m::SVGP) = first(m.inference.yview)
+get_X(m::SVGP) = m.X
+get_Z(m::SVGP) = get_Z.(m.f)
 
 @traitimpl IsSparse{SVGP}

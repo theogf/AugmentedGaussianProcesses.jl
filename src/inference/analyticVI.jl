@@ -14,12 +14,12 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
     Stochastic::Bool #Use of mini-batches
-    nSamples::Int64
-    nMinibatch::Int64 #Size of mini-batches
-    ρ::T #Stochastic Coefficient
+    nSamples::Vector{Int64}
+    nMinibatch::Vector{Int64} #Size of mini-batches
+    ρ::Vector{T} #Stochastic Coefficient
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     vi_opt::NTuple{N,AVIOptimizer}
-    MBIndices::Vector{Int64} #Indices of the minibatch
+    MBIndices::Vector{Vector{Int64}} #Indices of the minibatch
     xview::AbstractArray
     yview::AbstractVector
 
@@ -33,9 +33,9 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
             ϵ,
             0,
             Stochastic,
-            0,
-            nMinibatch,
-            T(1.0),
+            [0],
+            [nMinibatch],
+            [T(1.0)],
             true,
             (AVIOptimizer{T}(0, optimiser),),
         )
@@ -43,23 +43,23 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
     function AnalyticVI{T,1}(
         ϵ::T,
         Stochastic::Bool,
-        nFeatures::Int,
-        nSamples::Int,
-        nMinibatch::Int,
+        nFeatures::Vector{<:Int},
+        nSamples::Vector{<:Int},
+        nMinibatch::Vector{<:Integer},
         nLatent::Int,
         optimiser,
     ) where {T}
-        vi_opts = ntuple(_ -> AVIOptimizer{T}(nFeatures, optimiser), nLatent)
+        vi_opts = ntuple(i -> AVIOptimizer{T}(nFeatures[i], optimiser), nLatent)
         new{T,nLatent}(
             ϵ,
             0,
             Stochastic,
             nSamples,
             nMinibatch,
-            T(nSamples / nMinibatch),
+            T.(nSamples ./ nMinibatch),
             true,
             vi_opts,
-            collect(1:nMinibatch),
+            range.(1, nMinibatch, step = 1),
         )
     end
 end
@@ -103,9 +103,9 @@ end
 function tuple_inference(
     i::TInf,
     nLatent::Integer,
-    nFeatures::Integer,
-    nSamples::Integer,
-    nMinibatch::Integer,
+    nFeatures::Vector{<:Integer},
+    nSamples::Vector{<:Integer},
+    nMinibatch::Vector{<:Integer},
 ) where {TInf<:AnalyticVI}
     return TInf(
         i.ϵ,
@@ -120,40 +120,40 @@ end
 
 
 ## Generic method for variational updates using analytical formulas ##
-@traitfn function variational_updates!(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
+@traitfn function variational_updates!(m::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     local_updates!(
-        model.likelihood,
-        get_y(model),
-        mean_f(model),
-        diag_cov_f(model),
+        m.likelihood,
+        get_y(m),
+        mean_f(m),
+        diag_cov_f(m),
     )
     natural_gradient!.(
-        ∇E_μ(model.likelihood, model.inference.vi_opt[1], get_y(model)),
-        ∇E_Σ(model.likelihood, model.inference.vi_opt[1], get_y(model)),
-        model.inference,
-        model.inference.vi_opt,
-        get_Z(model),
-        model.f,
+        ∇E_μ(m),
+        ∇E_Σ(m),
+        m.inference,
+        m.inference.vi_opt,
+        get_Z(m),
+        m.f,
     )
-    global_update!(model)
+    global_update!(m)
 end
 
-@traitfn function variational_updates!(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
+@traitfn function variational_updates!(m::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     local_updates!.(
-        model.likelihood,
-        get_y(model),
-        mean_f(model),
-        diag_cov_f(model),
+        m.likelihood,
+        get_y(m),
+        mean_f(m),
+        diag_cov_f(m),
     ) # Compute the local updates given the expectations of f
     natural_gradient!.(
-        ∇E_μ(model),
-        ∇E_Σ(model),
-        model.inference,
-        model.inference.vi_opt,
-        get_Z(model),
-        model.f,
+        ∇E_μ(m),
+        ∇E_Σ(m),
+        m.inference,
+        m.inference.vi_opt,
+        get_Z(m),
+        m.f,
     ) # Compute the natural gradients of u given the weighted sum of the gradient of f
-    global_update!(model) # Update η₁ and η₂
+    global_update!(m) # Update η₁ and η₂
 end
 
 ## Wrappers for tuple of 1 element
@@ -238,8 +238,9 @@ function natural_gradient!(
         )
 end
 
-global_update!(model::VGP{T,L,<:AnalyticVI}) where {T,L} =
+@traitfn function global_update!(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsFull{TGP}}
     global_update!.(model.f)
+end
 
 global_update!(gp::_VGP, opt::AVIOptimizer, i::AnalyticVI) = global_update!(gp)
 

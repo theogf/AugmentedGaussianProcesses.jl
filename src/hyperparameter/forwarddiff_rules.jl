@@ -23,7 +23,7 @@ function ∇L_ρ_forward(f,gp::_OSVGP,X,∇E_μ,∇E_Σ,i,opt)
 end
 
 ## Return a function computing the gradient of the ELBO given the inducing point locations ##
-function Z_gradient_forward(gp::_SVGP{T},f_Z::Function,X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T<:Real}
+function Z_gradient_forward(gp::_SVGP{T},f_Z::Function,X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::InferenceOptimizer) where {T<:Real}
     gradient_inducing_points = similar(gp.Z.Z)
     #preallocation
     Jmm,Jnm = indpoint_derivative(gp.kernel,gp.Z),indpoint_derivative(gp.kernel,X,gp.Z)
@@ -34,7 +34,7 @@ function Z_gradient_forward(gp::_SVGP{T},f_Z::Function,X,∇E_μ::AbstractVector
     end
 end
 
-function Z_gradient_forward(gp::_OSVGP{T},f_Z::Function,X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T<:Real}
+function Z_gradient_forward(gp::_OSVGP{T},f_Z::Function,X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::InferenceOptimizer) where {T<:Real}
     Z_gradient = similar(gp.Z.Z)
     Jnm,Jab,Jmm = indpoint_derivative(gp.kernel,X,gp.Z),indpoint_derivative(gp.kernel,gp.Zₐ,gp.Z), indpoint_derivative(gp.kernel,gp.Z)
     for j in 1:gp.dim #Iterate over the points

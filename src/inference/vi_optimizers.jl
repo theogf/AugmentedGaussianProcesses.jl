@@ -1,9 +1,9 @@
 abstract type InferenceOptimizer{T} end
 
 ## Abstract type for analytical optimiser (closed forms are known)
-abstract type AOptimizer{T} <: AbstractOptimizer{T} end
+abstract type AOptimizer{T} <: InferenceOptimizer{T} end
 ## Abstract type for numerical optimiser (need for numerical integration)
-abstract type NOptimizer{T} <: AbstractOptimizer{T} end
+abstract type NOptimizer{T} <: InferenceOptimizer{T} end
 
 mutable struct AVIOptimizer{T<:Real,O} <: AOptimizer{T}
     optimiser::O #Learning rate for stochastic updates

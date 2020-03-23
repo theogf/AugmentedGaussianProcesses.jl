@@ -30,7 +30,7 @@ function _∇L_ρ_reverse(f,kernel,Z,X,Zₐ,∇E_μ,∇E_Σ,i,opt)
     f(Kmm,Knm,Knn,Kab,Kaa,∇E_μ,∇E_Σ,i,opt)
 end
 
-function Z_gradient_reverse(gp::_SVGP{T},f_Z::Function,X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T<:Real}
+function Z_gradient_reverse(gp::_SVGP{T},f_Z::Function,X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::InferenceOptimizer) where {T<:Real}
     return Zygote.gradient(()->_Z_gradient_reverse(f_Z,gp.kernel,gp.Z.Z,X,∇E_μ,∇E_Σ,i,opt),Flux.params(gp.Z.Z)).grads[gp.Z.Z] # Zygote gradient
 end
 
@@ -40,7 +40,7 @@ function _Z_gradient_reverse(f_Z,kernel,Z,X,∇E_μ,∇E_Σ,i,opt)
     f_Z(Kmm,Knm,∇E_μ,∇E_Σ,i,opt)
 end
 
-function Z_gradient_reverse(gp::_OSVGP{T},f_Z::Function,X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T<:Real}
+function Z_gradient_reverse(gp::_OSVGP{T},f_Z::Function,X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::InferenceOptimizer) where {T<:Real}
     p = Flux.params(gp.Z.Z)
     return Zygote.gradient(()->_Z_gradient_reverse(f_Z,gp.kernel,gp.Z.Z,X,gp.Zₐ,∇E_μ,∇E_Σ,i,opt),p).grads[first(p)] # Zygote gradient
 end

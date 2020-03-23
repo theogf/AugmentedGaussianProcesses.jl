@@ -2,19 +2,14 @@ include("autotuning_utils.jl")
 include("zygote_rules.jl")
 include("forwarddiff_rules.jl")
 
-function update_hyperparameters!(model::Union{GP,VGP})
-    update_hyperparameters!.(model.f,get_Z(model))
-    model.inference.HyperParametersUpdated = true
+@traitfn function update_hyperparameters!(m::TGP) where {TGP<:AbstractGP;IsFull{TGP}}
+    update_hyperparameters!.(m.f, get_Z(m))
+    setHPupdated!(m.inference, true)
 end
 
-function update_hyperparameters!(model::Union{SVGP,OnlineSVGP})
-    update_hyperparameters!.(model.f,[model.inference.xview],∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model)),model.inference,model.inference.vi_opt)
-    model.inference.HyperParametersUpdated = true
-end
-
-function update_hyperparameters!(model::MOSVGP)
-    update_hyperparameters!.(model.f,[model.inference.xview],∇E_μ(model),∇E_Σ(model),model.inference,model.inference.vi_opt)
-    model.inference.HyperParametersUpdated = true
+@traitfn function update_hyperparameters!(m::TGP) where {TGP<:AbstractGP;!IsFull{TGP}}
+    update_hyperparameters!.(m.f, get_X(m), ∇E_μ(m), ∇E_Σ(m), model.inference, model.inference.vi_opt)
+    setHPupdated!(m.inference, true)
 end
 
 ## Update all hyperparameters for the full batch GP models ##
@@ -34,7 +29,7 @@ function update_hyperparameters!(gp::Union{_GP{T},_VGP{T}},X::AbstractMatrix) wh
 end
 
 ## Update all hyperparameters for the sparse variational GP models ##
-function update_hyperparameters!(gp::Union{_SVGP{T},_OSVGP{T}},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::AbstractOptimizer) where {T}
+function update_hyperparameters!(gp::Union{_SVGP{T},_OSVGP{T}},X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::InferenceOptimizer) where {T}
     if !isnothing(gp.opt)
         f_ρ,f_Z,f_μ₀ = hyperparameter_gradient_function(gp)
         k_aduse = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]

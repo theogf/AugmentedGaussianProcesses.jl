@@ -34,21 +34,43 @@ end
 
 
 ## Default function for getting a view on y
-@inline view_y(l::Likelihood,y::AbstractVector,i::AbstractVector) = view(y,i)
+xview(inf::Inference, i::Int) = inf.xview[i]
+xview(inf::Inference) = xview(inf.xview, 1)
+yview(inf::Inference, i::Int) = inf.yview[i]
+yview(inf::Inference) = yview(inf.xview, 1)
 
-## Default function for getting gradient ##
-function grad_logpdf(l::Likelihood,y::Real,f::Real)
-    ForwardDiff.gradient(x->AugmentedGaussianProcesses.logpdf(l,y,x[1]),[f])[1]
-end
+setxview!(inf::Inference, i::Int, xview) = inf.xview[i] = xview
+setxview!(inf::Inference, xview) = setxview!(inf, 1, xview)
+setyview!(inf::Inference, i::Int, yview) = inf.yview[i] = yview
+setyview!(inf::Inference, yview) = setyview!(inf, 1, yview)
 
-function grad_logpdf(l::Likelihood,y::Real,f::AbstractVector)
-    ForwardDiff.gradient(x->AugmentedGaussianProcesses.logpdf(l,y,x),f)
-end
+nMinibatch(inf::Inference, i::Int) = inf.nMinibatch[i]
+nMinibatch(inf::Inference) = nMinibatch(inf, 1)
 
-function hessian_logpdf(l::Likelihood,y::Real,f::Real)
-    ForwardDiff.hessian(x->AugmentedGaussianProcesses.logpdf(l,y,x[1]),[f])[1]
-end
+MBIndices(inf::Inference, i::Int) = inf.MBIndices[i]
+MBIndices(inf::Inference) = MBIndices(inf, 1)
+setMBIndices!(inf::Inference, i::Int, mbindices::AbstractVector) = inf.MBIndices[i] .= mbindices
+setMBIndices!(inf::Inference, mbindices::AbstractVector) = setMBIndices!(inf, 1, mbindices)
 
-function hessian_logpdf(l::Likelihood,y::Real,f::AbstractVector)
-    ForwardDiff.hessian(x->AugmentedGaussianProcesses.logpdf(l,y,x),f)
+setHPupdated!(inf::Inference, status::Bool) = inf.HyperParametersUpdated = status
+isHPupdated(inf) = inf.HyperParametersUpdated
+
+@inline view_y(l::Likelihood, y::AbstractVector, i::AbstractVector) = view(y, i)
+
+# isStochastic(inf::Inference) = inf.Stochastic
+
+function tuple_inference(
+    i::Inference,
+    nLatent::Integer,
+    nFeatures::Integer,
+    nSamples::Integer,
+    nMinibatch::Integer,
+)
+    return tuple_inference(
+        i,
+        nLatent,
+        fill(nFeatures, nLatent),
+        fill(nSamples, nLatent),
+        fill(nMinibatch, nLatent),
+    )
 end
