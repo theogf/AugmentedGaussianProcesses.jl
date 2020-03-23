@@ -45,7 +45,7 @@ function train!(
                     next!(p; showvalues = [(:samples, local_iter)])
                 else
                     if (model.verbose > 2 || local_iter % 10 == 0)
-                        elbo = ELBO(model)
+                        elbo = objective(model)
                         prev_elbo = elbo
                         next!(
                             p;
@@ -102,13 +102,13 @@ end
 
 """Update all variational parameters of the sparse variational GP Model"""
 function update_parameters!(m::SVGP)
-    if isStochastic(m.inf)
+    if isStochastic(m.inference)
         setMBIndices!(m.inference, StatsBase.sample(1:nSamples(m.inference), nMinibatch(m.inference), replace = false))
         setxview!(m.inference, view(m.X, MBIndices(m.inference), :))
         setyview!(m.inference, view_y(m.likelihood, m.y, MBIndices(m.inference)))
     end
-    computeMatrices!(model); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    variational_updates!(model);
+    computeMatrices!(m); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    variational_updates!(m);
 end
 
 function update_parameters!(m::MOVGP)
@@ -137,8 +137,8 @@ function update_parameters!(m::VStP)
 end
 
 function computeMatrices!(m::GP{T}) where {T}
-    compute_K!.(m.f, m.inference.xview, T(jitt) + m.likelihood.σ²[])
-    setHPupdated!(m.inf, false)
+    compute_K!.(m.f, m.inference.xview, T(jitt) + first(m.likelihood.σ²))
+    setHPupdated!(m.inference, false)
 end
 
 @traitfn function computeMatrices!(m::TGP) where {T,TGP<:AbstractGP{T};IsFull{TGP}}

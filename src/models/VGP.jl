@@ -58,6 +58,12 @@ function VGP(
     ArrayType::UnionAll = Vector,
 ) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
+    X = if X isa AbstractVector
+        reshape(X, :, 1)
+    else
+        X
+    end
+    
     y, nLatent, likelihood = check_data!(X, y, likelihood)
     @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
     @assert !isa(likelihood,GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
@@ -108,5 +114,6 @@ end
 get_y(m::VGP) = first(m.inference.yview)
 get_X(m::VGP) = m.X
 get_Z(m::VGP) = Ref(m.X)
+objective(m::VGP) = ELBO(m::VGP)
 
 @traitimpl IsFull{VGP}

@@ -65,8 +65,8 @@ end
         kernelmatrix.(get_kernel(model), X_test, get_Z(model), obsdim = 1)
     μf = k_star .* (get_K(model) .\ get_μ(model))
     μf = [
-        [sum(vec(model.A[i, j, :]) .* μf) for j = 1:model.nf_per_task[i]]
-        for i = 1:model.nTask
+        [sum(model.A[i][j] .* μf) for j in 1:model.nf_per_task[i]]
+        for i in 1:model.nTask
     ]
     if !covf
         return (μf,)
@@ -80,7 +80,7 @@ end
         Σf = k_starstar .- k_star .* A .* transpose.(k_star)
         Σf = [
             [
-                sum(vec(model.A[i, j, :]) .^ 2 .* Σf)
+                sum(model.A[i][j] .^ 2 .* Σf)
                 for j = 1:model.nf_per_task[i]
             ]
             for i = 1:model.nTask
@@ -93,7 +93,7 @@ end
         σ²f = k_starstar .- opt_diag.(k_star .* A, k_star)
         σ²f = [
             [
-                sum(vec(model.A[i, j, :]) .^ 2 .* σ²f)
+                sum(model.A[i][j] .^ 2 .* σ²f)
                 for j = 1:model.nf_per_task[i]
             ]
             for i = 1:model.nTask

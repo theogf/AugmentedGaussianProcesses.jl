@@ -66,20 +66,7 @@ function MOVGP(
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
 
-    X = if X isa AbstractArray{<:Real} # Do a better recognition of what X is
-        if X isa AbstractVector
-            [reshape(X, :, 1)]
-        elseif X isa AbstractMatrix
-            [X]
-        else
-            throw(ErrorException("X does not have the right dimensions ($(size(X)))"))
-        end
-    else
-        @assert length(X) == nTask "There is not the same number of input matrices as output matrices"
-        @assert all(isa.(X,AbstractMatrix)) "All X should be matrices"
-        X
-    end
-
+    X = wrap_X_multi(X, nTask)
     nX = length(X)
 
     if likelihood isa Likelihood
@@ -183,3 +170,4 @@ end
 @traitimpl IsFull{MOVGP}
 
 get_Z(model::MOVGP) = model.X
+objective(m::MOVGP) = ELBO(m)

@@ -7,10 +7,10 @@ end
     ∇E_Σ(m.likelihood, m.inference.vi_opt[1], get_y(m))
 end
 
-# @traitfn function get_input(m::TGP) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
-#     m.X
-# end
-#
-# @traitfn function get_inputs(m::TGP) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
-#     Ref(m.X)
-# end
+function wrap_X(X)
+    return X = if X isa AbstractVector
+        reshape(X, :, 1)
+    else
+        X
+    end
+end

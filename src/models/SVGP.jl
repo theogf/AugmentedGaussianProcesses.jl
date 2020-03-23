@@ -58,9 +58,13 @@ function SVGP(
     ArrayType::UnionAll = Vector,
 ) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
+    X = if X isa AbstractVector
+        reshape(X, :, 1)
+    else
+        X
+    end
 
-
-    X, y, nLatent, likelihood = check_data!(X, y, likelihood)
+    y, nLatent, likelihood = check_data!(X, y, likelihood)
     @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
     @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
@@ -111,8 +115,8 @@ function SVGP(
         init_likelihood(likelihood, inference, nLatent, nMinibatch, nFeatures)
     inference =
         tuple_inference(inference, nLatent, nFeatures, nSamples, nMinibatch)
-    inference.xview = view(X, 1:nMinibatch, :)
-    inference.yview = view_y(likelihood, y, 1:nMinibatch)
+    inference.xview = [view(X, 1:nMinibatch, :)]
+    inference.yview = [view_y(likelihood, y, 1:nMinibatch)]
 
     model = SVGP{T₁,TLikelihood,typeof(inference),nLatent}(
         X,
@@ -141,5 +145,6 @@ end
 get_y(m::SVGP) = first(m.inference.yview)
 get_X(m::SVGP) = m.X
 get_Z(m::SVGP) = get_Z.(m.f)
+objective(m::SVGP) = ELBO(m)
 
 @traitimpl IsSparse{SVGP}

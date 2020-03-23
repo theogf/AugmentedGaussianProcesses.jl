@@ -58,7 +58,10 @@ function GP(
 ) where {T<:Real}
     likelihood = GaussianLikelihood(T(noise), opt_noise = opt_noise)
     inference = Analytic()
-    X, y, nLatent, likelihood = check_data!(X, y, likelihood)
+
+    X = wrap_X(X)
+
+    y, nLatent, likelihood = check_data!(X, y, likelihood)
 
     nFeatures = nSamples = size(X, 1)
     nDim = size(X, 2)
@@ -70,9 +73,11 @@ function GP(
 
     likelihood =
         init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
+
     inference = init_inference(inference, nLatent, nSamples, nSamples, nSamples)
-    inference.xview = view(X, :, :)
-    inference.yview = view_y(likelihood, y, 1:nSamples)
+    inference.xview = [view(X, :, :)]
+    inference.yview = [view_y(likelihood, y, 1:nSamples)]
+
     model = GP{T,GaussianLikelihood{T},typeof(inference),1}(
         X,
         y,
@@ -97,12 +102,20 @@ function Base.show(io::IO,model::GP{T,<:Likelihood,<:Inference}) where {T}
 end
 
 get_y(model::GP) = model.inference.yview
-get_Z(model::GP) = [model.inference.xview]
+get_Z(model::GP) = model.inference.xview
 
 @traitimpl IsFull{GP}
 
 ### Special case where the ELBO is equal to the marginal likelihood
-function ELBO(model::GP{T}) where {T}
-    first(model.f).Σ = Symmetric(inv(first(model.f).K+first(model.likelihood.σ²)*I).mat)
-    return -0.5*(dot(model.y,first(model.f).Σ*model.y) + logdet(first(model.f).Σ)+ model.nFeatures*log(twoπ))
+
+objective(model::GP) = log_py(model)
+
+function log_py(model::GP{T}) where {T}
+    first(model.f).Σ =
+        Symmetric(inv(first(model.f).K + first(model.likelihood.σ²) * I).mat)
+    return -0.5 * (
+        dot(model.y, first(model.f).Σ * model.y) +
+        logdet(first(model.f).Σ) +
+        model.nFeatures * log(twoπ)
+    )
 end

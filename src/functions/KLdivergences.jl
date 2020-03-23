@@ -1,5 +1,5 @@
 """Compute the KL Divergence between the GP Prior and the variational distribution"""
-GaussianKL(model::AbstractGP) = sum(broadcast(GaussianKL, model.f, get_inputs(model)))
+GaussianKL(model::AbstractGP) = sum(broadcast(GaussianKL, model.f, get_Z(model)))
 
 GaussianKL(gp::Abstract_GP, X::AbstractMatrix) = GaussianKL(gp.μ, gp.μ₀(X), gp.Σ, gp.K)
 

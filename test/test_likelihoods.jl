@@ -2,7 +2,7 @@ using AugmentedGaussianProcesses;
 using Test
 using Distributions
 
-@testset "Likelihoods" begin
+@testset "Likelihoods Base Functions" begin
     @testset "Generic functions" begin
         struct NewLikelihood{T} <: AGP.Likelihood{T} end
         @test_throws ErrorException AGP.pdf(NewLikelihood{Float64}(),rand(),rand())

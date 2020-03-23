@@ -35,6 +35,7 @@ mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N
     nDim::Int64 # Number of covariates per data point
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number of latent GPs
+    nX::Int64
     nTask::Int64
     nf_per_task::Vector{Int64}
     f::NTuple{Q,_SVGP}
@@ -60,10 +61,13 @@ function MOSVGP(
             @assert length(y) > 0 "y should not be an empty vector"
             nTask = length(y)
             likelihoods = [deepcopy(likelihood) for _ in 1:nTask]
+
+            X = wrap_X_multi(X, nTask)
+
             nf_per_task = zeros(Int64,nTask)
             corrected_y = Vector(undef,nTask)
             for i in 1:nTask
-                X,corrected_y[i],nf_per_task[i],likelihoods[i] = check_data!(X,y[i],likelihoods[i])
+                corrected_y[i],nf_per_task[i],likelihoods[i] = check_data!(X,y[i],likelihoods[i])
             end
 
             @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
@@ -131,4 +135,6 @@ end
 
 @traitimpl IsMultiOutput{MOSVGP}
 
-get_Z(model::MOSVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
+get_X(model::MOSVGP) = model.X
+get_Z(model::MOSVGP) = get_Z.(model.f)
+objective(model::MOSVGP) = ELBO(model)

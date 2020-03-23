@@ -130,7 +130,7 @@ end
     natural_gradient!.(
         ∇E_μ(m),
         ∇E_Σ(m),
-        m.inference,
+        m.inference.ρ,
         m.inference.vi_opt,
         get_Z(m),
         m.f,
@@ -138,7 +138,7 @@ end
     global_update!(m)
 end
 
-@traitfn function variational_updates!(m::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
+@traitfn function variational_updates!(m::TGP) where {T, L, TGP<:AbstractGP{T,L,<:AnalyticVI}; IsMultiOutput{TGP}}
     local_updates!.(
         m.likelihood,
         get_y(m),
@@ -148,7 +148,7 @@ end
     natural_gradient!.(
         ∇E_μ(m),
         ∇E_Σ(m),
-        m.inference,
+        m.inference.ρ,
         m.inference.vi_opt,
         get_Z(m),
         m.f,
@@ -176,26 +176,26 @@ expec_log_likelihood(
 function natural_gradient!(
     ∇E_μ::AbstractVector,
     ∇E_Σ::AbstractVector,
-    i::AnalyticVI,
+    ρ::Real,
     opt::AVIOptimizer,
     X::AbstractMatrix,
     gp::_VGP{T},
 ) where {T,L}
     gp.η₁ .= ∇E_μ .+ gp.K \ gp.μ₀(X)
-    gp.η₂ .= -Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(gp.K).mat)
+    gp.η₂ .= - Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(gp.K).mat)
 end
 
 #Computation of the natural gradient for the natural parameters
 function natural_gradient!(
     ∇E_μ::AbstractVector{T},
     ∇E_Σ::AbstractVector{T},
-    i::AnalyticVI,
+    ρ::Real,
     opt::AVIOptimizer,
     Z::AbstractMatrix,
     gp::_SVGP{T},
 ) where {T<:Real}
-    opt.∇η₁ .= ∇η₁(∇E_μ, i.ρ, gp.κ, gp.K, gp.μ₀(Z), gp.η₁)
-    opt.∇η₂ .= ∇η₂(∇E_Σ, i.ρ, gp.κ, gp.K, gp.η₂)
+    opt.∇η₁ .= ∇η₁(∇E_μ, ρ, gp.κ, gp.K, gp.μ₀(Z), gp.η₁)
+    opt.∇η₂ .= ∇η₂(∇E_Σ, ρ, gp.κ, gp.K, gp.η₂)
 end
 
 function ∇η₁(
@@ -253,7 +253,7 @@ global_update!(gp::_OSVGP, opt, i) = global_update!(gp)
 end
 
 function global_update!(gp::_SVGP, opt::AVIOptimizer, i::AnalyticVI)
-    if isstochastic(i)
+    if isStochastic(i)
         Δ = Optimise.apply!(opt.optimiser, gp.η₁, vcat(opt.∇η₁, opt.∇η₂[:]))
         gp.η₁ .+= Δ[1:gp.dim]
         gp.η₂ .= Symmetric(gp.η₂ + reshape(Δ[(gp.dim+1):end], gp.dim, gp.dim))
@@ -268,7 +268,7 @@ end
 @traitfn function ELBO(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     tot = zero(T)
     tot +=
-        model.inference.ρ * expec_log_likelihood(
+        getρ(model.inference) * expec_log_likelihood(
             model.likelihood,
             model.inference,
             get_y(model),
@@ -276,13 +276,13 @@ end
             diag_cov_f(model),
         )
     tot -= GaussianKL(model)
-    tot -= model.inference.ρ * AugmentedKL(model.likelihood, get_y(model))
+    tot -= getρ(model.inference) * AugmentedKL(model.likelihood, get_y(model))
     tot -= extraKL(model)
 end
 
 @traitfn function ELBO(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     tot = zero(T)
-    tot += model.inference.ρ*sum(expec_log_likelihood.(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model)))
+    tot += sum(model.inference.ρ .* expec_log_likelihood.(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model)))
     tot -= GaussianKL(model)
-    tot -= model.inference.ρ*sum(AugmentedKL.(model.likelihood,get_y(model)))
+    tot -= sum(model.inference.ρ .* AugmentedKL.(model.likelihood,get_y(model)))
 end

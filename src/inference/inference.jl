@@ -17,7 +17,7 @@ Base.length(::Inference) = 1
 Base.iterate(l::Inference) = (l,nothing)
 Base.iterate(l::Inference, ::Any) = nothing
 
-isstochastic(l::Inference) = l.Stochastic
+isStochastic(l::Inference) = l.Stochastic
 
 const GibbsorVI = Union{<:GibbsSampling,<:AnalyticVI}
 
@@ -46,6 +46,9 @@ setyview!(inf::Inference, yview) = setyview!(inf, 1, yview)
 
 nMinibatch(inf::Inference, i::Int) = inf.nMinibatch[i]
 nMinibatch(inf::Inference) = nMinibatch(inf, 1)
+
+getρ(inf::Inference, i::Int) = inf.ρ[i]
+getρ(inf::Inference) = getρ(inf, 1)
 
 MBIndices(inf::Inference, i::Int) = inf.MBIndices[i]
 MBIndices(inf::Inference) = MBIndices(inf, 1)
