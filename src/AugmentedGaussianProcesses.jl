@@ -78,7 +78,9 @@ module AugmentedGaussianProcesses
     include("models/VStP.jl")
     include("models/MOSVGP.jl")
     include("models/MOARGP.jl")
+    include("models/MOVGP.jl")
     include("models/OnlineSVGP.jl")
+    include("models/multi_outpus_utils.jl")
 
     include("inference/inference.jl")
     include("likelihood/likelihood.jl")
@@ -92,4 +94,5 @@ module AugmentedGaussianProcesses
     include("onlinetraining.jl")
     include("hyperparameter/autotuning.jl")
     include("predictions.jl")
+    include("ar_predict.jl")
 end #End Module
