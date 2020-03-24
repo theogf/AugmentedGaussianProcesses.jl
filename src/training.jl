@@ -103,7 +103,7 @@ end
 """Update all variational parameters of the sparse variational GP Model"""
 function update_parameters!(m::SVGP)
     if isStochastic(m.inference)
-        setMBIndices!(m.inference, StatsBase.sample(1:nSamples(m.inference), nMinibatch(m.inference), replace = false))
+        setMBIndices!(m.inference, StatsBase.sample(1:nSamples(m), nMinibatch(m.inference), replace = false))
         setxview!(m.inference, view(m.X, MBIndices(m.inference), :))
         setyview!(m.inference, view_y(m.likelihood, m.y, MBIndices(m.inference)))
     end

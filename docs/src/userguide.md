@@ -81,9 +81,9 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 | LogisticLikelihood   | ✔  | ✔  | ✔ | ✖  |
 | BayesianSVM   | ✔  | (dev) | ✖ | ✖  |
 | LogisticSoftMaxLikelihood   | ✔  | ✔  | ✖ | (dev)  |
-| SoftMaxLikelihood   | ✖  |  ✖  | ✖  | (dev)  |
-| Poisson   | ✔ | (dev) | ✖  |  ✖ |
-| NegBinomialLikelihood   | ✔ | (dev) | ✖  |  ✖ |
+| SoftMaxLikelihood   | ✖  |  ✖  | ✖  | ✔  |
+| Poisson   | ✔ | ✔ | ✖  |  ✖ |
+| NegBinomialLikelihood   | ✔ | ✔ | ✖  |  ✖ |
 |   |   |   |   |   |
 (dev) means that the feature is possible and may be developped and tested but is not available yet. All contributions or requests are very welcome!
 

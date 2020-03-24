@@ -169,5 +169,6 @@ end
 @traitimpl IsMultiOutput{MOVGP}
 @traitimpl IsFull{MOVGP}
 
-get_Z(model::MOVGP) = model.X
+get_Z(m::MOVGP) = m.X
+get_Z(m::MOVGP, i::Int) = nX(m) == 1 ? first(m.X) : m.X[i]
 objective(m::MOVGP) = ELBO(m)

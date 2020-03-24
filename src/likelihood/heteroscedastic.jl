@@ -90,14 +90,38 @@ function local_autotuning!(model::VGP{T,<:HeteroscedasticLikelihood}) where {T}
     model.inference.HyperParametersUpdated = true
 end
 
-function variational_updates!(model::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI}) where {T,L}
-    local_updates!(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
-    lZ = length(get_Z(model))
-    natural_gradient!(∇E_μ(model.likelihood,model.inference.vi_opt[2],get_y(model))[2],∇E_Σ(model.likelihood,model.inference.vi_opt[2],get_y(model))[2],model.inference,model.inference.vi_opt[2],get_Z(model)[min(lZ,2)],model.f[2])
-    global_update!(model.f[2],model.inference.vi_opt[2],model.inference)
-    heteroscedastic_expectations!(model.likelihood,mean_f(model.f[2]),diag_cov_f(model.f[2]))
-    natural_gradient!(∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model))[1],∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model))[1],model.inference,model.inference.vi_opt[1],get_Z(model)[min(lZ,1)],model.f[1])
-    global_update!(model.f[1],model.inference.vi_opt[1],model.inference)
+function variational_updates!(
+    model::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI},
+) where {T,L}
+    local_updates!(
+        model.likelihood,
+        get_y(model),
+        mean_f(model),
+        diag_cov_f(model),
+    )
+    natural_gradient!(
+        ∇E_μ(model.likelihood, opt_type(model.inference), get_y(model))[2],
+        ∇E_Σ(model.likelihood, opt_type(model.inference), get_y(model))[2],
+        getρ(model.inference),
+        opt_type(model.inference),
+        get_Z(model, 2),
+        model.f[2],
+    )
+    global_update!(model.f[2], opt_type(model.inference), model.inference)
+    heteroscedastic_expectations!(
+        model.likelihood,
+        mean_f(model.f[2]),
+        diag_cov_f(model.f[2]),
+    )
+    natural_gradient!(
+        ∇E_μ(model.likelihood, opt_type(model.inference), get_y(model))[1],
+        ∇E_Σ(model.likelihood, opt_type(model.inference), get_y(model))[1],
+        getρ(model.inference),
+        opt_type(model.inference),
+        get_Z(model, 1),
+        model.f[1],
+    )
+    global_update!(model.f[1], opt_type(model.inference), model.inference)
 end
 
 function heteroscedastic_expectations!(l::HeteroscedasticLikelihood{T},μ::AbstractVector,Σ::AbstractVector) where {T}

@@ -1,10 +1,10 @@
-@traitfn function ∇E_μ(m::TGP) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
-    ∇E_μ(m.likelihood, m.inference.vi_opt[1], get_y(m))
+@traitfn function ∇E_μ(m::TGP) where {T, TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
+    ∇E_μ(m.likelihood, opt_type(m.inference), get_y(m))
 end
 
 ## return the linear sum of the expectation gradient given diag(Σ) ##
-@traitfn function ∇E_Σ(m::TGP) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
-    ∇E_Σ(m.likelihood, m.inference.vi_opt[1], get_y(m))
+@traitfn function ∇E_Σ(m::TGP) where {T, TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
+    ∇E_Σ(m.likelihood, opt_type(m.inference), get_y(m))
 end
 
 function wrap_X(X)
@@ -14,3 +14,5 @@ function wrap_X(X)
         X
     end
 end
+
+@traitfn get_y(m::TGP) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}} = yview(m.inference)

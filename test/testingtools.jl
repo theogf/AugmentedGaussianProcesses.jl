@@ -1,6 +1,7 @@
 using LinearAlgebra, Distributions
 using AugmentedGaussianProcesses
 using MLDataUtils
+using Test
 
 M = 10
 function generate_f(N,d,k;X= rand(N,d))

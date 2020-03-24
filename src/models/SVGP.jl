@@ -100,23 +100,23 @@ function SVGP(
         mean = EmpiricalMean(mean)
     end
 
-    nMinibatch = nSamples
-    if inference.Stochastic
-        @assert inference.nMinibatch > 0 && inference.nMinibatch < nSamples "The size of mini-batch $(inference.nMinibatch) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
-        nMinibatch = inference.nMinibatch
+    _nMinibatch = nSamples
+    if isStochastic(inference)
+        @assert 0 < nMinibatch(inference) < nSamples  "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
+        _nMinibatch = nMinibatch(inference)
     end
 
     latentf = ntuple(
-        _ -> _SVGP{T₁}(nFeatures, nMinibatch, Z, kernel, mean, optimiser),
+        _ -> _SVGP{T₁}(nFeatures, _nMinibatch, Z, kernel, mean, optimiser),
         nLatent,
     )
 
     likelihood =
-        init_likelihood(likelihood, inference, nLatent, nMinibatch, nFeatures)
+        init_likelihood(likelihood, inference, nLatent, _nMinibatch, nFeatures)
     inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples, nMinibatch)
-    inference.xview = [view(X, 1:nMinibatch, :)]
-    inference.yview = [view_y(likelihood, y, 1:nMinibatch)]
+        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch)
+    inference.xview = [view(X, collect(1:nMinibatch(inference)), :)]
+    inference.yview = [view_y(likelihood, y, collect(1:nMinibatch(inference)))]
 
     model = SVGP{T₁,TLikelihood,typeof(inference),nLatent}(
         X,
@@ -142,9 +142,9 @@ function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
 
-get_y(m::SVGP) = first(m.inference.yview)
 get_X(m::SVGP) = m.X
 get_Z(m::SVGP) = get_Z.(m.f)
+get_Z(m::SVGP, i::Int) = get_Z(m.f[i])
 objective(m::SVGP) = ELBO(m)
 
 @traitimpl IsSparse{SVGP}

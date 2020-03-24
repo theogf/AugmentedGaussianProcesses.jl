@@ -20,8 +20,8 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     vi_opt::NTuple{N,AVIOptimizer}
     MBIndices::Vector{Vector{Int64}} #Indices of the minibatch
-    xview::AbstractArray
-    yview::AbstractVector
+    xview::Vector
+    yview::Vector
 
     function AnalyticVI{T}(
         ϵ::T,
@@ -35,7 +35,7 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
             Stochastic,
             [0],
             [nMinibatch],
-            [T(1.0)],
+            [one(T)],
             true,
             (AVIOptimizer{T}(0, optimiser),),
         )
@@ -45,7 +45,7 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
         Stochastic::Bool,
         nFeatures::Vector{<:Int},
         nSamples::Vector{<:Int},
-        nMinibatch::Vector{<:Integer},
+        nMinibatch::Vector{<:Int},
         nLatent::Int,
         optimiser,
     ) where {T}

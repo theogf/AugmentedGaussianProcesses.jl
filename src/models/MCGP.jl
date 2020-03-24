@@ -83,9 +83,9 @@ function MCGP(
 
     likelihood =
         init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
-    inference = tuple_inference(inference, nLatent, nSamples, nSamples)
-    inference.xview = view(X, :, :)
-    inference.yview = view_y(likelihood, y, 1:nSamples)
+    inference = tuple_inference(inference, nLatent, nSamples, nSamples, nSamples)
+    inference.xview = [view(X, :, :)]
+    inference.yview = [view_y(likelihood, y, 1:nSamples)]
     MCGP{T,TLikelihood,typeof(inference),nLatent}(
         X,
         y,
@@ -107,8 +107,8 @@ function Base.show(io::IO,model::MCGP{T,<:Likelihood,<:Inference}) where {T}
 end
 
 get_f(model::MCGP) = getproperty.(model.f,:f)
-get_y(model::MCGP) = model.inference.yview
-get_Z(model::MCGP) = [model.inference.xview]
+get_Z(model::MCGP) = model.inference.xview
+get_Z(model::MCGP, i::Int )= model.inference.xview
 objective(model::MCGP{T}) where {T} = NaN
 
 @traitimpl IsFull{MCGP}

@@ -1,4 +1,4 @@
-@traitfn get_y(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}} = view_y.(model.likelihood, model.y, model.inference.MBIndices)
+@traitfn get_y(model::TGP) where {TGP<:AbstractGP;IsMultiOutput{TGP}} = view_y.(model.likelihood, model.y, model.inference.MBIndices)
 
 ##
 @traitfn function mean_f(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
@@ -47,8 +47,8 @@ end
 
 ## return the linear sum of the expectation gradient given diag(Σ) ##
 @traitfn function ∇E_Σ(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
-    ∇ = [zeros(T,m.inference.nMinibatch[mod(i, nX(m))+1]) for i in 1:m.nLatent]
-    ∇Es = ∇E_Σ.(m.likelihood,m.inference.vi_opt[1:1],get_y(m))
+    ∇ = [zeros(T, m.inference.nMinibatch[mod(i, nX(m))+1]) for i in 1:m.nLatent]
+    ∇Es = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), get_y(m))
     for t in 1:m.nTask
         for j in 1:m.nf_per_task[t]
             for q in 1:nLatent(m)
@@ -60,24 +60,24 @@ end
 end
 
 ##
-@traitfn function update_A!(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
-    if !isnothing(model.A_opt)
-        μ_f = mean_f.(model.f) # κμ || μ
-        Σ_f = diag_cov_f.(model.f) #Diag(K̃ + κΣκ) || Diag(Σ)
-        ∇Eμ = ∇E_μ.(model.likelihood, model.inference.vi_opt[1:1], get_y(model))
-        ∇EΣ = ∇E_Σ.(model.likelihood, model.inference.vi_opt[1:1], get_y(model))
+@traitfn function update_A!(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+    if !isnothing(m.A_opt)
+        μ_f = mean_f.(m.f) # κμ || μ
+        Σ_f = diag_cov_f.(m.f) #Diag(K̃ + κΣκ) || Diag(Σ)
+        ∇Eμ = ∇E_μ.(m.likelihood, Ref(opt_type(m.inference)), get_y(m))
+        ∇EΣ = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), get_y(m))
         # new_A = zero(model.A)
-        for t in 1:model.nTask
-            for j in 1:model.nf_per_task[t]
-                ∇A = zero(model.A[t][j])
-                for q in 1:model.nLatent
-                    x1 = dot(∇Eμ[t][j], μ_f[q]) - 2 * dot(∇EΣ[t][j], μ_f[q] .* sum(model.A[t][j][qq] * μ_f[qq] for qq in 1:model.nLatent if qq!=q))
+        for t in 1:m.nTask
+            for j in 1:m.nf_per_task[t]
+                ∇A = zero(m.A[t][j])
+                for q in 1:nLatent(m)
+                    x1 = dot(∇Eμ[t][j], μ_f[q]) - 2 * dot(∇EΣ[t][j], μ_f[q] .* sum(m.A[t][j][qq] * μ_f[qq] for qq in 1:nLatent(m) if qq!=q))
                     x2 = dot(∇EΣ[t][j], abs2.(μ_f[q]) + Σ_f[q])
                     # new_A[t,j,q] = x1/(2*x2)
-                    ∇A[q] = x1 - 2 * model.A[t][j][q]*  x2
+                    ∇A[q] = x1 - 2 * m.A[t][j][q]*  x2
                 end
-                model.A[t][j] .+= Flux.Optimise.apply!(model.A_opt, model.A[t][j], ∇A)
-                model.A[t][j] /= sqrt(sum(abs2,model.A[t][j])) # Projection on the unit circle
+                m.A[t][j] .+= Flux.Optimise.apply!(m.A_opt, m.A[t][j], ∇A)
+                m.A[t][j] /= sqrt(sum(abs2,m.A[t][j])) # Projection on the unit circle
             end
         end
     end

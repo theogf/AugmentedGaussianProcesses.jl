@@ -93,7 +93,7 @@ function GP(
         false,
     )
     computeMatrices!(model)
-    model.Trained = true
+    setTrained!(model, true)
     return model
 end
 
@@ -103,19 +103,16 @@ end
 
 get_y(model::GP) = model.inference.yview
 get_Z(model::GP) = model.inference.xview
+get_Z(model::GP, i::Int) = model.inference.xview
 
 @traitimpl IsFull{GP}
 
 ### Special case where the ELBO is equal to the marginal likelihood
 
-objective(model::GP) = log_py(model)
+objective(m::GP) = log_py(m)
 
-function log_py(model::GP{T}) where {T}
-    first(model.f).Σ =
-        Symmetric(inv(first(model.f).K + first(model.likelihood.σ²) * I).mat)
-    return -0.5 * (
-        dot(model.y, first(model.f).Σ * model.y) +
-        logdet(first(model.f).Σ) +
-        model.nFeatures * log(twoπ)
-    )
+function log_py(m::GP{T}) where {T}
+    f = first(m.f)
+    f.Σ = Symmetric(inv(f.K + noise(m.likelihood) * I).mat)
+    return -0.5 * (dot(m.y, f.Σ * m.y) + logdet(f.Σ) + nFeatures(m) * log(twoπ))
 end
