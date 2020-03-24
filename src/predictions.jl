@@ -60,43 +60,44 @@ function _predict_f(
     end
 end
 
-@traitfn function _predict_f(model::TGP,X_test::AbstractVector{<:AbstractMatrix{<:Real}},;covf::Bool=true,fullcov::Bool=false) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+@traitfn function _predict_f(m::TGP,X_test::AbstractVector{<:AbstractMatrix{<:Real}},;covf::Bool=true,fullcov::Bool=false) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     k_star =
-        kernelmatrix.(get_kernel(model), X_test, get_Z(model), obsdim = 1)
-    μf = k_star .* (get_K(model) .\ get_μ(model))
+        kernelmatrix.(get_kernel(m), X_test, get_Z(m), obsdim = 1)
+    μf = k_star .* (get_K(m) .\ get_μ(m))
+    
     μf = [
-        [sum(model.A[i][j] .* μf) for j in 1:model.nf_per_task[i]]
-        for i in 1:model.nTask
+        [sum(m.A[i][j] .* μf) for j in 1:m.nf_per_task[i]]
+        for i in 1:m.nTask
     ]
     if !covf
         return (μf,)
     end
-    A = get_K(model) .\ ([I] .- get_Σ(model) ./ get_K(model))
+    A = get_K(m) .\ ([I] .- get_Σ(m) ./ get_K(m))
     if fullcov
         k_starstar = (
-            kernelmatrix.(get_kernel(model), X_test, obsdim = 1) .+
+            kernelmatrix.(get_kernel(m), X_test, obsdim = 1) .+
                 T(jitt) * [I]
         )
         Σf = k_starstar .- k_star .* A .* transpose.(k_star)
         Σf = [
             [
-                sum(model.A[i][j] .^ 2 .* Σf)
-                for j = 1:model.nf_per_task[i]
+                sum(m.A[i][j] .^ 2 .* Σf)
+                for j = 1:m.nf_per_task[i]
             ]
-            for i = 1:model.nTask
+            for i = 1:m.nTask
         ]
         return μf, Σf
     else
         k_starstar =
-            kerneldiagmatrix.(get_kernel(model), X_test, obsdim = 1) .+
+            kerneldiagmatrix.(get_kernel(m), X_test, obsdim = 1) .+
             [T(jitt) * ones(T, size(X_test, 1))]
         σ²f = k_starstar .- opt_diag.(k_star .* A, k_star)
         σ²f = [
             [
-                sum(model.A[i][j] .^ 2 .* σ²f)
-                for j = 1:model.nf_per_task[i]
+                sum(m.A[i][j] .^ 2 .* σ²f)
+                for j = 1:m.nf_per_task[i]
             ]
-            for i = 1:model.nTask
+            for i = 1:m.nTask
         ]
         return μf, σ²f
     end
