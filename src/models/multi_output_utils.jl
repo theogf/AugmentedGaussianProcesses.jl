@@ -31,9 +31,9 @@ end
 
 ## return the linear sum of the expectation gradient given μ ##
 @traitfn function ∇E_μ(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
-    ∇ = [zeros(T,m.inference.nMinibatch[mod(i, nX(m))+1]) for i in 1:nLatent(m)]
-    ∇Eμs = ∇E_μ.(m.likelihood,m.inference.vi_opt[1:1],get_y(m))
-    ∇EΣs = ∇E_Σ.(m.likelihood,m.inference.vi_opt[1:1],get_y(m))
+    ∇ = [zeros(T,nMinibatch(m.inference)) for i in 1:nLatent(m)]
+    ∇Eμs = ∇E_μ.(m.likelihood, Ref(opt_type(m.inference)),get_y(m))
+    ∇EΣs = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)),get_y(m))
     μ_f = mean_f.(m.f)
     for t in 1:m.nTask
         for j in 1:m.nf_per_task[t]
@@ -47,7 +47,7 @@ end
 
 ## return the linear sum of the expectation gradient given diag(Σ) ##
 @traitfn function ∇E_Σ(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
-    ∇ = [zeros(T, m.inference.nMinibatch[mod(i, nX(m))+1]) for i in 1:m.nLatent]
+    ∇ = [zeros(T, nMinibatch(m.inference)) for i in 1:m.nLatent]
     ∇Es = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), get_y(m))
     for t in 1:m.nTask
         for j in 1:m.nf_per_task[t]
@@ -80,22 +80,5 @@ end
                 m.A[t][j] /= sqrt(sum(abs2,m.A[t][j])) # Projection on the unit circle
             end
         end
-    end
-end
-
-##
-function wrap_X_multi(X, nTask)
-    X = if X isa AbstractArray{<:Real} # Do a better recognition of what X is
-        if X isa AbstractVector
-            [reshape(X, :, 1)]
-        elseif X isa AbstractMatrix
-            [X]
-        else
-            throw(ErrorException("X does not have the right dimensions ($(size(X)))"))
-        end
-    else
-        @assert length(X) == nTask "There is not the same number of input matrices as output matrices"
-        @assert all(isa.(X,AbstractMatrix)) "All X should be matrices"
-        X
     end
 end

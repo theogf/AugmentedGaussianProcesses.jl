@@ -119,15 +119,16 @@ end
 
 function update_parameters!(m::MOSVGP)
     if isStochastic(m.inference)
+        MBIndices = StatsBase.sample(1:nSamples(m.inference), nMinibatch(m.inference), replace = false)
         for i in 1:nX(m)
-            setMBIndices!(m.inference, i, StatsBase.sample(1:nSamples(m.inference, i),nMinibatch(m.inference, i), replace = false))
-            setxview!(m.inference, i, view(model.X[i], MBIndices(m.inference, i), :))
-            setyview!(m.inference, i, view_y(model.likelihood,model.y[i],MBIndices(m.inference, i)))
+            setMBIndices!(m.inference, i, MBIndices)
+            setxview!(m.inference, i, view(m.X[i], MBIndices(m.inference, i), :))
+            setyview!(m.inference, i, view_y(m.likelihood,m.y[i], MBIndices(m.inference, i)))
         end
     end
     computeMatrices!(m); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     update_A!(m)
-    variational_updates!(md);
+    variational_updates!(m);
 end
 
 function update_parameters!(m::VStP)

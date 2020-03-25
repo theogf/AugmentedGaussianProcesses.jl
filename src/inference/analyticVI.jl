@@ -148,7 +148,7 @@ end
     natural_gradient!.(
         ∇E_μ(m),
         ∇E_Σ(m),
-        m.inference.ρ,
+        getρ(m.inference),
         m.inference.vi_opt,
         get_Z(m),
         m.f,

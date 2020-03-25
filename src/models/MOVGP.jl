@@ -2,11 +2,21 @@
 Class for multi-output variational Gaussian Processes based on the Linear Coregionalization Model (LCM)
 
 ```julia
-MOVGP(X::AbstractArray{T},y::AbstractVector{AbstractArray{T}},kernel::Kernel,
-    likelihood::AbstractVector{Likelihoods},inference::InferenceType,
-    verbose::Int=0,optimiser=ADAM(0.001),atfrequency::Int=1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-    ArrayType::UnionAll=Vector)
+MOVGP(
+    X::Union{AbstractArray{T}, AbstractVector{<:AbstractArray{T}}},
+    y::AbstractVector{<:AbstractArray},
+    kernel::Union{Kernel, AbstractVector{<:Kernel}},
+    likelihood::Union{TLikelihood, AbstractVector{<:TLikelihood}},
+    inference::TInference,
+    nLatent::Int;
+    verbose::Int = 0,
+    optimiser = ADAM(0.01),
+    atfrequency::Int = 1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
+    variance::Real = 1.0,
+    Aoptimiser = ADAM(0.01),
+    ArrayType::UnionAll = Vector,
+) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 ```
 
 Argument list :
@@ -69,8 +79,10 @@ function MOVGP(
     X = wrap_X_multi(X, nTask)
     nX = length(X)
 
-    if likelihood isa Likelihood
+    likelihoods = if likelihood isa Likelihood
         likelihoods = [deepcopy(likelihood) for _ in 1:nTask]
+    else
+        likelihood
     end
 
     nf_per_task = zeros(Int64, nTask)
@@ -86,7 +98,7 @@ function MOVGP(
     nSamples = size.(X, 1)
     nDim = size.(X, 2)
     nFeatures = nSamples
-    nMinibatch = nSamples
+    _nMinibatch = nSamples
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
@@ -114,8 +126,8 @@ function MOVGP(
 
     latent_f = ntuple(
         i -> _VGP{T}(
-            nFeatures[mod(i,nX)+1], #?????
-            kernel[mod(i,nKernel)+1],
+            nFeatures[mod(i, nX) + 1], #?????
+            kernel[mod(i, nKernel) + 1],
             mean,
             optimiser,
         ),
@@ -129,12 +141,12 @@ function MOVGP(
             likelihoods,
             inference,
             nf_per_task,
-            nMinibatch,
+            _nMinibatch,
             nFeatures,
         )
     inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples, nMinibatch)
-    inference.xview = view.(X, range.(1,nMinibatch,step=1), :)
+        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch)
+    inference.xview = view.(X, range.(1,_nMinibatch,step=1), :)
     inference.yview = view(y, :)
 
     model = MOVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(

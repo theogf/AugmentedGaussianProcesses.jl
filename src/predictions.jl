@@ -64,7 +64,7 @@ end
     k_star =
         kernelmatrix.(get_kernel(m), X_test, get_Z(m), obsdim = 1)
     μf = k_star .* (get_K(m) .\ get_μ(m))
-    
+
     μf = [
         [sum(m.A[i][j] .* μf) for j in 1:m.nf_per_task[i]]
         for i in 1:m.nTask
@@ -90,7 +90,7 @@ end
     else
         k_starstar =
             kerneldiagmatrix.(get_kernel(m), X_test, obsdim = 1) .+
-            [T(jitt) * ones(T, size(X_test, 1))]
+            T(jitt) .* ones.(T, size.(X_test, 1))
         σ²f = k_starstar .- opt_diag.(k_star .* A, k_star)
         σ²f = [
             [
@@ -202,7 +202,8 @@ predict_y(l::EventLikelihood,μ::AbstractVector{<:Real}) = expec_count(l,μ)
 predict_y(l::EventLikelihood,μ::AbstractVector{<:AbstractVector}) = expec_count(l,first(μ))
 
 ## Wrapper to return proba on vectors ##
-proba_y(model::AbstractGP{T},X_test::AbstractVector{T}) where {T} = proba_y(model,reshape(X_test,:,1))
+proba_y(model::AbstractGP{T}, X_test::AbstractVector{T}) where {T<:Real} =
+    proba_y(model, reshape(X_test, :, 1))
 
 """
 `proba_y(model::AbstractGP,X_test::AbstractMatrix)`
@@ -213,15 +214,28 @@ Return the probability distribution p(y_test|model,X_test) :
     - Vector of probabilities of y_test = 1 for binary classification
     - Dataframe with columns and probability per class for multi-class classification
 """
-@traitfn function proba_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;!IsMultiOutput{TGP}}
-    μ_f,Σ_f = _predict_f(model,X_test,covf=true)
-    pred = compute_proba(model.likelihood,μ_f,Σ_f)
+@traitfn function proba_y(
+    model::TGP,
+    X_test::AbstractMatrix,
+) where {TGP <: AbstractGP; !IsMultiOutput{TGP}}
+    μ_f, Σ_f = _predict_f(model, X_test, covf = true)
+    pred = compute_proba(model.likelihood, μ_f, Σ_f)
 end
 
-@traitfn function proba_y(model::TGP,X_test::AbstractMatrix) where {TGP<:AbstractGP;IsMultiOutput{TGP}}
+@traitfn proba_y(
+    model::TGP,
+    X_test::AbstractMatrix,
+) where {TGP <: AbstractGP; IsMultiOutput{TGP}} =
+    proba_y(model, [X_test])
+
+@traitfn function proba_y(
+    model::TGP,
+    X_test::AbstractVector{<:AbstractMatrix},
+) where {TGP <: AbstractGP; IsMultiOutput{TGP}}
     μ_f,Σ_f = _predict_f(model,X_test,covf=true)
     preds = compute_proba.(model.likelihood,μ_f,Σ_f)
 end
+
 
 function proba_y(model::MOARGP,X_test::AbstractVector{<:AbstractMatrix})
     μ_f,Σ_f = _predict_f(model,X_test,covf=true)

@@ -14,7 +14,7 @@ function _GP{T}(dim::Int,kernel::Kernel,mean::PriorMean,opt) where {T<:Real}
     _GP{T}(dim,
             zeros(T,dim),
             Matrix{T}(I,dim,dim),
-            kernel,
+            deepcopy(kernel),
             deepcopy(mean),
             PDMat(Matrix{T}(I,dim,dim)),
             deepcopy(opt))
@@ -42,7 +42,7 @@ function _VGP{T}(dim::Int,kernel::Kernel,mean::PriorMean,opt) where {T<:Real}
             Matrix{T}(I,dim,dim),
             zeros(T,dim),
             Symmetric(Matrix{T}(-0.5*I,dim,dim)),
-            kernel,
+            deepcopy(kernel),
             deepcopy(mean),
             PDMat(Matrix{T}(I,dim,dim)),
             deepcopy(opt))
@@ -103,7 +103,7 @@ end
 function _MCGP{T}(dim::Int,kernel::Kernel,mean::PriorMean) where {T<:Real}
     _MCGP{T}(dim,
             zeros(T,dim),
-            kernel,
+            deepcopy(kernel),
             deepcopy(mean),
             PDMat(Matrix{T}(I,dim,dim)))
 end

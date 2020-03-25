@@ -38,3 +38,15 @@ get_μ(model::AbstractGP) = getproperty.(model.f,:μ)
 get_Σ(model::AbstractGP) = getproperty.(model.f,:Σ)
 
 get_kernel(model::AbstractGP) = getproperty.(model.f,:kernel)
+
+function setZ!(m::TGP, Z::AbstractMatrix, i::Int) where {TGP<:AbstractGP; !IsFull{TGP}}
+    @assert size(Z) == size(m.f[i].Z) "Size of Z $(size(Z)) is not the same as in the model $(size(m.f[i].Z))"
+    m.f[i].Z.Z = copy(Z)
+end
+
+function setZ!(m::TGP, Z::AbstractVector{<:AbstractMatrix}) where {TGP<:AbstractGP; !IsFull{TGP}}
+    @assert length(Z) == m.nLatent "There is not the right number of Z matrices"
+    for (i, gp) for enumerate(m.f)
+
+    end
+end

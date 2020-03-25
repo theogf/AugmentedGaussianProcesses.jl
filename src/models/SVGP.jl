@@ -73,25 +73,9 @@ function SVGP(
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.001) : nothing
     end
-    if nInducingPoints isa Int
-        @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
-        if nInducingPoints > nSamples
-            @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
-            nInducingPoints = nSamples
-        else
-            nInducingPoints = Kmeans(nInducingPoints, nMarkov = 10)
-        end
-    end
-    if nInducingPoints isa Int && nInducingPoints == nSamples
-        Z = X
-    else
-        IPModule.init!(nInducingPoints, X, y, kernel)
-        Z = nInducingPoints.Z
-    end
-    if isa(Zoptimiser, Bool)
-        Zoptimiser = Zoptimiser ? ADAM(0.001) : nothing
-    end
-    Z = FixedInducingPoints(Z, Zoptimiser)
+
+    Z = init_Z(nInducingPoints, nSamples, X, y, kernel, Zoptimiser)
+
     nFeatures = size(Z, 1)
 
     if typeof(mean) <: Real

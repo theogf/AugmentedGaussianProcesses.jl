@@ -31,9 +31,9 @@ Argument list :
 mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N,Q} <: AbstractGP{T,TLikelihood,TInference,N}
     X::Vector{Matrix{T}} #Feature vectors
     y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Int64 # Number of data points
-    nDim::Int64 # Number of covariates per data point
-    nFeatures::Int64 # Number of features of the GP (equal to number of points)
+    nSamples::Vector{Int64} # Number of data points
+    nDim::Vector{Int64} # Number of covariates per data point
+    nFeatures::Vector{Int64} # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number of latent GPs
     nX::Int64
     nTask::Int64
@@ -41,7 +41,7 @@ mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N
     f::NTuple{Q,_SVGP}
     likelihood::Vector{TLikelihood}
     inference::TInference
-    A::Array{T,3}
+    A::Vector{Vector{Vector{T}}}
     A_opt
     verbose::Int64
     atfrequency::Int64
@@ -51,90 +51,148 @@ end
 
 
 function MOSVGP(
-            X::AbstractArray{T},y::AbstractVector{<:AbstractVector},kernel::Kernel,
-            likelihood::TLikelihood,inference::TInference,nLatent::Int,nInducingPoints::Int;
-            verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Int=1,
-            mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(), variance::Real = 1.0,Aoptimiser=ADAM(0.01),
-            Zoptimiser=false,
-            ArrayType::UnionAll=Vector) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+    X::Union{AbstractArray{T},AbstractVector{<:AbstractArray{T}}},
+    y::AbstractVector{<:AbstractVector},
+    kernel::Union{Kernel, AbstractVector{<:Kernel}},
+    likelihood::Union{TLikelihood, AbstractVector{<:TLikelihood}},
+    inference::TInference,
+    nLatent::Int,
+    nInducingPoints::Union{Int,InducingPoints, AbstractVector{<:InducingPoints}};
+    verbose::Int = 0,
+    atfrequency::Int = 1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
+    variance::Real = 1.0,
+    optimiser = ADAM(0.01),
+    Aoptimiser = ADAM(0.01),
+    Zoptimiser = false,
+    ArrayType::UnionAll = Vector,
+) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
-            @assert length(y) > 0 "y should not be an empty vector"
-            nTask = length(y)
-            likelihoods = [deepcopy(likelihood) for _ in 1:nTask]
+    @assert length(y) > 0 "y should not be an empty vector"
+    nTask = length(y)
 
-            X = wrap_X_multi(X, nTask)
+    X = wrap_X_multi(X, nTask)
+    nX = length(X)
 
-            nf_per_task = zeros(Int64,nTask)
-            corrected_y = Vector(undef,nTask)
-            for i in 1:nTask
-                corrected_y[i],nf_per_task[i],likelihoods[i] = check_data!(X,y[i],likelihoods[i])
-            end
+    likelihoods = if likelihood isa Likelihood
+        likelihoods = [deepcopy(likelihood) for _ in 1:nTask]
+    else
+        likelihood
+    end
 
-            @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
-            @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    nf_per_task = zeros(Int64, nTask)
+    corrected_y = Vector(undef, nTask)
+    for i in 1:nTask
+        corrected_y[i], nf_per_task[i], likelihoods[i] =
+            check_data!(X[mod(i, nX) + 1], y[i], likelihoods[i])
+    end
 
-            nSamples = size(X,1); nDim = size(X,2);
-            if isa(optimiser,Bool)
-                optimiser = optimiser ? ADAM(0.01) : nothing
-            end
-            if isa(AOptimiser,Bool)
-                Aoptimiser = Aoptimiser ? ADAM(0.01) : nothing
-            end
-            @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
-            if nInducingPoints > nSamples
-                @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
-                nInducingPoints = nSamples
-            end
-            if nInducingPoints == nSamples
-                Z = X
-            else
-                Z = KMeansInducingPoints(X,nInducingPoints,nMarkov=10)
-            end
-            if isa(Zoptimizer,Bool)
-                Zoptimizer = Zoptimizer ? Adam(α=0.01) : nothing
-            end
-            Z = InducingPoints(Z,Zoptimizer)
+    @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
+    @assert all(implemented.(likelihood, Ref(inference))) "The $likelihood is not compatible or implemented with the $inference"
 
-            nFeatures = nInducingPoints
+    nSamples = size.(X, 1)
+    nDim = size.(X, 2)
 
-            if typeof(mean) <: Real
-                mean = ConstantMean(mean)
-            elseif typeof(mean) <: AbstractVector{<:Real}
-                mean = EmpiricalMean(mean)
-            end
+    if isa(optimiser, Bool)
+        optimiser = optimiser ? ADAM(0.01) : nothing
+    end
 
-            nMinibatch = nSamples
-            if inference.Stochastic
-                @assert inference.nMinibatch > 0 && inference.nMinibatch < nSamples "The size of mini-batch $(inference.nMinibatch) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
-                nMinibatch = inference.nMinibatch
-            end
+    if isa(Aoptimiser, Bool)
+        Aoptimiser = Aoptimiser ? ADAM(0.01) : nothing
+    end
 
-            latent_f = ntuple( _ -> _SVGP{T}(nFeatures,nMinibatch,Z,kernel,mean,variance,optimiser),nLatent)
+    kernel = if kernel isa Kernel
+        [kernel]
+    else
+        @assert length(kernel) == nLatent "Number of kernels should be equal to the number of tasks"
+        kernel
+    end
+    nKernel = length(kernel)
+    nInducingPoints = isa(nInducingPoints, InducingPoints) ? [deepcopy(nInducingPoints) for _ in 1:nLatent] : nInducingPoints
+    Z = init_Z.(nInducingPoints, nSamples, X, y, kernel, Ref(Zoptimiser))
 
-            A = [[randn(nLatent) |> x->x/sqrt(sum(abs2,x)) for i in 1:nf_per_task[j]] for j in 1:nTask]
+    nFeatures = size.(Z, 1)
 
-            likelihoods .= init_likelihood.(likelihoods,inference,nf_per_task,nMinibatch,nFeatures)
-            inference = tuple_inference(inference,nLatent,nFeatures,nSamples,nMinibatch)
-            inference.xview = view.(X, range.(1, nMinibatch, step = 1), :)
-            inference.yview = view(y, :)
+    if typeof(mean) <: Real
+        mean = ConstantMean(mean)
+    elseif typeof(mean) <: AbstractVector{<:Real}
+        mean = EmpiricalMean(mean)
+    end
 
-            model = MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(X,corrected_y,
-                    nSamples, nDim, nFeatures, nLatent,
-                    nTask, nf_per_task,
-                    latent_f,likelihoods,inference,A,Aoptimizer,
-                    verbose,atfrequency,false)
-            # if isa(inference.optimizer,ALRSVI)
-                # init!(model.inference,model)
-            # end
-            # return model
+    _nMinibatch = nSamples
+    if isStochastic(inference)
+        @assert all(0 .< nMinibatch(inference) .< nSamples)  "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
+        _nMinibatch = inference.nMinibatch
+    end
+
+    @show nFeatures, _nMinibatch
+    latent_f = ntuple(
+        i -> _SVGP{T}(
+            nFeatures[mod(i, nLatent) + 1],
+            _nMinibatch[1],
+            Z[mod(i, nLatent) + 1],
+            kernel[mod(i, nKernel) + 1],
+            mean,
+            optimiser,
+        ),
+        nLatent,
+    )
+
+    A = [
+        [
+            randn(nLatent) |> x -> x / sqrt(sum(abs2, x))
+            for i = 1:nf_per_task[j]
+        ] for j = 1:nTask
+    ]
+
+    likelihoods .=
+        init_likelihood.(
+            likelihoods,
+            inference,
+            nf_per_task,
+            _nMinibatch[1:1],
+            nFeatures,
+        )
+    inference =
+        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch[1:1])
+    inference.xview = view.(X, range.(1, _nMinibatch, step = 1), :)
+    inference.yview = view(y, :)
+
+    model = MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
+        X,
+        corrected_y,
+        nSamples,
+        nDim,
+        nFeatures,
+        nLatent,
+        nX,
+        nTask,
+        nf_per_task,
+        latent_f,
+        likelihoods,
+        inference,
+        A,
+        Aoptimiser,
+        verbose,
+        atfrequency,
+        false,
+    )
+    # if isa(inference.optimizer,ALRSVI)
+    # init!(model.inference,model)
+    # end
+    # return model
 end
 
-function Base.show(io::IO,model::MOSVGP{T,<:Likelihood,<:Inference}) where {T}
-    print(io,"Multioutput Sparse Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ")
+function Base.show(io::IO, model::MOSVGP{T,<:Likelihood,<:Inference}) where {T}
+    print(
+        io,
+        "Multioutput Sparse Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ",
+    )
 end
 
 @traitimpl IsMultiOutput{MOSVGP}
 
-get_X(model::MOSVGP) = model.X
-get_Z(model::MOSVGP) = get_Z.(model.f)
-objective(model::MOSVGP) = ELBO(model)
+get_X(m::MOSVGP) = m.X
+get_Z(m::MOSVGP) = get_Z.(m.f)
+get_Z(m::MOSVGP, i::Int) = get_Z(m.f[i])
+objective(m::MOSVGP) = ELBO(m)

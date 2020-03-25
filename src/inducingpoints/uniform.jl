@@ -1,9 +1,10 @@
-mutable struct UniformSampling{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
+mutable struct UniformSampling{T,M<:AbstractMatrix{T},O} <:
+               InducingPoints{T,M,O}
     k::Int64
     opt::O
     Z::M
-    function UniformSampling(nInducingPoints::Integer,opt=Flux.ADAM(0.001))
-        return new{Float64,Matrix{Float64},typeof(opt)}(nInducingPoints,opt)
+    function UniformSampling(nInducingPoints::Integer, opt = ADAM(0.001))
+        return new{Float64,Matrix{Float64},typeof(opt)}(nInducingPoints, opt)
     end
 end
 
