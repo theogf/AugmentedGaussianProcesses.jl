@@ -61,7 +61,7 @@ function opt_add_diag_mat(v::AbstractVector{T},B::AbstractMatrix{T}) where {T<:R
     A
 end
 
-Base.:/(c::AbstractMatrix,a::PDMat) = c*inv(a.chol)
+Base.:/(c::AbstractMatrix, a::PDMat) = c / a.mat ### SAAAAAADDDDDD
 
 ## Compute exp(μ)/cosh(c) safely if there is an overflow ##
 function safe_expcosh(μ::Real,c::Real)

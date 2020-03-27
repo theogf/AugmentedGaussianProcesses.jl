@@ -21,16 +21,6 @@ function setZadbackend(backend_sym)
     Z_ADBACKEND[] = backend_sym
 end
 
-### To be replaced later by a self method of KernelFunctions ###
-for t in (:ARDTransform,:ScaleTransform,:LowRankTransform)
-    @eval Flux.@functor(KernelFunctions.$t)
-end
-
-for k in (:SqExponentialKernel,:Matern32Kernel,:LinearKernel,:KernelSum,:KernelProduct,:TransformedKernel,:ScaledKernel)
-    @eval Flux.@functor(KernelFunctions.$k)
-end
-
-
 ##
 function apply_grads_kernel_params!(opt,k::Kernel,Δ::IdDict)
     ps = Flux.params(k)
