@@ -67,7 +67,7 @@ end
 @inline ∇E_Σ(l::GaussianLikelihood{T},::AOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
 
 function expec_log_likelihood(l::GaussianLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
-    return -0.5*i.ρ*(length(y)*(log(twoπ)+log(first(l.σ²)))+sum(abs2.(y-μ)+diag_cov)/first(l.σ²))
+    return -0.5*(length(y)*(log(twoπ)+log(first(l.σ²)))+sum(abs2.(y-μ)+diag_cov)/first(l.σ²))
 end
 
 AugmentedKL(::GaussianLikelihood{T},::AbstractVector) where {T} = zero(T)

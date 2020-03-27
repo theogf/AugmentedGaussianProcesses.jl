@@ -1,34 +1,41 @@
 """
-Class for multi-output sparse variational Gaussian Processes based on the Linear Coregionalization Model (LCM)
+Class for multi-output variational Gaussian Processes based on the Linear Coregionalization Model (LCM)
 
 ```julia
-MOSVGP(X::AbstractArray{T},y::AbstractVector{AbstractArray{T}},kernel::Kernel,
-    likelihood::AbstractVector{Likelihoods},inference::InferenceType, nInducingPoints::Int;
-    verbose::Int=0,optimiser=ADAM(0.001),atfrequency::Int=1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-    Zoptimiser=false,
-    ArrayType::UnionAll=Vector)
+MOVGP(
+    X::Union{AbstractArray{T}, AbstractVector{<:AbstractArray{T}}},
+    y::AbstractVector{<:AbstractArray},
+    kernel::Union{Kernel, AbstractVector{<:Kernel}},
+    likelihood::Union{TLikelihood, AbstractVector{<:TLikelihood}},
+    inference::TInference,
+    nLatent::Int;
+    verbose::Int = 0,
+    optimiser = ADAM(0.01),
+    atfrequency::Int = 1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
+    variance::Real = 1.0,
+    Aoptimiser = ADAM(0.01),
+    ArrayType::UnionAll = Vector,
+) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 ```
 
 Argument list :
 
 **Mandatory arguments**
- - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
+ - `X` : input features, should be a vector of matrices N×D or one matrix NxD where N is the number of observation and D the number of dimension
  - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
  - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
  - `likelihood` : likelihood of the model, currently implemented : Gaussian, Student-T, Laplace, Bernoulli (with logistic link), Bayesian SVM, Multiclass (softmax or logistic-softmax) see [`Likelihood`](@ref likelihood_user)
  - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the [`Compatibility table`](@ref compat_table)
- - `nInducingPoints` : number of inducing points
 **Optional arguments**
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
 - `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
  - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
-- `Zoptimiser` : Optimiser used for inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N,Q} <: AbstractGP{T,TLikelihood,TInference,N}
+mutable struct MOVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N,Q} <: AbstractGP{T,TLikelihood,TInference,N}
     X::Vector{Matrix{T}} #Feature vectors
     y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
     nSamples::Vector{Int64} # Number of data points
@@ -38,7 +45,7 @@ mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N
     nX::Int64
     nTask::Int64
     nf_per_task::Vector{Int64}
-    f::NTuple{Q,_SVGP}
+    f::NTuple{Q,_VGP}
     likelihood::Vector{TLikelihood}
     inference::TInference
     A::Vector{Vector{Vector{T}}}
@@ -50,21 +57,19 @@ end
 
 
 
-function MOSVGP(
-    X::Union{AbstractArray{T},AbstractVector{<:AbstractArray{T}}},
-    y::AbstractVector{<:AbstractVector},
+function MOVGP(
+    X::Union{AbstractArray{T}, AbstractVector{<:AbstractArray{T}}},
+    y::AbstractVector{<:AbstractArray},
     kernel::Union{Kernel, AbstractVector{<:Kernel}},
     likelihood::Union{TLikelihood, AbstractVector{<:TLikelihood}},
     inference::TInference,
-    nLatent::Int,
-    nInducingPoints::Union{Int,InducingPoints, AbstractVector{<:InducingPoints}};
+    nLatent::Int;
     verbose::Int = 0,
+    optimiser = ADAM(0.01),
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     variance::Real = 1.0,
-    optimiser = ADAM(0.01),
     Aoptimiser = ADAM(0.01),
-    Zoptimiser = false,
     ArrayType::UnionAll = Vector,
 ) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
@@ -88,10 +93,12 @@ function MOSVGP(
     end
 
     @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
-    @assert all(implemented.(likelihood, Ref(inference))) "The $likelihood is not compatible or implemented with the $inference"
+    @assert all(implemented.(likelihood, Ref(inference))) "One (or all) of the likelihoods:  $likelihoods are not compatible or implemented with $inference"
 
     nSamples = size.(X, 1)
     nDim = size.(X, 2)
+    nFeatures = nSamples
+    _nMinibatch = nSamples
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
@@ -101,6 +108,14 @@ function MOSVGP(
         Aoptimiser = Aoptimiser ? ADAM(0.01) : nothing
     end
 
+    mean = if typeof(mean) <: Real
+        ConstantMean(mean)
+    elseif typeof(mean) <: AbstractVector{<:Real}
+        EmpiricalMean(mean)
+    else
+        mean
+    end
+
     kernel = if kernel isa Kernel
         [kernel]
     else
@@ -108,29 +123,10 @@ function MOSVGP(
         kernel
     end
     nKernel = length(kernel)
-    nInducingPoints = isa(nInducingPoints, InducingPoints) ? [deepcopy(nInducingPoints) for _ in 1:nLatent] : nInducingPoints
-    Z = init_Z.(nInducingPoints, nSamples, X, y, kernel, Ref(Zoptimiser))
 
-    nFeatures = size.(Z, 1)
-
-    if typeof(mean) <: Real
-        mean = ConstantMean(mean)
-    elseif typeof(mean) <: AbstractVector{<:Real}
-        mean = EmpiricalMean(mean)
-    end
-
-    _nMinibatch = nSamples
-    if isStochastic(inference)
-        @assert all(0 .< nMinibatch(inference) .< nSamples)  "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
-        _nMinibatch = inference.nMinibatch
-    end
-
-    @show nFeatures, _nMinibatch
     latent_f = ntuple(
-        i -> _SVGP{T}(
-            nFeatures[mod(i, nLatent) + 1],
-            _nMinibatch[1],
-            Z[mod(i, nLatent) + 1],
+        i -> _VGP{T}(
+            nFeatures[mod(i, nX) + 1], #?????
             kernel[mod(i, nKernel) + 1],
             mean,
             optimiser,
@@ -138,27 +134,22 @@ function MOSVGP(
         nLatent,
     )
 
-    A = [
-        [
-            randn(nLatent) |> x -> x / sqrt(sum(abs2, x))
-            for i = 1:nf_per_task[j]
-        ] for j = 1:nTask
-    ]
+    A = [[randn(nLatent) |> x->x/sqrt(sum(abs2,x)) for i in 1:nf_per_task[j]] for j in 1:nTask]
 
     likelihoods .=
         init_likelihood.(
             likelihoods,
             inference,
             nf_per_task,
-            _nMinibatch[1:1],
+            _nMinibatch,
             nFeatures,
         )
     inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch[1:1])
-    inference.xview = view.(X, range.(1, _nMinibatch, step = 1), :)
+        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch)
+    inference.xview = view.(X, range.(1,_nMinibatch,step=1), :)
     inference.yview = view(y, :)
 
-    model = MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
+    model = MOVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
         X,
         corrected_y,
         nSamples,
@@ -183,16 +174,13 @@ function MOSVGP(
     # return model
 end
 
-function Base.show(io::IO, model::MOSVGP{T,<:Likelihood,<:Inference}) where {T}
-    print(
-        io,
-        "Multioutput Sparse Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ",
-    )
+function Base.show(io::IO,model::MOVGP{T,<:Likelihood,<:Inference}) where {T}
+    print(io,"Multioutput Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ")
 end
 
-@traitimpl IsMultiOutput{MOSVGP}
+@traitimpl IsMultiOutput{MOVGP}
+@traitimpl IsFull{MOVGP}
 
-get_X(m::MOSVGP) = m.X
-get_Z(m::MOSVGP) = get_Z.(m.f)
-get_Z(m::MOSVGP, i::Int) = get_Z(m.f[i])
-objective(m::MOSVGP) = ELBO(m)
+get_Z(m::MOVGP) = m.X
+get_Z(m::MOVGP, i::Int) = nX(m) == 1 ? first(m.X) : m.X[i]
+objective(m::MOVGP) = ELBO(m)

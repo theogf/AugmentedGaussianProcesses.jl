@@ -58,9 +58,13 @@ function SVGP(
     ArrayType::UnionAll = Vector,
 ) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
+    X = if X isa AbstractVector
+        reshape(X, :, 1)
+    else
+        X
+    end
 
-
-    X, y, nLatent, likelihood = check_data!(X, y, likelihood)
+    y, nLatent, likelihood = check_data!(X, y, likelihood)
     @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
     @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
@@ -69,25 +73,9 @@ function SVGP(
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.001) : nothing
     end
-    if nInducingPoints isa Int
-        @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
-        if nInducingPoints > nSamples
-            @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
-            nInducingPoints = nSamples
-        else
-            nInducingPoints = Kmeans(nInducingPoints, nMarkov = 10)
-        end
-    end
-    if nInducingPoints isa Int && nInducingPoints == nSamples
-        Z = X
-    else
-        IPModule.init!(nInducingPoints, X, y, kernel)
-        Z = nInducingPoints.Z
-    end
-    if isa(Zoptimiser, Bool)
-        Zoptimiser = Zoptimiser ? ADAM(0.001) : nothing
-    end
-    Z = FixedInducingPoints(Z, Zoptimiser)
+
+    Z = init_Z(nInducingPoints, nSamples, X, y, kernel, Zoptimiser)
+
     nFeatures = size(Z, 1)
 
     if typeof(mean) <: Real
@@ -96,23 +84,23 @@ function SVGP(
         mean = EmpiricalMean(mean)
     end
 
-    nMinibatch = nSamples
-    if inference.Stochastic
-        @assert inference.nMinibatch > 0 && inference.nMinibatch < nSamples "The size of mini-batch $(inference.nMinibatch) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
-        nMinibatch = inference.nMinibatch
+    _nMinibatch = nSamples
+    if isStochastic(inference)
+        @assert 0 < nMinibatch(inference) < nSamples  "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
+        _nMinibatch = nMinibatch(inference)
     end
 
     latentf = ntuple(
-        _ -> _SVGP{T₁}(nFeatures, nMinibatch, Z, kernel, mean, optimiser),
+        _ -> _SVGP{T₁}(nFeatures, _nMinibatch, Z, kernel, mean, optimiser),
         nLatent,
     )
 
     likelihood =
-        init_likelihood(likelihood, inference, nLatent, nMinibatch, nFeatures)
+        init_likelihood(likelihood, inference, nLatent, _nMinibatch, nFeatures)
     inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples, nMinibatch)
-    inference.xview = view(X, 1:nMinibatch, :)
-    inference.yview = view_y(likelihood, y, 1:nMinibatch)
+        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch)
+    inference.xview = [view(X, collect(1:nMinibatch(inference)), :)]
+    inference.yview = [view_y(likelihood, y, collect(1:nMinibatch(inference)))]
 
     model = SVGP{T₁,TLikelihood,typeof(inference),nLatent}(
         X,
@@ -138,7 +126,9 @@ function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
 
-get_y(model::SVGP) = model.inference.yview
-get_Z(model::SVGP) = getproperty.(getproperty.(model.f,:Z),:Z)
+get_X(m::SVGP) = m.X
+get_Z(m::SVGP) = get_Z.(m.f)
+get_Z(m::SVGP, i::Int) = get_Z(m.f[i])
+objective(m::SVGP) = ELBO(m)
 
 @traitimpl IsSparse{SVGP}

@@ -14,7 +14,7 @@ function _GP{T}(dim::Int,kernel::Kernel,mean::PriorMean,opt) where {T<:Real}
     _GP{T}(dim,
             zeros(T,dim),
             Matrix{T}(I,dim,dim),
-            kernel,
+            deepcopy(kernel),
             deepcopy(mean),
             PDMat(Matrix{T}(I,dim,dim)),
             deepcopy(opt))
@@ -42,7 +42,7 @@ function _VGP{T}(dim::Int,kernel::Kernel,mean::PriorMean,opt) where {T<:Real}
             Matrix{T}(I,dim,dim),
             zeros(T,dim),
             Symmetric(Matrix{T}(-0.5*I,dim,dim)),
-            kernel,
+            deepcopy(kernel),
             deepcopy(mean),
             PDMat(Matrix{T}(I,dim,dim)),
             deepcopy(opt))
@@ -103,7 +103,7 @@ end
 function _MCGP{T}(dim::Int,kernel::Kernel,mean::PriorMean) where {T<:Real}
     _MCGP{T}(dim,
             zeros(T,dim),
-            kernel,
+            deepcopy(kernel),
             deepcopy(mean),
             PDMat(Matrix{T}(I,dim,dim)))
 end
@@ -220,11 +220,11 @@ get_Z(gp::Abstract_GP) = gp.Z.Z
 
 @traitfn compute_K!(gp::T, X::AbstractMatrix, jitt::Real) where {T<:Abstract_GP; !IsSparse{T}} = gp.K = PDMat(kernelmatrix(gp.kernel, X,obsdim=1) + jitt*I)
 @traitfn compute_K!(gp::T,jitt::Real) where {T<:Abstract_GP;IsSparse{T}} = gp.K = PDMat(kernelmatrix(gp.kernel,gp.Z,obsdim=1)+jitt*I)
-
 function compute_κ!(gp::_SVGP, X::AbstractMatrix, jitt::Real)
     gp.Knm .= kernelmatrix(gp.kernel, X, gp.Z, obsdim=1)
     gp.κ .= gp.Knm / gp.K
     gp.K̃ .= kerneldiagmatrix(gp.kernel, X, obsdim=1) .+ jitt - opt_diag(gp.κ, gp.Knm)
+
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end
 

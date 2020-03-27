@@ -73,7 +73,7 @@ end
 ∇E_Σ(::Likelihood,i::NVIOptimizer,::AbstractVector) = (0.5.*i.λ,)
 
 function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
-    compute_grad_expectations!(model)
+    grad_expectations!(model)
     classical_gradient!.(
         ∇E_μ(model.likelihood,model.inference.vi_opt[1],[]),
         ∇E_Σ(model.likelihood,model.inference.vi_opt[1],[]),
@@ -91,8 +91,8 @@ function classical_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{
 end
 
 function classical_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, Z::AbstractMatrix, gp::_SVGP{T}) where {T<:Real}
-    opt.∇η₂ .= i.ρ * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ - 0.5 * (inv(gp.K).mat - inv(gp.Σ))
-    opt.∇η₁ .= i.ρ * transpose(gp.κ) * ∇E_μ - gp.K \ (gp.μ - gp.μ₀(Z))
+    opt.∇η₂ .= getρ(i) * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ - 0.5 * (inv(gp.K).mat - inv(gp.Σ))
+    opt.∇η₁ .= getρ(i) * transpose(gp.κ) * ∇E_μ - gp.K \ (gp.μ - gp.μ₀(Z))
 end
 
 function natural_gradient!(gp::Abstract_GP{T},opt::NVIOptimizer) where {T}
@@ -122,9 +122,16 @@ end
 
 expec_log_likelihood(l::Likelihood,i::NumericalVI,y,μ::Tuple{<:AbstractVector{T}},Σ::Tuple{<:AbstractVector{T}}) where {T} = expec_log_likelihood(l,i,y,first(μ),first(Σ))
 
-function ELBO(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
+function ELBO(m::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     tot = zero(T)
-    tot += model.inference.ρ*expec_log_likelihood(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model))
-    tot -= GaussianKL(model)
-    tot -= extraKL(model)
+    tot +=
+        getρ(m.inference) * expec_log_likelihood(
+            m.likelihood,
+            m.inference,
+            get_y(m),
+            mean_f(m),
+            diag_cov_f(m),
+        )
+    tot -= GaussianKL(m)
+    tot -= extraKL(m)
 end

@@ -69,6 +69,7 @@ end
 
 @traitimpl IsSparse{OnlineSVGP}
 
-get_y(model::OnlineSVGP) = model.inference.yview
 get_Z(model::OnlineSVGP) = get_Z.(model.f)
+get_Z(model::OnlineSVGP, i::Int) = get_Z(model.f[i])
 get_Zₐ(model::OnlineSVGP) = getproperty.(model.f,:Zₐ)
+objective(model::OnlineSVGP) = ELBO(model)

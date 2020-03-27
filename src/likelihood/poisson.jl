@@ -26,7 +26,7 @@ function PoissonLikelihood(λ::T=1.0) where {T<:Real}
     PoissonLikelihood{T}(λ)
 end
 
-implemented(::PoissonLikelihood,::AnalyticVI) = true
+implemented(::PoissonLikelihood,::Union{<:AnalyticVI, <:GibbsSampling}) = true
 
 function init_likelihood(likelihood::PoissonLikelihood{T},inference::Inference{T},nLatent::Integer,nSamplesUsed::Int,nFeatures::Int) where T
     PoissonLikelihood{T}(
@@ -69,6 +69,16 @@ function local_updates!(l::PoissonLikelihood{T},y::AbstractVector,μ::AbstractVe
     l.γ .= 0.5*l.λ*safe_expcosh.(-0.5*μ,0.5*l.c)
     l.θ .= (y+l.γ)./l.c.*tanh.(0.5*l.c)
     l.λ = sum(y)./sum(expectation.(logistic,μ,diag_cov))
+end
+
+function sample_local!(
+    l::PoissonLikelihood,
+    y::AbstractVector,
+    f::AbstractVector,
+) where {T}
+    l.γ .= rand.(Poisson.(l.λ*logistic.(f))) # Sample n
+    pg = PolyaGammaDist()
+    set_ω!(l, draw.([pg], y + l.γ, f)) # Sample ω
 end
 
 ## Global Updates ##

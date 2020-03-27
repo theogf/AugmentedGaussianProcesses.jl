@@ -1,6 +1,7 @@
 using LinearAlgebra, Distributions
 using AugmentedGaussianProcesses
 using MLDataUtils
+using Test
 
 M = 10
 function generate_f(N,d,k;X= rand(N,d))
@@ -10,7 +11,7 @@ end
 
 function tests(model1,model2,X,f,y,problem)
     train!(model1,1)
-    L = ELBO(model1)
+    L = AGP.objective(model1)
     @test L < 0
     train!(model1,5)
     @test testconv(model1,problem,X,f,y)
@@ -24,7 +25,7 @@ function tests(model1::OnlineSVGP,model2,X,f,y,problem)
     for (X_,y_) in eachbatch((X,y),obsdim=1,size=10)
         train!(model1,X_,y_,iterations=1)
     end
-    L = ELBO(model1)
+    L = AGP.objective(model1)
     @test testconv(model1,problem,X,f,y)
     @test all(proba_y(model1,X)[2].>0)
     for (X_,y_) in eachbatch((X,y),obsdim=1,size=10)
@@ -36,7 +37,7 @@ end
 
 function tests(model1::AbstractGP{T,<:BayesianSVM},model2,X,f,y,problem) where {T}
     train!(model1,1)
-    L = ELBO(model1)
+    L = AGP.objective(model1)
     train!(model1,5)
     @test testconv(model1,problem,X,f,y)
     @test all(proba_y(model1,X)[2].>0)

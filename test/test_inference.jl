@@ -17,16 +17,16 @@ b = 5
     @testset "AnalyticVI" begin
         i = AnalyticVI()
         @test_nowarn show(i)
-        @test AnalyticVI(ϵ=0.0001f0) isa AnalyticVI{Float32,1}
-        @test AnalyticSVI(10,ϵ=0.0001f0) isa AnalyticVI{Float32,1}
-        @test i.ρ == 1.0
+        @test AnalyticVI(ϵ = 0.0001f0) isa AnalyticVI{Float32,1}
+        @test AnalyticSVI(10, ϵ = 0.0001f0) isa AnalyticVI{Float32,1}
+        @test i.ρ == [1.0]
         @test i.Stochastic == false
-        i = AGP.tuple_inference(i,L,D,N,N)
+        i = AGP.tuple_inference(i, L, D, N, N)
         @test i isa AnalyticVI{Float64,L}
 
-        i = AGP.tuple_inference(AnalyticSVI(b),L,D,N,b)
-        @test i isa AnalyticVI{Float64,L}
-        @test i.ρ == N/b
+        i = AGP.tuple_inference(AnalyticSVI(b), L, D, N, b)
+        @test i isa AnalyticVI{Float64, L}
+        @test i.ρ == fill(N/b, L)
         @test i.Stochastic == true
     end
     @testset "NumericalVI" begin

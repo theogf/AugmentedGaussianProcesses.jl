@@ -26,9 +26,9 @@ floattypes = [Float64]
         for floattype in floattypes
             @test typeof(GP(X,y,k)) <: GP{floattype,GaussianLikelihood{floattype},Analytic{floattype},1}
             model = GP(X,y,k,opt_noise=true,verbose=0)
-            L = ELBO(model)
+            L = AGP.objective(model)
             @test train!(model,10)
-            @test L < ELBO(model)
+            @test L < AGP.objective(model)
             @test testconv(model,"Regression",X,f,y)
             @test all(proba_y(model,X)[2].>0)
         end

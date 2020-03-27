@@ -58,7 +58,13 @@ function VGP(
     ArrayType::UnionAll = Vector,
 ) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
-    X, y, nLatent, likelihood = check_data!(X, y, likelihood)
+    X = if X isa AbstractVector
+        reshape(X, :, 1)
+    else
+        X
+    end
+
+    y, nLatent, likelihood = check_data!(X, y, likelihood)
     @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
     @assert !isa(likelihood,GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
     @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
@@ -82,9 +88,9 @@ function VGP(
         init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
     inference =
         tuple_inference(inference, nLatent, nSamples, nSamples, nSamples)
-    inference.xview = view(X, :, :)
-    inference.yview = view_y(likelihood, y, 1:nSamples)
-    inference.MBIndices = collect(1:nSamples)
+    inference.xview = [view(X, :, :)]
+    inference.yview = [view_y(likelihood, y, 1:nSamples)]
+    inference.MBIndices = [collect(1:nSamples)]
     VGP{T,TLikelihood,typeof(inference),nLatent}(
         X,
         y,
@@ -105,7 +111,9 @@ function Base.show(io::IO,model::VGP{T,<:Likelihood,<:Inference}) where {T}
     print(io,"Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
 end
 
-get_y(model::VGP) = model.inference.yview
-get_Z(model::VGP) = [model.inference.xview]
+get_X(m::VGP) = m.X
+get_Z(m::VGP) = [m.X]
+get_Z(m::VGP, i::Int) = m.X
+objective(m::VGP) = ELBO(m::VGP)
 
 @traitimpl IsFull{VGP}
