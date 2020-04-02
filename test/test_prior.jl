@@ -26,7 +26,7 @@ X = rand(N,D)
                 @test μ₀(x) == c
                 @test μ₀(X) == c.*ones(N)
                 AGP.update!(μ₀,[1.0],X)
-                @test μ₀.C[] == (c + 1.0)
+                @test μ₀.C == ([c] .+ 1.0)
         end
         @testset "EmpiricalMean" begin
                 v = randn(N)

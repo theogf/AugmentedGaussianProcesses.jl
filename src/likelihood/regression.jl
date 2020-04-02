@@ -4,6 +4,7 @@ include("gaussian.jl")
 include("studentt.jl")
 include("laplace.jl")
 include("heteroscedastic.jl")
+include("heteroscedastic_laplace.jl")
 include("matern.jl")
 
 ### Return the labels in a vector of vectors for multiple outputs

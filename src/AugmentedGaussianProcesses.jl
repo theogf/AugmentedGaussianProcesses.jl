@@ -7,7 +7,7 @@ module AugmentedGaussianProcesses
     const AGP = AugmentedGaussianProcesses; export AGP
     export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOSVGP, MOARGP,OnlineSVGP
     export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
-    export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood
+    export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood, HeteroscedasticLaplaceLikelihood
     export LogisticLikelihood, BayesianSVM
     export SoftMaxLikelihood, LogisticSoftMaxLikelihood
     export PoissonLikelihood, NegBinomialLikelihood
