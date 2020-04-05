@@ -74,7 +74,7 @@ function train!(
                 natural_gradient!.(
                     ∇E_μs,
                     ∇E_Σs,
-                    m.inference,
+                    getρ(m.inference),
                     get_opt(m.inference),
                     get_Z(m),
                     m.f,

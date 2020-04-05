@@ -22,3 +22,5 @@ end
 
 (μ::ConstantMean{T})(x::Real) where {T<:Real} = μ.C[]
 (μ::ConstantMean{T})(x::AbstractMatrix) where {T<:Real} = fill(T(μ.C[]),size(x,1))
+
+Base.show(io::IO, c::ConstantMean) = print(io, "Constant Mean Prior (c = $(c.C[]))")

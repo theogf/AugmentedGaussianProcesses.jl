@@ -1,7 +1,7 @@
 """
-```
-    OIPS()
-```
+    OIPS(ρ_accept=0.8, opt= ADAM(0.001); η = 0.95, kmax = Inf, ρ_remove = Inf )
+    OIPS(kmax, η, opt= ADAM(0.001))
+
 Online Inducing Points Selection.
 Method from the paper include reference here.
 
@@ -29,6 +29,7 @@ mutable struct OIPS{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     end
 end
 
+Base.show(io::IO, alg::OIPS) = print(io, "Online Inducing Point Selection (ρ_in : $(alg.ρ_accept), ρ_out : $(alg.ρ_remove), kmax : $(alg.kmax)).")
 
 function init!(alg::OIPS,X,y,kernel)
     @assert size(X,1) > 9 "First batch should have at least 10 samples"

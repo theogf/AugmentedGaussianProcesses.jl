@@ -223,7 +223,7 @@ end
 function natural_gradient!(
     ∇E_μ::AbstractVector{T},
     ∇E_Σ::AbstractVector{T},
-    i::AnalyticVI,
+    ρ::Real,
     opt::AVIOptimizer,
     Z::AbstractMatrix,
     gp::_OSVGP{T},
