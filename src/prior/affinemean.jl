@@ -1,33 +1,49 @@
-struct AffineMean{T<:Real,V<:AbstractVector{<:Real},O} <: PriorMean{T}
+struct AffineMean{T<:Real,V<:AbstractVector{T},O} <: PriorMean{T}
     w::V
-    b::Base.RefValue{T}
+    b::Vector{T}
     nDim::Int
     opt::O
 end
 
 """
-**AffineMean**
-```julia
-    AffineMean(A::V,b::V;opt=ADAM(0.01))
-    AffineMean(dims::Int,features::Int;opt=ADAM(0.01))
-```
+    AffineMean(A::Vector, b::Real; opt = ADAM(0.01))
+    AffineMean(dims::Int, features::Int; opt=ADAM(0.01))
+
 Construct an affine operation on `X` : `μ₀(X) = X*w + b` where `w` is a vector and `b` a scalar
 Optionally give an optimiser `opt` (`Adam(α=0.01)` by default)
 """
-function AffineMean(w::V,b::T,;opt=ADAM(0.01)) where {V<:AbstractVector{<:Real},T<:Real}
-    AffineMean{eltype(w),V,typeof(opt)}(copy(w),Ref(b),length(w),opt)
+function AffineMean(
+    w::V,
+    b::T;
+    opt = ADAM(0.01),
+) where {T<:Real, V<:AbstractVector{T}}
+    AffineMean{T,V,typeof(opt)}(copy(w), [b], length(w), opt)
 end
 
-function AffineMean(dims::Int;opt=ADAM(0.01))
-    AffineMean{Float64,Vector{Float64},typeof(opt)}(randn(dims),Ref(0.0),dims,opt)
+function AffineMean(dims::Int; opt = ADAM(0.01))
+    AffineMean{Float64,Vector{Float64},typeof(opt)}(
+        randn(dims),
+        [0.0],
+        dims,
+        opt,
+    )
 end
 
-function update!(μ::AffineMean{T},grad::AbstractVector{<:Real},X::AbstractMatrix) where {T<:Real}
-    μ.w .+= Optimise.apply!(μ.opt,μ.w,X'*grad)
-    μ.b[] += first(Optimise.apply!(μ.opt,μ.b,[sum(grad)]))
+Base.show(io::IO, μ₀::AffineMean) = print(
+    io,
+    "Affine Mean Prior (size(w) = $(length(μ₀.w)), b = $(first(μ₀.b)))",
+)
+
+function (μ₀::AffineMean{T})(x::AbstractMatrix) where {T<:Real}
+    @assert μ.nDim == size(x, 2) "Number of dimensions of prior weight W ($(size(μ₀.w))) and X ($(size(x))) do not match"
+    return x * μ₀.w .+ first(μ₀.b)
 end
 
-function (μ::AffineMean{T})(x::AbstractMatrix) where {T<:Real}
-    @assert μ.nDim == size(x,2) "Number of dimensions of prior weight W ($(size(μ.w))) and X ($(size(x))) do not match"
-    return x*μ.w .+ μ.b[]
+function update!(
+    μ₀::AffineMean{T},
+    grad::AbstractVector{<:Real},
+    X::AbstractMatrix,
+) where {T<:Real}
+    μ₀.w .+= Optimise.apply!(μ₀.opt, μ₀.w, X' * grad)
+    μ₀.b .+= Optimise.apply!(μ₀.opt, μ₀.b, [sum(grad)])
 end
