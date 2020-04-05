@@ -46,7 +46,7 @@ module AugmentedGaussianProcesses
     include("inducingpoints/IPModule.jl")
     include("functions/PGSampler.jl")
     include("functions/GIGSampler.jl")
-    include("functions/invlapdistribution.jl")
+    include("functions/lap_trans_dist.jl")
     #include("functions/PerturbativeCorrection.jl")
     # include("functions/GPAnalysisTools.jl")
     # include("functions/IO_model.jl")
