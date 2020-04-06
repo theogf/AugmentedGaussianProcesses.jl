@@ -1,5 +1,5 @@
 """
-`MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimiser=Momentum(0.001))`
+    MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimiser=Momentum(0.001))
 
 Variational Inference solver by approximating gradients via MC Integration.
 
@@ -11,9 +11,10 @@ Variational Inference solver by approximating gradients via MC Integration.
     - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.01)`
 """
 mutable struct MCIntegrationVI{T<:Real,N} <: NumericalVI{T}
+    nMC::Int64 #Number of samples for MC Integrations
+    clipping::T
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    nMC::Int64 #Number of samples for MC Integrations
     Stochastic::Bool #Use of mini-batches
     nSamples::Vector{Int64} #Number of samples of the data
     nMinibatch::Vector{Int64} #Size of mini-batches
@@ -29,13 +30,15 @@ mutable struct MCIntegrationVI{T<:Real,N} <: NumericalVI{T}
         nMC::Integer,
         optimiser,
         Stochastic::Bool,
+        clipping::Real,
         nMinibatch::Integer,
         natural::Bool,
     ) where {T<:Real}
         return new{T,1}(
+            nMC,
+            clipping,
             ϵ,
             0,
-            nMC,
             Stochastic,
             [0],
             [nMinibatch],
@@ -49,6 +52,7 @@ mutable struct MCIntegrationVI{T<:Real,N} <: NumericalVI{T}
         ϵ::T,
         Stochastic::Bool,
         nMC::Int,
+        clipping::Real,
         nFeatures::Vector{<:Int},
         nSamples::Vector{<:Int},
         nMinibatch::Vector{<:Int},
@@ -61,9 +65,10 @@ mutable struct MCIntegrationVI{T<:Real,N} <: NumericalVI{T}
             nLatent,
         )
         new{T,nLatent}(
+            nMC,
+            clipping,
             ϵ,
             0,
-            nMC,
             Stochastic,
             nSamples,
             nMinibatch,
@@ -81,13 +86,14 @@ function MCIntegrationVI(;
     ϵ::T = 1e-5,
     nMC::Integer = 1000,
     optimiser = Momentum(0.01),
+    clipping::Real = 0.0,
     natural::Bool = true,
 ) where {T<:Real}
-    MCIntegrationVI{T}(ϵ, nMC, optimiser, false, 1, natural)
+    MCIntegrationVI{T}(ϵ, nMC, optimiser, false, clipping, 1, natural)
 end
 
 """
-`MCIntegrationSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimiser=Momentum(0.0001))`
+    MCIntegrationSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimiser=Momentum(0.0001))
 
 Stochastic Variational Inference solver by approximating gradients via Monte Carlo integration
 
@@ -107,9 +113,10 @@ function MCIntegrationSVI(
     ϵ::T = 1e-5,
     nMC::Integer = 200,
     optimiser = Momentum(0.001),
+    clipping::Real = 0.0,
     natural::Bool = true,
 ) where {T<:Real}
-    MCIntegrationVI{T}(ϵ, nMC, optimiser, true, nMinibatch, natural)
+    MCIntegrationVI{T}(ϵ, nMC, optimiser, true, clipping, nMinibatch, natural)
 end
 
 function tuple_inference(
@@ -123,6 +130,7 @@ function tuple_inference(
         i.ϵ,
         i.Stochastic,
         i.nMC,
+        i.clipping,
         nFeatures,
         nSamples,
         nMinibatch,
