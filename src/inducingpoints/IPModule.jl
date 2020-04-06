@@ -15,7 +15,7 @@ using DataStructures
 using KernelFunctions
 using Random: rand, bitrand, AbstractRNG, MersenneTwister
 using Flux.Optimise
-import Base: rand
+import Base: rand, show
 
 const jitt = 1e-5
 

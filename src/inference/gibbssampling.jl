@@ -111,7 +111,7 @@ function sample_parameters(
     callback::Union{Nothing,Function},
     cat_samples::Bool,
 ) where {T,L}
-    init_sampler(
+    init_sampler!(
         m.inference,
         m.nLatent,
         m.nFeatures,
@@ -171,10 +171,6 @@ function sample_global!(
     Σ = inv(Symmetric(2.0 * Diagonal(∇E_Σ) + inv(gp.K).mat))
     gp.f .= rand(MvNormal(Σ * (∇E_μ + inv(gp.K) * gp.μ₀(X)), Σ))
     return nothing
-end
-
-function store_variables!(i::SamplingInference{T}, fs) where {T}
-    i.sample_store[(nIter(i)-i.nBurnin)÷i.samplefrequency, :, :] .= hcat(fs...)
 end
 
 function post_process!(

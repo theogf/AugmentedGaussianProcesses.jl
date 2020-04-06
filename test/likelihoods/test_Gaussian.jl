@@ -18,7 +18,7 @@ floattypes = [Float64]
         @test AGP.noise(l) == σ²
         @test AGP.pdf(l,y,f) == pdf(Normal(f,sqrt(σ²)),y)
         @test AGP.logpdf(l,y,f) == logpdf(Normal(f,sqrt(σ²)),y)
-        @test_nowarn show(l)
+        @test_nowarn println(l)
         @test AGP.AugmentedKL(l,[]) == 0.0
         @test AGP.num_latent(l) == 1
     end

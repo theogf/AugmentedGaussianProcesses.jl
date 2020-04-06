@@ -16,5 +16,6 @@ y = rand(N)
     @test NumericalSVI(b,:quad) isa QuadratureVI
     @test NumericalSVI(b,:mc) isa MCIntegrationVI
     @test_throws ErrorException NumericalSVI(b,:blah)
-    @test_nowarn show(NumericalVI(:quad))
+    @test_nowarn println(NumericalVI(:quad))
+    @test_nowarn println(NumericalVI(:mc))
 end

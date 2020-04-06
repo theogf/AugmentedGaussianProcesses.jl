@@ -9,7 +9,7 @@ b = 5
 x = rand(N, D)
 y = rand(N)
 @testset "HMC Sampling" begin
-    i = HMCSampling(nBurnin = 0)
+    i = HMCSampling(nBurnin = 0, samplefrequency = 1)
 
     @test_nowarn println(i)
     i = AGP.tuple_inference(i, L, D, N, b)

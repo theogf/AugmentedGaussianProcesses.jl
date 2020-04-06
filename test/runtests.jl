@@ -13,12 +13,12 @@ AGP.setadbackend(:reverse_diff)
 
     end
     @testset "Inducing Points" begin
-        for f in readdir("inducingpoints")
+        for f in readdir(joinpath(@__DIR__, "inducingpoints"))
             include(joinpath("inducingpoints",f))
         end
     end
     @testset "Inference" begin
-        for f in readdir("inference")
+        for f in readdir(joinpath(@__DIR__, "inference"))
             include(joinpath("inference",f))
         end
     end
@@ -29,7 +29,7 @@ AGP.setadbackend(:reverse_diff)
 
     end
     @testset "Prior" begin
-        for f in readdir("prior")
+        for f in readdir(joinpath(@__DIR__, "prior"))
             include(joinpath("prior",f))
         end
     end
@@ -38,9 +38,4 @@ AGP.setadbackend(:reverse_diff)
     end
 
     include("test_likelihoods.jl")
-    include("test_inference.jl")
-# include("test_analyticVI.jl")
-# include("test_SVGP.jl")
-# include("test_OnlineSVGP.jl")
-# @test include("test_IO.jl")
 end

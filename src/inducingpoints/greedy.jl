@@ -12,7 +12,7 @@ mutable struct Greedy{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
     )
         @assert nInducingPoints > 0
         @assert nMinibatch > 0
-        return new{Float64,Matrix{Float64},typeof(opt)}(
+        return new{Float64,Matrix{Float64}, typeof(opt)}(
             nMinibatch,
             nInducingPoints,
             opt,
@@ -25,8 +25,8 @@ Base.show(io::IO, alg::Greedy) =
     print(io, "Greedy Selection of Inducing Points")
 
 function init!(alg::Greedy, X, y, kernel)
-    @assert size(X, 1) >= alg.k "Input data not big enough given $k"
-    @assert size(X, 1) <= alg.minibatch "Minibatch size too large for the dataset"
+    @assert size(X, 1) >= alg.k "Input data not big enough given $(alg.k)"
+    @assert size(X, 1) >= alg.minibatch "Minibatch size too large for the dataset"
     alg.Z = greedy_iterations(X, y, kernel, alg.k, alg.minibatch, alg.σ²)
 end
 

@@ -35,7 +35,7 @@ Base.show(io::IO, μ₀::AffineMean) = print(
 )
 
 function (μ₀::AffineMean{T})(x::AbstractMatrix) where {T<:Real}
-    @assert μ.nDim == size(x, 2) "Number of dimensions of prior weight W ($(size(μ₀.w))) and X ($(size(x))) do not match"
+    @assert μ₀.nDim == size(x, 2) "Number of dimensions of prior weight W ($(size(μ₀.w))) and X ($(size(x))) do not match"
     return x * μ₀.w .+ first(μ₀.b)
 end
 
