@@ -6,11 +6,40 @@ seed!(42)
 AGP.setadbackend(:reverse_diff)
 # Global flags for the tests
 @testset "AugmentedGaussianProcesses.jl tests" begin
-include("test_prior.jl")
-include("test_likelihoods.jl")
-include("test_inference.jl")
-# include("test_analyticVI.jl")
-# include("test_SVGP.jl")
-# include("test_OnlineSVGP.jl")
-# @test include("test_IO.jl")
+    @testset "Functions" begin
+        for f in readdir(joinpath(@__DIR__, "functions"))
+            include(joinpath("functions",f))
+        end
+    end
+    @testset "Hyperparameters" begin
+
+    end
+    @testset "Inducing Points" begin
+        for f in readdir(joinpath(@__DIR__, "inducingpoints"))
+            include(joinpath("inducingpoints",f))
+        end
+    end
+    @testset "Inference" begin
+        for f in readdir(joinpath(@__DIR__, "inference"))
+            include(joinpath("inference",f))
+        end
+    end
+    @testset "Likelihoods" begin
+
+    end
+    @testset "Models" begin
+        for f in readdir(joinpath(@__DIR__, "models"))
+            include(joinpath("models",f))
+        end
+    end
+    @testset "Prior" begin
+        for f in readdir(joinpath(@__DIR__, "prior"))
+            include(joinpath("prior",f))
+        end
+    end
+    include("training.jl")
+    include("onlinetraining.jl")
+    include("predictions.jl")
+
+    include("test_likelihoods.jl")
 end

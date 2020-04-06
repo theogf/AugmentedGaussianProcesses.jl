@@ -5,7 +5,7 @@ General Framework for the data augmented Gaussian Processes
 """
 module AugmentedGaussianProcesses
     const AGP = AugmentedGaussianProcesses; export AGP
-    export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOSVGP, MOARGP,OnlineSVGP
+    export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP,OnlineSVGP
     export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
     export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood
     export LogisticLikelihood, BayesianSVM
@@ -46,7 +46,7 @@ module AugmentedGaussianProcesses
     include("inducingpoints/IPModule.jl")
     include("functions/PGSampler.jl")
     include("functions/GIGSampler.jl")
-    include("functions/invlapdistribution.jl")
+    include("functions/lap_transf_dist.jl")
     #include("functions/PerturbativeCorrection.jl")
     # include("functions/GPAnalysisTools.jl")
     # include("functions/IO_model.jl")

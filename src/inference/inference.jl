@@ -7,7 +7,6 @@ include("optimisers.jl")
 
 export RobbinsMonro, ALRSVI
 
-
 function post_process!(model::AbstractGP{T,<:Likelihood,<:Inference}) where {T}
     nothing
 end
@@ -19,14 +18,13 @@ Base.iterate(l::Inference, ::Any) = nothing
 
 isStochastic(l::Inference) = l.Stochastic
 
-const GibbsorVI = Union{<:GibbsSampling,<:AnalyticVI}
-
-#Conversion from natural to standard distribution parameters
+## Conversion from natural to standard distribution parameters ##
 function global_update!(gp::Abstract_GP) where {T,L}
     gp.Σ .= -0.5*inv(gp.η₂)
     gp.μ .= gp.Σ*gp.η₁
 end
 
+## For the online case, the size may vary and inplace updates are note valid
 function global_update!(gp::_OSVGP) where {T,L}
     gp.Σ = -0.5*inv(gp.η₂)
     gp.μ = gp.Σ*gp.η₁

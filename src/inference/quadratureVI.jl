@@ -1,11 +1,7 @@
 """
-**QuadratureVI**
+    QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser=Momentum(0.0001))
 
 Variational Inference solver by approximating gradients via numerical integration via Quadrature
-
-```julia
-QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser=Momentum(0.0001))
-```
 
 **Keyword arguments**
 
@@ -15,12 +11,12 @@ QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser=Momentum(0.0001))
     - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
 """
 mutable struct QuadratureVI{T,N} <: NumericalVI{T}
+    nPoints::Int64 # Number of points for the quadrature
+    nodes::Vector{T} # Nodes locations
+    weights::Vector{T} # Weights for each node
+    clipping::T # Clipping value of the gradient
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    nPoints::Int64 #Number of points for the quadrature
-    nodes::Vector{T}
-    weights::Vector{T}
-    clipping::T
     Stochastic::Bool #Use of mini-batches
     nSamples::Vector{Int64} #Number of samples of the data
     nMinibatch::Vector{Int64} #Size of mini-batches
@@ -42,11 +38,11 @@ mutable struct QuadratureVI{T,N} <: NumericalVI{T}
     natural::Bool,
     ) where {T}
         return new{T,1}(
-            ϵ,
-            0,
             nPoints,
             [],
             [],
+            ϵ,
+            0,
             clipping,
             Stochastic,
             [0],
@@ -74,11 +70,11 @@ mutable struct QuadratureVI{T,N} <: NumericalVI{T}
         vi_opts =
             ntuple(i -> NVIOptimizer{T}(nFeatures[i], nMinibatch[i], optimiser), nLatent)
         new{T,nLatent}(
-            ϵ,
-            0,
             nPoints,
             gh[1] .* sqrt2,
             gh[2] ./ sqrtπ,
+            ϵ,
+            0,
             clipping,
             Stochastic,
             nSamples,
@@ -104,13 +100,10 @@ end
 
 
 """
-**QuadratureSVI**
+    QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser=Momentum(0.0001))
 
 Stochastic Variational Inference solver by approximating gradients via numerical integration via Quadrature
 
-```julia
-QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser=Momentum(0.0001))
-```
     -`nMinibatch::Integer` : Number of samples per mini-batches
 
 **Keyword arguments**

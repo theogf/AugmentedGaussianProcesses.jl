@@ -3,8 +3,11 @@
 """
 module IPModule
 
-# using Distributions
+export Webscale, OIPS, Kmeans, kDPP, StdDPP, SeqDPP, Greedy, UniformSampling, InducingPoints, FixedInducingPoints
+export init!, add_point!, remove_point!
+
 using StatsBase: Weights, sample
+using DeterminantalPointProcesses
 using LinearAlgebra#: Symmetric, Eigen, eigen, eigvals, I, logdet, diag, norm
 using Clustering: kmeans!
 using Distances
@@ -12,12 +15,11 @@ using DataStructures
 using KernelFunctions
 using Random: rand, bitrand, AbstractRNG, MersenneTwister
 using Flux.Optimise
-import Base: rand
-export Webscale, OIPS, Kmeans, kDPP, StdDPP, SeqDPP, Greedy, UniformSampling, InducingPoints, FixedInducingPoints
-export init!, add_point!, remove_point!
+import Base: rand, show
+
+const jitt = 1e-5
 
 include("inducing_points.jl")
-include("dpp_base.jl")
 include("seqdpp.jl")
 include("kdpp.jl")
 include("stddpp.jl")

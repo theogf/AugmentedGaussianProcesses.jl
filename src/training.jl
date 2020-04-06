@@ -1,4 +1,5 @@
-""" `train!(model::AbstractGP;iterations::Integer=100,callback=0,convergence=0)`
+"""
+    train!(model::AbstractGP;iterations::Integer=100,callback=0,convergence=0)
 
 Function to train the given GP `model`.
 
