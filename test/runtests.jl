@@ -7,7 +7,9 @@ AGP.setadbackend(:reverse_diff)
 # Global flags for the tests
 @testset "AugmentedGaussianProcesses.jl tests" begin
     @testset "Functions" begin
-
+        for f in readdir(joinpath(@__DIR__, "functions"))
+            include(joinpath("functions",f))
+        end
     end
     @testset "Hyperparameters" begin
 
@@ -26,16 +28,18 @@ AGP.setadbackend(:reverse_diff)
 
     end
     @testset "Models" begin
-
+        for f in readdir(joinpath(@__DIR__, "models"))
+            include(joinpath("models",f))
+        end
     end
     @testset "Prior" begin
         for f in readdir(joinpath(@__DIR__, "prior"))
             include(joinpath("prior",f))
         end
     end
-    @testset "Training" begin
-
-    end
+    include("training.jl")
+    include("onlinetraining.jl")
+    include("predictions.jl")
 
     include("test_likelihoods.jl")
 end
