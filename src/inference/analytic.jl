@@ -1,4 +1,4 @@
-""" Solve the classical GP Regression """
+## Solve the classical GP Regression ##
 mutable struct Analytic{T<:Real} <: Inference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
@@ -22,12 +22,12 @@ mutable struct Analytic{T<:Real} <: Inference{T}
     end
 end
 
-"""`Analytic(;ϵ::T=1e-5)`
+"""
+    Analytic(;ϵ::T=1e-5)
 
 Analytic inference structure for the classical GP regression
 
 **Keyword arguments**
-
     - `ϵ::T` : convergence criteria, which can be user defined
 """
 function Analytic(; ϵ::T = 1e-5) where {T<:Real}

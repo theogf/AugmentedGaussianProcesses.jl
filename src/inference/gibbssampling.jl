@@ -1,7 +1,5 @@
 """
-```julia
-GibbsSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=1)
-```
+    GibbsSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=1)
 
 Draw samples from the true posterior via Gibbs Sampling.
 
@@ -66,8 +64,8 @@ function GibbsSampling(;
     GibbsSampling{T}(nBurnin, samplefrequency, ϵ)
 end
 
-function Base.show(io::IO,inference::GibbsSampling{T}) where {T<:Real}
-    print(io,"Gibbs Sampler")
+function Base.show(io::IO, inference::GibbsSampling{T}) where {T<:Real}
+    print(io, "Gibbs Sampler")
 end
 
 function tuple_inference(
@@ -88,7 +86,7 @@ function tuple_inference(
     )
 end
 
-function init_sampler(
+function init_sampler!(
     inference::GibbsSampling{T},
     nLatent::Integer,
     nFeatures::Integer,
@@ -162,7 +160,7 @@ sample_local!(l::Likelihood, y, f::Tuple{<:AbstractVector{T}}) where {T} =
 set_ω!(l::Likelihood, ω) = l.θ .= ω
 get_ω(l::Likelihood) = l.θ
 
-logpdf(model::AbstractGP{T,<:Likelihood,<:GibbsSampling}) where {T} = zero(T)
+# logpdf(model::AbstractGP{T,<:Likelihood,<:GibbsSampling}) where {T} = zero(T)
 
 function sample_global!(
     ∇E_μ::AbstractVector,

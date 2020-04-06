@@ -1,12 +1,9 @@
 """
-**AnalyticVI**
+    AnalyticVI(;ϵ::T=1e-5)
 
 Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
 All data is used at each iteration (use AnalyticSVI for Stochastic updates)
 
-```julia
-AnalyticVI(;ϵ::T=1e-5)
-```
 **Keywords arguments**
     - `ϵ::T` : convergence criteria
 """
@@ -70,13 +67,12 @@ function AnalyticVI(; ϵ::T = 1e-5) where {T<:Real}
 end
 
 """
-**AnalyticSVI**
+    AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimiser=RobbinsMonro())
+
 Stochastic Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
 
-```julia
-AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimiser=RobbinsMonro())
-```
-    - `nMinibatch::Integer` : Number of samples per mini-batches
+
+- `nMinibatch::Integer` : Number of samples per mini-batches
 
 **Keywords arguments**
 
