@@ -1,10 +1,9 @@
-"""
+#=
 Solve any non-conjugate likelihood using Variational Inference
 by making a numerical approximation (quadrature or MC integration)
 of the expected log-likelihood ad its gradients
 Gradients are computed as in "The Variational Gaussian Approximation
-Revisited" by Opper and Archambeau 2009
-"""
+Revisited" by Opper and Archambeau 2009 =#
 abstract type NumericalVI{T<:Real} <: VariationalInference{T} end
 
 include("quadratureVI.jl")
@@ -12,7 +11,8 @@ include("MCVI.jl")
 
 isnatural(vi::NumericalVI) = vi.NaturalGradient
 
-""" `NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimiser=Momentum(0.001))`
+"""
+    NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimiser=Momentum(0.001))
 
 General constructor for Variational Inference via numerical approximation.
 
@@ -28,17 +28,25 @@ General constructor for Variational Inference via numerical approximation.
     - `natural::Bool` : Use natural gradients
     - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
 """
-function NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimiser=Momentum(1e-3),natural::Bool=true) where {T<:Real}
+function NumericalVI(
+    integration_technique::Symbol = :quad;
+    ϵ::T = 1e-5,
+    nMC::Integer = 1000,
+    nGaussHermite::Integer = 20,
+    optimiser = Momentum(1e-3),
+    natural::Bool = true,
+) where {T<:Real}
     if integration_technique == :quad
-        QuadratureVI{T}(ϵ,nGaussHermite,optimiser,false,0.0,0,natural)
+        QuadratureVI{T}(ϵ, nGaussHermite, optimiser, false, 0.0, 0, natural)
     elseif integration_technique == :mc
-        MCIntegrationVI{T}(ϵ,nMC,optimiser,false,0,natural)
+        MCIntegrationVI{T}(ϵ, nMC, optimiser, false, 0.0, 0, natural)
     else
         throw(ErrorException("Only possible integration techniques are quadrature : :quad or mcmc integration :mcmc"))
     end
 end
 
-""" `NumericalSVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer=Momentum(0.001))`
+"""
+    NumericalSVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimizer=Momentum(0.001))
 
 General constructor for Stochastic Variational Inference via numerical approximation.
 
@@ -55,11 +63,27 @@ General constructor for Stochastic Variational Inference via numerical approxima
     - `natural::Bool` : Use natural gradients
     - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
 """
-function NumericalSVI(nMinibatch::Integer,integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=200,nGaussHermite::Integer=20,optimiser=Momentum(1e-3),natural::Bool=true) where {T<:Real}
+function NumericalSVI(
+    nMinibatch::Integer,
+    integration_technique::Symbol = :quad;
+    ϵ::T = 1e-5,
+    nMC::Integer = 200,
+    nGaussHermite::Integer = 20,
+    optimiser = Momentum(1e-3),
+    natural::Bool = true,
+) where {T<:Real}
     if integration_technique == :quad
-        QuadratureVI{T}(ϵ,nGaussHermite,optimiser,true,0.0,nMinibatch,natural)
+        QuadratureVI{T}(
+            ϵ,
+            nGaussHermite,
+            optimiser,
+            true,
+            0.0,
+            nMinibatch,
+            natural,
+        )
     elseif integration_technique == :mc
-        MCIntegrationVI{T}(ϵ,nMC,optimiser,true,nMinibatch,natural)
+        MCIntegrationVI{T}(ϵ, nMC, optimiser, true, 0.0, nMinibatch, natural)
     else
         throw(ErrorException("Only possible integration techniques are quadrature : :quad or mcmc integration :mc"))
     end
