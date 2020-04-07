@@ -177,27 +177,25 @@ mutable struct _VStP{T} <: Abstract_GP{T}
     kernel::Kernel
     μ₀::PriorMean{T}
     K::PDMat{T,Matrix{T}}
-    invL::LowerTriangular{T,Matrix{T}}
     ν::T # Number of degrees of freedom
     l²::T # Expectation of ||L^{-1}(f-μ⁰)||₂²
     χ::T  # Expectation of σ
     opt
 end
 
-function _VStP{T}(ν::Real,dim::Int,kernel::Kernel,mean::PriorMean,opt_kernel) where {T<:Real}
-    _VGP{T}(dim,
+function _VStP{T}(ν::Real,dim::Int,kernel::Kernel,mean::PriorMean,opt) where {T<:Real}
+    _VStP{T}(dim,
             zeros(T,dim),
             Matrix{T}(I,dim,dim),
             zeros(T,dim),
             Symmetric(Matrix{T}(-0.5*I,dim,dim)),
-            kernel,
+            deepcopy(kernel),
             deepcopy(mean),
             PDMat(Matrix{T}(I,dim,dim)),
-            LowerTriangular(Matrix{T}(I,dim,dim)),
             ν,
             rand(T),
             rand(T),
-            deepcopy(opt_kernel))
+            deepcopy(opt))
 end
 
 @traitimpl IsFull{_VStP}
@@ -213,6 +211,7 @@ diag_cov_f(model::AbstractGP) = diag_cov_f.(model.f)
 
 diag_cov_f(gp::_GP{T}) where {T} = zeros(T, gp.dim)
 diag_cov_f(gp::_VGP) = diag(gp.Σ)
+diag_cov_f(gp::_VStP) = diag(gp.Σ)
 diag_cov_f(gp::_SVGP) = opt_diag(gp.κ*gp.Σ, gp.κ) + gp.K̃
 diag_cov_f(gp::_OSVGP) = opt_diag(gp.κ*gp.Σ, gp.κ) + gp.K̃
 

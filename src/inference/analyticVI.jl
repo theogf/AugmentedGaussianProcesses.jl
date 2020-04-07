@@ -126,7 +126,7 @@ end
     natural_gradient!.(
         ∇E_μ(m),
         ∇E_Σ(m),
-        m.inference.ρ,
+        getρ(m.inference),
         m.inference.vi_opt,
         get_Z(m),
         m.f,
@@ -179,6 +179,18 @@ function natural_gradient!(
 ) where {T,L}
     gp.η₁ .= ∇E_μ .+ gp.K \ gp.μ₀(X)
     gp.η₂ .= - Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(gp.K).mat)
+end
+
+function natural_gradient!(
+    ∇E_μ::AbstractVector,
+    ∇E_Σ::AbstractVector,
+    ρ::Real,
+    opt::AVIOptimizer,
+    X::AbstractMatrix,
+    gp::_VStP{T},
+) where {T,L}
+    gp.η₁ .= ∇E_μ .+ gp.χ*gp.K \ gp.μ₀(X)
+    gp.η₂ .= - Symmetric(Diagonal(∇E_Σ) + 0.5 / gp.χ * inv(gp.K).mat)
 end
 
 #Computation of the natural gradient for the natural parameters
