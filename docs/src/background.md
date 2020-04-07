@@ -1,5 +1,7 @@
 # The bits of math and science behind it
 
+You can find the behing the scene augmentation theory in this paper : [Automated Augmented Conjugate Inference for Non-conjugate Gaussian Process Models](https://arxiv.org/abs/2002.11451)
+
 ## Gaussian Processes
 
 To quote [Wikipedia](https://en.wikipedia.org/wiki/Gaussian_process)

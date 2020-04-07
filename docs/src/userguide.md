@@ -8,7 +8,7 @@ There are 3 main actions needed to train and use the different models:
 
 ## [Initialization](@id init)
 
-### GP vs VGP vs SVGP
+### Possible models
 
 There are currently 3 possible Gaussian Process models:
 - [`GP`](@ref) corresponds to the original GP regression model, it is necessarily with a Gaussian likelihood.
@@ -23,6 +23,20 @@ There are currently 3 possible Gaussian Process models:
 ```julia
     SVGP(X_train,y_train,kernel,likelihood,inference,n_inducingpoints)
 ```
+
+- [`OnlineSVGP`](@ref) is an online variational GP model. It is based on the streaming method of Bui 17', it supports all likelihoods, even with multiple latents.
+```julia
+    OnlineSVGP(kernel, likelihood, inference, n_latent, inducing_points)
+```
+
+- [`MOVGP`](@ref) is a multi output variational GP model.
+
+- [`MOSVGP`](@ref) is a multi output sparse variational GP model, based on Moreno-Muñoz 18'.
+
+- [`VStP`](@ref) is a variational Student-T model where the prior is a multivariate Student-T distribution with scale `K`, mean `μ₀` and degrees of freedom `ν`. The inference is done automatically by augmenting the prior as a scale mixture of inverse gamma
+```julia
+    VStP(X_train,y_train,kernel,likelihood,inference,ν)
+```
 ### [Likelihood](@id likelihood_user)
 
 `GP` can only have a Gaussian likelihood, `VGP` and `SVGP` have more choices. Here are the ones currently implemented:
@@ -33,7 +47,7 @@ For **regression**, four likelihoods are available :
 - The classical [`GaussianLikelihood`](@ref), for [**Gaussian noise**](https://en.wikipedia.org/wiki/Gaussian_noise)
 - The [`StudentTLikelihood`](@ref), assuming noise from a [**Student-T**](https://en.wikipedia.org/wiki/Student%27s_t-distribution) distribution (more robust to ouliers)
 - The [`LaplaceLikelihood`](@ref), with noise from a [**Laplace**](https://en.wikipedia.org/wiki/Laplace_distribution) distribution.
-- The [`HeteroscedasticLikelihood`](@ref), (in development) where the noise is a function of the input: ``Var(X) = λσ^{-1}(g(X))`` where `g(X)` is an additional Gaussian Process and ``σ`` is the logistic function.
+- The [`HeteroscedasticLikelihood`](@ref), (in development) where the noise is a function of the input: ``Var(X) = λσ^{-1}(g(X))`` where `g(X)` is an additional Gaussian Process and `σ` is the logistic function.
 
 #### Classification
 
@@ -55,7 +69,7 @@ There is two available likelihoods for multi-class classification:
 
 ### More options
 
-You can also write your own likelihood by using the [following template](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/docs/src/template_likelihood.jl).
+There is the project to get distributions from `Distributions.jl` to work directly as likelihoods.
 
 ### Inference
 
@@ -68,13 +82,15 @@ The two next methods rely on numerical approximation of an integral and I theref
 - [`QuadratureVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via quadrature.
 - [`MCIntegrationVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via Monte Carlo Integration
 
+We also use [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl) to provide a HMC algorithm, although generally the Gibbs sampling is preferable when available.
+
 ### [Compatibility table](@id compat_table)
 
 Not all inference are implemented/valid for all likelihoods, here is the compatibility table between them.
 
 | Likelihood/Inference | AnalyticVI | GibbsSampling | QuadratureVI | MCIntegrationVI |
 | --- | :-: | :-: | :-: | :-: |
-| GaussianLikelihood   | ✔  | ✖  | ✖ | ✖  |
+| GaussianLikelihood   | ✔ (Analytic)  | ✖  | ✖ | ✖  |
 | StudentTLikelihood   | ✔  | ✔ | ✔ | ✖  |
 | LaplaceLikelihood   | ✔ | ✔ | ✔ | ✖ |
 | HeteroscedasticLikelihood   | ✔ | (dev)  | (dev)  | ✖ |
@@ -101,14 +117,15 @@ The `mean` keyword allows you to add different types of prior means:
 - [`ZeroMean`](@ref), a constant mean that cannot be optimized
 - [`ConstantMean`](@ref), a constant mean that can be optimized
 - [`EmpiricalMean`](@ref), a vector mean with a different value for each point
+- [`AffineMean`](@ref), `μ₀` is given by `X*w + b`
 
 ## [Training](@id train)
 
 Training is straightforward after initializing the `model` by running :
 ```julia
-train!(model,100l;callback=callbackfunction)
+train!(model, 100; callback = callbackfunction)
 ```
-Where the `callback` option is for running a function at every iteration. `callback function should be defined as`
+Where the `callback` option is for running a function at every iteration. `callbackfunction` should be defined as`
 ```julia
 function callbackfunction(model,iter)
     "do things here"...
@@ -119,7 +136,7 @@ end
 
 Once the model has been trained it is finally possible to compute predictions. There always three possibilities :
 
-- `predict_f(model,X_test,covf=true,fullcov=false)` : Compute the parameters (mean and covariance) of the latent normal distributions of each test points. If `covf=false` return only the mean, if `fullcov=true` return a covariance matrix instead of only the diagonal
+- `predict_f(model, X_test, covf=true, fullcov=false)` : Compute the parameters (mean and covariance) of the latent normal distributions of each test points. If `covf=false` return only the mean, if `fullcov=true` return a covariance matrix instead of only the diagonal
 - `predict_y(model,X_test)` : Compute the point estimate of the predictive likelihood for regression or the label of the most likely class for classification.
 - `proba_y(model,X_test)` : Return the mean with the variance of eahc point for regression or the predictive likelihood to obtain the class `y=1` for classification.
 
