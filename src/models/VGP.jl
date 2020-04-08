@@ -1,14 +1,10 @@
 """
-Class for variational Gaussian Processes models (non-sparse)
-
-```julia
-VGP(X::AbstractArray{T},y::AbstractVector,
-kernel::Kernel,
-    likelihood::LikelihoodType,inference::InferenceType;
-    verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Integer=1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-    IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
-```
+    VGP(X::AbstractArray{T},y::AbstractVector,
+        kernel::Kernel,
+        likelihood::LikelihoodType,inference::InferenceType;
+        verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Integer=1,
+        mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+        IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
 
 Argument list :
 
@@ -23,9 +19,9 @@ Argument list :
 **Keyword arguments**
 
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
-- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
-- `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
-- `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
+ - `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
+ - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
+ - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """

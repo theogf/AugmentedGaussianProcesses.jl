@@ -14,7 +14,7 @@ end
 
 ## Update all hyperparameters for the full batch GP models ##
 function update_hyperparameters!(
-    gp::Union{_GP{T},_VGP{T}},
+    gp::Union{_GP{T},_VGP{T},_VStP{T}},
     X::AbstractMatrix,
 ) where {T}
     if !isnothing(gp.opt)
@@ -111,14 +111,14 @@ function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
             end)
 end
 
-function hyperparameter_gradient_function(model::VStP{T},X::AbstractMatrix) where {T<:Real}
+function hyperparameter_gradient_function(gp::_VStP{T},X::AbstractMatrix) where {T<:Real}
     μ₀ = gp.μ₀(X)
-    A = (Diagonal{T}(I,gp.dim).-gp.K\(gp.Σ.+(gp.µ-μ₀)*transpose(gp.μ-μ₀)))/gp.K
+    A = (Diagonal{T}(I,gp.dim).-(gp.χ*gp.K)\(gp.Σ.+(gp.µ-μ₀)*transpose(gp.μ-μ₀)))/(gp.χ*gp.K)
     return (function(Jnn)
-                return -hyperparameter_KL_gradient(Jnn,A)
+                return -hyperparameter_KL_gradient(gp.χ*Jnn,A)
             end,
             function()
-                return -(gp.K\(μ₀-gp.μ))
+                return (gp.χ*gp.K)\(gp.μ-μ₀)
             end)
 end
 

@@ -134,7 +134,7 @@ end
 
 function update_parameters!(m::VStP)
     computeMatrices!(m); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    local_prior_updates!(m);
+    local_prior_updates!(m, m.X);
     variational_updates!(m);
 end
 
