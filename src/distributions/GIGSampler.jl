@@ -1,23 +1,19 @@
-"""Module for a Generalized Inverse Gaussian Sampler"""
-module GIGSampler
+"""
+	GeneralizedInverseGaussian(a::T, b::T, p::T)
 
-using Distributions
-using SpecialFunctions
-
-export GeneralizedInverseGaussian
-
-"""Sampler object"""
+Generalized Inverse Gaussian
+"""
 struct GeneralizedInverseGaussian{T<:Real} <: Distributions.ContinuousUnivariateDistribution
 	a::T
     b::T
     p::T
-    function GeneralizedInverseGaussian{T}(a::T, b::T, p::T) where T
+    function GeneralizedInverseGaussian{T}(a::T, b::T, p::T) where {T<:Real}
         Distributions.@check_args(GeneralizedInverseGaussian, a > zero(a) && b > zero(b))
         new{T}(a, b, p)
     end
 end
 
-function GeneralizedInverseGaussian(a::T, b::T, p::T) where T
+function GeneralizedInverseGaussian(a::T, b::T, p::T) where {T<:Real}
 	GeneralizedInverseGaussian{T}(a::T, b::T, p::T)
 end
 
@@ -28,14 +24,14 @@ Distributions.params(d::GeneralizedInverseGaussian) = (d.a, d.b, d.p)
 function Distributions.mean(d::GeneralizedInverseGaussian)
     a, b, p = params(d)
     q = sqrt(a * b)
-    (sqrt(b) * besselk(p + 1, q)) / (sqrt(a) * besselk(p, q))
+    return (sqrt(b) * besselk(p + 1, q)) / (sqrt(a) * besselk(p, q))
 end
 
 function Distributions.var(d::GeneralizedInverseGaussian)
     a, b, p = params(d)
     q = sqrt(a * b)
     r = besselk(p, q)
-    (b / a) * ((besselk(p + 2, q) / r) - (besselk(p + 1, q) / r)^2)
+    return (b / a) * ((besselk(p + 2, q) / r) - (besselk(p + 1, q) / r)^2)
 end
 
 Distributions.mode(d::GeneralizedInverseGaussian) = ((d.p - 1) + sqrt((d.p - 1)^2 + d.a * d.b)) / d.a
@@ -44,23 +40,23 @@ Distributions.mode(d::GeneralizedInverseGaussian) = ((d.p - 1) + sqrt((d.p - 1)^
 function Distributions.pdf(d::GeneralizedInverseGaussian{T}, x::Real) where T <: Real
     if x > 0
         a, b, p = params(d)
-        (((a / b)^(p / 2)) / (2 * besselk(p, sqrt(a * b)))) * (x^(p - 1)) * exp(- (a * x + b / x) / 2)
+        return (((a / b)^(p / 2)) / (2 * besselk(p, sqrt(a * b)))) * (x ^ (p - 1)) * exp(- (a * x + b / x) / 2)
     else
-        zero(T)
+        return zero(T)
     end
 end
 
 function Distributions.logpdf(d::GeneralizedInverseGaussian{T}, x::Real) where T <: Real
     if x > 0
         a, b, p = params(d)
-        (p / 2) * (log(a) - log(b)) - log(2 * besselk(p, sqrt(a * b))) + (p - 1) * log(x) - (a * x + b / x) / 2
+        return (p / 2) * (log(a) - log(b)) - log(2 * besselk(p, sqrt(a * b))) + (p - 1) * log(x) - (a * x + b / x) / 2
     else
-        -T(Inf)
+        return -T(Inf)
     end
 end
 
 function Distributions.rand(d::GeneralizedInverseGaussian)
-    a, b, p = params(d)
+    a, b, p = Distributions.params(d)
     α = sqrt(a / b)
     β = sqrt(a * b)
     λ = abs(p)
@@ -166,5 +162,3 @@ function _rou_shift(λ::Real, β::Real)
         end
     end
 end
-
-end #module GIGSampler

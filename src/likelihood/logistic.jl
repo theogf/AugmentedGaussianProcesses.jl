@@ -76,8 +76,7 @@ function local_updates!(l::LogisticLikelihood{T},y::AbstractVector,μ::AbstractV
 end
 
 function sample_local!(l::LogisticLikelihood,y::AbstractVector,f::AbstractVector) where {T}
-    pg = PolyaGammaDist()
-    set_ω!(l,draw.([pg],[1.0],f))
+    set_ω!(l,rand.(PolyaGamma.(1.0, f)))
 end
 
 ### Natural Gradient Section ###

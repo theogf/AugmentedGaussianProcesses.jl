@@ -101,7 +101,7 @@ function sample_local!(l::LogisticSoftMaxLikelihood{T}, y::AbstractVector, f) wh
     l.γ .= broadcast(f -> rand.(Poisson.(0.5 * l.α .* safe_expcosh.(-0.5 * f, 0.5 * f))), f)
     l.α .= rand.(Gamma.(one(T) .+ (l.γ...), 1.0 ./ l.β))
     pg = PolyaGammaDist()
-    set_ω!(l, broadcast((y, γ, f) -> draw.(Ref(pg), y .+ γ, f), y, l.γ, f))
+    set_ω!(l, broadcast((y, γ, f) -> rand.(PolyaGamma.(y .+ γ, abs.(f))), y, l.γ, f))
     return nothing
 end
 

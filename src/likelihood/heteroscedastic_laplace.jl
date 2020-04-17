@@ -145,8 +145,7 @@ function sample_local!(
     l.β = abs2( length(y) / dot(abs.(f[1]-y), sqrt.(2l.σg)))
     l.ψ .= rand.(GeneralizedInverseGaussian.(abs2.(y-f[1]), 2l.β, -l.ϕ .- 0.5))
     l.ϕ .= rand.(Poisson.(l.β*l.σg./l.ψ))
-    d = PolyaGammaDist()
-    l.θ .= draw.(Ref(d), 1.0 .+ l.ϕ, abs.(f[2]))
+    l.θ .= rand.(PolyaGamma.(1.0 .+ l.ϕ, abs.(f[2])))
 end
 
 

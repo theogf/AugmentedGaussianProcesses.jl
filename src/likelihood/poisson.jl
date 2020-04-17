@@ -77,8 +77,7 @@ function sample_local!(
     f::AbstractVector,
 ) where {T}
     l.γ .= rand.(Poisson.(l.λ*logistic.(f))) # Sample n
-    pg = PolyaGammaDist()
-    set_ω!(l, draw.([pg], y + l.γ, f)) # Sample ω
+    set_ω!(l, rand.(PolyaGamma.(y + l.γ, f))) # Sample ω
 end
 
 ## Global Updates ##

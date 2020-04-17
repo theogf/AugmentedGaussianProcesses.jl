@@ -12,6 +12,12 @@ const jitt = Jittering()
 @inline Base.convert(::Type{Float32},::Jittering) = Float32(1e-3)
 @inline Base.convert(::Type{Float16},::Jittering) = Float16(1e-2)
 
+
+function expectation(f::Function, μ::Real, σ²::Real)
+    x = pred_nodes*sqrt(max(σ²,zero(σ²))).+μ
+    dot(pred_weights,f.(x))
+end
+
 ## delta function `(i,j)`, equal `1` if `i == j`, `0` else ##
 @inline function δ(i::Integer,j::Integer)
     i == j ? 1.0 : 0.0

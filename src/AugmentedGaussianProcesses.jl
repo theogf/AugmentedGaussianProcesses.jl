@@ -44,16 +44,12 @@ module AugmentedGaussianProcesses
 
     #Useful functions and module
     include("inducingpoints/IPModule.jl")
-    include("functions/PGSampler.jl")
-    include("functions/GIGSampler.jl")
-    include("functions/invlapdistribution.jl")
+
     #include("functions/PerturbativeCorrection.jl")
     # include("functions/GPAnalysisTools.jl")
     # include("functions/IO_model.jl")
     #Custom modules
     @reexport using .IPModule
-    using .PGSampler
-    using .GIGSampler
     # using .PerturbativeCorrection
     # using .GPAnalysisTools
     # using .IO_model
@@ -66,6 +62,9 @@ module AugmentedGaussianProcesses
     abstract type Abstract_GP{T<:Real} end
 
     const LatentArray = Vector #For future optimization : How collection of latent GP parameters and local variables are stored
+    include("distributions/PolyaGamma.jl")
+    include("distributions/GIGSampler.jl")
+    include("distributions/invlapdistribution.jl")
     include("functions/utils.jl")
     include("prior/priormean.jl")
 
