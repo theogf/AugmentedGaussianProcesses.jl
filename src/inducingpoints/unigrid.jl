@@ -43,7 +43,7 @@ end
 function add_point!(alg::UniGrid, X, y, kernel)
     new_bounds = extrema(X, dims = 1)
     ranges = map(alg.bounds, new_bounds) do old_b, new_b
-        old_b .= min(old_b[1], new_b[1]), max(old_b[1], new_b[1])
+        old_b .= min(old_b[1], new_b[1]), max(old_b[2], new_b[2])
         LinRange(old_b..., alg.K)
     end
     for (i, vals) in enumerate(Iterators.product(ranges...))
