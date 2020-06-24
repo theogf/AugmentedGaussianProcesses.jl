@@ -55,11 +55,14 @@ end
 num_latent(::HeteroscedasticLikelihood) = 2
 
 function treat_labels!(
-    y::AbstractVector{T},
-    likelihood::L,
-) where {T,L<:HeteroscedasticLikelihood}
-    @assert T <: Real "For regression target(s) should be real valued"
+    y::AbstractVector{<:Real},
+    likelihood::HeteroscedasticLikelihood,
+)
     return y, 2, likelihood
+end
+
+function treat_labels!(y::AbstractVector, likelihood::HeteroscedasticLikelihood)
+    error("For regression target(s) should be real valued")
 end
 
 function init_likelihood(
@@ -90,36 +93,36 @@ function local_updates!(
     l::HeteroscedasticLikelihood{T},
     y::AbstractVector,
     μ::NTuple{2,<:AbstractVector},
-    diag_cov::NTuple{2,<:AbstractVector},
+    diagΣ::NTuple{2,<:AbstractVector},
 ) where {T}
     # gp[1] is f and gp[2] is g (for approximating the noise)
-    l.ϕ .= 0.5 * (abs2.(μ[1] - y) + diag_cov[1])
-    l.c .= sqrt.(abs2.(μ[2]) + diag_cov[2])
-    l.γ .= 0.5 * l.λ * l.ϕ .* safe_expcosh.(-0.5 * μ[2], 0.5 * l.c)
-    l.θ .= 0.5 * (0.5 .+ l.γ) ./ l.c .* tanh.(0.5 * l.c)
-    l.σg .= expectation.(logistic, μ[2], diag_cov[2])
+    @. l.ϕ = 0.5 * (abs2(μ[1] - y) + diagΣ[1])
+    @. l.c = sqrt(abs2(μ[2]) + diagΣ[2])
+    @. l.γ = 0.5 * l.λ * l.ϕ * safe_expcosh(-0.5 * μ[2], 0.5 * l.c)
+    @. l.θ = 0.5 * (0.5 + l.γ) / l.c * tanh(0.5 * l.c)
+    @. l.σg = expectation(logistic, μ[2], diagΣ[2])
     l.λ = 0.5 * length(l.ϕ) / dot(l.ϕ, l.σg)
 end
 
-function local_autotuning!(model::VGP{T,<:HeteroscedasticLikelihood}) where {T}
-    Jnn = kernelderivativematrix.([model.X], model.likelihood.kernel)
-    f_l, f_v, f_μ₀ = hyperparameter_local_gradient_function(model)
-    grads_l = map(
-        compute_hyperparameter_gradient,
-        model.likelihood.kernel,
-        fill(f_l, model.nLatent),
-        Jnn,
-        1:model.nLatent,
-    )
-    grads_v = map(f_v, model.likelihood.kernel, 1:model.nPrior)
-    grads_μ₀ = map(f_μ₀, 1:model.nLatent)
-
-    apply_gradients_lengthscale!.(model.likelihood.kernel, grads_l) #Send the derivative of the matrix to the specific gradient of the model
-    apply_gradients_variance!.(model.likelihood.kernel, grads_v) #Send the derivative of the matrix to the specific gradient of the model
-    update!.(model.likelihood.μ₀, grads_μ₀)
-
-    model.inference.HyperParametersUpdated = true
-end
+# function local_autotuning!(model::VGP{T,<:HeteroscedasticLikelihood}) where {T}
+#     Jnn = kernelderivativematrix.([model.X], model.likelihood.kernel)
+#     f_l, f_v, f_μ₀ = hyperparameter_local_gradient_function(model)
+#     grads_l = map(
+#         compute_hyperparameter_gradient,
+#         model.likelihood.kernel,
+#         fill(f_l, model.nLatent),
+#         Jnn,
+#         1:model.nLatent,
+#     )
+#     grads_v = map(f_v, model.likelihood.kernel, 1:model.nPrior)
+#     grads_μ₀ = map(f_μ₀, 1:model.nLatent)
+#
+#     apply_gradients_lengthscale!.(model.likelihood.kernel, grads_l) #Send the derivative of the matrix to the specific gradient of the model
+#     apply_gradients_variance!.(model.likelihood.kernel, grads_v) #Send the derivative of the matrix to the specific gradient of the model
+#     update!.(model.likelihood.μ₀, grads_μ₀)
+#
+#     model.inference.HyperParametersUpdated = true
+# end
 
 function variational_updates!(
     model::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI},
@@ -160,7 +163,7 @@ function heteroscedastic_expectations!(
     μ::AbstractVector,
     Σ::AbstractVector,
 ) where {T}
-    l.σg .= expectation.(logistic, μ, Σ)
+    @. l.σg = expectation(logistic, μ, Σ)
     l.λ = 0.5 * length(l.ϕ) / dot(l.ϕ, l.σg)
 end
 

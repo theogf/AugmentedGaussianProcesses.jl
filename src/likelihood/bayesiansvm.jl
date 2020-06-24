@@ -16,7 +16,7 @@ p(y|f, ω) = \\frac{1}{\\sqrt(2\\pi\\omega) \\exp(-\\frac{(1+\\omega-yf)^2}{2\\o
 
 where ``ω ∼ 𝟙[0,∞)`` has an improper prior (his posterior is however has a valid distribution, a Generalized Inverse Gaussian). For reference [see this paper](http://ecmlpkdd2017.ijs.si/papers/paperID502.pdf)
 """
-struct BayesianSVM{T} <: ClassificationLikelihood{T}
+struct BayesianSVM{T<:Real} <: ClassificationLikelihood{T}
     ω::Vector{T}
     θ::Vector{T}
     function BayesianSVM{T}() where {T<:Real}
@@ -67,8 +67,8 @@ end
 
 function compute_proba(
     l::BayesianSVM{T},
-    μ::AbstractVector,
-    σ²::AbstractVector,
+    μ::AbstractVector{T},
+    σ²::AbstractVector{T},
 ) where {T<:Real}
     N = length(μ)
     pred = zeros(T, N)
@@ -88,10 +88,10 @@ function local_updates!(
     l::BayesianSVM{T},
     y::AbstractVector,
     μ::AbstractVector,
-    diag_cov::AbstractVector,
+    diagΣ::AbstractVector,
 ) where {T}
-    l.ω .= abs2.(one(T) .- y .* μ) + diag_cov
-    l.θ .= inv(sqrt.(l.ω))
+    @. l.ω = abs2(one(T) - y * μ) + diagΣ
+    @. l.θ = inv(sqrt(l.ω))
 end
 
 @inline ∇E_μ(l::BayesianSVM{T}, ::AOptimizer, y::AbstractVector) where {T} =

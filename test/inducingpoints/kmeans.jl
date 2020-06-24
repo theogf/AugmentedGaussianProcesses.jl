@@ -1,7 +1,5 @@
-using Test
-using AugmentedGaussianProcesses
-
-N = 50
+seed!(42)
+N = 20
 D = 3
 nInd = 10
 k = transform(SqExponentialKernel(), 10.0)

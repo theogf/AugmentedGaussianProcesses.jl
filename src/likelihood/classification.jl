@@ -19,10 +19,7 @@ function treat_labels!(
     end
 end
 
-function treat_labels!(
-    y::AbstractVector,
-    likelihood::ClassificationLikelihood,
-)
+function treat_labels!(y::AbstractVector, likelihood::ClassificationLikelihood)
     error("For classification target(s) should be real valued (Bool, Integer or Float)")
 end
 

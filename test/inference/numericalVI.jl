@@ -1,6 +1,4 @@
-using Test
-using AugmentedGaussianProcesses
-
+seed!(42)
 L = 3
 D = 10
 N = 20
@@ -13,9 +11,10 @@ y = rand(N)
     @test NumericalVI(:quad) isa QuadratureVI
     @test NumericalVI(:mc) isa MCIntegrationVI
     @test_throws ErrorException NumericalVI(:blah)
-    @test NumericalSVI(b,:quad) isa QuadratureVI
-    @test NumericalSVI(b,:mc) isa MCIntegrationVI
-    @test_throws ErrorException NumericalSVI(b,:blah)
+    @test NumericalSVI(b, :quad) isa QuadratureVI
+    @test NumericalSVI(b, :mc) isa MCIntegrationVI
+    @test_throws ErrorException NumericalSVI(b, :blah)
     @test repr(NumericalVI(:quad)) == "Numerical Inference by Quadrature"
-    @test repr(NumericalVI(:mc)) == "Numerical Inference by Monte Carlo Integration"
+    @test repr(NumericalVI(:mc)) ==
+          "Numerical Inference by Monte Carlo Integration"
 end

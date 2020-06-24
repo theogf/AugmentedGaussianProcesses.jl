@@ -1,8 +1,4 @@
-using Test
-using AugmentedGaussianProcesses
-using Distributions
-
-
+seed!(42)
 L = 3
 D = 10
 N = 20

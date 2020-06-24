@@ -27,7 +27,9 @@ AGP.setadbackend(:reverse_diff)
         end
     end
     @testset "Likelihoods" begin
-        include("test_likelihoods.jl")
+        for f in readdir(joinpath(@__DIR__, "likelihood"))
+            include(joinpath("likelihood",f))
+        end
     end
     @testset "Models" begin
         for f in readdir(joinpath(@__DIR__, "models"))
