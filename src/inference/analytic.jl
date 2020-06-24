@@ -59,7 +59,7 @@ function analytic_updates!(model::GP{T}) where {T}
     f.Σ = f.K + first(l.σ²) * I
     f.μ = f.Σ \ (model.y - f.μ₀(model.X))
     if !isnothing(l.opt_noise)
-        g = 0.5 * (norm(f.μ, 2) - tr(inv(f.Σ)))
+        g = 0.5 * (norm(f.μ, 2) - tr(inv(f.Σ).mat))
         Δlogσ² = Flux.Optimise.apply!(l.opt_noise, l.σ², g .* l.σ²)
         l.σ² .= exp.(log.(l.σ²) .+ Δlogσ²)
         # mean(abs2, model.y .- f.μ)

@@ -12,7 +12,7 @@ X = rand(N,D)
         μ₀ = AffineMean(w,b,opt=Descent(1.0))
         @test μ₀ isa AffineMean{Float64, Vector{Float64}}
         @test_nowarn AffineMean(3)(X)
-        @test_nowarn println(μ₀)
+        @test repr(μ₀) == "Affine Mean Prior (size(w) = $D, b = $b)"
         @test μ₀(X) == X*w .+ b
         @test_throws AssertionError AffineMean(4)(X)
         AGP.update!(μ₀,ones(N),X)
