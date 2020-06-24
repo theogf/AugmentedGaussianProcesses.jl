@@ -11,7 +11,7 @@ y = rand(N)
 @testset "Analytic" begin
     i = Analytic()
     @test Analytic(ϵ = 0.0001f0) isa Analytic{Float32}
-    @test_nowarn println(i)
+    @test repr(i) == "Analytic Inference"
     i = AGP.init_inference(i, L, D, N, b)
     i.xview = view(x, : , :)
     i.yview = view(y, :)

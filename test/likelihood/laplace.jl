@@ -1,8 +1,3 @@
-using AugmentedGaussianProcesses
-using Test
-
-include("../testingtools.jl")
-
 N,d = 100,2
 β = 3.0
 k = transform(SqExponentialKernel(),10.0)

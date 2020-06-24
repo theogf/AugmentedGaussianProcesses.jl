@@ -1,5 +1,3 @@
-include("../testingtools.jl")
-
 N,d = 100,2
 λ = 5.0
 k = transform(SqExponentialKernel(),10.0)

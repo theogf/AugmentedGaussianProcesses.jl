@@ -1,6 +1,3 @@
-using AugmentedGaussianProcesses
-using Test
-
 N = 50
 
 x = rand(N)

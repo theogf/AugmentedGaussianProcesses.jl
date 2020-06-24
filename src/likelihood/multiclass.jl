@@ -11,7 +11,7 @@ function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:MultiC
     return likelihood.Y,num_class(likelihood),likelihood
 end
 
-function init_multiclass_likelihood!(l::L,y::AbstractVector) where {L<:MultiClassLikelihood}
+function init_multiclass_likelihood!(l::MultiClassLikelihood,y::AbstractVector) where {L<:MultiClassLikelihood}
     if !isdefined(l,:ind_mapping)
         create_mapping!(l,y)
     end

@@ -1,10 +1,9 @@
 """
-```julia
-    Poisson Likelihood(λ::T=1.0)
-```
+    Poisson Likelihood(λ=1.0)
+
 [Poisson Likelihood](https://en.wikipedia.org/wiki/Poisson_distribution) where a Poisson distribution is defined at every point in space (careful, it's different from continous Poisson processes)
 ```math
-    p(y|f) = Poisson(y|λσ(f))
+    p(y|f) = Poisson(y|\\lambda \\sigma(f))
 ```
 Where `σ` is the logistic function
 Augmentation details will be released at some point (open an issue if you want to see them)

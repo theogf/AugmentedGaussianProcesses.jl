@@ -1,8 +1,6 @@
-include("../testingtools.jl")
-
-N,d = 100,2
-k = transform(SqExponentialKernel(),10.0)
-X,f = generate_f(N,d,k)
+N, d = 20, 2
+k = transform(SqExponentialKernel(), 10.0)
+X, f = generate_f(N, d, k)
 y = sign.(f)
 floattypes = [Float64]
 tests_likelihood(

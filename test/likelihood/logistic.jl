@@ -1,5 +1,3 @@
-include("../testingtools.jl")
-
 N,d = 100,2
 k = transform(SqExponentialKernel(),10.0)
 X,f = generate_f(N,d,k)

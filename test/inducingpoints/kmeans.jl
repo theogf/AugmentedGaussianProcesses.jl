@@ -10,7 +10,7 @@ y = rand(N)
 
 @testset "k-Means" begin
     alg = Kmeans(nInd)
-    @test_nowarn println(alg)
+    @test repr(alg) == "k-Means Selection of Inducing Points (k : $(nInd))"
     AGP.IPModule.init!(alg, X, y, k)
     @test size(alg) == (nInd, D)
 end

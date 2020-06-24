@@ -1,13 +1,9 @@
-using AugmentedGaussianProcesses
-using Test
-
-include("../testingtools.jl")
-
-N,d = 100,2
-k = transform(SqExponentialKernel(),10.0)
+seed!(42)
+N, d = 20, 2
+k = transform(SqExponentialKernel(), 10.0)
 σ = 0.1
-X,f = generate_f(N,d,k)
-y = f + σ*randn(N)
+X, f = generate_f(N, d, k)
+y = f + σ * randn(N)
 floattypes = [Float64]
 @testset "Gaussian Likelihood" begin
     @testset "Likelihood" begin
@@ -16,25 +12,25 @@ floattypes = [Float64]
         f = 0.5
         y = 0.2
         @test AGP.noise(l) == σ²
-        @test AGP.pdf(l,y,f) == pdf(Normal(f,sqrt(σ²)),y)
-        @test AGP.logpdf(l,y,f) == logpdf(Normal(f,sqrt(σ²)),y)
-        @test_nowarn println(l)
-        @test AGP.AugmentedKL(l,[]) == 0.0
+        @test AGP.pdf(l, y, f) == pdf(Normal(f, sqrt(σ²)), y)
+        @test AGP.logpdf(l, y, f) == logpdf(Normal(f, sqrt(σ²)), y)
+        @test repr(l) == "Gaussian likelihood (σ² = $(AGP.noise(l)))"
+        @test AGP.AugmentedKL(l, []) == 0.0
         @test AGP.num_latent(l) == 1
     end
     @testset "GP" begin
         for floattype in floattypes
-            @test typeof(GP(X,y,k)) <: GP{floattype,GaussianLikelihood{floattype},Analytic{floattype},1}
-            model = GP(X,y,k,opt_noise=true,verbose=0)
+            model = GP(X, y, k; opt_noise=true, verbose=0)
+            @test typeof(model) <: GP{floattype,GaussianLikelihood{floattype},Analytic{floattype},1}
             L = AGP.objective(model)
-            @test train!(model,10)
+            @test train!(model, 10)
             @test L < AGP.objective(model)
-            @test testconv(model,"Regression",X,f,y)
-            @test all(proba_y(model,X)[2].>0)
+            @test testconv(model, "Regression", X, f, y)
+            @test all(proba_y(model, X)[2].>0)
         end
     end
     @testset "VGP" begin
-        @test_throws AssertionError VGP(X,y,k,GaussianLikelihood(),AnalyticVI())
+        @test_throws AssertionError VGP(X, y, k,GaussianLikelihood(),AnalyticVI())
         @test_throws AssertionError VGP(X,y,k,GaussianLikelihood(),QuadratureVI())
         @test_throws AssertionError VGP(X,y,k,GaussianLikelihood(),MCIntegrationVI())
     end

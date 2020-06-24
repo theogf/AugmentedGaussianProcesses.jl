@@ -3,7 +3,7 @@
 mutable struct _GP{T} <: Abstract_GP{T}
     dim::Int
     μ::Vector{T}
-    Σ::Matrix{T}
+    Σ::PDMat{T,Matrix{T}}
     kernel::Kernel
     μ₀::PriorMean{T}
     K::PDMat{T,Matrix{T}}
@@ -13,7 +13,7 @@ end
 function _GP{T}(dim::Int,kernel::Kernel,mean::PriorMean,opt) where {T<:Real}
     _GP{T}(dim,
             zeros(T,dim),
-            Matrix{T}(I,dim,dim),
+            PDMat(Matrix{T}(I,dim,dim)),
             deepcopy(kernel),
             deepcopy(mean),
             PDMat(Matrix{T}(I,dim,dim)),

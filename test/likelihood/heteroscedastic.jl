@@ -1,9 +1,3 @@
-using AugmentedGaussianProcesses
-using Test
-
-
-include("../testingtools.jl")
-
 N,d = 500,1
 k = transform(SqExponentialKernel(),10.0)
 X,f = generate_f(N,d,k)

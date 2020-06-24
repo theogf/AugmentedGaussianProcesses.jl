@@ -13,7 +13,7 @@ y = rand(N)
     i = AnalyticVI()
     @test AnalyticVI(ϵ = 0.0001f0) isa AnalyticVI{Float32,1}
     @test AnalyticSVI(10, ϵ = 0.0001f0) isa AnalyticVI{Float32,1}
-    @test_nowarn println(i)
+    @test repr(i) == "Analytic Variational Inference"
     i = AGP.tuple_inference(i, L, D, N, N)
     @test AGP.getρ(i) == 1.0
     @test AGP.isStochastic(i) == false

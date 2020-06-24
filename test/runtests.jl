@@ -3,6 +3,8 @@ using Test
 using Random: seed!
 seed!(42)
 
+include("testingtools.jl")
+
 AGP.setadbackend(:reverse_diff)
 # Global flags for the tests
 @testset "AugmentedGaussianProcesses.jl tests" begin

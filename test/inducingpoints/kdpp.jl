@@ -10,7 +10,7 @@ y = rand(N)
 
 @testset "kDPP" begin
     alg = kDPP(nInd, k)
-    @test_nowarn println(alg)
+    @test repr(alg) == "kDPP selection of inducing points"
     AGP.IPModule.init!(alg, X, y, k)
     @test size(alg) == (nInd, D)
 end
