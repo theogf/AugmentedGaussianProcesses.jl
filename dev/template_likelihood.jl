@@ -95,7 +95,7 @@ function expecLogLikelihood(model::VGP{T,<:TemplateLikelihood,<:AnalyticVI}) whe
     return tot
 end
 
-function expecLogLikelihood(model::SVGP{T,<:TemplateLikelihood,<:AnalyticVI}) wher {T}
+function expecLogLikelihood(model::SVGP{T,<:TemplateLikelihood,<:AnalyticVI}) where {T}
     tot = 0.0
     return model.inference.ρ*tot
 end
