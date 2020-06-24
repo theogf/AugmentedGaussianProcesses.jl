@@ -55,9 +55,14 @@ function init_inference(
 end
 
 function analytic_updates!(model::GP{T}) where {T}
-    first(model.f).μ = first(model.f).K \ (model.y - first(model.f).μ₀(model.X))
-    if !isnothing(model.likelihood.opt_noise)
-        model.likelihood.σ² .= mean(abs2, model.y .- first(model.f).μ)
+    f = first(model.f); l = model.likelihood
+    f.Σ = f.K + first(l.σ²) * I
+    f.μ = f.Σ \ (model.y - f.μ₀(model.X))
+    if !isnothing(l.opt_noise)
+        g = 0.5 * (norm(f.μ, 2) - tr(inv(f.Σ)))
+        Δlogσ² = Flux.Optimise.apply!(l.opt_noise, l.σ², g .* l.σ²)
+        l.σ² .= exp.(log.(l.σ²) .+ Δlogσ²)
+        # mean(abs2, model.y .- f.μ)
     end
 end
 

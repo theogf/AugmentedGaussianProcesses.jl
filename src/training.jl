@@ -45,15 +45,18 @@ function train!(
                 if isa(TInf, GibbsSampling)
                     next!(p; showvalues = [(:samples, local_iter)])
                 else
-                    if (model.verbose > 2 || local_iter % 10 == 0)
+                    if (model.verbose ==  2 && local_iter % 10 == 0)
                         elbo = objective(model)
                         prev_elbo = elbo
-                        next!(
+                        ProgressMeter.update!(p, local_iter-1)
+                        ProgressMeter.next!(
                             p;
                             showvalues = [(:iter, local_iter), (:ELBO, elbo)],
                         )
-                    else
-                        next!(
+                    elseif model.verbose > 2
+                        elbo = objective(model)
+                        prev_elbo = elbo
+                        ProgressMeter.next!(
                             p;
                             showvalues = [
                                 (:iter, local_iter),
@@ -139,7 +142,7 @@ function update_parameters!(m::VStP)
 end
 
 function computeMatrices!(m::GP{T}) where {T}
-    compute_K!.(m.f, m.inference.xview, T(jitt) + first(m.likelihood.σ²))
+    compute_K!.(m.f, m.inference.xview, T(jitt))
     setHPupdated!(m.inference, false)
 end
 
