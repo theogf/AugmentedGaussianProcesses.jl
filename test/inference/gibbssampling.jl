@@ -1,6 +1,4 @@
-using Test
-using AugmentedGaussianProcesses
-
+seed!(42)
 L = 3
 D = 10
 N = 20
@@ -11,7 +9,7 @@ y = rand(N)
 
 @testset "Gibbs Sampling" begin
     i = GibbsSampling(nBurnin = 0)
-    @test_nowarn println(i)
+    @test repr(i) == "Gibbs Sampler"
     i = AGP.tuple_inference(i, L, D, N, b)
 
     @test AGP.getρ(i) == 1

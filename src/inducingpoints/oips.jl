@@ -47,7 +47,7 @@ end
 
 Base.show(io::IO, alg::OIPS) = print(
     io,
-    "Online Inducing Point Selection (ρ_in : $(alg.ρ_accept), ρ_out : $(alg.ρ_remove), kmax : $(alg.kmax)).",
+    "Online Inducing Point Selection (ρ_in : $(alg.ρ_accept), ρ_out : $(alg.ρ_remove), kmax : $(alg.kmax))",
 )
 
 function init!(alg::OIPS, X, y, kernel)

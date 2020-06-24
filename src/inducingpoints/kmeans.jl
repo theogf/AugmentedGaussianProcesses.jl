@@ -13,7 +13,7 @@ mutable struct Kmeans{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
 end
 
 Base.show(io::IO, alg::Kmeans) =
-  print(io, "k-Means Selection of Inducing Points (k : $(alg.k)).")
+  print(io, "k-Means Selection of Inducing Points (k : $(alg.k))")
 
 function init!(alg::Kmeans, X, y, kernel; tol = 1e-3)
   @assert size(X, 1) >= alg.k "Input data not big enough given $k"

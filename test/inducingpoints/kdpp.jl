@@ -1,7 +1,5 @@
-using Test
-using AugmentedGaussianProcesses
-
-N = 50
+seed!(42)
+N = 20
 D = 3
 nInd = 10
 k = transform(SqExponentialKernel(), 10.0)
@@ -10,7 +8,7 @@ y = rand(N)
 
 @testset "kDPP" begin
     alg = kDPP(nInd, k)
-    @test_nowarn println(alg)
+    @test repr(alg) == "kDPP selection of inducing points"
     AGP.IPModule.init!(alg, X, y, k)
     @test size(alg) == (nInd, D)
 end

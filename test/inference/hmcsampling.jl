@@ -1,6 +1,4 @@
-using Test
-using AugmentedGaussianProcesses
-
+seed!(42)
 L = 3
 D = 10
 N = 20
@@ -11,7 +9,7 @@ y = rand(N)
 @testset "HMC Sampling" begin
     i = HMCSampling(nBurnin = 0, samplefrequency = 1)
 
-    @test_nowarn println(i)
+    @test repr(i) == "Hamilton Monte Carlo Sampler"
     i = AGP.tuple_inference(i, L, D, N, b)
 
     @test AGP.getρ(i) == 1

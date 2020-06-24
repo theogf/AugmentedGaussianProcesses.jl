@@ -23,88 +23,148 @@ mutable struct LaplaceLikelihood{T<:Real} <: RegressionLikelihood{T}
     b::Vector{T} #Variational parameter b of GIG
     θ::Vector{T} #Expected value of ω
     function LaplaceLikelihood{T}(β::T) where {T<:Real}
-        new{T}(β,β^-2,0.5)
+        new{T}(β, β^-2, 0.5)
     end
-    function LaplaceLikelihood{T}(β::T,b::AbstractVector{T},θ::AbstractVector{T}) where {T<:Real}
-        new{T}(β,β^(-2),0.5,b,θ)
+    function LaplaceLikelihood{T}(
+        β::T,
+        b::AbstractVector{T},
+        θ::AbstractVector{T},
+    ) where {T<:Real}
+        new{T}(β, β^(-2), 0.5, b, θ)
     end
 end
 
-function LaplaceLikelihood(β::T=1.0) where {T<:Real}
+function LaplaceLikelihood(β::T = 1.0) where {T<:Real}
     LaplaceLikelihood{T}(β)
 end
 
-implemented(::LaplaceLikelihood,::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}) = true
+implemented(
+    ::LaplaceLikelihood,
+    ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling},
+) = true
 
-function init_likelihood(likelihood::LaplaceLikelihood{T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
+function init_likelihood(
+    likelihood::LaplaceLikelihood{T},
+    inference::Inference{T},
+    nLatent::Int,
+    nSamplesUsed::Int,
+    nFeatures::Int,
+) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
         LaplaceLikelihood{T}(
-        likelihood.β,
-        rand(T,nSamplesUsed),
-        zeros(T,nSamplesUsed))
+            likelihood.β,
+            rand(T, nSamplesUsed),
+            zeros(T, nSamplesUsed),
+        )
     else
         LaplaceLikelihood{T}(likelihood.β)
     end
 end
 
-function pdf(l::LaplaceLikelihood,y::Real,f::Real)
-    Distributions.pdf(Laplace(f,l.β),y) #WARNING multioutput invalid
+function pdf(l::LaplaceLikelihood, y::Real, f::Real)
+    Distributions.pdf(Laplace(f, l.β), y) #WARNING multioutput invalid
 end
 
-function logpdf(l::LaplaceLikelihood,y::Real,f::Real)
-    Distributions.logpdf(Laplace(f,l.β),y) #WARNING multioutput invalid
+function logpdf(l::LaplaceLikelihood, y::Real, f::Real)
+    Distributions.logpdf(Laplace(f, l.β), y) #WARNING multioutput invalid
 end
 
-function Base.show(io::IO,model::LaplaceLikelihood{T}) where T
-    print(io,"Laplace likelihood")
+function Base.show(io::IO, model::LaplaceLikelihood{T}) where {T}
+    print(io, "Laplace likelihood")
 end
 
-function compute_proba(l::LaplaceLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
-    return μ,max.(σ²,0.0).+ 2*l.β^2
+function compute_proba(
+    l::LaplaceLikelihood{T},
+    μ::AbstractVector{T},
+    σ²::AbstractVector{T},
+) where {T<:Real}
+    return μ, max.(σ², 0.0) .+ 2 * l.β^2
 end
 
 ## Local Updates ##
 
-function local_updates!(l::LaplaceLikelihood{T},y::AbstractVector,μ::AbstractVector,Σ::AbstractVector) where {T}
-    l.b .= Σ+abs2.(μ-y)
-    l.θ .= sqrt(l.a)./sqrt.(l.b)
+function local_updates!(
+    l::LaplaceLikelihood{T},
+    y::AbstractVector,
+    μ::AbstractVector,
+    diagΣ::AbstractVector,
+) where {T}
+    @. l.b = diagΣ + abs2(μ - y)
+    @. l.θ = sqrt(l.a) / sqrt.(l.b)
 end
 
-function sample_local!(l::LaplaceLikelihood,y::AbstractVector,f::AbstractVector) where {T}
-    l.b .= rand.(GeneralizedInverseGaussian.(1/l.β^2,abs2.(f-y),0.5))
-    set_ω!(l,inv.(l.b))
+function sample_local!(
+    l::LaplaceLikelihood,
+    y::AbstractVector,
+    f::AbstractVector,
+) where {T}
+    @. l.b = rand(GeneralizedInverseGaussian(1 / l.β^2, abs2(f - y), 0.5))
+    set_ω!(l, inv.(l.b))
     return nothing
 end
 
-@inline ∇E_μ(l::LaplaceLikelihood{T},::AOptimizer,y::AbstractVector) where {T} =  (l.θ.*y,)
-@inline ∇E_Σ(l::LaplaceLikelihood{T},::AOptimizer,y::AbstractVector) where {T} = (0.5*l.θ,)
+@inline ∇E_μ(
+    l::LaplaceLikelihood{T},
+    ::AOptimizer,
+    y::AbstractVector,
+) where {T} = (l.θ .* y,)
+@inline ∇E_Σ(
+    l::LaplaceLikelihood{T},
+    ::AOptimizer,
+    y::AbstractVector,
+) where {T} = (0.5 * l.θ,)
 
 ## ELBO ##
-function expec_log_likelihood(l::LaplaceLikelihood{T},i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
-    tot = -0.5*length(y)*log(twoπ)
-    tot += 0.5*sum(log,l.θ)
-    tot += -0.5*(dot(l.θ,diag_cov)+dot(l.θ,abs2.(μ))-2.0*dot(l.θ,μ.*y)+dot(l.θ,abs2.(y)))
+function expec_log_likelihood(
+    l::LaplaceLikelihood{T},
+    i::AnalyticVI,
+    y::AbstractVector,
+    μ::AbstractVector,
+    diag_cov::AbstractVector,
+) where {T}
+    tot = -0.5 * length(y) * log(twoπ)
+    tot += 0.5 * sum(log, l.θ)
+    tot +=
+        -0.5 * (
+            dot(l.θ, diag_cov) + dot(l.θ, abs2.(μ)) - 2.0 * dot(l.θ, μ .* y) +
+            dot(l.θ, abs2.(y))
+        )
     return tot
 end
 
-AugmentedKL(l::LaplaceLikelihood,::AbstractVector) = GIGEntropy(l)-expecExponentialGIG(l)
+AugmentedKL(l::LaplaceLikelihood, ::AbstractVector) =
+    GIGEntropy(l) - expecExponentialGIG(l)
 
-GIGEntropy(l::LaplaceLikelihood{T}) where {T} = GIGEntropy(l.a,l.b,l.p)
+GIGEntropy(l::LaplaceLikelihood{T}) where {T} = GIGEntropy(l.a, l.b, l.p)
 
 function expecExponentialGIG(l::LaplaceLikelihood{T}) where {T}
-    sum(-log(2*l.β^2).-0.5*(l.a.*sqrt.(l.b)+l.b.*sqrt(l.a))./(l.a.*l.b*l.β^2))
+    sum(
+        -log(2 * l.β^2) .-
+        0.5 * (l.a .* sqrt.(l.b) + l.b .* sqrt(l.a)) ./ (l.a .* l.b * l.β^2),
+    )
 end
 
 ## PDF and Log PDF Gradients ##
 
-function grad_quad(likelihood::LaplaceLikelihood{T},y::Real,μ::Real,σ²::Real,inference::Inference) where {T<:Real}
-    nodes = inference.nodes*sqrt(σ²) .+ μ
-    Edlogpdf = dot(inference.weights,grad_logpdf.(likelihood,y,nodes))
-    Ed²logpdf =  (1/sqrt(twoπ*σ²))/(likelihood.β^2)
+function grad_quad(
+    likelihood::LaplaceLikelihood{T},
+    y::Real,
+    μ::Real,
+    σ²::Real,
+    inference::Inference,
+) where {T<:Real}
+    nodes = inference.nodes * sqrt(σ²) .+ μ
+    Edlogpdf = dot(inference.weights, grad_logpdf.(likelihood, y, nodes))
+    Ed²logpdf = (1 / sqrt(twoπ * σ²)) / (likelihood.β^2)
     return -Edlogpdf::T, Ed²logpdf::T
 end
 
 
-@inline grad_logpdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real} = sign(y-f)./l.β
+@inline grad_logpdf(l::LaplaceLikelihood{T}, y::Real, f::Real) where {T<:Real} =
+    sign(y - f) ./ l.β
 
-@inline hessian_logpdf(l::LaplaceLikelihood{T},y::Real,f::Real) where {T<:Real} = zero(T)
+@inline hessian_logpdf(
+    l::LaplaceLikelihood{T},
+    y::Real,
+    f::Real,
+) where {T<:Real} = zero(T)

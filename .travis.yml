@@ -7,10 +7,6 @@ julia:
   - 1.2
   - 1.4
   - nightly
-#  - nightly
-#matrix:
-# allow_failures:
-#   - julia: nightly
 notifications:
   email: false
 after_success:
