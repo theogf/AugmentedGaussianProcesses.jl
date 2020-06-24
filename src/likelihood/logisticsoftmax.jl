@@ -270,21 +270,21 @@ function log_like_samples(
 end
 
 function grad_logisticsoftmax(
-    s::AbstractVector{<:Real},
-    σ::AbstractVector{<:Real},
+    s::AbstractVector{T},
+    σ::AbstractVector{T},
     i::Integer,
-)
-    s[i] * (δ.(i, eachindex(σ)) .- s) .* (1.0 .- σ)
+) where {T<:Real}
+    s[i] * (δ.(T, i, eachindex(σ)) .- s) .* (1.0 .- σ)
 end
 
 function diaghessian_logisticsoftmax(
-    s::AbstractVector{<:Real},
-    σ::AbstractVector{<:Real},
+    s::AbstractVector{T},
+    σ::AbstractVector{T},
     i::Integer,
-)
+) where {T<:Real}
     s[i] * (1.0 .- σ) .* (
-        abs2.(δ.(i, eachindex(σ)) - s) .* (1.0 .- σ) -
-        s .* (1.0 .- s) .* (1.0 .- σ) - σ .* (δ.(i, eachindex(σ)) - s)
+        abs2.(δ.(T, i, eachindex(σ)) - s) .* (1.0 .- σ) -
+        s .* (1.0 .- s) .* (1.0 .- σ) - σ .* (δ.(T, i, eachindex(σ)) - s)
     )
 end
 
@@ -301,9 +301,9 @@ function hessian_logisticsoftmax(
                 (1 - σ[j]) *
                 s[i] *
                 (
-                    (δ(i, k) - s[k]) * (1.0 - σ[k]) * (δ(i, j) - s[j]) -
-                    s[j] * (δ(j, k) - s[k]) * (1.0 - σ[k]) -
-                    δ(k, j) * σ[j] * (δ(i, j) - s[j])
+                    (δ(T, i, k) - s[k]) * (1.0 - σ[k]) * (δ(T, i, j) - s[j]) -
+                    s[j] * (δ(T, j, k) - s[k]) * (1.0 - σ[k]) -
+                    δ(T, k, j) * σ[j] * (δ(T, i, j) - s[j])
                 )
         end
     end
