@@ -68,15 +68,15 @@ end
 
 
 ## Return the derivative of the KL divergence between the posterior and the GP prior ##
-function hyperparameter_KL_gradient(J::AbstractMatrix{T},A::AbstractMatrix{T}) where {T<:Real}
-    return 0.5*opt_trace(J,A)
+function hyperparameter_KL_gradient(J::AbstractMatrix, A::AbstractMatrix)
+    return 0.5 * opt_trace(J, A)
 end
 
 
 function hyperparameter_gradient_function(gp::_GP{T},X::AbstractMatrix) where {T}
-    A = (inv(gp.K).mat-(gp.μ)*transpose(gp.μ))# μ = inv(K+σ²)*(y-μ₀)
+    A = (inv(gp.Σ) - (gp.μ) * transpose(gp.μ)) # μ = inv(K+σ²)*(y-μ₀)
     return (function(Jnn)
-                return -hyperparameter_KL_gradient(Jnn,A)
+                return -hyperparameter_KL_gradient(Jnn, A)
             end,
             function()
                 return -gp.μ

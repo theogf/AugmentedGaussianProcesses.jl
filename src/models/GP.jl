@@ -93,6 +93,7 @@ function GP(
         false,
     )
     computeMatrices!(model)
+    analytic_updates!(model)
     setTrained!(model, true)
     return model
 end
@@ -113,6 +114,5 @@ objective(m::GP) = log_py(m)
 
 function log_py(m::GP{T}) where {T}
     f = first(m.f)
-    f.Σ = Symmetric(inv(f.K + noise(m.likelihood) * I).mat)
-    return -0.5 * (dot(m.y, f.Σ * m.y) + logdet(f.Σ) + nFeatures(m) * log(twoπ))
+    return -0.5 * (dot(m.y, f.Σ \ m.y) + logdet(f.Σ) + nFeatures(m) * log(twoπ))
 end
