@@ -1,14 +1,15 @@
 function ∇L_ρ_reverse(f, gp, X)
-    Zygote.gradient(
-        () -> _∇L_ρ_reverse(f, gp.kernel, X),
-        Flux.params(gp.kernel),
-    ).grads # Zygote gradient
+    ps = Flux.params(gp.kernel)
+    global g = Flux.gradient(ps) do
+        _∇L_ρ_reverse(f, gp.kernel, X)
+    end # Zygote gradient
+    g.grads
 end
 
 _∇L_ρ_reverse(f, kernel, X) = f(kernelmatrix(kernel, X, obsdim = 1))
 
 function ∇L_ρ_reverse(f, gp::_SVGP, X, ∇E_μ, ∇E_Σ, i, opt)
-    Zygote.gradient(
+    global g = Zygote.gradient(
         () -> _∇L_ρ_reverse(f, gp.kernel, gp.Z.Z, X, ∇E_μ, ∇E_Σ, i, opt),
         Flux.params(gp.kernel),
     ).grads # Zygote gradient
