@@ -16,17 +16,17 @@ p(y|f, ω) = \\frac{1}{\\sqrt(2\\pi\\omega) \\exp(-\\frac{(1+\\omega-yf)^2}{2\\o
 
 where ``ω ∼ 𝟙[0,∞)`` has an improper prior (his posterior is however has a valid distribution, a Generalized Inverse Gaussian). For reference [see this paper](http://ecmlpkdd2017.ijs.si/papers/paperID502.pdf)
 """
-struct BayesianSVM{T<:Real} <: ClassificationLikelihood{T}
-    ω::Vector{T}
-    θ::Vector{T}
+struct BayesianSVM{T<:Real, A<:AbstractVector{T}} <: ClassificationLikelihood{T}
+    ω::A
+    θ::A
     function BayesianSVM{T}() where {T<:Real}
-        new{T}()
+        new{T, Vector{T}}()
     end
     function BayesianSVM{T}(
-        ω::AbstractVector{<:Real},
-        θ::AbstractVector{<:Real},
-    ) where {T<:Real}
-        new{T}(ω, θ)
+        ω::A,
+        θ::A,
+    ) where {T<:Real, A<:AbstractVector{T}}
+        new{T, A}(ω, θ)
     end
 end
 

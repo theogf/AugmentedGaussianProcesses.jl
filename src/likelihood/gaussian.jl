@@ -8,19 +8,19 @@ Gaussian noise :
 ```
 There is no augmentation needed for this likelihood which is already conjugate to a Gaussian prior
 """
-struct GaussianLikelihood{T<:Real,O} <: RegressionLikelihood{T}
-    σ²::Vector{T}
+struct GaussianLikelihood{T<:Real, O, A<:AbstractVector{T}} <: RegressionLikelihood{T}
+    σ²::A
     opt_noise::O
-    θ::Vector{T}
+    θ::A
     function GaussianLikelihood{T}(σ²::T, opt_noise) where {T<:Real}
-        new{T,typeof(opt_noise)}([σ²], opt_noise)
+        new{T,typeof(opt_noise),Vector{T}}([σ²], opt_noise)
     end
     function GaussianLikelihood{T}(
         σ²::T,
         opt_noise,
-        θ::AbstractVector{T},
-    ) where {T<:Real}
-        new{T,typeof(opt_noise)}([σ²], opt_noise, θ)
+        θ::A,
+    ) where {T<:Real, A<:AbstractVector{T}}
+        new{T,typeof(opt_noise),A}(A([σ²]), opt_noise, θ)
     end
 end
 

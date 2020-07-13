@@ -16,21 +16,21 @@ p(y|f,ω) = N(y|f,ω⁻¹)
 where ``ω ~ Exp(ω | 1/(2 β^2))``, and `Exp` is the [Exponential distribution](https://en.wikipedia.org/wiki/Exponential_distribution)
 We use the variational distribution ``q(ω) = GIG(ω | a,b,p)``
 """
-mutable struct LaplaceLikelihood{T<:Real} <: RegressionLikelihood{T}
+mutable struct LaplaceLikelihood{T<:Real, A<:AbstractVector{T}} <: RegressionLikelihood{T}
     β::T
     a::T
     p::T
-    b::Vector{T} #Variational parameter b of GIG
-    θ::Vector{T} #Expected value of ω
+    b::A #Variational parameter b of GIG
+    θ::A #Expected value of ω
     function LaplaceLikelihood{T}(β::T) where {T<:Real}
-        new{T}(β, β^-2, 0.5)
+        new{T, Vector{T}}(β, β^-2, 0.5)
     end
     function LaplaceLikelihood{T}(
         β::T,
-        b::AbstractVector{T},
+        b::A,
         θ::AbstractVector{T},
-    ) where {T<:Real}
-        new{T}(β, β^(-2), 0.5, b, θ)
+    ) where {T<:Real, A<:AbstractVector{T}}
+        new{T, A}(β, β^(-2), 0.5, b, θ)
     end
 end
 
@@ -62,11 +62,11 @@ function init_likelihood(
 end
 
 function pdf(l::LaplaceLikelihood, y::Real, f::Real)
-    Distributions.pdf(Laplace(f, l.β), y) #WARNING multioutput invalid
+    Distributions.pdf(Laplace(f, l.β), y)
 end
 
 function logpdf(l::LaplaceLikelihood, y::Real, f::Real)
-    Distributions.logpdf(Laplace(f, l.β), y) #WARNING multioutput invalid
+    Distributions.logpdf(Laplace(f, l.β), y)
 end
 
 function Base.show(io::IO, model::LaplaceLikelihood{T}) where {T}

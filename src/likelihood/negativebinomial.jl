@@ -10,15 +10,19 @@
 Where `σ` is the logistic function
 
 """
-struct NegBinomialLikelihood{T<:Real} <: EventLikelihood{T}
-    r::Int64
-    c::Vector{T}
-    θ::Vector{T}
+struct NegBinomialLikelihood{T<:Real,A<:AbstractVector{T}} <: EventLikelihood{T}
+    r::Int
+    c::A
+    θ::A
     function NegBinomialLikelihood{T}(r::Int) where {T<:Real}
-        new{T}(r)
+        new{T,Vector{T}}(r)
     end
-    function NegBinomialLikelihood{T}(r, c, θ) where {T<:Real}
-        new{T}(r, c, θ)
+    function NegBinomialLikelihood{T}(
+        r::Int,
+        c::A,
+        θ::A,
+    ) where {T<:Real,A<:AbstractVector{T}}
+        new{T,A}(r, c, θ)
     end
 end
 
@@ -26,7 +30,8 @@ function NegBinomialLikelihood(r::Int = 10) where {T<:Real}
     NegBinomialLikelihood{Float64}(r)
 end
 
-implemented(::NegBinomialLikelihood, ::Union{<:AnalyticVI, <:GibbsSampling}) = true
+implemented(::NegBinomialLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) =
+    true
 
 function init_likelihood(
     likelihood::NegBinomialLikelihood{T},
@@ -60,16 +65,18 @@ end
 
 function compute_proba(
     l::NegBinomialLikelihood{T},
-    μ::Vector{T},
-    σ²::Vector{T},
+    μ::AbstractVector,
+    σ²::AbstractVector,
 ) where {T<:Real}
     N = length(μ)
     pred = zeros(T, N)
+    sig_pred = zeros(T, N)
     for i = 1:N
         x = pred_nodes .* sqrt(max(σ²[i], zero(T))) .+ μ[i]
         pred[i] = dot(pred_weights, get_p.(l, x))
+        sig_pred[i] = dot(pred_weights, get_p.(l, x) .^ 2) - pred[i]^2
     end
-    return pred
+    return pred, sig_pred
 end
 
 ## Local Updates ##
@@ -80,8 +87,8 @@ function local_updates!(
     μ::AbstractVector,
     Σ::AbstractVector,
 ) where {T}
-    l.c .= sqrt.(abs2.(μ) + Σ)
-    l.θ .= (l.r .+ y) ./ l.c .* tanh.(0.5 * l.c)
+    @. l.c = sqrt(abs2(μ) + Σ)
+    @. l.θ = (l.r + y) / l.c * tanh(0.5 * l.c)
 end
 
 function sample_local!(
@@ -90,7 +97,7 @@ function sample_local!(
     f::AbstractVector,
 ) where {T}
     pg = PolyaGammaDist()
-    set_ω!(l, draw.([pg], y.-l.r, f))
+    set_ω!(l, draw.([pg], y .- l.r, f))
 end
 
 ## Global Updates ##

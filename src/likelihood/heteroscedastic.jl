@@ -11,25 +11,25 @@ Where `σ` is the logistic function
 
 Augmentation will be described in a future paper
 """
-mutable struct HeteroscedasticLikelihood{T<:Real} <: RegressionLikelihood{T}
+mutable struct HeteroscedasticLikelihood{T<:Real, A<:AbstractVector{T}} <: RegressionLikelihood{T}
     λ::T
-    c::Vector{T}
-    ϕ::Vector{T}
-    γ::Vector{T}
-    θ::Vector{T}
-    σg::Vector{T}
+    c::A
+    ϕ::A
+    γ::A
+    θ::A
+    σg::A
     function HeteroscedasticLikelihood{T}(λ::T) where {T<:Real}
-        new{T}(λ)
+        new{T, Vector{T}}(λ)
     end
     function HeteroscedasticLikelihood{T}(
         λ::T,
-        c::AbstractVector{T},
-        ϕ::AbstractVector{T},
-        γ::AbstractVector{T},
-        θ::AbstractVector{T},
-        σg::AbstractVector{T},
-    ) where {T<:Real}
-        new{T}(λ, c, ϕ, γ, θ, σg)
+        c::A,
+        ϕ::A,
+        γ::A,
+        θ::A,
+        σg::A,
+    ) where {T<:Real, A<:AbstractVector{T}}
+        new{T,A}(λ, c, ϕ, γ, θ, σg)
     end
 end
 
@@ -38,7 +38,6 @@ function HeteroscedasticLikelihood(λ::T = 1.0) where {T<:Real}
 end
 
 implemented(::HeteroscedasticLikelihood, ::AnalyticVI) = true
-
 
 function pdf(l::HeteroscedasticLikelihood, y::Real, f::AbstractVector)
     pdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
