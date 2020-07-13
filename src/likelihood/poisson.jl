@@ -36,15 +36,15 @@ function init_likelihood(likelihood::PoissonLikelihood{T},inference::Inference{T
 end
 
 function pdf(l::PoissonLikelihood,y::Real,f::Real)
-    pdf(Poisson(get_p(l,l.λ,f)),y)
+    pdf(Poisson(get_p(l, l.λ, f)), y)
 end
 
 function expec_count(l::PoissonLikelihood,f)
-    get_p(l,l.λ,f)
+    get_p(l, l.λ, f)
 end
 
-function get_p(::PoissonLikelihood,λ::Real,f)
-    λ*logistic.(f)
+function get_p(::PoissonLikelihood, λ::Real, f)
+    λ * logistic.(f)
 end
 
 function Base.show(io::IO,model::PoissonLikelihood{T}) where T
@@ -56,9 +56,10 @@ function compute_proba(l::PoissonLikelihood{T},μ::Vector{T},σ²::Vector{T}) wh
     pred = zeros(T,N)
     for i in 1:N
         x = pred_nodes.*sqrt.(max(σ²[i],zero(T))).+μ[i]
-        pred[i] =  dot(pred_weights,get_p(l,l.λ,x))
+        pred[i] =  dot(pred_weights, get_p(l, l.λ, x))
+        sig_pred[i] = dot(pred_weights, get_p(l, l.λ, x).^2) - pred[i]^2
     end
-    return pred
+    return pred, sig_pred
 end
 
 ## Local Updates ##
