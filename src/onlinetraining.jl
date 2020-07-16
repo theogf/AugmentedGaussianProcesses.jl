@@ -85,7 +85,7 @@ function train!(
             end
             setTrained!(m, true)
             if !isnothing(callback)
-                callback(m, nIter(m)) #Use a callback method if given by user
+                callback(m, nIter(m.inference)) #Use a callback method if given by user
             end
             if (nIter(m.inference) % m.atfrequency == 0) &&
                nIter(m.inference) >= 3

@@ -20,8 +20,6 @@ const InputSymbol = Union{Symbol,Expr,Real}
 
 check_model_name(name::Symbol) = !isnothing(match(r"[^\w]*",string(name)))
 
-check_likelihoodtype(ltype::Symbol) = Symbol(ltype) == :Regression || Symbol(ltype) == :Classification || Symbol(ltype) == :Event
-
 function treat_likelihood(likelihood::Expr)
 
 end
@@ -93,14 +91,14 @@ macro augmodel(name,ltype,C::InputSymbol,g::InputSymbol,α::InputSymbol,β::Inpu
     #Find gradient with AD if needed
     esc(_augmodel(string(name),name,Symbol(ltype,"Likelihood"),C,g,α,β,γ,φ,∇φ))
 end
-function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
+function generate_likelihood(lname, ltype, C, g, α, β, γ, φ)
     quote begin
         using Statistics
         # struct $(Symbol(name,"{T<:Real}"))# <: $(ltype)
         struct $(lname){T<:Real} <: AGP.$(ltype){T}
             # b::T
-            c²::AGP.LatentArray{Vector{T}}
-            θ::AGP.LatentArray{Vector{T}}
+            c²::Vector{T}
+            θ::Vector{T}
             function $(lname){T}() where {T<:Real}
                 new{T}()
             end
@@ -173,7 +171,7 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
         function AGP.compute_proba(l::$(lname){T},y::AbstractVector,μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
             if typeof(l) <: RegressionLikelihood
                 return μ,max.(σ²,zero(T)).+var(l)
-            elseif typeof(l) <: ClassificationLikelihood
+            else
                 N = length(μ)
                 pred = zeros(T,N)
                 sig_pred = zeros(T,N)
@@ -206,8 +204,8 @@ function _augmodel(name::String,lname,ltype,C,g,α,β,γ,φ,∇φ)
 
         ### Natural Gradient Section ###
 
-        @inline AGP.∇E_μ(l::$(lname),::AugmentedGaussianProcesses.AOptimizer,y::AbstractVector) where {T} = (g(l,y)+l.θ.*β(l,y),)
-        @inline AGP.∇E_Σ(l::$(lname),::AugmentedGaussianProcesses.AOptimizer,y::AbstractVector) where {T} = (l.θ.*γ(l,y),)
+        @inline AGP.∇E_μ(l::$(lname),::AugmentedGaussianProcesses.AOptimizer,y::AbstractVector) where {T} = (g(l, y) + l.θ.*β(l, y),)
+        @inline AGP.∇E_Σ(l::$(lname),::AugmentedGaussianProcesses.AOptimizer,y::AbstractVector) where {T} = (l.θ .* γ(l, y),)
 
         ### ELBO Section ###
         function AGP.expec_log_likelihood(l::$(lname),i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}

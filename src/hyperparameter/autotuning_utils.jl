@@ -22,7 +22,7 @@ function setZadbackend(backend_sym)
 end
 
 ##
-function apply_grads_kernel_params!(opt,k::Kernel,Δ::IdDict)
+function apply_grads_kernel_params!(opt, k::Kernel, Δ::IdDict)
     ps = Flux.params(k)
     for p in ps
         Δ[p] == nothing && continue
