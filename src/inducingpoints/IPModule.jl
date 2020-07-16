@@ -3,7 +3,7 @@
 """
 module IPModule
 
-export Webscale, OIPS, Kmeans, kDPP, StdDPP, SeqDPP, Greedy, UniformSampling, InducingPoints, FixedInducingPoints
+export Webscale, OIPS, Kmeans, kDPP, StdDPP, SeqDPP, Greedy, UniformSampling, UniGrid, InducingPoints, FixedInducingPoints
 export init!, add_point!, remove_point!
 
 using StatsBase: Weights, sample
@@ -29,7 +29,7 @@ include("oips.jl")
 include("kmeans.jl")
 include("greedy.jl")
 include("uniform.jl")
-
+include("unigrid.jl")
 
 
 # "Return the total cost of the current dataset given a set of centers"
