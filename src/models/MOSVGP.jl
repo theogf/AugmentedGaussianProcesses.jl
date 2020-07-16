@@ -155,7 +155,7 @@ function MOSVGP(
         )
     inference =
         tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch[1:1])
-    inference.xview = view.(X, range.(1, _nMinibatch, step = 1), :)
+    inference.xview = view.(X, collect.(range.(1, _nMinibatch, step = 1)), :)
     inference.yview = view(y, :)
 
     model = MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(

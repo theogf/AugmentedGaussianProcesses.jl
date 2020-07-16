@@ -56,8 +56,12 @@ function Base.show(io::IO,model::StudentTLikelihood{T}) where T
     print(io,"Student-t likelihood")
 end
 
-function compute_proba(l::StudentTLikelihood{T},μ::AbstractVector{T},σ²::AbstractVector{T}) where {T<:Real}
-    return μ,max.(σ²,zero(σ²)).+0.5*l.ν*l.σ^2/(0.5*l.ν-1)
+function compute_proba(
+    l::StudentTLikelihood{T},
+    μ::AbstractVector{T},
+    σ²::AbstractVector{T},
+) where {T<:Real}
+    return μ, max.(σ², zero(σ²)) .+ 0.5 * l.ν * l.σ^2 / (0.5 * l.ν - 1)
 end
 
 ## Local Updates ##

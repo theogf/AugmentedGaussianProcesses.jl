@@ -1,4 +1,4 @@
-@traitfn get_y(model::TGP) where {TGP<:AbstractGP;IsMultiOutput{TGP}} = view_y.(model.likelihood, model.y, model.inference.MBIndices)
+@traitfn get_y(model::TGP) where {TGP<:AbstractGP;IsMultiOutput{TGP}} = view_y.(model.likelihood, model.y, Ref(MBIndices(model.inference)))
 
 ##
 @traitfn function mean_f(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}

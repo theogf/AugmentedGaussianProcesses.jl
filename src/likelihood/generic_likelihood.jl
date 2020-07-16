@@ -91,7 +91,7 @@ macro augmodel(name,ltype,C::InputSymbol,g::InputSymbol,α::InputSymbol,β::Inpu
     #Find gradient with AD if needed
     esc(_augmodel(string(name),name,Symbol(ltype,"Likelihood"),C,g,α,β,γ,φ,∇φ))
 end
-function generate_likelihood(lname,ltype,C,g,α,β,γ,φ)
+function generate_likelihood(lname, ltype, C, g, α, β, γ, φ)
     quote begin
         using Statistics
         # struct $(Symbol(name,"{T<:Real}"))# <: $(ltype)
