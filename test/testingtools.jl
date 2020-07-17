@@ -489,8 +489,8 @@ function testconv(
     f::AbstractArray,
     y::AbstractArray,
 )
-    μ, Σ = predict_f(model, X, covf = true, fullcov = true)
-    μ, diagΣ = predict_f(model, X, covf = true, fullcov = false)
+    μ, Σ = predict_f(model, X, cov = true, diag = false)
+    μ, diagΣ = predict_f(model, X, cov = true, diag = true)
     y_pred = predict_y(model, X)
     py_pred = proba_y(model, X)
     if problem_type == "Regression"
