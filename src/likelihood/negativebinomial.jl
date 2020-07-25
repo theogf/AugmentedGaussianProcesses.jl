@@ -65,8 +65,8 @@ end
 
 function compute_proba(
     l::NegBinomialLikelihood{T},
-    μ::AbstractVector,
-    σ²::AbstractVector,
+    μ::AbstractVector{<:Real},
+    σ²::AbstractVector{<:Real},
 ) where {T<:Real}
     N = length(μ)
     pred = zeros(T, N)

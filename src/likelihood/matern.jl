@@ -79,8 +79,8 @@ end
 
 function compute_proba(
     l::Matern3_2Likelihood{T},
-    μ::AbstractVector{T},
-    σ²::AbstractVector{T},
+    μ::AbstractVector{<:Real},
+    σ²::AbstractVector{<:Real},
 ) where {T<:Real}
     return μ, max.(σ², 0.0) .+ 4 * l.ρ^2 / 3
 end

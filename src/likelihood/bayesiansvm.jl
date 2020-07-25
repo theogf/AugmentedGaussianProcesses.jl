@@ -67,8 +67,8 @@ end
 
 function compute_proba(
     l::BayesianSVM{T},
-    μ::AbstractVector{T},
-    σ²::AbstractVector{T},
+    μ::AbstractVector{<:Real},
+    σ²::AbstractVector{<:Real},
 ) where {T<:Real}
     N = length(μ)
     pred = zeros(T, N)

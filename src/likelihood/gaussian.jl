@@ -49,8 +49,8 @@ end
 
 function compute_proba(
     l::GaussianLikelihood{T},
-    μ::AbstractVector{T},
-    σ²::AbstractVector{T},
+    μ::AbstractVector{<:Real},
+    σ²::AbstractVector{<:Real},
 ) where {T<:Real}
     return μ, σ² .+ noise(l)
 end
