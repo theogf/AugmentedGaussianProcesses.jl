@@ -81,7 +81,7 @@ function tests_likelihood(
                     )
                     @test model isa VGP{
                         floattype,
-                        ltype{floattype},
+                        ltype{floattype, Vector{floattype}},
                         AnalyticVI{floattype,nLatent},
                         nLatent,
                     }
@@ -112,7 +112,7 @@ function tests_likelihood(
                     model = VGP(X, y, k, l, QuadratureVI(), optimiser = false)
                     @test model isa VGP{
                         floattype,
-                        ltype{floattype},
+                        ltype{floattype, Vector{floattype}},
                         QuadratureVI{floattype,nLatent},
                         nLatent,
                     }
@@ -142,7 +142,7 @@ function tests_likelihood(
                         VGP(X, y, k, l, MCIntegrationVI(), optimiser = false)
                     @test model isa VGP{
                         floattype,
-                        ltype{floattype},
+                        ltype{floattype, Vector{floattype}},
                         MCIntegrationVI{floattype,nLatent},
                         nLatent,
                     }
@@ -186,7 +186,7 @@ function tests_likelihood(
                     )
                     @test model isa OnlineSVGP{
                         floattype,
-                        ltype{floattype},
+                        ltype{floattype, Vector{floattype}},
                         AnalyticVI{floattype,nLatent},
                         nLatent,
                     }
@@ -221,7 +221,7 @@ function tests_likelihood(
                     )
                     @test model isa OnlineSVGP{
                         floattype,
-                        ltype{floattype},
+                        ltype{floattype, Vector{floattype}},
                         QuadratureVI{floattype,nLatent},
                         nLatent,
                     }
@@ -254,7 +254,7 @@ function tests_likelihood(
                     )
                     @test model isa OnlineVGP{
                         floattype,
-                        ltype{floattype},
+                        ltype{floattype, Vector{floattype}},
                         MCIntegrationVI{floattype,nLatent},
                         nLatent,
                     }
@@ -297,7 +297,7 @@ function tests_likelihood(
                     )
                     @test model isa SVGP{
                         floattype,
-                        ltype{floattype},
+                        ltype{floattype, Vector{floattype}},
                         AnalyticVI{floattype,nLatent},
                         nLatent,
                     }
@@ -344,7 +344,7 @@ function tests_likelihood(
                         SVGP(X, y, k, l, QuadratureVI(), M, optimiser = false)
                     @test model isa SVGP{
                         floattype,
-                        ltype{floattype},
+                        ltype{floattype, Vector{floattype}},
                         QuadratureVI{floattype,nLatent},
                         nLatent,
                     }
@@ -396,7 +396,7 @@ function tests_likelihood(
                     )
                     @test model isa SVGP{
                         floattype,
-                        ltype{floattype},
+                        ltype{floattype, Vector{floattype}},
                         MCIntegrationVI{floattype,nLatent},
                         nLatent,
                     }
@@ -447,7 +447,7 @@ function tests_likelihood(
                     model = MCGP(X, y, k, l, GibbsSampling())
                     @test model isa MCGP{
                         floattype,
-                        ltype{floattype},
+                        ltype{floattype, Vector{floattype}},
                         GibbsSampling{floattype,nLatent},
                         nLatent,
                     }
@@ -467,7 +467,7 @@ function tests_likelihood(
                     model = MCGP(X, y, k, l, HMCSampling())
                     @test model isa MCGP{
                         floattype,
-                        ltype{floattype},
+                        ltype{floattype, Vector{floattype}},
                         HMCSampling{floattype,nLatent},
                         nLatent,
                     }

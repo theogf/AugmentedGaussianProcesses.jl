@@ -13,26 +13,26 @@ This likelihood has the same properties as [softmax](https://en.wikipedia.org/wi
 
 For the analytical version, the likelihood is augmented multiple times. More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670)
 """
-mutable struct LogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
+mutable struct LogisticSoftMaxLikelihood{T<:Real, A<:AbstractVector{T}} <: MultiClassLikelihood{T}
     nClasses::Int
-    class_mapping::AbstractVector{Any} # Classes labels mapping
+    class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
-    Y::AbstractVector{BitVector} #Mapping from instances to classes (one hot encoding)
-    y_class::AbstractVector{Int64} # GP Index for each sample
-    c::AbstractVector{AbstractVector{T}} # Second moment of fₖ
-    α::AbstractVector{T} # First variational parameter of Gamma distribution
-    β::AbstractVector{T} # Second variational parameter of Gamma distribution
-    θ::AbstractVector{AbstractVector{T}} # Variational parameter of Polya-Gamma distribution
-    γ::AbstractVector{AbstractVector{T}} # Variational parameter of Poisson distribution
+    Y::Vector{BitVector} #Mapping from instances to classes (one hot encoding)
+    y_class::Vector{Int64} # GP Index for each sample
+    c::Vector{A} # Second moment of fₖ
+    α::A # First variational parameter of Gamma distribution
+    β::A # Second variational parameter of Gamma distribution
+    θ::Vector{A} # Variational parameter of Polya-Gamma distribution
+    γ::Vector{A} # Variational parameter of Poisson distribution
     function LogisticSoftMaxLikelihood{T}(nClasses::Int) where {T<:Real}
-        new{T}(nClasses)
+        new{T, Vector{T}}(nClasses)
     end
     function LogisticSoftMaxLikelihood{T}(
         nClasses::Int,
         labels::AbstractVector,
         ind_mapping::Dict,
     ) where {T<:Real}
-        new{T}(nClasses, labels, ind_mapping)
+        new{T, Vector{T}}(nClasses, labels, ind_mapping)
     end
     function LogisticSoftMaxLikelihood{T}(
         nClasses::Int,
@@ -41,7 +41,7 @@ mutable struct LogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
         ind_mapping::Dict{<:Any,<:Int},
         y_class::AbstractVector{<:Int},
     ) where {T<:Real}
-        new{T}(nClasses, class_mapping, ind_mapping, Y, y_class)
+        new{T, Vector{T}}(nClasses, class_mapping, ind_mapping, Y, y_class)
     end
     function LogisticSoftMaxLikelihood{T}(
         nClasses,
@@ -49,13 +49,13 @@ mutable struct LogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
         class_mapping::AbstractVector,
         ind_mapping::Dict{<:Any,<:Int},
         y_class::AbstractVector{<:Int},
-        c::AbstractVector{<:AbstractVector{<:Real}},
-        α::AbstractVector{<:Real},
-        β::AbstractVector,
-        θ::AbstractVector{<:AbstractVector},
-        γ::AbstractVector{<:AbstractVector{<:Real}},
-    ) where {T<:Real}
-        new{T}(nClasses, class_mapping, ind_mapping, Y, y_class, c, α, β, θ, γ)
+        c::AbstractVector{A},
+        α::A,
+        β::A,
+        θ::AbstractVector{A},
+        γ::AbstractVector{A},
+    ) where {T<:Real, A<:AbstractVector{T}}
+        new{T, A}(nClasses, class_mapping, ind_mapping, Y, y_class, c, α, β, θ, γ)
     end
 end
 

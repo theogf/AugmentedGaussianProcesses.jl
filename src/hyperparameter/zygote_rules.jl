@@ -2,7 +2,7 @@ function ∇L_ρ_reverse(f, gp::Abstract_GP, X, A)
     k = gp.kernel
     ps = Flux.params(k)
     g = (Flux.gradient(ps) do
-        _∇L_ρ_reverse(f, k, x, A)
+        _∇L_ρ_reverse(f, k, x)
     end).grads # Zygote gradient
 end
 
