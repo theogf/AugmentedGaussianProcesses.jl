@@ -74,7 +74,7 @@
                 )
                 @test typeof(model) <: SVGP{
                     floattype,
-                    GaussianLikelihood{floattype, Nothing},
+                    GaussianLikelihood{floattype, Nothing, Vector{floattype}},
                     AnalyticVI{floattype,1},
                     1,
                 }

@@ -66,8 +66,8 @@ end
 
 function compute_proba(
     l::PoissonLikelihood{T},
-    μ::Vector{T},
-    σ²::Vector{T},
+    μ::AbstractVector{<:Real},
+    σ²::AbstractVector{<:Real},
 ) where {T<:Real}
     N = length(μ)
     pred = zeros(T, N)

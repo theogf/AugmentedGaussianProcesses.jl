@@ -75,8 +75,8 @@ end
 
 function compute_proba(
     l::LaplaceLikelihood{T},
-    μ::AbstractVector{T},
-    σ²::AbstractVector{T},
+    μ::AbstractVector{<:Real},
+    σ²::AbstractVector{<:Real},
 ) where {T<:Real}
     return μ, max.(σ², 0.0) .+ 2 * l.β^2
 end
