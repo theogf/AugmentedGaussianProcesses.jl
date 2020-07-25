@@ -66,7 +66,7 @@ function logpdf(l::LogisticLikelihood, y::T, f::T) where {T<:Real}
     -log(one(T) + exp(-y * f))
 end
 
-function Base.show(io::IO, model::LogisticLikelihood{T}) where {T}
+function Base.show(io::IO, ::LogisticLikelihood)
     print(io, "Bernoulli Likelihood with Logistic Link")
 end
 
@@ -111,11 +111,8 @@ end
 
 ### Natural Gradient Section ###
 
-@inline ∇E_μ(l::LogisticLikelihood, ::AOptimizer, y::AbstractVector) where {T} =
-    (0.5 * y,)
-
-@inline ∇E_Σ(l::LogisticLikelihood, ::AOptimizer, y::AbstractVector) where {T} =
-    (0.5 * l.θ,)
+∇E_μ(l::LogisticLikelihood, ::AOptimizer, y::AbstractVector) = (0.5 * y,)
+∇E_Σ(l::LogisticLikelihood, ::AOptimizer, y::AbstractVector) = (0.5 * l.θ,)
 
 ### ELBO Section ###
 
