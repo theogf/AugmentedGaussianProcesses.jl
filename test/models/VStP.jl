@@ -12,7 +12,7 @@ y = rand(N)
     m = VStP(x, y, k, l, vi, ν)
     @test_throws AssertionError VStP(x, y, k, l, vi, 0.5)
     @test_throws AssertionError VStP(x, y, k, l, QuadratureVI(), 0.5)
-    @test_nowarn println(m)
+    @test repr(m) == "Variational Student-T Process with a Gaussian likelihood (σ² = $(AGP.noise(l))) infered by Analytic Variational Inference"
     AGP.computeMatrices!(m)
     @test_nowarn AGP.local_prior_updates!(m, X)
     @test AGP.objective(m) == ELBO(m)
