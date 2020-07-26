@@ -1,10 +1,8 @@
 ## Verify that the data is self-consistent and consistent with the likelihood ##
 function check_data!(
-    X::AbstractMatrix{T₁},
-    y::AbstractArray{T₂,N},
+    y::AbstractArray,
     likelihood::Union{Distribution,Likelihood},
-) where {T₁<:Real,T₂,N}
-    # @assert (size(y, 1) == size(X, 1)) "There is not the same number of samples in X and y"
+)
     y, nLatent, likelihood = treat_labels!(y, likelihood)
     return y, nLatent, likelihood
 end
@@ -22,7 +20,7 @@ function wrap_X_multi(X, nTask)
         end
     else
         @assert length(X) == nTask "There is not the same number of input matrices as output matrices"
-        @assert all(isa.(X,AbstractMatrix)) "All X should be matrices"
+        @assert all(isa.(X, AbstractMatrix)) "All X should be matrices"
         X
     end
 end

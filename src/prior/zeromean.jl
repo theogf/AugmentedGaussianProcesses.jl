@@ -15,3 +15,4 @@ update!(μ::ZeroMean{T}, grad::AbstractVector{T}, x) where {T<:Real} = nothing
 
 (μ::ZeroMean{T})(x::Real) where {T<:Real} = zero(T)
 (μ::ZeroMean{T})(x::AbstractMatrix) where {T<:Real} = zeros(T, size(x, 1))
+(μ::ZeroMean{T})(x::AbstractVector) = zeros(T, length(x))

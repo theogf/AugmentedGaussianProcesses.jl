@@ -28,14 +28,15 @@ Argument list :
  - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct GP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},N} <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Matrix{T} #Feature vectors
-    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Int64 # Number of data points
-    nDim::Int64 # Number of covariates per data point
-    nFeatures::Int64 # Number of features of the GP (equal to number of points)
-    nLatent::Int64 # Number pf latent GPs
-    f::NTuple{N,_GP} # Vector of latent GPs
+mutable struct GP{
+    T<:Real,
+    TLikelihood<:Likelihood{T},
+    TInference<:Inference{T},
+    1,
+    TData<:DataContainer,
+} <: AbstractGP{T,TLikelihood,TInference,1}
+    data::TData
+    f::_GP # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64 #Level of printing information
@@ -45,7 +46,7 @@ end
 
 
 function GP(
-    X::AbstractArray{T},
+    X::AbstractArray,
     y::AbstractArray,
     kernel::Kernel;
     noise::Real = 1e-5,
@@ -62,9 +63,8 @@ function GP(
     X = wrap_X(X)
 
     y, nLatent, likelihood = check_data!(X, y, likelihood)
-
-    nFeatures = nSamples = size(X, 1)
-    nDim = size(X, 2)
+    data = wrap_data(X, y)
+    nFeatures = nSamples(data)
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
@@ -74,15 +74,20 @@ function GP(
     likelihood =
         init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
 
-    inference = init_inference(inference, nLatent, nSamples, nSamples, nSamples)
-    inference.xview = [view(X, :, :)]
-    inference.yview = [view_y(likelihood, y, 1:nSamples)]
+    xview = view(X, :)
+    yview = view_y(likelihood, y, 1:nSamples)
+    inference = init_inference(
+        inference,
+        nLatent,
+        nSamples,
+        nSamples,
+        nSamples,
+        xview,
+        yview,
+    )
 
-    model = GP{T,GaussianLikelihood{T},typeof(inference),1}(
-        X,
-        y,
-        nFeatures,
-        nDim,
+    model = GP{T}(
+        data,
         nFeatures,
         nLatent,
         latentf,
@@ -92,15 +97,19 @@ function GP(
         atfrequency,
         false,
     )
-    computeMatrices!(model)
-    analytic_updates!(model)
+    update_parameters!(model)
     setTrained!(model, true)
     return model
 end
 
-function Base.show(io::IO,model::GP{T,<:Likelihood,<:Inference}) where {T}
-    print(io,"Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
+function Base.show(io::IO, model::GP)
+    print(
+        io,
+        "Gaussian Process with a $(model.likelihood) infered by $(model.inference) ",
+    )
 end
+
+nLatent(::GP) = 1
 
 get_y(model::GP) = model.inference.yview
 get_Z(model::GP) = model.inference.xview

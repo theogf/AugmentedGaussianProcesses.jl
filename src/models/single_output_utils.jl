@@ -7,12 +7,12 @@ end
     ∇E_Σ(m.likelihood, opt_type(m.inference), get_y(m))
 end
 
-function wrap_X(X)
-    return X = if X isa AbstractVector
-        reshape(X, :, 1)
-    else
-        X
-    end
+function wrap_X(X::AbstractArray{<:Real})
+    return RowVecs(X isa AbstractVector ? reshape(X, :, 1) : X)
+end
+
+function wrap_X(X::AbstractVector)
+    return X
 end
 
 @traitfn get_y(m::TGP) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}} = yview(m.inference)

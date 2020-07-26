@@ -11,6 +11,9 @@ nFeatures(m::AbstractGP) = m.nFeatures
 nSamples(m::AbstractGP) = m.nSamples
 nSamples(m::AbstractGP, i::Int) = m.nSamples[i]
 
+getf(m::AbstractGP) = m.f
+getf(m::AbstractGP, i::Int) = getindex(m.f, i)
+
 isTrained(m::AbstractGP) = m.Trained
 setTrained!(m::AbstractGP, status::Bool) = m.Trained = status
 

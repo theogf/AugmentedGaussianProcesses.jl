@@ -7,7 +7,7 @@ All data is used at each iteration (use AnalyticSVI for Stochastic updates)
 **Keywords arguments**
     - `ϵ::T` : convergence criteria
 """
-mutable struct AnalyticVI{T,N} <: VariationalInference{T}
+mutable struct AnalyticVI{T,N,Tx<:AbstractVector, Ty<:AbstractVector} <: VariationalInference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
     Stochastic::Bool #Use of mini-batches
@@ -17,8 +17,8 @@ mutable struct AnalyticVI{T,N} <: VariationalInference{T}
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     vi_opt::NTuple{N,AVIOptimizer}
     MBIndices::Vector{Vector{Int64}} #Indices of the minibatch
-    xview::Vector
-    yview::Vector
+    xview::Tx
+    yview::Ty
 
     function AnalyticVI{T}(
         ϵ::T,

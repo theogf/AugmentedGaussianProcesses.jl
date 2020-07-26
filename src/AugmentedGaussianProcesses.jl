@@ -25,6 +25,8 @@ module AugmentedGaussianProcesses
     using LinearAlgebra
     using Random
     @reexport using KernelFunctions
+    using KernelFunctions: ColVecs, RowVecs
+    @reexport using InducingPoints
     using Zygote
     using ForwardDiff
     using Flux #Remove full dependency on Flux once params for KernelFunctions is set
@@ -43,7 +45,6 @@ module AugmentedGaussianProcesses
     export KMeansInducingPoints
 
     #Useful functions and module
-    include("inducingpoints/IPModule.jl")
     include("functions/PGSampler.jl")
     include("functions/GIGSampler.jl")
     include("functions/lap_transf_dist.jl")
@@ -63,12 +64,12 @@ module AugmentedGaussianProcesses
     abstract type VariationalInference{T} <: Inference{T} end
     abstract type SamplingInference{T} <: Inference{T} end
     abstract type Likelihood{T<:Real} end
-    abstract type Abstract_GP{T<:Real} end
+    abstract type Abstract_GP{T<:Real, K<:Kernel, Tmean<:PriorMean} end
 
-    const LatentArray = Vector #For future optimization : How collection of latent GP parameters and local variables are stored
     include("functions/utils.jl")
     include("prior/priormean.jl")
 
+    # Models
     include("models/AbstractGP.jl")
     include("models/GP_base.jl")
     include("models/GP.jl")

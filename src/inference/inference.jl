@@ -7,27 +7,30 @@ include("optimisers.jl")
 
 export RobbinsMonro, ALRSVI
 
-function post_process!(model::AbstractGP{T,<:Likelihood,<:Inference}) where {T}
-    nothing
-end
+function post_process!(model::AbstractGP) = nothing
 
+# Utils to iterate over inference objects
 Base.length(::Inference) = 1
 
-Base.iterate(l::Inference) = (l,nothing)
-Base.iterate(l::Inference, ::Any) = nothing
+Base.iterate(i::Inference) = (i, nothing)
+Base.iterate(i::Inference, ::Any) = nothing
 
-isStochastic(l::Inference) = l.Stochastic
+isStochastic(i::Inference) = i.stoch
+
+## Multiple accessors
+conv_crit(i::Inference) = i.ϵ
+
 
 ## Conversion from natural to standard distribution parameters ##
 function global_update!(gp::Abstract_GP) where {T,L}
-    gp.Σ .= -0.5*inv(gp.η₂)
-    gp.μ .= gp.Σ*gp.η₁
+    gp.Σ .= -0.5 * inv(gp.η₂)
+    gp.μ .= gp.Σ * gp.η₁
 end
 
 ## For the online case, the size may vary and inplace updates are note valid
 function global_update!(gp::_OSVGP) where {T,L}
-    gp.Σ = -0.5*inv(gp.η₂)
-    gp.μ = gp.Σ*gp.η₁
+    gp.Σ = -0.5 * inv(gp.η₂)
+    gp.μ = gp.Σ * gp.η₁
 end
 
 
@@ -45,20 +48,23 @@ setyview!(inf::Inference, yview) = setyview!(inf, 1, yview)
 nMinibatch(inf::Inference, i::Int) = inf.nMinibatch[i]
 nMinibatch(inf::Inference) = nMinibatch(inf, 1)
 setnMinibatch!(inf::Inference, n::AbstractVector) = inf.nMinibatch = n
-setnMinibatch!(inf::Inference, n::Real) = setnMinibatch!(inf,[n])
+setnMinibatch!(inf::Inference, n::Real) = setnMinibatch!(inf, [n])
 
 setnSamples!(inf::Inference, n::AbstractVector) = inf.nSamples = n
-setnSamples!(inf::Inference, n::Real) = setnSamples!(inf,[n])
+setnSamples!(inf::Inference, n::Real) = setnSamples!(inf, [n])
 
 getρ(inf::Inference, i::Int) = inf.ρ[i]
 getρ(inf::Inference) = getρ(inf, 1)
 
 MBIndices(inf::Inference, i::Int) = inf.MBIndices[i]
 MBIndices(inf::Inference) = MBIndices(inf, 1)
-setMBIndices!(inf::Inference, i::Int, mbindices::AbstractVector) = inf.MBIndices[i] .= mbindices
-setMBIndices!(inf::Inference, mbindices::AbstractVector) = setMBIndices!(inf, 1, mbindices)
+setMBIndices!(inf::Inference, i::Int, mbindices::AbstractVector) =
+    inf.MBIndices[i] .= mbindices
+setMBIndices!(inf::Inference, mbindices::AbstractVector) =
+    setMBIndices!(inf, 1, mbindices)
 
-setHPupdated!(inf::Inference, status::Bool) = inf.HyperParametersUpdated = status
+setHPupdated!(inf::Inference, status::Bool) =
+    inf.HyperParametersUpdated = status
 isHPupdated(inf::Inference) = inf.HyperParametersUpdated
 
 nIter(inf::Inference) = inf.nIter

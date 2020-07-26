@@ -95,8 +95,8 @@ function sample(model::MCGP{T,TLike,TInf},nSamples::Int=1000;callback::Union{Not
 end
 
 function update_parameters!(model::GP)
-    analytic_updates!(model)
     computeMatrices!(model); #Recompute the matrices if necessary (when hyperparameters have been updated)
+    analytic_updates!(model)
 end
 
 function update_parameters!(model::VGP)
