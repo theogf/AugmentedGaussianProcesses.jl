@@ -1,96 +1,145 @@
 ## Gaussian Process
+mutable struct GPPrior{T,K<:Kernel,Tmean<:PriorMean}
+    kernel::K
+    μ₀::Tmean
+    K::PDMat{T,Matrix{T}}
+end
 
-mutable struct _GP{T,K<:Kernel,Tmean₀<:PriorMean} <: Abstract_GP{T,K,TMean}
+kernel(gp::GPPrior) = gp.kernel
+mean(gp::GPPrior) = gp.μ₀
+mean(gp::GPPrior, X::AbstractVector) = gp.μ₀(X)
+cov(gp::GPPrior) = gp.K
+
+abstract type AbstractPosterior{T<:Real} end
+
+dim(p::AbstractPosterior) = p.dim
+mean(p::AbstractPosterior) = p.μ
+cov(p::AbstractPosterior) = p.Σ
+var(p::AbstractPosterior) = diag(p.Σ)
+
+mutable struct Posterior{T<:Real} <: AbstractPosterior{T}
     dim::Int
     μ::Vector{T} # Posterior mean
     Σ::PDMat{T,Matrix{T}} # Posterior Covariance
-    kernel::K
-    μ₀::Tμ₀
-    K::PDMat{T,Matrix{T}}
-    opt::Any
 end
 
-function _GP{T}(dim::Int, kernel::Kernel, mean::PriorMean, opt) where {T<:Real}
-    _GP{T}(
-        dim,
-        zeros(T, dim),
-        PDMat(Matrix{T}(I, dim, dim)),
-        deepcopy(kernel),
-        deepcopy(mean),
-        PDMat(Matrix{T}(I, dim, dim)),
-        deepcopy(opt),
-    )
-end
-
-@traitimpl IsFull{_GP}
-
-## Variational Gaussian Process
-
-mutable struct _VGP{T,K<:Kernel,Tmean<:PriorMean} <: Abstract_GP{T,K,Tmean}
+struct VarPosterior{T} <: AbstractPosterior{T}
     dim::Int
     μ::Vector{T}
-    Σ::Matrix{T}
+    Σ::Symmetric{T,Matrix{T}}
     η₁::Vector{T}
     η₂::Symmetric{T,Matrix{T}}
-    kernel::K
-    μ₀::TMean
-    K::PDMat{T,Matrix{T}}
-    opt::Any
 end
 
-function _VGP{T}(dim::Int, kernel::Kernel, mean::PriorMean, opt) where {T<:Real}
-    _VGP{T}(
-        dim,
-        zeros(T, dim),
-        Matrix{T}(I, dim, dim),
-        zeros(T, dim),
-        Symmetric(Matrix{T}(-0.5 * I, dim, dim)),
-        deepcopy(kernel),
-        deepcopy(mean),
-        PDMat(Matrix{T}(I, dim, dim)),
-        deepcopy(opt),
-    )
-end
+VarPosterior{T}(dim::Int) where {T<:Real} = VarPosterior{T}(
+    dim,
+    zeros(T, dim),
+    Symmetric(Matrix{T}(I, dim, dim)),
+    zeros(T, dim),
+    Symmetric(Matrix{T}(-0.5 * I, dim, dim)),
+)
 
-@traitimpl IsFull{_VGP}
+nat1(p::VarPosterior) = p.η₁
+nat2(p::VarPosterior) = p.η₂
 
-## Sparse Variational Gaussian Process
 
-mutable struct _SVGP{T,K < Kernel,Tmean<:PriorMean,TZ<:InducingPoints} <:
-               Abstract_GP{T,K,Tmean}
+struct SamplePosterior{T} <: AbstractPosterior{T}
     dim::Int
-    μ::Vector{T}
-    Σ::Matrix{T}
-    η₁::Vector{T}
-    η₂::Symmetric{T,Matrix{T}}
-    kernel::K
-    μ₀::Tmean
-    Z::TZ
-    K::PDMat{T,Matrix{T}}
-    Knm::Matrix{T}
-    κ::Matrix{T}
-    K̃::Vector{T}
-    opt::Any
+    f::Vector{T}
+    Σ::Symmetric{T, Matrix{T}}
 end
 
-function _SVGP{T}(
+mean(p::SamplePosterior) = p.f
+
+#### Latent models ####
+
+## Exact Gaussian Process
+struct LatentGP{T,Tpr<:GPPrior,Tpo<:Posterior{T},O} <: AbstractLatent{T,Tpr,Tpo}
+    prior::Tpr
+    post::Tpo
+    opt::O
+end
+
+function LatentGP{T}(
     dim::Int,
-    nSamplesUsed::Int,
-    Z::InducingPoints,
     kernel::Kernel,
     mean::PriorMean,
     opt,
 ) where {T<:Real}
-    _SVGP{T}(
-        dim,
-        zeros(T, dim),
-        Matrix{T}(I, dim, dim),
-        zeros(T, dim),
-        Symmetric(Matrix{T}(-0.5 * I, dim, dim)),
-        deepcopy(kernel),
-        deepcopy(mean),
+    LatentGP{T}(
+        GPPrior(
+            deepcopy(kernel),
+            deepcopy(mean),
+            PDMat(Matrix{T}(I, dim, dim)),
+        ),
+        Posterior(dim, zeros(T, dim), PDMat(Matrix{T}(I, dim, dim))),
+        deepcopy(opt),
+    )
+end
+
+@traitimpl IsFull{LatentGP}
+
+## Variational Gaussian Process
+mutable struct VarLatent{T,Tpr<:GPPrior,Tpo<:VarPosterior{T},O} <:
+               AbstractLatent{T,Tpr,Tpo}
+    prior::Tpr
+    post::Tpo
+    opt::O
+end
+
+function VarLatent{T}(
+    dim::Int,
+    kernel::Kernel,
+    mean::PriorMean,
+    opt,
+) where {T<:Real}
+    VarLatent{T}(
+        GPPrior(
+            deepcopy(kernel),
+            deepcopy(mean),
+            PDMat(Matrix{T}(I, dim, dim)),
+        ),
+        VarPosterior(dim),
+        deepcopy(opt),
+    )
+end
+
+@traitimpl IsFull{VarLatent}
+
+## Sparse Variational Gaussian Process
+
+struct SparseVarLatent{
+    T,
+    Tpr<:GPPrior,
+    Tpo<:VarPosterior{T},
+    TZ<:AbstractInducingPoints,
+    O,
+} <: AbstractLatent{T,Tpr,Tpo}
+    prior::Tpr
+    post::Tpo
+    Z::TZ
+    Knm::Matrix{T}
+    κ::Matrix{T}
+    K̃::Vector{T}
+    opt::O
+end
+
+function SparseVarLatent{T}(
+    dim::Int,
+    nSamplesUsed::Int,
+    Z::AbstractInducingPoints,
+    kernel::Kernel,
+    mean::PriorMean,
+    opt,
+) where {T<:Real}
+    SparseVarLatent{T}(
+        GPPrior(
+            deepcopy(kernel),
+            deepcopy(mean),
+            PDMat(Matrix{T}(I(dim))),
+        ),
+        VarPosterior(dim),
         deepcopy(Z),
-        PDMat(Matrix{T}(I, dim, dim)),
         Matrix{T}(undef, nSamplesUsed, dim),
         Matrix{T}(undef, nSamplesUsed, dim),
         Vector{T}(undef, nSamplesUsed),
@@ -98,80 +147,77 @@ function _SVGP{T}(
     )
 end
 
-@traitimpl IsSparse{_SVGP}
+@traitimpl IsSparse{SparseVarLatent}
 
 ## Monte-Carlo Gaussian Process
 
-mutable struct _MCGP{T,K<:Kernel,Tmean<:PriorMean} <: Abstract_GP{T,K,Tmean}
-    dim::Int
-    f::Vector{T}
-    kernel::K
-    μ₀::Tmean
-    K::PDMat{T,Matrix{T}}
+struct SampledLatent{T,Tpr<:GPPrior,Tpo<:SamplePosterior{T}} <:
+               AbstractLatent{T,Tpr,Tpo}
+    prior::Tpr
+    post::SamplePosterior
 end
 
-function _MCGP{T}(dim::Int, kernel::Kernel, mean::PriorMean) where {T<:Real}
-    _MCGP{T}(
-        dim,
-        zeros(T, dim),
-        deepcopy(kernel),
-        deepcopy(mean),
-        PDMat(Matrix{T}(I, dim, dim)),
+function SampledLatent{T}(
+    dim::Int,
+    kernel::Kernel,
+    mean::PriorMean,
+) where {T<:Real}
+    SampledLatent{T}(
+        GPPrior(
+            deepcopy(kernel),
+            deepcopy(mean),
+            PDMat(Matrix{T}(I, dim, dim)),
+        ),
+        SampledPosterior(dim, zeros(T, dim), Symmetric(Matrix{T}(I(dim)))),
     )
 end
 
-@traitimpl IsFull{_MCGP}
+@traitimpl IsFull{SampledLatent}
 
 ## Online Sparse Variational Process
 
-mutable struct _OSVGP{
+mutable struct OnlineVarLatent{
     T,
-    K<:Kernel,
-    Tmean<:PriorMean,
-    TZ<:InducingPoints,
+    Tpr<:GPPrior,
+    Tpo<:VarPosterior{T},
+    TZ<:AbstractInducingPoints,
     TZa<:AbstractVector,
-} <: Abstract_GP{T,K,Tmean}
-    dim::Int
-    μ::Vector{T}
-    Σ::Matrix{T}
-    η₁::Vector{T}
-    η₂::Symmetric{T,Matrix{T}}
-    kernel::K
-    μ₀::Tmean
-    Z::Tz
-    K::PDMat{T,Matrix{T}}
+    O,
+} <: AbstractLatent{T,Tpo,Tpr}
+    prior::Tpr
+    post::Tpo
+    prev_post::Tpo
+    Z::TZ
     Knm::Matrix{T}
     κ::Matrix{T}
     K̃::Vector{T}
     Zupdated::Bool
-    opt::Any
+    opt::O
     Zₐ::TZa
     Kab::Matrix{T}
     κₐ::Matrix{T}
     K̃ₐ::Matrix{T}
     invDₐ::Symmetric{T,Matrix{T}}
-    prevη₁::Vector{T}
     prev𝓛ₐ::T
 end
 
-function _OSVGP{T}(
+function OnlineVarLatent{T}(
     dim::Int,
     nSamplesUsed::Int,
-    Z::InducingPoints,
+    Z::AbstractInducingPoints,
     kernel::Kernel,
     mean::PriorMean,
     opt,
 ) where {T<:Real}
-    _OSVGP{T}(
-        dim,
-        zeros(T, dim),
-        Matrix{T}(I, dim, dim),
-        zeros(T, dim),
-        Symmetric(Matrix{T}(-0.5 * I, dim, dim)),
-        kernel,
-        deepcopy(mean),
+    OnlineVarLatent{T}(
+        GPPrior(
+            deepcopy(kernel),
+            deepcopy(mean),
+            PDMat(Matrix{T}(I, dim, dim)),
+        ),
+        VarPosterior{T}(dim),
+        VarPosterior{T}(dim),
         deepcopy(Z),
-        PDMat(Matrix{T}(I, dim, dim)),
         Matrix{T}(undef, nSamplesUsed, dim),
         Matrix{T}(undef, nSamplesUsed, dim),
         Vector{T}(undef, nSamplesUsed),
@@ -182,102 +228,105 @@ function _OSVGP{T}(
         Matrix{T}(I, dim, dim),
         Matrix{T}(I, dim, dim),
         Symmetric(Matrix{T}(I, dim, dim)),
-        zeros(T, dim),
         zero(T),
     )
 end
 
-@traitimpl IsSparse{_OSVGP}
+@traitimpl IsSparse{OnlineVarLatent}
 
 ## Variational Student-T Process
 
-mutable struct _VStP{T} <: Abstract_GP{T}
-    dim::Int
-    μ::Vector{T}
-    Σ::Matrix{T}
-    η₁::Vector{T}
-    η₂::Symmetric{T,Matrix{T}}
-    kernel::Kernel
-    μ₀::PriorMean{T}
-    K::PDMat{T,Matrix{T}}
+mutable struct TVarLatent{T<:Real,Tpr<:GPPrior,Tpo<:VarPosterior{T},O} <:
+               AbstractLatent{T,Tpr,Tpo}
+    prior::Tpr
+    post::Tpo
     ν::T # Number of degrees of freedom
     l²::T # Expectation of ||L^{-1}(f-μ⁰)||₂²
     χ::T  # Expectation of σ
-    opt::Any
+    opt::O
 end
 
-function _VStP{T}(
+function TVarLatent{T}(
     ν::Real,
     dim::Int,
     kernel::Kernel,
     mean::PriorMean,
     opt,
 ) where {T<:Real}
-    _VStP{T}(
-        dim,
-        zeros(T, dim),
-        Matrix{T}(I, dim, dim),
-        zeros(T, dim),
-        Symmetric(Matrix{T}(-0.5 * I, dim, dim)),
-        deepcopy(kernel),
-        deepcopy(mean),
-        PDMat(Matrix{T}(I, dim, dim)),
-        ν,
+    TVarLatent{T}(
+        GPPrior(
+            deepcopy(kernel),
+            deepcopy(mean),
+            PDMat(Matrix{T}(I, dim, dim)),
+        ),
+        VarPosterior{T}(dim)ν,
         rand(T),
         rand(T),
         deepcopy(opt),
     )
 end
 
-@traitimpl IsFull{_VStP}
+@traitimpl IsFull{TVarLatent}
 
 ### Functions
 
+
+prior(gp::AbstractLatent) = p.prior
+kernel(gp::AbstractLatent) = kernel(prior(gp))
+pr_mean(gp::AbstractLatent) = mean(prior(gp))
+pr_mean(gp::AbstractLatent, X::AbstractVector) = mean(prior(gp), X)
+pr_cov(gp::AbstractLatent) = cov(prior(gp))
+pr_cov!(gp::AbstractLatent, K::PDMat) = gp.prior.K = K
+
+posterior(gp::AbstractLatent) = p.post
+mean(gp::AbstractLatent) = mean(posterior(gp))
+cov(gp::AbstractLatent) = cov(posterior(gp))
+var(gp::AbstractLatent) = var(posterior(gp))
+nat1(gp::AbstractLatent{T, <:GPPrior, <:VarPosterior}) where {T} = nat1(posterior(gp))
+nat2(gp::AbstractLatent{T, <:GPPrior, <:VarPosterior}) where {T} = nat2(posterior(gp))
+
 mean_f(model::AbstractGP) = mean_f.(model.f)
 
-@traitfn mean_f(gp::T) where {T <: Abstract_GP; !IsSparse{T}} = gp.μ
-@traitfn mean_f(gp::T) where {T <: Abstract_GP; IsSparse{T}} = gp.κ * gp.μ
+@traitfn mean_f(gp::T) where {T <: AbstractLatent; IsFull{T}} = mean(gp)
+@traitfn mean_f(gp::T) where {T <: AbstractLatent; !IsFull{T}} = gp.κ * mean(gp)
 
-diag_cov_f(model::AbstractGP) = diag_cov_f.(model.f)
+var_f(model::AbstractGP) = var_f.(model.f)
 
-diag_cov_f(gp::_GP{T}) where {T} = zeros(T, gp.dim)
-diag_cov_f(gp::_VGP) = diag(gp.Σ)
-diag_cov_f(gp::_VStP) = diag(gp.Σ)
-diag_cov_f(gp::_SVGP) = opt_diag(gp.κ * gp.Σ, gp.κ) + gp.K̃
-diag_cov_f(gp::_OSVGP) = opt_diag(gp.κ * gp.Σ, gp.κ) + gp.K̃
+@traitfn var_f(gp::T) where {T <: AbstractLatent; IsFull{T}} = var(gp)
+@traitfn var_f(gp::T) where {T <: AbstractLatent; !IsFull{T}} = opt_diag(gp.κ * cov(gp), gp.κ) + gp.K̃
 
-get_Z(gp::Abstract_GP) = gp.Z.Z
+get_Z(gp::AbstractLatent) = gp.Z
 
 @traitfn compute_K!(
     gp::TGP,
     X::AbstractVector,
     jitt::Real,
-) where {TGP <: Abstract_GP; !IsSparse{TGP}} =
-    gp.K = PDMat(kernelmatrix(gp.kernel, X) + jitt * I)
+) where {TGP <: AbstractLatent; IsFull{TGP}} =
+    pr_cov!(gp, PDMat(kernelmatrix(kernel(gp), X) + jitt * I))
 
-@traitfn compute_K!(gp::T, jitt::Real) where {T <: Abstract_GP; IsSparse{T}} =
-    gp.K = PDMat(kernelmatrix(gp.kernel, gp.Z) + jitt * I)
+@traitfn compute_K!(gp::T, jitt::Real) where {T <: AbstractLatent; !IsFull{T}} =
+    pr_cov!(gp, PDMat(kernelmatrix(kernel(gp), gp.Z) + jitt * I))
 
-function compute_κ!(gp::_SVGP, X::AbstractVector, jitt::Real)
-    gp.Knm .= kernelmatrix(gp.kernel, X, gp.Z, obsdim = 1)
+function compute_κ!(gp::SparseVarLatent, X::AbstractVector, jitt::Real)
+    gp.Knm .= kernelmatrix(kernel(gp), X, gp.Z)
     gp.κ .= gp.Knm / gp.K
     gp.K̃ .=
-        kerneldiagmatrix(gp.kernel, X, obsdim = 1) .+ jitt -
+        kerneldiagmatrix(kernel(gp), X) .+ jitt -
         opt_diag(gp.κ, gp.Knm)
 
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end
 
-function compute_κ!(gp::_OSVGP, X::AbstractVector, jitt::Real)
+function compute_κ!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)
     # Covariance with the model at t-1
-    gp.Kab = kernelmatrix(gp.kernel, gp.Zₐ, gp.Z)
+    gp.Kab = kernelmatrix(kernel(gp), gp.Zₐ, gp.Z)
     gp.κₐ = gp.Kab / gp.K
-    Kₐ = Symmetric(kernelmatrix(gp.kernel, gp.Zₐ) + jitt * I)
+    Kₐ = Symmetric(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
     gp.K̃ₐ = Kₐ - gp.κₐ * transpose(gp.Kab)
 
     # Covariance with a new batch
-    gp.Knm = kernelmatrix(gp.kernel, X, gp.Z)
+    gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
     gp.κ = gp.Knm / gp.K
-    gp.K̃ = kerneldiagmatrix(gp.kernel, X) .+ jitt - opt_diag(gp.κ, gp.Knm)
+    gp.K̃ = kerneldiagmatrix(kernel(gp), X) .+ jitt - opt_diag(gp.κ, gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

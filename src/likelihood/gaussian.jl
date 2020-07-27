@@ -73,11 +73,11 @@ function local_updates!(
     l::GaussianLikelihood,
     y::AbstractVector,
     μ::AbstractVector,
-    diag_cov_f::AbstractVector,
+    var_f::AbstractVector,
 )
     if !isnothing(l.opt_noise)
         grad =
-            0.5 * ((sum(abs2, y - μ) + sum(diag_cov_f)) / noise(l) - length(y))
+            0.5 * ((sum(abs2, y - μ) + sum(var_f)) / noise(l) - length(y))
         l.σ² .=
             exp.(log.(l.σ²) + Flux.Optimise.apply!(l.opt_noise, l.σ², [grad]))
     end

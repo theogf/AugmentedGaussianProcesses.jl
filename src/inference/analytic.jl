@@ -54,21 +54,21 @@ function analytic_updates!(m::GP{T}) where {T}
     f = getf(model)
     l = likelihood(model)
     f.Σ = f.K + first(l.σ²) * I
-    f.μ .= f.Σ * (get_y(m) / first(l.σ²) - f.K \ f.μ₀(xview(m))
+    f.μ .= f.Σ * (get_y(m) / first(l.σ²) - f.K \ pr_mean(f, xview(m)))
     if !isnothing(l.opt_noise)
-        g = 0.5 * (norm(f.μ, 2) - tr(inv(f.Σ)))
+        g = 0.5 * (norm(mean(f), 2) - tr(inv(cov(f))))
         Δlogσ² = Flux.Optimise.apply!(l.opt_noise, l.σ², g .* l.σ²)
         l.σ² .= exp.(log.(l.σ²) .+ Δlogσ²)
     end
 end
 
-xview(inf::Analytic) = inf.xview
-yview(inf::Analytic) = inf.yview
+xview(i::Analytic) = i.xview
+yview(i::Analytic) = i.yview
 
-nMinibatch(inf::Analytic) = inf.nSamples
+nMinibatch(i::Analytic) = i.nSamples
 
-getρ(inf::Analytic{T}) = one(T)
+getρ(i::Analytic{T}) where {T} = one(T)
 
-MBIndices(inf::Analytic) = 1:inf.nSamples
+MBIndices(i::Analytic) = 1:nSamples(i)
 
 isStochastic(::Analytic) = false

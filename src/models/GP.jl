@@ -32,11 +32,10 @@ mutable struct GP{
     T<:Real,
     TLikelihood<:Likelihood{T},
     TInference<:Inference{T},
-    1,
     TData<:DataContainer,
 } <: AbstractGP{T,TLikelihood,TInference,1}
     data::TData
-    f::_GP # Vector of latent GPs
+    f::LatentGP{T} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64 #Level of printing information
@@ -55,12 +54,13 @@ function GP(
     optimiser = ADAM(0.01),
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    ArrayType::UnionAll = Vector,
-) where {T<:Real}
-    likelihood = GaussianLikelihood(T(noise), opt_noise = opt_noise)
+    obsdim = 2,
+)
+
+    X, T = wrap_X(X, obsdim)
+    likelihood = GaussianLikelihood(noise, opt_noise = opt_noise)
     inference = Analytic()
 
-    X = wrap_X(X)
 
     y, nLatent, likelihood = check_data!(X, y, likelihood)
     data = wrap_data(X, y)
@@ -69,7 +69,7 @@ function GP(
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
 
-    latentf = ntuple(_ -> _GP{T}(nFeatures, kernel, mean, optimiser), nLatent)
+    latentf = LatentGP{T}(nFeatures, kernel, mean, optimiser)
 
     likelihood =
         init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
@@ -86,19 +86,10 @@ function GP(
         yview,
     )
 
-    model = GP{T}(
-        data,
-        nFeatures,
-        nLatent,
-        latentf,
-        likelihood,
-        inference,
-        verbose,
-        atfrequency,
-        false,
-    )
+    model =
+        GP(data, latentf, likelihood, inference, verbose, atfrequency, false)
     update_parameters!(model)
-    setTrained!(model, true)
+    set_trained!(model, true)
     return model
 end
 

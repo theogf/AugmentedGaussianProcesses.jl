@@ -10,7 +10,7 @@ mutable struct OnlineSVGP{
     nDim::Int64 # Number of covariates per data point
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number of latent GPs
-    f::NTuple{N,_OSVGP}
+    f::NTuple{N,OnlineVarLatent{T}}
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64
@@ -37,7 +37,7 @@ function OnlineSVGP(
     kernel::Kernel,
     likelihood::Likelihood,
     inference::Inference,
-    Z::InducingPoints = CircleKMeans(0.9, 0.8);
+    Z::AbstractInducingPoints = CircleKMeans(0.9, 0.8);
     verbose::Integer = 0,
     optimiser = ADAM(0.01),
     atfrequency::Integer = 1,

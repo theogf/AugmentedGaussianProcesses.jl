@@ -28,21 +28,25 @@ Argument list :
 - `Zoptimiser` : Optimiser used for inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N,Q} <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Vector{Matrix{T}} #Feature vectors
-    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Vector{Int64} # Number of data points
-    nDim::Vector{Int64} # Number of covariates per data point
+mutable struct MOSVGP{
+    T<:Real,
+    TLikelihood<:Likelihood{T},
+    TInference<:Inference,
+    TData<:AbstractDataContainer,
+    N,
+    Q,
+} <: AbstractGP{T,TLikelihood,TInference,N}
+    data::TData
     nFeatures::Vector{Int64} # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number of latent GPs
     nX::Int64
     nTask::Int64
     nf_per_task::Vector{Int64}
-    f::NTuple{Q,_SVGP}
+    f::NTuple{Q,SparseVarLatent}
     likelihood::Vector{TLikelihood}
     inference::TInference
     A::Vector{Vector{Vector{T}}}
-    A_opt
+    A_opt::Any
     verbose::Int64
     atfrequency::Int64
     Trained::Bool
@@ -53,11 +57,15 @@ end
 function MOSVGP(
     X::Union{AbstractArray{T},AbstractVector{<:AbstractArray{T}}},
     y::AbstractVector{<:AbstractVector},
-    kernel::Union{Kernel, AbstractVector{<:Kernel}},
-    likelihood::Union{TLikelihood, AbstractVector{<:TLikelihood}},
+    kernel::Union{Kernel,AbstractVector{<:Kernel}},
+    likelihood::Union{TLikelihood,AbstractVector{<:TLikelihood}},
     inference::TInference,
     nLatent::Int,
-    nInducingPoints::Union{Int,InducingPoints, AbstractVector{<:InducingPoints}};
+    nInducingPoints::Union{
+        Int,
+        AbstractInducingPoints,
+        AbstractVector{<:AbstractInducingPoints},
+    };
     verbose::Int = 0,
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
@@ -75,16 +83,16 @@ function MOSVGP(
     nX = length(X)
 
     likelihoods = if likelihood isa Likelihood
-        likelihoods = [deepcopy(likelihood) for _ in 1:nTask]
+        likelihoods = [deepcopy(likelihood) for _ = 1:nTask]
     else
         likelihood
     end
 
     nf_per_task = zeros(Int64, nTask)
     corrected_y = Vector(undef, nTask)
-    for i in 1:nTask
+    for i = 1:nTask
         corrected_y[i], nf_per_task[i], likelihoods[i] =
-            check_data!(X[mod(i, nX) + 1], y[i], likelihoods[i])
+            check_data!(X[mod(i, nX)+1], y[i], likelihoods[i])
     end
 
     @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
@@ -108,7 +116,8 @@ function MOSVGP(
         kernel
     end
     nKernel = length(kernel)
-    nInducingPoints = isa(nInducingPoints, InducingPoints) ? [deepcopy(nInducingPoints) for _ in 1:nLatent] : nInducingPoints
+    nInducingPoints = nInducingPoints isa AbstractInducingPoints ?
+        [deepcopy(nInducingPoints) for _ = 1:nLatent] : nInducingPoints
     Z = init_Z.(nInducingPoints, nSamples, X, y, kernel, Ref(Zoptimiser))
 
     nFeatures = size.(Z, 1)
@@ -121,17 +130,17 @@ function MOSVGP(
 
     _nMinibatch = nSamples
     if isStochastic(inference)
-        @assert all(0 .< nMinibatch(inference) .< nSamples)  "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
+        @assert all(0 .< nMinibatch(inference) .< nSamples) "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
         _nMinibatch = inference.nMinibatch
     end
 
     @show nFeatures, _nMinibatch
     latent_f = ntuple(
         i -> _SVGP{T}(
-            nFeatures[mod(i, nLatent) + 1],
+            nFeatures[mod(i, nLatent)+1],
             _nMinibatch[1],
-            Z[mod(i, nLatent) + 1],
-            kernel[mod(i, nKernel) + 1],
+            Z[mod(i, nLatent)+1],
+            kernel[mod(i, nKernel)+1],
             mean,
             optimiser,
         ),
@@ -153,8 +162,13 @@ function MOSVGP(
             _nMinibatch[1:1],
             nFeatures,
         )
-    inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch[1:1])
+    inference = tuple_inference(
+        inference,
+        nLatent,
+        nFeatures,
+        nSamples,
+        _nMinibatch[1:1],
+    )
     inference.xview = view.(X, collect.(range.(1, _nMinibatch, step = 1)), :)
     inference.yview = view(y, :)
 

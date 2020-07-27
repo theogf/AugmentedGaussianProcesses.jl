@@ -7,15 +7,16 @@ const AbstractGP1 = AbstractGP{<:Real,<:Likelihood,<:Inference,1}
 @traitdef IsSparse{X}
 
 nLatent(m::AbstractGP) = m.nLatent
-nFeatures(m::AbstractGP) = m.nFeatures
-nSamples(m::AbstractGP) = m.nSamples
+@traitfn nFeatures(m::TGP) where {TGP<:AbstractGP; !IsSparse{TGP}} = nSamples(m)
+@traitfn nFeatures(m::TGP) where {TGP<:AbstractGP; IsSparse{TGP}}= m.nFeatures
+nSamples(m::AbstractGP) = nSamples(m.data)
 nSamples(m::AbstractGP, i::Int) = m.nSamples[i]
 
 getf(m::AbstractGP) = m.f
 getf(m::AbstractGP, i::Int) = getindex(m.f, i)
 
 isTrained(m::AbstractGP) = m.Trained
-setTrained!(m::AbstractGP, status::Bool) = m.Trained = status
+set_trained!(m::AbstractGP, status::Bool) = m.Trained = status
 
 @traitfn nX(m::TGP) where {TGP<:AbstractGP;!IsMultiOutput{TGP}} = 1
 @traitfn nX(m::TGP) where {TGP<:AbstractGP;IsMultiOutput{TGP}} = m.nX

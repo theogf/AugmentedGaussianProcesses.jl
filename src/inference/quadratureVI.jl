@@ -158,9 +158,9 @@ function expec_log_likelihood(
     i::QuadratureVI,
     y,
     μ::AbstractVector,
-    diag_cov::AbstractVector,
+    diagΣ::AbstractVector,
 )
-    sum(apply_quad.(y, μ, diag_cov, i, l))
+    sum(apply_quad.(y, μ, diagΣ, i, l))
 end
 
 function apply_quad(
@@ -180,7 +180,7 @@ function grad_expectations!(
     y = get_y(m)
     for (gp, opt) in zip(m.f, get_opt(m.inference))
         μ = mean_f(gp)
-        Σ = diag_cov_f(gp)
+        Σ = var_f(gp)
         for i in 1:nMinibatch(m.inference)
             opt.ν[i], opt.λ[i] =
                 grad_quad(m.likelihood, y[i], μ[i], Σ[i], m.inference)

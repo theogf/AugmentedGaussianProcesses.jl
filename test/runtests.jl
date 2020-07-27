@@ -16,11 +16,6 @@ AGP.setadbackend(:reverse_diff)
     @testset "Hyperparameters" begin
 
     end
-    @testset "Inducing Points" begin
-        for f in readdir(joinpath(@__DIR__, "inducingpoints"))
-            include(joinpath("inducingpoints", f))
-        end
-    end
     @testset "Inference" begin
         for f in readdir(joinpath(@__DIR__, "inference"))
             include(joinpath("inference", f))

@@ -143,14 +143,14 @@ end
 function grad_expectations!(
     model::AbstractGP{T,L,<:MCIntegrationVI{T,N}},
 ) where {T,L,N}
-    raw_samples = randn(model.inference.nMC, model.nLatent)
+    raw_samples = randn(model.inference.nMC, nLatent(model))
     samples = similar(raw_samples)
     μ = mean_f(model)
-    σ = diag_cov_f(model)
-    nSamples = length(model.inference.MBIndices)
+    σ = var_f(model)
+    nSamples = length(MBIndices(model))
     for i = 1:nSamples
         samples .=
-            raw_samples .* [sqrt(σ[k][i]) for k = 1:model.nLatent]' .+ [μ[k][i] for k = 1:N]'
+            raw_samples .* [sqrt(σ[k][i]) for k = 1:nLatent(model)]' .+ [μ[k][i] for k = 1:N]'
         grad_samples(model, samples, i)
     end
 end
@@ -164,7 +164,7 @@ function expec_log_likelihood(
 ) where {T,N}
     raw_samples = randn(i.nMC, N)
     samples = similar(raw_samples)
-    nSamples = length(i.MBIndices)
+    nSamples = length(MBIndices(i))
     loglike = 0.0
     for i = 1:nSamples
         samples .=

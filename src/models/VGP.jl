@@ -25,18 +25,20 @@ Argument list :
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct VGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},N} <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Matrix{T} #Feature vectors
-    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Int64 # Number of data points
-    nDim::Int64 # Number of covariates per data point
-    nFeatures::Int64 # Number of features of the GP (equal to number of points)
+mutable struct VGP{
+    T<:Real,
+    TLikelihood<:Likelihood{T},
+    TInference<:Inference{T},
+    TData<:AbstractDataContainer,
+    N,
+} <: AbstractGP{T,TLikelihood,TInference,N}
+    data::TData # Data container
     nLatent::Int64 # Number pf latent GPs
-    f::NTuple{N,_VGP{T}} # Vector of latent GPs
+    f::NTuple{N,VarLatent{T}} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
-    verbose::Int64 #Level of printing information
-    atfrequency::Int64
+    verbose::Int #Level of printing information
+    atfrequency::Int
     Trained::Bool
 end
 
@@ -62,7 +64,7 @@ function VGP(
 
     y, nLatent, likelihood = check_data!(X, y, likelihood)
     @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
-    @assert !isa(likelihood,GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
+    @assert !isa(likelihood, GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
     @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
     nFeatures = nSamples = size(X, 1)
@@ -87,11 +89,8 @@ function VGP(
     inference.xview = [view(X, :, :)]
     inference.yview = [view_y(likelihood, y, 1:nSamples)]
     inference.MBIndices = [collect(1:nSamples)]
-    VGP{T,TLikelihood,typeof(inference),nLatent}(
-        X,
-        y,
-        nFeatures,
-        nDim,
+    VGP{T,TLikelihood,typeof(inference),typeof(data),nLatent}(
+        data,
         nFeatures,
         nLatent,
         latentf,
@@ -103,8 +102,11 @@ function VGP(
     )
 end
 
-function Base.show(io::IO,model::VGP{T,<:Likelihood,<:Inference}) where {T}
-    print(io,"Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
+function Base.show(io::IO, model::VGP{T,<:Likelihood,<:Inference}) where {T}
+    print(
+        io,
+        "Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ",
+    )
 end
 
 get_X(m::VGP) = m.X

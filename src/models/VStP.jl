@@ -31,16 +31,13 @@ mutable struct VStP{
     T<:Real,
     TLikelihood<:Likelihood{T},
     TInference<:Inference{T},
+    TData<:AbstractDataContainer,
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Matrix{T} #Feature vectors
-    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
+    data::TData
     ν::T # Number of degrees of freedom
-    nSample::Int64 # Number of data points
-    nDim::Int64 # Number of covariates per data point
-    nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
-    f::NTuple{N,_VStP}
+    f::NTuple{N,TVarLatent{T}}
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64 #Level of printing information
@@ -127,8 +124,8 @@ function local_prior_updates!(model::VStP, X)
     end
 end
 
-function local_prior_updates!(gp::_VStP, X)
-    gp.l² = 0.5 * ( gp.ν + gp.dim + invquad(gp.K, gp.μ - gp.μ₀(X)) + opt_trace(inv(gp.K).mat, gp.Σ))
+function local_prior_updates!(gp::TVarLatent, X)
+    gp.l² = 0.5 * ( gp.ν + digp.dim + invquad(gp.K, gp.μ - gp.μ₀(X)) + opt_trace(inv(gp.K).mat, gp.Σ))
     gp.χ = (gp.ν + gp.dim) / (gp.ν .+ gp.l²)
 end
 

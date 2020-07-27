@@ -28,14 +28,16 @@ Argument list :
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct MCGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},N} <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Matrix{T} #Feature vectors
-    y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Int64 # Number of data points
-    nDim::Int64 # Number of covariates per data point
-    nFeatures::Int64 # Number of features of the GP (equal to number of points)
+mutable struct MCGP{
+    T<:Real,
+    TLikelihood<:Likelihood{T},
+    TInference<:Inference{T},
+    TData<:AbstractDataContainer,
+    N,
+} <: AbstractGP{T,TLikelihood,TInference,N}
+    data::TData
     nLatent::Int64 # Number pf latent GPs
-    f::NTuple{N,_MCGP} # Vector of latent GPs
+    f::NTuple{N,SampledLatent{T}} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64 #Level of printing information
@@ -64,7 +66,7 @@ function MCGP(
     end
     y, nLatent, likelihood = check_data!(X, y, likelihood)
     @assert inference isa SamplingInference "The inference object should be of type `SamplingInference` : either `GibbsSampling` or `HMCSampling`"
-    @assert !isa(likelihood,GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
+    @assert !isa(likelihood, GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
     @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
     nFeatures = nSamples = size(X, 1)
@@ -83,7 +85,8 @@ function MCGP(
 
     likelihood =
         init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
-    inference = tuple_inference(inference, nLatent, nSamples, nSamples, nSamples)
+    inference =
+        tuple_inference(inference, nLatent, nSamples, nSamples, nSamples)
     inference.xview = [view(X, :, :)]
     inference.yview = [view_y(likelihood, y, 1:nSamples)]
     MCGP{T,TLikelihood,typeof(inference),nLatent}(
@@ -102,13 +105,16 @@ function MCGP(
     )
 end
 
-function Base.show(io::IO,model::MCGP{T,<:Likelihood,<:Inference}) where {T}
-    print(io,"Monte Carlo Gaussian Process with a $(model.likelihood) sampled via $(model.inference) ")
+function Base.show(io::IO, model::MCGP{T,<:Likelihood,<:Inference}) where {T}
+    print(
+        io,
+        "Monte Carlo Gaussian Process with a $(model.likelihood) sampled via $(model.inference) ",
+    )
 end
 
-get_f(model::MCGP) = getproperty.(model.f,:f)
+get_f(model::MCGP) = getproperty.(model.f, :f)
 get_Z(model::MCGP) = model.inference.xview
-get_Z(model::MCGP, i::Int )= model.inference.xview
+get_Z(model::MCGP, i::Int) = model.inference.xview
 objective(model::MCGP{T}) where {T} = NaN
 
 @traitimpl IsFull{MCGP}

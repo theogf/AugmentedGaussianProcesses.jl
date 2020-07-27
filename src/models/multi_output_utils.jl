@@ -15,8 +15,8 @@
 end
 
 ##
-@traitfn function diag_cov_f(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
-    Σ_q = diag_cov_f.(model.f)
+@traitfn function var_f(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+    Σ_q = var_f.(model.f)
     Σ_f = []
     for i in 1:model.nTask
         x = ntuple(_->zeros(T,model.inference.nMinibatch),model.nf_per_task[i])
@@ -63,7 +63,7 @@ end
 @traitfn function update_A!(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     if !isnothing(m.A_opt)
         μ_f = mean_f.(m.f) # κμ || μ
-        Σ_f = diag_cov_f.(m.f) #Diag(K̃ + κΣκ) || Diag(Σ)
+        Σ_f = var_f.(m.f) #Diag(K̃ + κΣκ) || Diag(Σ)
         ∇Eμ = ∇E_μ.(m.likelihood, Ref(opt_type(m.inference)), get_y(m))
         ∇EΣ = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), get_y(m))
         # new_A = zero(model.A)

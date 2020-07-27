@@ -7,7 +7,7 @@ include("optimisers.jl")
 
 export RobbinsMonro, ALRSVI
 
-function post_process!(model::AbstractGP) = nothing
+post_process!(model::AbstractGP) = nothing
 
 # Utils to iterate over inference objects
 Base.length(::Inference) = 1
@@ -22,15 +22,15 @@ conv_crit(i::Inference) = i.ϵ
 
 
 ## Conversion from natural to standard distribution parameters ##
-function global_update!(gp::Abstract_GP) where {T,L}
-    gp.Σ .= -0.5 * inv(gp.η₂)
-    gp.μ .= gp.Σ * gp.η₁
+function global_update!(gp::AbstractLatent)
+    gp.post.Σ .= -0.5 * inv(nat2(gp))
+    gp.post.μ .= cov(gp) * nat1(gp)
 end
 
 ## For the online case, the size may vary and inplace updates are note valid
-function global_update!(gp::_OSVGP) where {T,L}
-    gp.Σ = -0.5 * inv(gp.η₂)
-    gp.μ = gp.Σ * gp.η₁
+function global_update!(gp::OnlineVarLatent) where {T,L}
+    gp.post.Σ = -0.5 * inv(nat2(gp))
+    gp.post.μ = cov(gp) * nat1(gp)
 end
 
 

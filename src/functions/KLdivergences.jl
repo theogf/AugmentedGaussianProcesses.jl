@@ -1,7 +1,7 @@
 """Compute the KL Divergence between the GP Prior and the variational distribution"""
 GaussianKL(model::AbstractGP) = sum(broadcast(GaussianKL, model.f, get_Z(model)))
 
-GaussianKL(gp::Abstract_GP, X::AbstractMatrix) = GaussianKL(gp.μ, gp.μ₀(X), gp.Σ, gp.K)
+GaussianKL(gp::AbstractLatent, X::AbstractVector) = GaussianKL(mean(gp), pr_mean(gp, X), cov(gp), pr_cov(gp))
 
 ## See https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Multivariate_normal_distributions ##
 function GaussianKL(

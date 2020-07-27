@@ -130,7 +130,7 @@ function variational_updates!(
         model.likelihood,
         get_y(model),
         mean_f(model),
-        diag_cov_f(model),
+        var_f(model),
     )
     natural_gradient!(
         ∇E_μ(model.likelihood, opt_type(model.inference), get_y(model))[2],
@@ -144,7 +144,7 @@ function variational_updates!(
     heteroscedastic_expectations!(
         model.likelihood,
         mean_f(model.f[2]),
-        diag_cov_f(model.f[2]),
+        var_f(model.f[2]),
     )
     natural_gradient!(
         ∇E_μ(model.likelihood, opt_type(model.inference), get_y(model))[1],

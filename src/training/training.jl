@@ -11,11 +11,11 @@ there are options to change the number of max iterations,
 - `convergence::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
 function train!(
-    model::AbstractGP{T,TLike,TInf},
+    model::AbstractGP{T},
     iterations::Int = 100;
     callback::Union{Nothing,Function} = nothing,
     convergence::Union{Nothing,Function} = nothing,
-) where {T,TLike<:Likelihood,TInf<:Inference}
+) where {T}
     if model.verbose > 0
         println(
             "Starting training $model with $(model.nSamples) samples, $(size(model.X,2)) features and $(model.nLatent) latent GP" *
@@ -142,7 +142,7 @@ function update_parameters!(m::VStP)
 end
 
 function computeMatrices!(m::GP{T}) where {T}
-    compute_K!.(m.f, m.inference.xview, T(jitt))
+    compute_K!(getf(m), xview(m), T(jitt))
     setHPupdated!(m.inference, false)
 end
 
@@ -159,7 +159,7 @@ end
     end
     #If change of hyperparameters or if stochatic
     if isHPupdated(m.inference) || isStochastic(m.inference)
-        compute_κ!.(m.f, m.inference.xview, T(jitt))
+        compute_κ!.(m.f, xview(m.inference), T(jitt))
     end
     setHPupdated!(m.inference, false)
 end

@@ -99,8 +99,8 @@ end
 function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     grad_expectations!(model)
     classical_gradient!.(
-        ∇E_μ(model.likelihood,model.inference.vi_opt[1],[]),
-        ∇E_Σ(model.likelihood,model.inference.vi_opt[1],[]),
+        ∇E_μ(likelihood(model), model.inference.vi_opt[1],[]),
+        ∇E_Σ(likelihood(model), model.inference.vi_opt[1],[]),
         model.inference, model.inference.vi_opt,
         get_Z(model), model.f)
     if isnatural(model.inference)
@@ -109,32 +109,32 @@ function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     global_update!(model)
 end
 
-function classical_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, X::AbstractMatrix, gp::_VGP{T}) where {T<:Real}
-    opt.∇η₂ .= Diagonal(∇E_Σ) - 0.5 * (inv(gp.K).mat - inv(gp.Σ))
-    opt.∇η₁ .= ∇E_μ - gp.K \ (gp.μ - gp.μ₀(X))
+function classical_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, X::AbstractVector, gp::VarLatent{T}) where {T<:Real}
+    opt.∇η₂ .= Diagonal(∇E_Σ) - 0.5 * (inv(pr_cov(gp).K) - inv(cov(gp)))
+    opt.∇η₁ .= ∇E_μ - pr_cov(gp) \ (mean(gp) - pr_mean(gp, X))
 end
 
-function classical_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, Z::AbstractMatrix, gp::_SVGP{T}) where {T<:Real}
-    opt.∇η₂ .= getρ(i) * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ - 0.5 * (inv(gp.K).mat - inv(gp.Σ))
-    opt.∇η₁ .= getρ(i) * transpose(gp.κ) * ∇E_μ - gp.K \ (gp.μ - gp.μ₀(Z))
+function classical_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, Z::AbstractVector, gp::SparseVarLatent{T}) where {T<:Real}
+    opt.∇η₂ .= getρ(i) * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ - 0.5 * (inv(pr_cov(gp)).mat - inv(cov(gp)))
+    opt.∇η₁ .= getρ(i) * transpose(gp.κ) * ∇E_μ - pr_cov(gp) \ (mean(gp) - pr_mean(gp, Z))
 end
 
-function natural_gradient!(gp::Abstract_GP{T},opt::NVIOptimizer) where {T}
-    opt.∇η₂ .= 2*gp.Σ*opt.∇η₂*gp.Σ
-    opt.∇η₁ .= gp.K*opt.∇η₁
+function natural_gradient!(gp::AbstractLatent, opt::NVIOptimizer)
+    opt.∇η₂ .= 2 * cov(gp) * opt.∇η₂ * cov(gp)
+    opt.∇η₁ .= pr_cov(gp) * opt.∇η₁
 end
 
 function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
-    for (gp,opt) in zip(model.f,model.inference.vi_opt)
-        Δ1 = Optimise.apply!(opt.optimiser,gp.μ,opt.∇η₁)
-        Δ2 = Optimise.apply!(opt.optimiser,gp.Σ,opt.∇η₂)
-        gp.μ .+= Δ1
+    for (gp, opt) in zip(model.f, model.inference.vi_opt)
+        Δ1 = Optimise.apply!(opt.optimiser, mean(gp), opt.∇η₁)
+        Δ2 = Optimise.apply!(opt.optimiser, cov(gp), opt.∇η₂)
+        gp.post.μ .+= Δ1
         α = 1.0
-        while !isposdef(gp.Σ+α*Symmetric(Δ2)) && α > 1e-8
+        while !isposdef(cov(gp) + α * Symmetric(Δ2)) && α > 1e-8
             α *= 0.5
         end
         if α > 1e-8
-            gp.Σ .+= α*Symmetric(Δ2)
+            gp.post.Σ .+= α*Symmetric(Δ2)
         else
             @warn "α was too small for update" maxlog=10
         end
@@ -154,7 +154,7 @@ function ELBO(m::AbstractGP{T,L,<:NumericalVI}) where {T,L}
             m.inference,
             get_y(m),
             mean_f(m),
-            diag_cov_f(m),
+            var_f(m),
         )
     tot -= GaussianKL(m)
     tot -= extraKL(m)

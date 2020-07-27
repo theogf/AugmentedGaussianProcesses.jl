@@ -66,7 +66,7 @@ function train!(
                     m.likelihood,
                     get_y(m),
                     mean_f(m),
-                    diag_cov_f(m),
+                    var_f(m),
                 )
                 ∇E_μs = ∇E_μ(m)
                 ∇E_Σs = ∇E_Σ(m) # They need to be computed before recomputing the matrices
@@ -128,7 +128,7 @@ end
 
 function updateZ!(model::OnlineSVGP)
     for gp in model.f
-        add_point!(gp.Z,model.X,model.y,gp.kernel)
+        add_point!(gp.Z,model.X,model.y,kernel(gp))
         gp.dim = gp.Z.k
     end
     model.inference.HyperParametersUpdated = true
@@ -140,12 +140,12 @@ function save_old_parameters!(model::OnlineSVGP)
     end
 end
 
-function save_old_gp!(gp::_OSVGP{T}) where {T}
+function save_old_gp!(gp::OnlineVarLatent{T}) where {T}
     gp.Zₐ = copy(gp.Z.Z)
-    remove_point!(gp.Z, kernelmatrix(gp.kernel, gp.Z, obsdim=1), gp.kernel)
-    gp.invDₐ = Symmetric(-2.0*gp.η₂-inv(gp.K).mat)
-    gp.prevη₁ = copy(gp.η₁)
-    gp.prev𝓛ₐ = -0.5*logdet(gp.Σ) + 0.5*logdet(gp.K) - 0.5*dot(gp.μ,gp.η₁)
+    remove_point!(gp.Z, kernelmatrix(kernel(gp), gp.Z), kernel(gp))
+    gp.invDₐ = Symmetric(-2.0*nat2(gp)-inv(pr_cov(gp)))
+    gp.prevη₁ = copy(nat1(gp))
+    gp.prev𝓛ₐ = -0.5*logdet(cov(gp)) + 0.5*logdet(pr_cov(gp)) - 0.5*dot(mean(gp), nat1(gp))
 end
 
 function init_onlinemodel(m::OnlineSVGP{T},X,y) where {T<:Real}
@@ -158,31 +158,31 @@ function init_onlinemodel(m::OnlineSVGP{T},X,y) where {T<:Real}
     setHPupdated!(m.inference, false)
 end
 
-function init_online_gp!(gp::_OSVGP{T}, X, y, jitt::T = T(jitt)) where {T}
-    IPModule.init!(gp.Z, X, y, gp.kernel)
+function init_online_gp!(gp::OnlineVarLatent{T}, X, y, jitt::T = T(jitt)) where {T}
+    init!(gp.Z, X, y, kernel(gp))
     nSamples = size(X, 1)
     gp.dim = gp.Z.k
-    gp.Zₐ = copy(gp.Z.Z)
-    gp.μ = zeros(T, gp.dim)
-    gp.η₁ = zero(gp.μ)
-    gp.Σ = Symmetric(Matrix(Diagonal(one(T) * I, gp.Z.k)))
-    gp.η₂ = -0.5 * Symmetric(inv(gp.Σ))
-    gp.K = PDMat(kernelmatrix(gp.kernel, gp.Z.Z, obsdim = 1) + jitt * I)
+    gp.Zₐ = vec(gp.Z)
+    gp.post.μ = zeros(T, dim(gp))
+    gp.post.η₁ = zero(mean(gp))
+    gp.post.Σ = Symmetric(Matrix{T}(I(dim(gp))))
+    gp.post.η₂ = -0.5 * Symmetric(inv(cov(gp)))
+    gp.prior.K = PDMat(kernelmatrix(kernel(gp), gp.Z) + jitt * I)
 
-    gp.Kab = copy(gp.K.mat)
-    gp.κₐ = Diagonal{T}(I, gp.dim)
+    gp.Kab = copy(pr_cov(gp).mat)
+    gp.κₐ = Matrix{T}(I(dim(gp)))
     gp.K̃ₐ = zero(gp.Kab)
 
-    gp.Knm = kernelmatrix(gp.kernel, X, gp.Z, obsdim = 1)
-    gp.κ = gp.Knm / gp.K
+    gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
+    gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ =
-        kerneldiagmatrix(gp.kernel, X, obsdim = 1) .+ jitt -
+        kerneldiagmatrix(kernel(gp), X) .+ jitt -
         opt_diag(gp.κ, gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 
-    gp.invDₐ = Symmetric(Matrix{T}(I, gp.dim, gp.dim))
+    gp.invDₐ = Symmetric(Matrix{T}(I(dim(gp))))
     gp.prev𝓛ₐ = zero(T)
-    gp.prevη₁ = zero(gp.η₁)
+    gp.prevη₁ = zero(nat1(gp))
 end
 
 
@@ -192,12 +192,12 @@ function compute_old_matrices!(model::OnlineSVGP{T}) where {T}
     end
 end
 
-function compute_old_matrices!(gp::_OSVGP, X::AbstractMatrix, jitt::Real)
-    gp.K = PDMat(kernelmatrix(gp.kernel, gp.Zₐ, obsdim = 1) + jitt * I)
-    gp.Knm = kernelmatrix(gp.kernel, X, gp.Zₐ, obsdim = 1)
-    gp.κ = gp.Knm / gp.K
+function compute_old_matrices!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)
+    gp.K = PDMat(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
+    gp.Knm = kernelmatrix(kernel(gp), X, gp.Zₐ)
+    gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ =
-        kerneldiagmatrix(gp.kernel, X, obsdim = 1) .+ jitt -
+        kerneldiagmatrix(kernel(gp), X) .+ jitt -
         opt_diag(gp.κ, gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

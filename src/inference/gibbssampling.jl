@@ -165,22 +165,22 @@ get_ω(l::Likelihood) = l.θ
 function sample_global!(
     ∇E_μ::AbstractVector,
     ∇E_Σ::AbstractVector,
-    X::AbstractMatrix,
-    gp::_MCGP{T},
+    X::AbstractVector,
+    gp::SampledLatent{T},
 ) where {T}
-    Σ = inv(Symmetric(2.0 * Diagonal(∇E_Σ) + inv(gp.K).mat))
-    gp.f .= rand(MvNormal(Σ * (∇E_μ + inv(gp.K) * gp.μ₀(X)), Σ))
+    gp.post.Σ = inv(Symmetric(2.0 * Diagonal(∇E_Σ) + inv(pr_cov(p))))
+    rand!(gp.post.f, MvNormal(cov(gp) * (∇E_μ + pr_cov(gp) \ pr_mean(gp, X)), cov(gp)))
     return nothing
 end
 
 function post_process!(
-    model::AbstractGP{T,<:Likelihood,<:GibbsSampling},
+    m::MCGP{T}
 ) where {T}
-    for k in 1:model.nLatent
-        model.μ[k] =
-            vec(mean(hcat(model.inference.sample_store[k]...), dims = 2))
-        model.Σ[k] =
-            Symmetric(cov(hcat(model.inference.sample_store[k]...), dims = 2))
-    end
+    # for k in 1:model.nLatent
+    #     model.μ[k] =
+    #         vec(mean(hcat(model.inference.sample_store[k]...), dims = 2))
+    #     model.Σ[k] =
+    #         Symmetric(cov(hcat(model.inference.sample_store[k]...), dims = 2))
+    # end
     nothing
 end

@@ -28,14 +28,17 @@ Argument list :
 - `Zoptimiser` : Optimiser used for the inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N} <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Matrix{T} #Feature vectors
-    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Int64 # Number of data points
-    nDim::Int64 # Number of covariates per data point
+mutable struct SVGP{
+    T<:Real,
+    TLikelihood<:Likelihood{T},
+    TInference<:Inference,
+    TData<:AbstractDataContainer,
+    N,
+} <: AbstractGP{T,TLikelihood,TInference,N}
+    data::TData
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
     nLatent::Int64 # Number pf latent GPs
-    f::NTuple{N,_SVGP}
+    f::NTuple{N,SparseVarLatent{T}}
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64
@@ -44,18 +47,44 @@ mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N} 
 end
 
 function SVGP(
-    X::AbstractArray{T₁},
+    X::AbstractArray{<:Real},
     y::AbstractVector,
     kernel::Kernel,
-    likelihood::TLikelihood,
-    inference::TInference,
-    nInducingPoints::Union{Int,InducingPoints};
+    likelihood::Likelihood,
+    inference::Inference,
+    nInducingPoints::Int;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     Zoptimiser = false,
-    ArrayType::UnionAll = Vector,
+) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+    SVGP(
+        X,
+        y,
+        kernel,
+        likelihood,
+        inference,
+        Kmeans_IP(X, nInducingPoints),
+        verbose = verbose,
+        optimiser = optimiser,
+        atfrequency = atfrequency,
+        mean = mean,
+    )
+end
+
+function SVGP(
+    X::AbstractArray{T₁},
+    y::AbstractVector,
+    kernel::Kernel,
+    likelihood::TLikelihood,
+    inference::TInference,
+    nInducingPoints::Union{Int,AbstractInducingPoints};
+    verbose::Int = 0,
+    optimiser = ADAM(0.01),
+    atfrequency::Int = 1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
+    Zoptimiser = false,
 ) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
     X = if X isa AbstractVector
@@ -86,7 +115,7 @@ function SVGP(
 
     _nMinibatch = nSamples
     if isStochastic(inference)
-        @assert 0 < nMinibatch(inference) < nSamples  "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
+        @assert 0 < nMinibatch(inference) < nSamples "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
         _nMinibatch = nMinibatch(inference)
     end
 
@@ -122,8 +151,11 @@ function SVGP(
     return model
 end
 
-function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}
-    print(io,"Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
+function Base.show(io::IO, model::SVGP{T,<:Likelihood,<:Inference}) where {T}
+    print(
+        io,
+        "Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ",
+    )
 end
 
 get_X(m::SVGP) = m.X

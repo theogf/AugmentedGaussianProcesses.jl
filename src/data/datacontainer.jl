@@ -12,7 +12,7 @@ mutable struct DataContainer{
     nDim::Int # Number of features per sample
 end
 
-function wrap_data(X<:TX, y<:TY) where {TX. TY}
+function wrap_data(X::TX, y::TY) where {TX, TY}
     @assert size(y, 1) == length(X) "There is not the same number of samples in X and y"
     Tx = eltype(first(X))
     Ty = eltype(first(y))
@@ -22,7 +22,9 @@ end
 nSamples(d::AbstractDataContainer) = d.nSamples
 nDim(d::AbstractDataContainer) = d.nDim
 
-mutable struct MODataContainer <: AbstractDataContainer
+input(d::AbstractDataContainer) = d.X
+output(d::AbstractDataContainer) = d.y
 
+mutable struct MODataContainer <: AbstractDataContainer
 
 end

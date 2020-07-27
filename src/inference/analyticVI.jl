@@ -26,7 +26,7 @@ mutable struct AnalyticVI{T,N,Tx<:AbstractVector, Ty<:AbstractVector} <: Variati
         nMinibatch::Int,
         Stochastic::Bool,
     ) where {T}
-        return new{T,1}(
+        return new{T,1,Vector{T}, Vector{T}}(
             ϵ,
             0,
             Stochastic,
@@ -45,9 +45,11 @@ mutable struct AnalyticVI{T,N,Tx<:AbstractVector, Ty<:AbstractVector} <: Variati
         nMinibatch::Vector{<:Int},
         nLatent::Int,
         optimiser,
-    ) where {T}
+        xview::TX,
+        yview::TY,
+    ) where {T,TX,TY}
         vi_opts = ntuple(i -> AVIOptimizer{T}(nFeatures[i], optimiser), nLatent)
-        new{T,nLatent}(
+        new{T,nLatent,TX,TY}(
             ϵ,
             0,
             Stochastic,
@@ -57,6 +59,8 @@ mutable struct AnalyticVI{T,N,Tx<:AbstractVector, Ty<:AbstractVector} <: Variati
             true,
             vi_opts,
             range.(1, nMinibatch, step = 1),
+            xview,
+            yview,
         )
     end
 end
@@ -121,7 +125,7 @@ end
         m.likelihood,
         get_y(m),
         mean_f(m),
-        diag_cov_f(m),
+        var_f(m),
     )
     natural_gradient!.(
         ∇E_μ(m),
@@ -139,7 +143,7 @@ end
         m.likelihood,
         get_y(m),
         mean_f(m),
-        diag_cov_f(m),
+        var_f(m),
     ) # Compute the local updates given the expectations of f
     natural_gradient!.(
         ∇E_μ(m),
@@ -157,16 +161,16 @@ local_updates!(
     l::Likelihood,
     y,
     μ::Tuple{<:AbstractVector{T}},
-    Σ::Tuple{<:AbstractVector{T}},
-) where {T} = local_updates!(l, y, first(μ), first(Σ))
+    diagΣ::Tuple{<:AbstractVector{T}},
+) where {T} = local_updates!(l, y, first(μ), first(diagΣ))
 
 expec_log_likelihood(
     l::Likelihood,
     i::AnalyticVI,
     y,
     μ::Tuple{<:AbstractVector{T}},
-    Σ::Tuple{<:AbstractVector{T}},
-) where {T} = expec_log_likelihood(l, i, y, first(μ), first(Σ))
+    diagΣ::Tuple{<:AbstractVector{T}},
+) where {T} = expec_log_likelihood(l, i, y, first(μ), first(diagΣ))
 
 ## Coordinate ascent updates on the natural parameters ##
 function natural_gradient!(
@@ -175,10 +179,10 @@ function natural_gradient!(
     ρ::Real,
     opt::AVIOptimizer,
     X::AbstractMatrix,
-    gp::_VGP{T},
+    gp::VarLatent{T},
 ) where {T,L}
-    gp.η₁ .= ∇E_μ .+ gp.K \ gp.μ₀(X)
-    gp.η₂ .= - Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(gp.K).mat)
+    gp.post.η₁ .= ∇E_μ .+ pr_cov(gp) \ pr_mean(gp, X)
+    gp.post.η₂ .= - Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(pr_cov(gp)))
 end
 
 function natural_gradient!(
@@ -187,10 +191,10 @@ function natural_gradient!(
     ρ::Real,
     opt::AVIOptimizer,
     X::AbstractMatrix,
-    gp::_VStP{T},
+    gp::TVarLatent{T},
 ) where {T,L}
-    gp.η₁ .= ∇E_μ .+ gp.χ*gp.K \ gp.μ₀(X)
-    gp.η₂ .= - Symmetric(Diagonal(∇E_Σ) + 0.5 / gp.χ * inv(gp.K).mat)
+    gp.post.η₁ .= ∇E_μ .+ gp.χ * pr_cov(gp) \ pr_mean(gp, X)
+    gp.post.η₂ .= - Symmetric(Diagonal(∇E_Σ) + 0.5 / gp.χ * inv(pr_cov(gp)))
 end
 
 #Computation of the natural gradient for the natural parameters
@@ -199,11 +203,11 @@ function natural_gradient!(
     ∇E_Σ::AbstractVector{T},
     ρ::Real,
     opt::AVIOptimizer,
-    Z::AbstractMatrix,
-    gp::_SVGP{T},
+    Z::AbstractVector,
+    gp::SparseVarLatent{T},
 ) where {T<:Real}
-    opt.∇η₁ .= ∇η₁(∇E_μ, ρ, gp.κ, gp.K, gp.μ₀(Z), gp.η₁)
-    opt.∇η₂ .= ∇η₂(∇E_Σ, ρ, gp.κ, gp.K, gp.η₂)
+    opt.∇η₁ .= ∇η₁(∇E_μ, ρ, gp.κ, pr_cov(gp), pr_mean(gp), nat1(gp))
+    opt.∇η₂ .= ∇η₂(∇E_Σ, ρ, gp.κ, pr_cov(gp), nat2(gp))
 end
 
 function ∇η₁(
@@ -224,7 +228,7 @@ function ∇η₂(
     K::PDMat{T,Matrix{T}},
     η₂::Symmetric{T,Matrix{T}},
 ) where {T<:Real}
-    -(ρκdiagθκ(ρ, κ, θ) + 0.5 * inv(K).mat) - η₂
+    -(ρκdiagθκ(ρ, κ, θ) + 0.5 * inv(K)) - η₂
 end
 
 ## Natural gradient for the ONLINE model (OSVGP) ##
@@ -233,16 +237,16 @@ function natural_gradient!(
     ∇E_Σ::AbstractVector{T},
     ρ::Real,
     opt::AVIOptimizer,
-    Z::AbstractMatrix,
-    gp::_OSVGP{T},
+    Z::AbstractVector,
+    gp::OnlineVarLatent{T},
 ) where {T}
-    gp.η₁ =
-        gp.K \ gp.μ₀(Z) + transpose(gp.κ) * ∇E_μ + transpose(gp.κₐ) * gp.prevη₁
-    gp.η₂ =
+    gp.post.η₁ =
+        pr_cov(gp) \ pr_mean(gp, Z) + transpose(gp.κ) * ∇E_μ + transpose(gp.κₐ) * gp.prevη₁
+    gp.post.η₂ =
         -Symmetric(
             ρκdiagθκ(1.0, gp.κ, ∇E_Σ) +
             0.5 * transpose(gp.κₐ) * gp.invDₐ * gp.κₐ +
-            0.5 * inv(gp.K),
+            0.5 * inv(pr_cov(gp)),
         )
 end
 
@@ -250,24 +254,24 @@ end
     global_update!.(model.f)
 end
 
-global_update!(gp::_VGP, opt::AVIOptimizer, i::AnalyticVI) = global_update!(gp)
+global_update!(gp::VarLatent, opt::AVIOptimizer, i::AnalyticVI) = global_update!(gp)
 
 global_update!(model::OnlineSVGP) = global_update!.(model.f)
-global_update!(gp::_OSVGP, opt, i) = global_update!(gp)
+global_update!(gp::OnlineVarLatent, opt, i) = global_update!(gp)
 
 #Update of the natural parameters and conversion from natural to standard distribution parameters
 @traitfn function global_update!(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsFull{TGP}}
     global_update!.(model.f, model.inference.vi_opt, model.inference)
 end
 
-function global_update!(gp::_SVGP, opt::AVIOptimizer, i::AnalyticVI)
+function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI)
     if isStochastic(i)
-        Δ = Optimise.apply!(opt.optimiser, gp.η₁, vcat(opt.∇η₁, opt.∇η₂[:]))
-        gp.η₁ .+= Δ[1:gp.dim]
-        gp.η₂ .= Symmetric(gp.η₂ + reshape(Δ[(gp.dim+1):end], gp.dim, gp.dim))
+        Δ = Optimise.apply!(opt.optimiser, nat1(gp), vcat(opt.∇η₁, opt.∇η₂[:]))
+        gp.post.η₁ .+= Δ[1:dim(gp)]
+        gp.post.η₂ .= Symmetric(reshape(Δ[(gp.dim+1):end], gp.dim, gp.dim) + nat2(gp))
     else
-        gp.η₁ .+= opt.∇η₁
-        gp.η₂ .= Symmetric(opt.∇η₂ + gp.η₂)
+        gp.post.η₁ .+= opt.∇η₁
+        gp.post.η₂ .= Symmetric(opt.∇η₂ + nat2(gp))
     end
     global_update!(gp)
 end
@@ -281,7 +285,7 @@ end
             model.inference,
             get_y(model),
             mean_f(model),
-            diag_cov_f(model),
+            var_f(model),
         )
     tot -= GaussianKL(model)
     tot -= getρ(model.inference) * AugmentedKL(model.likelihood, get_y(model))
@@ -290,7 +294,7 @@ end
 
 @traitfn function ELBO(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     tot = zero(T)
-    tot += sum(model.inference.ρ .* expec_log_likelihood.(model.likelihood,model.inference,get_y(model),mean_f(model),diag_cov_f(model)))
+    tot += sum(model.inference.ρ .* expec_log_likelihood.(model.likelihood,model.inference,get_y(model),mean_f(model),var_f(model)))
     tot -= GaussianKL(model)
     tot -= sum(model.inference.ρ .* AugmentedKL.(model.likelihood,get_y(model)))
 end
