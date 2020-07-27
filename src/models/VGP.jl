@@ -33,13 +33,12 @@ mutable struct VGP{
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
     data::TData # Data container
-    nLatent::Int64 # Number pf latent GPs
     f::NTuple{N,VarLatent{T}} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
     verbose::Int #Level of printing information
     atfrequency::Int
-    Trained::Bool
+    trained::Bool
 end
 
 
@@ -109,7 +108,7 @@ function Base.show(io::IO, model::VGP{T,<:Likelihood,<:Inference}) where {T}
     )
 end
 
-get_X(m::VGP) = m.X
+
 get_Z(m::VGP) = [m.X]
 get_Z(m::VGP, i::Int) = m.X
 objective(m::VGP) = ELBO(m::VGP)

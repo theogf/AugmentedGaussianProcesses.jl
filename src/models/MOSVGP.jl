@@ -38,9 +38,6 @@ mutable struct MOSVGP{
 } <: AbstractGP{T,TLikelihood,TInference,N}
     data::TData
     nFeatures::Vector{Int64} # Number of features of the GP (equal to number of points)
-    nLatent::Int64 # Number of latent GPs
-    nX::Int64
-    nTask::Int64
     nf_per_task::Vector{Int64}
     f::NTuple{Q,SparseVarLatent}
     likelihood::Vector{TLikelihood}
@@ -49,7 +46,7 @@ mutable struct MOSVGP{
     A_opt::Any
     verbose::Int64
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
 
@@ -206,6 +203,7 @@ end
 
 @traitimpl IsMultiOutput{MOSVGP}
 
+nOutput(m::MOSVGP{<:Real,<:Likelihood,<:Inference,N,Q}) where {N, Q} = Q
 get_X(m::MOSVGP) = m.X
 get_Z(m::MOSVGP) = get_Z.(m.f)
 get_Z(m::MOSVGP, i::Int) = get_Z(m.f[i])

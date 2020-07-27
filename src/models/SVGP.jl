@@ -37,13 +37,12 @@ mutable struct SVGP{
 } <: AbstractGP{T,TLikelihood,TInference,N}
     data::TData
     nFeatures::Int64 # Number of features of the GP (equal to number of points)
-    nLatent::Int64 # Number pf latent GPs
     f::NTuple{N,SparseVarLatent{T}}
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
 function SVGP(
@@ -65,7 +64,7 @@ function SVGP(
         kernel,
         likelihood,
         inference,
-        Kmeans_IP(X, nInducingPoints),
+        KmeansIP(X, nInducingPoints),
         verbose = verbose,
         optimiser = optimiser,
         atfrequency = atfrequency,

@@ -51,10 +51,10 @@ function init_inference(
 end
 
 function analytic_updates!(m::GP{T}) where {T}
-    f = getf(model)
-    l = likelihood(model)
-    f.Σ = f.K + first(l.σ²) * I
-    f.μ .= f.Σ * (get_y(m) / first(l.σ²) - f.K \ pr_mean(f, xview(m)))
+    f = getf(m)
+    l = likelihood(m)
+    f.post.Σ = pr_cov(f) + first(l.σ²) * I
+    f.post.μ .= cov(f) * (get_y(m) / first(l.σ²) - pr_cov(f) \ pr_mean(f, xview(m)))
     if !isnothing(l.opt_noise)
         g = 0.5 * (norm(mean(f), 2) - tr(inv(cov(f))))
         Δlogσ² = Flux.Optimise.apply!(l.opt_noise, l.σ², g .* l.σ²)

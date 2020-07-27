@@ -36,13 +36,12 @@ mutable struct MCGP{
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
     data::TData
-    nLatent::Int64 # Number pf latent GPs
     f::NTuple{N,SampledLatent{T}} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64 #Level of printing information
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
 

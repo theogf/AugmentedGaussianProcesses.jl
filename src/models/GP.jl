@@ -40,7 +40,7 @@ mutable struct GP{
     inference::TInference
     verbose::Int64 #Level of printing information
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
 
@@ -54,7 +54,7 @@ function GP(
     optimiser = ADAM(0.01),
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    obsdim = 2,
+    obsdim = 1,
 )
 
     X, T = wrap_X(X, obsdim)
@@ -62,26 +62,26 @@ function GP(
     inference = Analytic()
 
 
-    y, nLatent, likelihood = check_data!(X, y, likelihood)
+    y, nLatent, likelihood = check_data!(y, likelihood)
     data = wrap_data(X, y)
     nFeatures = nSamples(data)
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
 
-    latentf = LatentGP{T}(nFeatures, kernel, mean, optimiser)
+    latentf = LatentGP(T, nFeatures, kernel, mean, optimiser)
 
     likelihood =
-        init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
+        init_likelihood(likelihood, inference, 1, nSamples(data), nFeatures)
 
-    xview = view(X, :)
-    yview = view_y(likelihood, y, 1:nSamples)
+    xview = view_x(data, :)
+    yview = view_y(likelihood, data, 1:nSamples(data))
     inference = init_inference(
         inference,
-        nLatent,
-        nSamples,
-        nSamples,
-        nSamples,
+        1,
+        nSamples(data),
+        nSamples(data),
+        nSamples(data),
         xview,
         yview,
     )
@@ -112,7 +112,7 @@ get_Z(model::GP, i::Int) = model.inference.xview
 
 objective(m::GP) = log_py(m)
 
-function log_py(m::GP{T}) where {T}
-    f = first(m.f)
-    return -0.5 * (dot(m.y, f.Σ \ m.y) + logdet(f.Σ) + nFeatures(m) * log(twoπ))
+function log_py(m::GP)
+    f = m.f
+    return -0.5 * (dot(get_y(m), cov(f) \ get_y(m)) + logdet(cov(f)) + nFeatures(m) * log(twoπ))
 end

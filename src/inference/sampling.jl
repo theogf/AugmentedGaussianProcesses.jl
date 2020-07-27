@@ -40,11 +40,11 @@ function grad_log_likelihood(
 end
 
 function grad_log_gp_prior(gp, f)
-    -gp.K / (f)#Remove μ₀ temp
+    -pr_cov(gp) / f#Remove μ₀ temp
 end
 
 function log_gp_prior(gp, f)
-    -0.5 * logdet(gp.K) - 0.5 * invquad(gp.K, f)#Remove μ₀ temp
+    -0.5 * logdet(pr_cov(gp)) - 0.5 * invquad(pr_cov(gp), f)#Remove μ₀ temp
 end
 
 function store_variables!(i::SamplingInference{T}, fs) where {T}

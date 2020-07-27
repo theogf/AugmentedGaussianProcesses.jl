@@ -5,7 +5,7 @@ function ∇L_ρ_reverse(f, gp::AbstractLatent, X)
     end).grads # Zygote gradient
 end
 
-_∇L_ρ_reverse(f, k, X) = f(kernelmatrix(k, X, obsdim = 1))
+_∇L_ρ_reverse(f, k, X) = f(kernelmatrix(k, X))
 
 function ∇L_ρ_reverse(f, gp::SparseVarLatent, X, ∇E_μ, ∇E_Σ, i, opt)
     k = kernel(gp)
@@ -16,9 +16,9 @@ end
 
 ## Gradient ersatz for SVGP ##
 function _∇L_ρ_reverse(f, kernel, Z, X, ∇E_μ, ∇E_Σ, i, opt)
-    Kmm = kernelmatrix(kernel, Z, obsdim = 1)
-    Knm = kernelmatrix(kernel, X, Z, obsdim = 1)
-    Knn = diag(kernelmatrix(kernel, X, obsdim = 1)) # TO FIX ONCE Zygote#429 is fixed.
+    Kmm = kernelmatrix(kernel, Z)
+    Knm = kernelmatrix(kernel, X, Z)
+    Knn = diag(kernelmatrix(kernel, X)) # TO FIX ONCE Zygote#429 is fixed.
     f(Kmm, Knm, Knn, ∇E_μ, ∇E_Σ, i, opt)
 end
 

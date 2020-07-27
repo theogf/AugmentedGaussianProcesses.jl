@@ -9,23 +9,6 @@ end
 
 
 ##
-function wrap_X_multi(X, nTask)
-    X = if X isa AbstractArray{<:Real} # Do a better recognition of what X is
-        if X isa AbstractVector
-            [reshape(X, :, 1)]
-        elseif X isa AbstractMatrix
-            [X]
-        else
-            throw(ErrorException("X does not have the right dimensions ($(size(X)))"))
-        end
-    else
-        @assert length(X) == nTask "There is not the same number of input matrices as output matrices"
-        @assert all(isa.(X, AbstractMatrix)) "All X should be matrices"
-        X
-    end
-end
-
-##
 function init_Z(nInducingPoints, nSamples, X, y, kernel, Zoptimiser)
     if nInducingPoints isa Int
         @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"

@@ -69,8 +69,6 @@ isHPupdated(inf::Inference) = inf.HyperParametersUpdated
 
 nIter(inf::Inference) = inf.nIter
 
-@inline view_y(l::Likelihood, y::AbstractVector, i::AbstractVector) = view(y, i)
-
 get_opt(i::Inference) = nothing
 get_opt(i::VariationalInference) = i.vi_opt
 get_opt(i::SamplingInference) = i.opt

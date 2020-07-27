@@ -83,7 +83,7 @@ function train!(
             else
                 update_parameters!(m) #Update all the variational parameters
             end
-            setTrained!(m, true)
+            set_trained!(m, true)
             if !isnothing(callback)
                 callback(m, nIter(m.inference)) #Use a callback method if given by user
             end
@@ -115,7 +115,7 @@ function train!(
     # println("Training ended after $local_iter iterations. Total number of iterations $(model.inference.nIter)")
     # end
     computeMatrices!(m) #Compute final version of the matrices for prediction
-    setTrained!(m, true)
+    set_trained!(m, true)
 end
 
 

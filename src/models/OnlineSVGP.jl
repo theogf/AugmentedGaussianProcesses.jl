@@ -15,7 +15,7 @@ mutable struct OnlineSVGP{
     inference::TInference
     verbose::Int64
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
 """Create a Online Sparse Variational Gaussian Process model

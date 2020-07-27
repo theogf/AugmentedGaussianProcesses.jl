@@ -44,9 +44,6 @@ mutable struct MOVGP{
     Q,
 } <: AbstractGP{T,TLikelihood,TInference,N}
     data::TData
-    nLatent::Int64 # Number of latent GPs
-    nX::Int64
-    nTask::Int64
     nf_per_task::Vector{Int64}
     f::NTuple{Q,VarLatent{T}}
     likelihood::Vector{TLikelihood}
@@ -55,7 +52,7 @@ mutable struct MOVGP{
     A_opt::Any
     verbose::Int64
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
 
@@ -192,6 +189,8 @@ end
 @traitimpl IsMultiOutput{MOVGP}
 @traitimpl IsFull{MOVGP}
 
+
+nOutput(m::MOVGP{<:Real,<:Likelihood,<:Inference,N,Q}) where {N,Q} = Q
 get_Z(m::MOVGP) = m.X
 get_Z(m::MOVGP, i::Int) = nX(m) == 1 ? first(m.X) : m.X[i]
 objective(m::MOVGP) = ELBO(m)

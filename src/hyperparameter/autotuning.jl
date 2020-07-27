@@ -2,6 +2,10 @@ include("autotuning_utils.jl")
 include("zygote_rules.jl")
 include("forwarddiff_rules.jl")
 
+function update_hyperparameters!(m::GP)
+    update_hyperparameters!(getf(m), xview(m))
+end
+
 @traitfn function update_hyperparameters!(
     m::TGP,
 ) where {TGP <: AbstractGP; IsFull{TGP}}

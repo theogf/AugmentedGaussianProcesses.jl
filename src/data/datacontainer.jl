@@ -19,6 +19,23 @@ function wrap_data(X::TX, y::TY) where {TX, TY}
     return DataContainer{Tx, TX, Ty, TY}(X, y, length(X), length(first(X)))
 end
 
+function wrap_X(X::AbstractMatrix{T}, obsdim = 2) where {T<:Real}
+    return KernelFunctions.vec_of_vecs(X, obsdim = obsdim), T
+end
+
+function wrap_X(X::AbstractVector{T}) where {T<:Real}
+    return X, T
+end
+
+function wrap_X(X::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
+    return X, T
+end
+
+view_x(d::DataContainer, indices) = view(d.X, indices)
+view_y(l::Likelihood, y::AbstractVector, i::AbstractVector) = view(y, i)
+view_y(l::Likelihood, d::DataContainer, i::AbstractVector) = view_y(l, d.y, i)
+
+
 nSamples(d::AbstractDataContainer) = d.nSamples
 nDim(d::AbstractDataContainer) = d.nDim
 

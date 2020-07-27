@@ -35,14 +35,12 @@ mutable struct VStP{
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
     data::TData
-    ν::T # Number of degrees of freedom
-    nLatent::Int64 # Number pf latent GPs
     f::NTuple{N,TVarLatent{T}}
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64 #Level of printing information
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
 
@@ -60,6 +58,7 @@ function VStP(
     ArrayType::UnionAll = Vector,
 ) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
+    X = wrap_X(X)
     X = if X isa AbstractVector
         reshape(X, :, 1)
     else

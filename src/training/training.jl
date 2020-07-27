@@ -32,7 +32,7 @@ function train!(
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             update_parameters!(model) #Update all the variational parameters
-            model.Trained = true
+            set_trained!(model, true)
             if !isnothing(callback)
                 callback(model, model.inference.nIter) #Use a callback method if set by user
             end
@@ -83,7 +83,8 @@ function train!(
         println("Training ended after $(local_iter-1) iterations. Total number of iterations $(model.inference.nIter)")
     end
     computeMatrices!(model) #Compute final version of the matrices for prediction
-    return model.Trained = true
+    set_trained!(model, true)
+    return nothing
 end
 
 function sample(model::MCGP{T,TLike,TInf},nSamples::Int=1000;callback::Union{Nothing,Function}=nothing,cat_samples::Bool=false) where {T,TLike<:Likelihood,TInf<:Inference}
@@ -148,7 +149,7 @@ end
 
 @traitfn function computeMatrices!(m::TGP) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
     if isHPupdated(m.inference)
-        compute_K!.(m.f, m.inference.xview, T(jitt))
+        compute_K!.(m.f, xview(m), T(jitt))
     end
     setHPupdated!(m.inference, false)
 end
