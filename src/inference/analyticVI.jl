@@ -8,17 +8,17 @@ All data is used at each iteration (use AnalyticSVI for Stochastic updates)
     - `ϵ::T` : convergence criteria
 """
 mutable struct AnalyticVI{T,N,Tx<:AbstractVector, Ty<:AbstractVector} <: VariationalInference{T}
-    ϵ::T #Convergence criteria
-    nIter::Integer #Number of steps performed
-    Stochastic::Bool #Use of mini-batches
-    nSamples::Vector{Int64}
-    nMinibatch::Vector{Int64} #Size of mini-batches
-    ρ::Vector{T} #Stochastic Coefficient
-    HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
+    ϵ::T # Convergence criteria
+    nIter::Integer # Number of steps performed
+    stoch::Bool # Flag for stochastic optimization
+    nSamples::Int
+    nMinibatch::Int64 # Size of mini-batches
+    ρ::T # Scaling coeff. for stoch. opt.
+    HyperParametersUpdated::Bool # Flag for updating kernel matrix
     vi_opt::NTuple{N,AVIOptimizer}
-    MBIndices::Vector{Vector{Int64}} #Indices of the minibatch
-    xview::Tx
-    yview::Ty
+    MBIndices::Vector{Int64} # Indices of the minibatch
+    xview::Tx # Subset of the input
+    yview::Ty # Subset of the outputs
 
     function AnalyticVI{T}(
         ϵ::T,
@@ -30,19 +30,19 @@ mutable struct AnalyticVI{T,N,Tx<:AbstractVector, Ty<:AbstractVector} <: Variati
             ϵ,
             0,
             Stochastic,
-            [0],
-            [nMinibatch],
-            [one(T)],
+            0,
+            nMinibatch,
+            one(T),
             true,
             (AVIOptimizer{T}(0, optimiser),),
         )
     end
-    function AnalyticVI{T,1}(
+    function AnalyticVI(
         ϵ::T,
         Stochastic::Bool,
         nFeatures::Vector{<:Int},
-        nSamples::Vector{<:Int},
-        nMinibatch::Vector{<:Int},
+        nSamples::Int,
+        nMinibatch::Int,
         nLatent::Int,
         optimiser,
         xview::TX,
@@ -55,10 +55,10 @@ mutable struct AnalyticVI{T,N,Tx<:AbstractVector, Ty<:AbstractVector} <: Variati
             Stochastic,
             nSamples,
             nMinibatch,
-            T.(nSamples ./ nMinibatch),
+            T(nSamples / nMinibatch),
             true,
             vi_opts,
-            range.(1, nMinibatch, step = 1),
+            1:nMinibatch,
             xview,
             yview,
         )
@@ -94,27 +94,32 @@ end
 function Base.show(io::IO, inference::AnalyticVI{T}) where {T}
     print(
         io,
-        "Analytic$(inference.Stochastic ? " Stochastic" : "") Variational Inference",
+        "Analytic$(isStochastic(inference) ? " Stochastic" : "") Variational Inference",
     )
 end
 
 
 ## Initialize the final version of the inference object ##
 function tuple_inference(
-    i::TInf,
-    nLatent::Integer,
-    nFeatures::Vector{<:Integer},
-    nSamples::Vector{<:Integer},
-    nMinibatch::Vector{<:Integer},
-) where {TInf<:AnalyticVI}
-    return TInf(
-        i.ϵ,
-        i.Stochastic,
+    i::AnalyticVI,
+    nLatent::Int,
+    nFeatures::Vector{<:Int},
+    nSamples::Int,
+    nMinibatch::Int,
+    xview::AbstractVector,
+    yview::AbstractVector
+)
+    @show nFeatures, nSamples, nMinibatch, nLatent
+    return AnalyticVI(
+        conv_crit(i),
+        isStochastic(i),
         nFeatures,
         nSamples,
         nMinibatch,
         nLatent,
         i.vi_opt[1].optimiser,
+        xview,
+        yview,
     )
 end
 

@@ -140,8 +140,8 @@ function tuple_inference(
     nMinibatch::Vector{<:Int},
 ) where {TInf<:QuadratureVI}
     return TInf(
-        i.ϵ,
-        i.Stochastic,
+        conv_crit(i),
+        isStochastic(i),
         i.nPoints,
         i.clipping,
         nFeatures,

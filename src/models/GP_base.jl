@@ -129,7 +129,7 @@ end
 function SparseVarLatent(
     T::DataType,
     dim::Int,
-    nSamplesUsed::Int,
+    S::Int,
     Z::AbstractInducingPoints,
     kernel::Kernel,
     mean::PriorMean,
@@ -141,11 +141,11 @@ function SparseVarLatent(
             deepcopy(mean),
             PDMat(Matrix{T}(I(dim))),
         ),
-        VarPosterior(dim),
+        VarPosterior{T}(dim),
         deepcopy(Z),
-        Matrix{T}(undef, nSamplesUsed, dim),
-        Matrix{T}(undef, nSamplesUsed, dim),
-        Vector{T}(undef, nSamplesUsed),
+        Matrix{T}(undef, S, dim),
+        Matrix{T}(undef, S, dim),
+        Vector{T}(undef, S),
         deepcopy(opt),
     )
 end

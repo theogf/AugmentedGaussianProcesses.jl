@@ -44,9 +44,9 @@ function init_inference(
     nFeatures::Integer,
     nSamples::Integer,
     nSamplesUsed::Integer,
-    xview::AbstractVector,
-    yview::AbstractVector,
-) where {T<:Real}
+    xview::TX,
+    yview::TY,
+) where {T<:Real, TX, TY}
     return Analytic{T}(conv_crit(i), nSamples, xview, yview)
 end
 

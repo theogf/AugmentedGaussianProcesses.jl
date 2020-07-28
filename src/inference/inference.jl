@@ -35,33 +35,23 @@ end
 
 
 ## Default function for getting a view on y
-xview(inf::Inference, i::Int) = inf.xview[i]
-xview(inf::Inference) = xview(inf, 1)
-yview(inf::Inference, i::Int) = inf.yview[i]
-yview(inf::Inference) = yview(inf, 1)
+xview(inf::Inference) = inf.xview
+setxview!(inf::Inference, xview) = inf.xview = xview
 
-setxview!(inf::Inference, i::Int, xview) = inf.xview[i] = xview
-setxview!(inf::Inference, xview) = setxview!(inf, 1, xview)
-setyview!(inf::Inference, i::Int, yview) = inf.yview[i] = yview
-setyview!(inf::Inference, yview) = setyview!(inf, 1, yview)
+setyview!(inf::Inference, yview) = inf.yview = yview
+yview(inf::Inference) = inf.yview
 
-nMinibatch(inf::Inference, i::Int) = inf.nMinibatch[i]
-nMinibatch(inf::Inference) = nMinibatch(inf, 1)
-setnMinibatch!(inf::Inference, n::AbstractVector) = inf.nMinibatch = n
-setnMinibatch!(inf::Inference, n::Real) = setnMinibatch!(inf, [n])
+nMinibatch(inf::Inference) = inf.nMinibatch
+setnMinibatch!(inf::Inference, n::Int) = inf.nMinibatch = n
 
-setnSamples!(inf::Inference, n::AbstractVector) = inf.nSamples = n
-setnSamples!(inf::Inference, n::Real) = setnSamples!(inf, [n])
+nSamples(i::Inference) = i.nSamples
+setnSamples!(inf::Inference, n::Int) = inf.nSamples = n
 
-getρ(inf::Inference, i::Int) = inf.ρ[i]
-getρ(inf::Inference) = getρ(inf, 1)
+getρ(inf::Inference) = inf.ρ
 
-MBIndices(inf::Inference, i::Int) = inf.MBIndices[i]
-MBIndices(inf::Inference) = MBIndices(inf, 1)
-setMBIndices!(inf::Inference, i::Int, mbindices::AbstractVector) =
-    inf.MBIndices[i] .= mbindices
+MBIndices(inf::Inference) = inf.MBIndices
 setMBIndices!(inf::Inference, mbindices::AbstractVector) =
-    setMBIndices!(inf, 1, mbindices)
+    inf.MBIndices .= mbindices
 
 setHPupdated!(inf::Inference, status::Bool) =
     inf.HyperParametersUpdated = status
@@ -75,20 +65,22 @@ get_opt(i::SamplingInference) = i.opt
 get_opt(i::Inference, n::Int) = get_opt(i)[n]
 opt_type(i::Inference) = first(get_opt(i))
 
-# isStochastic(inf::Inference) = inf.Stochastic
-
 function tuple_inference(
     i::Inference,
-    nLatent::Integer,
-    nFeatures::Integer,
-    nSamples::Integer,
-    nMinibatch::Integer,
+    nLatent::Int,
+    nFeatures::Int,
+    nSamples::Int,
+    nMinibatch::Int,
+    xview::AbstractVector,
+    yview::AbstractVector
 )
     return tuple_inference(
         i,
         nLatent,
         fill(nFeatures, nLatent),
-        fill(nSamples, nLatent),
-        fill(nMinibatch, nLatent),
+        nSamples,
+        nMinibatch,
+        xview,
+        yview
     )
 end

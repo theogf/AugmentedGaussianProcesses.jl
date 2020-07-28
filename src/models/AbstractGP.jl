@@ -19,8 +19,9 @@ nSamples(m::AbstractGP) = nSamples(data(m))
 getf(m::AbstractGP) = m.f
 getf(m::AbstractGP, i::Int) = getindex(m.f, i)
 
-get_X(m::AbstractGP) = input(data(m))
-get_y(m::AbstractGP) = output(data(m))
+
+input(m::AbstractGP) = input(data(m))
+output(m::AbstractGP) = output(data(m))
 
 xview(m::AbstractGP) = xview(inference(m))
 yview(m::AbstractGP) = yview(inference(m))

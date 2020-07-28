@@ -1,7 +1,5 @@
 @testset "gaussian" begin
     seed!(42)
-
-
     @testset "Likelihood" begin
         σ² = 1e-3
         l = GaussianLikelihood(σ²)
@@ -60,58 +58,58 @@
     #         MCIntegrationVI(),
     #     )
     # end
-    # @testset "SVGP" begin
-    #     for floattype in floattypes
-    #         @testset "AnalyticVI" begin
-    #             model = SVGP(
-    #                 X,
-    #                 y,
-    #                 k,
-    #                 GaussianLikelihood(),
-    #                 AnalyticVI(),
-    #                 10,
-    #                 optimiser = false,
-    #                 verbose = 0,
-    #             )
-    #             @test typeof(model) <: SVGP{
-    #                 floattype,
-    #                 GaussianLikelihood{floattype, Nothing, Vector{floattype}},
-    #                 AnalyticVI{floattype,1},
-    #                 1,
-    #             }
-    #             @test AGP.likelihood(model) isa GaussianLikelihood
-    #             @test AGP.inference(model) isa AnalyticVI
-    #             model_opt = SVGP(
-    #                 X,
-    #                 y,
-    #                 k,
-    #                 GaussianLikelihood(opt_noise = true),
-    #                 AnalyticVI(),
-    #                 10,
-    #                 optimiser = true,
-    #                 Zoptimiser = true,
-    #                 verbose = 0,
-    #             )
-    #             tests(model, model_opt, X, f, y, "Regression")
-    #         end
-    #         @test_throws AssertionError SVGP(
-    #             X,
-    #             y,
-    #             k,
-    #             GaussianLikelihood(),
-    #             QuadratureVI(),
-    #             20,
-    #         )
-    #         @test_throws AssertionError SVGP(
-    #             X,
-    #             y,
-    #             k,
-    #             GaussianLikelihood(),
-    #             MCIntegrationVI(),
-    #             20,
-    #         )
-    #     end
-    # end
+    @testset "SVGP" begin
+        for floattype in floattypes
+            @testset "AnalyticVI" begin
+                model = SVGP(
+                    X,
+                    y,
+                    k,
+                    GaussianLikelihood(),
+                    AnalyticVI(),
+                    10,
+                    optimiser = false,
+                    verbose = 0,
+                )
+                @test typeof(model) <: SVGP{
+                    floattype,
+                    GaussianLikelihood{floattype, Nothing, Vector{floattype}},
+                    AnalyticVI{floattype,1},
+                    1,
+                }
+                @test AGP.likelihood(model) isa GaussianLikelihood
+                @test AGP.inference(model) isa AnalyticVI
+                model_opt = SVGP(
+                    X,
+                    y,
+                    k,
+                    GaussianLikelihood(opt_noise = true),
+                    AnalyticVI(),
+                    10,
+                    optimiser = true,
+                    Zoptimiser = true,
+                    verbose = 0,
+                )
+                tests(model, model_opt, X, f, y, "Regression")
+            end
+            @test_throws AssertionError SVGP(
+                X,
+                y,
+                k,
+                GaussianLikelihood(),
+                QuadratureVI(),
+                20,
+            )
+            @test_throws AssertionError SVGP(
+                X,
+                y,
+                k,
+                GaussianLikelihood(),
+                MCIntegrationVI(),
+                20,
+            )
+        end
+    end
     # @testset "MCGP" begin
     #     @test_throws AssertionError MCGP(
     #         X,

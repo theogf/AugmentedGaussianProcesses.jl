@@ -36,7 +36,7 @@ mutable struct SVGP{
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
     data::TData
-    nFeatures::Int64 # Number of features of the GP (equal to number of points)
+    nFeatures::Vector{Int} # Number of features of each latent
     f::NTuple{N,SparseVarLatent{T}}
     likelihood::TLikelihood
     inference::TInference
@@ -78,33 +78,28 @@ function SVGP(
     kernel::Kernel,
     likelihood::TLikelihood,
     inference::TInference,
-    nInducingPoints::Union{Int,AbstractInducingPoints};
+    nInducingPoints::AbstractInducingPoints;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     Zoptimiser = false,
+    obsdim::Int = 1,
 ) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
-    X = if X isa AbstractVector
-        reshape(X, :, 1)
-    else
-        X
-    end
-
-    y, nLatent, likelihood = check_data!(X, y, likelihood)
+    X, T = wrap_X(X, obsdim)
+    y, nLatent, likelihood = check_data!(y, likelihood)
     @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
     @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
-    nSamples = size(X, 1)
-    nDim = size(X, 2)
+    data = wrap_data(X, y)
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.001) : nothing
     end
 
-    Z = init_Z(nInducingPoints, nSamples, X, y, kernel, Zoptimiser)
+    Z = init_Z(nInducingPoints, Zoptimiser)
 
-    nFeatures = size(Z, 1)
+    nFeatures = length(Z)
 
     if typeof(mean) <: Real
         mean = ConstantMean(mean)
@@ -112,25 +107,26 @@ function SVGP(
         mean = EmpiricalMean(mean)
     end
 
-    _nMinibatch = nSamples
-    if isStochastic(inference)
-        @assert 0 < nMinibatch(inference) < nSamples "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
-        _nMinibatch = nMinibatch(inference)
+    S = if isStochastic(inference)
+        @assert 0 < nMinibatch(inference) < nSamples(data) "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
+        nMinibatch(inference)
+    else
+        nSamples(data)
     end
 
     latentf = ntuple(
-        _ -> _SVGP{T₁}(nFeatures, _nMinibatch, Z, kernel, mean, optimiser),
+        _ -> SparseVarLatent(T₁, nFeatures, S, Z, kernel, mean, optimiser),
         nLatent,
     )
 
     likelihood =
-        init_likelihood(likelihood, inference, nLatent, _nMinibatch, nFeatures)
+        init_likelihood(likelihood, inference, nLatent, S, nFeatures)
+    xview = view_x(data, collect(1:nMinibatch(inference)))
+    yview = view_y(likelihood, data, collect(1:nMinibatch(inference)))
     inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch)
-    inference.xview = [view(X, collect(1:nMinibatch(inference)), :)]
-    inference.yview = [view_y(likelihood, y, collect(1:nMinibatch(inference)))]
+        tuple_inference(inference, nLatent, nFeatures, nSamples(data), S, xview, yview)
 
-    model = SVGP{T₁,TLikelihood,typeof(inference),nLatent}(
+    model = SVGP{T₁,TLikelihood,typeof(inference),typeof(data),nLatent}(
         X,
         y,
         nSamples,

@@ -127,8 +127,8 @@ function tuple_inference(
     nMinibatch::Vector{<:Int},
 ) where {TInf<:MCIntegrationVI}
     return TInf(
-        i.ϵ,
-        i.Stochastic,
+        conv_crit(i),
+        isStochastic(i),
         i.nMC,
         i.clipping,
         nFeatures,
