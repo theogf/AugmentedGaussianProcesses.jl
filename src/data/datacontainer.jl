@@ -31,11 +31,6 @@ function wrap_X(X::AbstractVector{<:AbstractVector{T}}) where {T<:Real}
     return X, T
 end
 
-view_x(d::DataContainer, indices) = view(d.X, indices)
-view_y(l::Likelihood, y::AbstractVector, i::AbstractVector) = view(y, i)
-view_y(l::Likelihood, d::DataContainer, i::AbstractVector) = view_y(l, d.y, i)
-
-
 nSamples(d::AbstractDataContainer) = d.nSamples
 nDim(d::AbstractDataContainer) = d.nDim
 

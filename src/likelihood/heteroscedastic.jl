@@ -128,13 +128,13 @@ function variational_updates!(
 ) where {T,L}
     local_updates!(
         model.likelihood,
-        get_y(model),
+        yview(model),
         mean_f(model),
         var_f(model),
     )
     natural_gradient!(
-        ∇E_μ(model.likelihood, opt_type(model.inference), get_y(model))[2],
-        ∇E_Σ(model.likelihood, opt_type(model.inference), get_y(model))[2],
+        ∇E_μ(model.likelihood, opt_type(model.inference), yview(model))[2],
+        ∇E_Σ(model.likelihood, opt_type(model.inference), yview(model))[2],
         getρ(model.inference),
         opt_type(model.inference),
         get_Z(model, 2),
@@ -147,8 +147,8 @@ function variational_updates!(
         var_f(model.f[2]),
     )
     natural_gradient!(
-        ∇E_μ(model.likelihood, opt_type(model.inference), get_y(model))[1],
-        ∇E_Σ(model.likelihood, opt_type(model.inference), get_y(model))[1],
+        ∇E_μ(model.likelihood, opt_type(model.inference), yview(model))[1],
+        ∇E_Σ(model.likelihood, opt_type(model.inference), yview(model))[1],
         getρ(model.inference),
         opt_type(model.inference),
         get_Z(model, 1),

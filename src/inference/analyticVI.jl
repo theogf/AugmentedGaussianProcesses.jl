@@ -123,7 +123,7 @@ end
 @traitfn function variational_updates!(m::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     local_updates!(
         m.likelihood,
-        get_y(m),
+        yview(m),
         mean_f(m),
         var_f(m),
     )
@@ -141,7 +141,7 @@ end
 @traitfn function variational_updates!(m::TGP) where {T, L, TGP<:AbstractGP{T,L,<:AnalyticVI}; IsMultiOutput{TGP}}
     local_updates!.(
         m.likelihood,
-        get_y(m),
+        yview(m),
         mean_f(m),
         var_f(m),
     ) # Compute the local updates given the expectations of f
@@ -283,18 +283,18 @@ end
         getρ(model.inference) * expec_log_likelihood(
             model.likelihood,
             model.inference,
-            get_y(model),
+            yview(model),
             mean_f(model),
             var_f(model),
         )
     tot -= GaussianKL(model)
-    tot -= getρ(model.inference) * AugmentedKL(model.likelihood, get_y(model))
+    tot -= getρ(model.inference) * AugmentedKL(model.likelihood, yview(model))
     tot -= extraKL(model)
 end
 
 @traitfn function ELBO(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     tot = zero(T)
-    tot += sum(model.inference.ρ .* expec_log_likelihood.(model.likelihood,model.inference,get_y(model),mean_f(model),var_f(model)))
+    tot += sum(model.inference.ρ .* expec_log_likelihood.(model.likelihood,model.inference, yview(model),mean_f(model),var_f(model)))
     tot -= GaussianKL(model)
-    tot -= sum(model.inference.ρ .* AugmentedKL.(model.likelihood,get_y(model)))
+    tot -= sum(model.inference.ρ .* AugmentedKL.(model.likelihood, yview(model)))
 end

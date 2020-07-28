@@ -7,7 +7,7 @@ end
 
 function log_joint_model(model::MCGP{T,L,<:SamplingInference}, x) where {T,L}
     fs = unsqueeze(model, x)
-    log_likelihood(model.likelihood, get_y(model), fs) +
+    log_likelihood(model.likelihood, yview(model), fs) +
     sum(log_gp_prior.(model.f, fs))
 end
 
@@ -21,7 +21,7 @@ function grad_log_joint_model(
     x,
 ) where {T,L}
     fs = unsqueeze(model, x)
-    vcat(grad_log_likelihood(model.likelihood, get_y(model), fs)...) +
+    vcat(grad_log_likelihood(model.likelihood, yview(model), fs)...) +
     vcat(grad_log_gp_prior.(model.f, fs)...)
 end
 

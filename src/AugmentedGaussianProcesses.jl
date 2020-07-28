@@ -87,6 +87,7 @@ module AugmentedGaussianProcesses
     include("likelihood/likelihood.jl")
 
     include("functions/init.jl")
+    include("data/utils.jl")
     include("functions/KLdivergences.jl")
     include("functions/plotting.jl")
 

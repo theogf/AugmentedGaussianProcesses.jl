@@ -102,7 +102,6 @@ end
 
 nLatent(::GP) = 1
 
-get_y(model::GP) = model.inference.yview
 get_Z(model::GP) = model.inference.xview
 get_Z(model::GP, i::Int) = model.inference.xview
 

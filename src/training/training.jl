@@ -107,10 +107,10 @@ end
 
 """Update all variational parameters of the sparse variational GP Model"""
 function update_parameters!(m::SVGP)
-    if isStochastic(m.inference)
-        setMBIndices!(m.inference, StatsBase.sample(1:nSamples(m), nMinibatch(m.inference), replace = false))
-        setxview!(m.inference, view(m.X, MBIndices(m.inference), :))
-        setyview!(m.inference, view_y(m.likelihood, m.y, MBIndices(m.inference)))
+    if isStochastic(inference(m))
+        setMBIndices!(inference(m), StatsBase.sample(1:nSamples(m), nMinibatch(inference(m)), replace = false))
+        setxview!(inference(m), view_x(data(m), MBIndices(inference(m)), :))
+        setyview!(inference(m), view_y(likelihood(m), data(m), MBIndices(inference(m))))
     end
     computeMatrices!(m); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(m);
@@ -124,12 +124,9 @@ end
 
 function update_parameters!(m::MOSVGP)
     if isStochastic(m.inference)
-        # MBIndices = StatsBase.sample(1:nSamples(m)[1], nMinibatch(m.inference), replace = false)
-        for i in 1:nX(m)
-            setMBIndices!(m.inference, 1, StatsBase.sample(1:nSamples(m, i), nMinibatch(m.inference), replace = false)) #TODO ugly hack
-            setxview!(m.inference, i, view(m.X[i], MBIndices(m.inference, 1), :)) #TODO
-            setyview!(m.inference, i, view_y(m.likelihood[i], m.y[i], MBIndices(m.inference, 1))) #TODO
-        end
+        setMBIndices!(inference(m), StatsBase.sample(1:nSamples(m), nMinibatch(inference(m)), replace = false))
+        setxview!(inference(m), view_x(data(m), MBIndices(inference(m)), :))
+        setyview!(m.inference, view_y(likelihood(m), data(m), MBIndices(m.inference)))
     end
     computeMatrices!(m); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     update_A!(m)

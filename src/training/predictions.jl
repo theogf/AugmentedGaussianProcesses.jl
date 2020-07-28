@@ -23,11 +23,11 @@ function _predict_f(
     end
     if !diag
         k_starstar = kernelmatrix(kernel(m.f), X_test) + T(jitt) * I
-        Σf = Symmetric(k_starstar - k_star * cov(m.f) * transpose(k_star))
+        Σf = Symmetric(k_starstar - k_star * AGP.cov(m.f) * transpose(k_star))
         return μf, Σf
     else
         k_starstar = kerneldiagmatrix(kernel(m.f), X_test) .+ T(jitt)
-        σ²f = k_starstar - opt_diag(k_star * cov(m.f), k_star)
+        σ²f = k_starstar - opt_diag(k_star * AGP.cov(m.f), k_star)
         return μf, σ²f
     end
 end
@@ -145,7 +145,7 @@ predict_f(
 
 predict_f(
     model::AbstractGP,
-    X_test::AbstractVector{<:Real};
+    X_test::AbstractMatrix;
     cov::Bool = false,
     diag::Bool = true,
     obsdim::Int = 1,

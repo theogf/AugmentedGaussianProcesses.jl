@@ -152,7 +152,7 @@ function ELBO(m::AbstractGP{T,L,<:NumericalVI}) where {T,L}
         getρ(m.inference) * expec_log_likelihood(
             m.likelihood,
             m.inference,
-            get_y(m),
+            yview(m),
             mean_f(m),
             var_f(m),
         )

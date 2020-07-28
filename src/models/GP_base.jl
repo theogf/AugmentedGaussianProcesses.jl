@@ -127,7 +127,7 @@ struct SparseVarLatent{
 end
 
 function SparseVarLatent(
-    T::DataType
+    T::DataType,
     dim::Int,
     nSamplesUsed::Int,
     Z::AbstractInducingPoints,
@@ -205,15 +205,16 @@ mutable struct OnlineVarLatent{
     prev𝓛ₐ::T
 end
 
-function OnlineVarLatent{T}(
+function OnlineVarLatent(
+    T::DataType,
     dim::Int,
     nSamplesUsed::Int,
     Z::AbstractInducingPoints,
     kernel::Kernel,
     mean::PriorMean,
     opt,
-) where {T<:Real}
-    OnlineVarLatent{T}(
+)
+    OnlineVarLatent(
         GPPrior(
             deepcopy(kernel),
             deepcopy(mean),
@@ -250,14 +251,15 @@ mutable struct TVarLatent{T<:Real,Tpr<:GPPrior,Tpo<:VarPosterior{T},O} <:
     opt::O
 end
 
-function TVarLatent{T}(
+function TVarLatent(
+    T::DataType,
     ν::Real,
     dim::Int,
     kernel::Kernel,
     mean::PriorMean,
     opt,
-) where {T<:Real}
-    TVarLatent{T}(
+)
+    TVarLatent(
         GPPrior(
             deepcopy(kernel),
             deepcopy(mean),
@@ -274,9 +276,6 @@ end
 
 ### Functions
 
-
-# Iterations
-length()
 
 
 prior(gp::AbstractLatent) = gp.prior

@@ -177,7 +177,7 @@ end
 function grad_expectations!(
     m::AbstractGP{T,L,<:QuadratureVI},
 ) where {T,L}
-    y = get_y(m)
+    y = yview(m)
     for (gp, opt) in zip(m.f, get_opt(m.inference))
         μ = mean_f(gp)
         Σ = var_f(gp)

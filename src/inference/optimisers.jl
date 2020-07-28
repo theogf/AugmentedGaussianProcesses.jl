@@ -44,10 +44,10 @@ function init!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
         model.inference.xview = view(model.X,model.inference.MBIndices,:)
         model.inference.yview = view_y(model.likelihood,model.y,model.inference.MBIndices)
         computeMatrices!(model)
-        local_updates!(model.likelihood,get_y(model),mean_f(model),var_f(model))
+        local_updates!(likelihood(model), yview(model), mean_f(model),var_f(model))
         natural_gradient!.(
-            ∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
-            ∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
+            ∇E_μ(model.likelihood,model.inference.vi_opt[1],yview(model)),
+            ∇E_Σ(model.likelihood,model.inference.vi_opt[1],yview(model)),
             model.inference,model.inference.vi_opt,get_Z(model),model.f)
         init_ALRSVI!.(model.inference.vi_opt,model.f,τ)
     end

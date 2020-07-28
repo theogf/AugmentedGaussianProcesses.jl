@@ -64,7 +64,7 @@ function train!(
                 compute_old_matrices!(m)
                 local_updates!(
                     m.likelihood,
-                    get_y(m),
+                    yview(m),
                     mean_f(m),
                     var_f(m),
                 )

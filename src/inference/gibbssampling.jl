@@ -121,7 +121,7 @@ function sample_parameters(
     computeMatrices!(m)
     for i in 1:(m.inference.nBurnin+nSamples*m.inference.samplefrequency)
         m.inference.nIter += 1
-        sample_local!(m.likelihood, get_y(m), get_f(m))
+        sample_local!(m.likelihood, yview(m), get_f(m))
         sample_global!.(∇E_μ(m), ∇E_Σ(m), get_Z(m), m.f)
         if nIter(m.inference) > m.inference.nBurnin &&
            (nIter(m.inference) - m.inference.nBurnin) %

@@ -27,6 +27,8 @@
             @test AGP.likelihood(model) isa GaussianLikelihood
             @test AGP.inference(model) isa Analytic
             @test AGP.getf(model) isa AGP.LatentGP
+            @test AGP.output(model) isa AbstractVector
+            @test AGP.input(model) isa AbstractVector
             @test AGP.nLatent(model) == 1
             L = AGP.objective(model)
             @test train!(model, 10)

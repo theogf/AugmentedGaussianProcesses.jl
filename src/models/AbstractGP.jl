@@ -19,8 +19,11 @@ nSamples(m::AbstractGP) = nSamples(data(m))
 getf(m::AbstractGP) = m.f
 getf(m::AbstractGP, i::Int) = getindex(m.f, i)
 
-get_X(m::AbstractGP) = data(m).X
+get_X(m::AbstractGP) = input(data(m))
+get_y(m::AbstractGP) = output(data(m))
+
 xview(m::AbstractGP) = xview(inference(m))
+yview(m::AbstractGP) = yview(inference(m))
 
 is_trained(m::AbstractGP) = m.trained
 set_trained!(m::AbstractGP, status::Bool) = m.trained = status

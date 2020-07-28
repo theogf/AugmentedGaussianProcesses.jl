@@ -87,7 +87,7 @@ function tuple_inference(
 end
 
 function grad_log_joint_pdf(model::MCGP{T,L,HMCSampling{T}}, x) where {T,L}
-    grad_log_likelihood(model.likelihood, get_y(model), x) +
+    grad_log_likelihood(likelihood(model), yview(model), x) +
     sum(grad_log_gp_prior.(model.f, x))
 end
 
