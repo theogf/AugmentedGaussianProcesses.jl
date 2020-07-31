@@ -89,6 +89,7 @@ function SVGP(
 
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
+
     @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
     @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
@@ -115,24 +116,20 @@ function SVGP(
     end
 
     latentf = ntuple(
-        _ -> SparseVarLatent(T₁, nFeatures, S, Z, kernel, mean, optimiser),
+        _ -> SparseVarLatent(T, nFeatures, S, Z, kernel, mean, optimiser),
         nLatent,
     )
 
     likelihood =
         init_likelihood(likelihood, inference, nLatent, S, nFeatures)
-    xview = view_x(data, collect(1:nMinibatch(inference)))
-    yview = view_y(likelihood, data, collect(1:nMinibatch(inference)))
+    xview = view_x(data, collect(1:S))
+    yview = view_y(likelihood, data, collect(1:S))
     inference =
         tuple_inference(inference, nLatent, nFeatures, nSamples(data), S, xview, yview)
 
-    model = SVGP{T₁,TLikelihood,typeof(inference),typeof(data),nLatent}(
-        X,
-        y,
-        nSamples,
-        nDim,
-        nFeatures,
-        nLatent,
+    model = SVGP{T,TLikelihood,typeof(inference),typeof(data),nLatent}(
+        data,
+        fill(nFeatures, nLatent), # WARNING workaround
         latentf,
         likelihood,
         inference,

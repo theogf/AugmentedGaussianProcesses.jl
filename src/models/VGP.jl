@@ -33,6 +33,7 @@ mutable struct VGP{
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
     data::TData # Data container
+     nFeatures::Vector{Int}
     f::NTuple{N,VarLatent{T}} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
@@ -52,26 +53,23 @@ function VGP(
     optimiser = ADAM(0.01),
     atfrequency::Integer = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    ArrayType::UnionAll = Vector,
+    obsdim::Int = 1,
 ) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
 
-    X = if X isa AbstractVector
-        reshape(X, :, 1)
-    else
-        X
-    end
+    X, T = wrap_X(X, obsdim)
+    y, nLatent, likelihood = check_data!(y, likelihood)
 
-    y, nLatent, likelihood = check_data!(X, y, likelihood)
     @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
     @assert !isa(likelihood, GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
     @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
 
-    nFeatures = nSamples = size(X, 1)
-    nDim = size(X, 2)
+    data = wrap_data(X, y)
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
+
+    nFeatures = nSamples(X)
 
     if typeof(mean) <: Real
         mean = ConstantMean(mean)
@@ -79,19 +77,17 @@ function VGP(
         mean = EmpiricalMean(mean)
     end
 
-    latentf = ntuple(_ -> _VGP{T}(nFeatures, kernel, mean, optimiser), nLatent)
+    latentf = ntuple(_ -> VarLatent(T, nFeatures, kernel, mean, optimiser), nLatent)
 
     likelihood =
         init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
+    xview = view_x(data, :)
+    yview = view_y(likelihood, data, 1:nSamples(data))
     inference =
-        tuple_inference(inference, nLatent, nSamples, nSamples, nSamples)
-    inference.xview = [view(X, :, :)]
-    inference.yview = [view_y(likelihood, y, 1:nSamples)]
-    inference.MBIndices = [collect(1:nSamples)]
-    VGP{T,TLikelihood,typeof(inference),typeof(data),nLatent}(
+        tuple_inference(inference, nLatent, nFeatures, nSamples(data), nSamples(data), xview, yview)
+    return VGP{T,TLikelihood,typeof(inference),typeof(data),nLatent}(
         data,
-        nFeatures,
-        nLatent,
+        fill(nFeatures, nLatent),
         latentf,
         likelihood,
         inference,

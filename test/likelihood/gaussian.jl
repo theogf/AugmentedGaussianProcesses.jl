@@ -29,35 +29,35 @@
             @test AGP.input(model) isa AbstractVector
             @test AGP.nLatent(model) == 1
             L = AGP.objective(model)
-            @test train!(model, 10)
+            @test_nowarn train!(model, 10)
             @test L < AGP.objective(model)
             @test testconv(model, "Regression", X, f, y)
             @test all(proba_y(model, X)[2] .> 0)
         end
     end
-    # @testset "VGP" begin
-    #     @test_throws AssertionError VGP(
-    #         X,
-    #         y,
-    #         k,
-    #         GaussianLikelihood(),
-    #         AnalyticVI(),
-    #     )
-    #     @test_throws AssertionError VGP(
-    #         X,
-    #         y,
-    #         k,
-    #         GaussianLikelihood(),
-    #         QuadratureVI(),
-    #     )
-    #     @test_throws AssertionError VGP(
-    #         X,
-    #         y,
-    #         k,
-    #         GaussianLikelihood(),
-    #         MCIntegrationVI(),
-    #     )
-    # end
+    @testset "VGP" begin
+        @test_throws AssertionError VGP(
+            X,
+            y,
+            k,
+            GaussianLikelihood(),
+            AnalyticVI(),
+        )
+        @test_throws AssertionError VGP(
+            X,
+            y,
+            k,
+            GaussianLikelihood(),
+            QuadratureVI(),
+        )
+        @test_throws AssertionError VGP(
+            X,
+            y,
+            k,
+            GaussianLikelihood(),
+            MCIntegrationVI(),
+        )
+    end
     @testset "SVGP" begin
         for floattype in floattypes
             @testset "AnalyticVI" begin
@@ -71,14 +71,14 @@
                     optimiser = false,
                     verbose = 0,
                 )
-                @test typeof(model) <: SVGP{
-                    floattype,
-                    GaussianLikelihood{floattype, Nothing, Vector{floattype}},
-                    AnalyticVI{floattype,1},
-                    1,
-                }
+                @test eltype(model) == floattype
                 @test AGP.likelihood(model) isa GaussianLikelihood
                 @test AGP.inference(model) isa AnalyticVI
+                @test AGP.getf(model) isa NTuple{1, AGP.SparseVarLatent}
+                @test AGP.output(model) isa AbstractVector
+                @test AGP.input(model) isa AbstractVector
+                @test AGP.nLatent(model) == 1
+                @test AGP.likelihood(model) isa GaussianLikelihood
                 model_opt = SVGP(
                     X,
                     y,

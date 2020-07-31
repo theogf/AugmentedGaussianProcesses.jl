@@ -277,7 +277,6 @@ end
 ### Functions
 
 
-
 prior(gp::AbstractLatent) = gp.prior
 kernel(gp::AbstractLatent) = kernel(prior(gp))
 pr_mean(gp::AbstractLatent) = mean(prior(gp))
@@ -286,6 +285,7 @@ pr_cov(gp::AbstractLatent) = cov(prior(gp))
 pr_cov!(gp::AbstractLatent, K::PDMat) = gp.prior.K = K
 
 posterior(gp::AbstractLatent) = gp.post
+dim(gp::AbstractLatent) = dim(posterior(gp))
 mean(gp::AbstractLatent) = mean(posterior(gp))
 cov(gp::AbstractLatent) = cov(posterior(gp))
 var(gp::AbstractLatent) = var(posterior(gp))
@@ -316,7 +316,7 @@ get_Z(gp::AbstractLatent) = gp.Z
 
 function compute_κ!(gp::SparseVarLatent, X::AbstractVector, jitt::Real)
     gp.Knm .= kernelmatrix(kernel(gp), X, gp.Z)
-    gp.κ .= gp.Knm / gp.K
+    gp.κ .= gp.Knm / pr_cov(gp)
     gp.K̃ .=
         kerneldiagmatrix(kernel(gp), X) .+ jitt -
         opt_diag(gp.κ, gp.Knm)
@@ -327,13 +327,13 @@ end
 function compute_κ!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)
     # Covariance with the model at t-1
     gp.Kab = kernelmatrix(kernel(gp), gp.Zₐ, gp.Z)
-    gp.κₐ = gp.Kab / gp.K
+    gp.κₐ = gp.Kab / pr_cov(gp)
     Kₐ = Symmetric(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
     gp.K̃ₐ = Kₐ - gp.κₐ * transpose(gp.Kab)
 
     # Covariance with a new batch
     gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
-    gp.κ = gp.Knm / gp.K
+    gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ = kerneldiagmatrix(kernel(gp), X) .+ jitt - opt_diag(gp.κ, gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

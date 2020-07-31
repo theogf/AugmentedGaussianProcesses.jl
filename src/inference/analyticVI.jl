@@ -211,7 +211,7 @@ function natural_gradient!(
     Z::AbstractVector,
     gp::SparseVarLatent{T},
 ) where {T<:Real}
-    opt.∇η₁ .= ∇η₁(∇E_μ, ρ, gp.κ, pr_cov(gp), pr_mean(gp), nat1(gp))
+    opt.∇η₁ .= ∇η₁(∇E_μ, ρ, gp.κ, pr_cov(gp), pr_mean(gp, Z), nat1(gp))
     opt.∇η₂ .= ∇η₂(∇E_Σ, ρ, gp.κ, pr_cov(gp), nat2(gp))
 end
 

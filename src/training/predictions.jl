@@ -16,7 +16,7 @@ function _predict_f(
     cov::Bool = true,
     diag::Bool = true,
 ) where {T}
-    k_star = kernelmatrix(kernel(m.f), X_test, get_X(m))
+    k_star = kernelmatrix(kernel(m.f), X_test, input(m))
     μf = k_star * mean(m.f)
     if !cov
         return (μf,)
@@ -39,20 +39,20 @@ end
     diag::Bool = true,
 ) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
     k_star = kernelmatrix.(kernels(m), [X_test], get_Z(m))
-    μf = k_star .* (Ks(m) .\ means(m))
+    μf = k_star .* (pr_covs(m) .\ means(m))
     if !cov
         return (μf,)
     end
-    A = Ks(m) .\ (Ref(I) .- covs(m) ./ Ks(m))
+    A = pr_covs(m) .\ (Ref(I) .- covs(m) ./ pr_covs(m))
     if !diag
-        k_starstar = kernelmatrix.(kernels(model), [X_test]) .+ T(jitt) * [I]
+        k_starstar = kernelmatrix.(kernels(m), Ref(X_test)) .+ T(jitt) * [I]
         Σf = Symmetric.(k_starstar .- k_star .* A .* transpose.(k_star))
         return μf, Σf
     else
         k_starstar =
-            kerneldiagmatrix(kernels(model), [X_test]) +
-            T(jitt) * ones(T, size(X_test, 1))
-        σ²f = [k_starstar] .- opt_diag.(k_star .* A, k_star)
+            kerneldiagmatrix.(kernels(m), Ref(X_test)) .+
+            Ref(T(jitt) * ones(T, size(X_test, 1)))
+        σ²f = k_starstar .- opt_diag.(k_star .* A, k_star)
         return μf, σ²f
     end
 end
@@ -65,14 +65,14 @@ end
     diag::Bool = true,
 ) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     k_star = kernelmatrix(kernels(m), [X_test], get_Z(m))
-    μf = k_star .* (Ks(m) .\ means(m))
+    μf = k_star .* (pr_covs(m) .\ means(m))
 
     μf =
         [[sum(m.A[i][j] .* μf) for j = 1:m.nf_per_task[i]] for i = 1:nOutput(m)]
     if !cov
         return (μf,)
     end
-    A = Ks(m) .\ ([I] .- covs(m) ./ Ks(m))
+    A = pr_covs(m) .\ ([I] .- covs(m) ./ pr_covs(m))
     if !diag
         k_starstar = (kernelmatrix.(kernels(m), [X_test]) .+ T(jitt) * [I])
         Σf = k_starstar .- k_star .* A .* transpose.(k_star)
@@ -93,27 +93,27 @@ end
 end
 
 function _predict_f(
-    model::MCGP{T},
+    m::MCGP{T},
     X_test::AbstractVector;
     cov::Bool = true,
     diag::Bool = true,
 ) where {T}
-    k_star = kernelmatrix.(kernels(model), [X_test], get_Z(model))
-    f = _sample_f(model, X_test, k_star)
-    μf = Tuple(vec(mean(f[k], dims = 2)) for k = 1:nLatent(model))
+    k_star = kernelmatrix.(kernels(model), [X_test], get_Z(m))
+    f = _sample_f(m, X_test, k_star)
+    μf = Tuple(vec(mean(f[k], dims = 2)) for k = 1:nLatent(m))
     if !cov
         return (μf,)
     end
     if !diag
-        k_starstar = kernelmatrix.(kernels(model), [X_test]) + T(jitt)
-        Σf = Symmetric.(k_starstar .- invquad.(Ks(model), k_star) .+ cov.(f))
+        k_starstar = kernelmatrix.(kernels(m), [X_test]) + T(jitt)
+        Σf = Symmetric.(k_starstar .- invquad.(pr_covs(m), k_star) .+ cov.(f))
         return μf, Σf
     else
         k_starstar =
-            kerneldiagmatrix.(kernels(model), [X_test]) .+
+            kerneldiagmatrix.(kernels(m), [X_test]) .+
             [T(jitt) * ones(T, length(X_test))]
         σ²f =
-            k_starstar .- opt_diag.(k_star ./ Ks(model), k_star) .+
+            k_starstar .- opt_diag.(k_star ./ pr_covs(m), k_star) .+
             diag.(cov.(f, dims = 2))
         return μf, σ²f
     end

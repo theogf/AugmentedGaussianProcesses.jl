@@ -31,6 +31,6 @@ function apply_grads_kernel_params!(opt, k::Kernel, Δ::IdDict)
     end
 end
 
-function apply_gradients_mean_prior!(μ::PriorMean,g::AbstractVector,X::AbstractMatrix)
-    update!(μ,g,X)
+function apply_gradients_mean_prior!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
+    update!(μ, g, X)
 end

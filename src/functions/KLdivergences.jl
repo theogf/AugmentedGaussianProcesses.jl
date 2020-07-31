@@ -7,7 +7,7 @@ GaussianKL(gp::AbstractLatent, X::AbstractVector) = GaussianKL(mean(gp), pr_mean
 function GaussianKL(
     μ::AbstractVector{T},
     μ₀::AbstractVector,
-    Σ::Matrix{T},
+    Σ::Symmetric{T,Matrix{T}},
     K::PDMat{T,Matrix{T}},
 ) where {T<:Real}
     0.5 * (logdet(K) - logdet(Σ) + tr(K \ Σ) + invquad(K, μ - μ₀) - length(μ))

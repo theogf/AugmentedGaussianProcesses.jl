@@ -9,7 +9,7 @@ end
 @traitfn function update_hyperparameters!(
     m::TGP,
 ) where {TGP <: AbstractGP; IsFull{TGP}}
-    update_hyperparameters!.(m.f, get_Z(m))
+    update_hyperparameters!.(m.f, Ref(xview(m)))
     setHPupdated!(m.inference, true)
 end
 
@@ -18,11 +18,11 @@ end
 ) where {TGP <: AbstractGP; !IsFull{TGP}}
     update_hyperparameters!.(
         m.f,
-        m.inference.xview,
+        Ref(xview(m)),
         ∇E_μ(m),
         ∇E_Σ(m),
-        m.inference,
-        m.inference.vi_opt,
+        inference(m),
+        inference(m).vi_opt,
     )
     setHPupdated!(m.inference, true)
 end
@@ -40,7 +40,7 @@ function update_hyperparameters!(
         elseif aduse == :reverse_diff
             ∇L_ρ_reverse(f_l, gp, X)
         end
-        grads[mean_prior(gp)] = f_μ₀()
+        grads[pr_mean(gp)] = f_μ₀()
         apply_grads_kernel_params!(gp.opt, kernel(gp), grads) # Apply gradients to the kernel parameters
         apply_gradients_mean_prior!(pr_mean(gp), grads[pr_mean(gp)], X)
     end
@@ -49,7 +49,7 @@ end
 ## Update all hyperparameters for the sparse variational GP models ##
 function update_hyperparameters!(
     gp::AbstractLatent,
-    X,
+    X::AbstractVector,
     ∇E_μ::AbstractVector,
     ∇E_Σ::AbstractVector,
     i::Inference,
@@ -64,7 +64,7 @@ function update_hyperparameters!(
             ∇L_ρ_reverse(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, opt)
         end
         # @show grads[kernel(gp).transform.s]
-        grads[mean_prior(gp)] = f_μ₀()
+        grads[pr_mean(gp)] = f_μ₀()
     end
     if !isnothing(gp.Z.opt) && !isnothing(gp.opt)
         Z_aduse = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]

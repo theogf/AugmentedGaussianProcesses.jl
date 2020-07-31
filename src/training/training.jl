@@ -109,7 +109,7 @@ end
 function update_parameters!(m::SVGP)
     if isStochastic(inference(m))
         setMBIndices!(inference(m), StatsBase.sample(1:nSamples(m), nMinibatch(inference(m)), replace = false))
-        setxview!(inference(m), view_x(data(m), MBIndices(inference(m)), :))
+        setxview!(inference(m), view_x(data(m), MBIndices(inference(m))))
         setyview!(inference(m), view_y(likelihood(m), data(m), MBIndices(inference(m))))
     end
     computeMatrices!(m); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
@@ -125,7 +125,7 @@ end
 function update_parameters!(m::MOSVGP)
     if isStochastic(m.inference)
         setMBIndices!(inference(m), StatsBase.sample(1:nSamples(m), nMinibatch(inference(m)), replace = false))
-        setxview!(inference(m), view_x(data(m), MBIndices(inference(m)), :))
+        setxview!(inference(m), view_x(data(m), MBIndices(inference(m))))
         setyview!(m.inference, view_y(likelihood(m), data(m), MBIndices(m.inference)))
     end
     computeMatrices!(m); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
@@ -141,27 +141,29 @@ end
 
 function computeMatrices!(m::GP{T}) where {T}
     compute_K!(getf(m), xview(m), T(jitt))
-    setHPupdated!(m.inference, false)
+    setHPupdated!(inference(m), false)
+    return nothing
 end
 
 @traitfn function computeMatrices!(m::TGP) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
-    if isHPupdated(m.inference)
-        compute_K!.(m.f, xview(m), T(jitt))
+    if isHPupdated(inference(m))
+        compute_K!.(getf(m), xview(m), T(jitt))
     end
-    setHPupdated!(m.inference, false)
+    setHPupdated!(inference(m), false)
+    return nothing
 end
 
 @traitfn function computeMatrices!(m::TGP) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
-    if isHPupdated(m.inference)
-        compute_K!.(m.f, T(jitt))
+    if isHPupdated(inference(m))
+        compute_K!.(getf(m), T(jitt))
     end
     #If change of hyperparameters or if stochatic
-    if isHPupdated(m.inference) || isStochastic(m.inference)
-        compute_κ!.(m.f, xview(m.inference), T(jitt))
+    if isHPupdated(inference(m)) || isStochastic(inference(m))
+        compute_κ!.(getf(m), [xview(m)], T(jitt))
     end
-    setHPupdated!(m.inference, false)
+    setHPupdated!(inference(m), false)
+    return nothing
 end
-
 # function computeMatrices!(model::VStP{T,<:Likelihood,<:Inference}) where {T}
 #     if model.inference.HyperParametersUpdated
 #         compute_K!.(model.f,[],T(jitt))

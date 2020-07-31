@@ -113,5 +113,5 @@ objective(m::GP) = log_py(m)
 
 function log_py(m::GP)
     f = m.f
-    return -0.5 * (dot(get_y(m), cov(f) \ get_y(m)) + logdet(cov(f)) + nFeatures(m) * log(twoπ))
+    return -0.5 * (dot(yview(m), cov(f) \ yview(m)) + logdet(cov(f)) + nFeatures(m) * log(twoπ))
 end
