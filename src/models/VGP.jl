@@ -80,7 +80,7 @@ function VGP(
     latentf = ntuple(_ -> VarLatent(T, nFeatures, kernel, mean, optimiser), nLatent)
 
     likelihood =
-        init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
+        init_likelihood(likelihood, inference, nLatent, nSamples(data), nFeatures)
     xview = view_x(data, :)
     yview = view_y(likelihood, data, 1:nSamples(data))
     inference =
@@ -105,8 +105,7 @@ function Base.show(io::IO, model::VGP{T,<:Likelihood,<:Inference}) where {T}
 end
 
 
-get_Z(m::VGP) = [m.X]
-get_Z(m::VGP, i::Int) = m.X
+Zviews(m::VGP) = [input(m)]
 objective(m::VGP) = ELBO(m::VGP)
 
 @traitimpl IsFull{VGP}

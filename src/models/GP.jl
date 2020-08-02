@@ -101,9 +101,7 @@ function Base.show(io::IO, model::GP)
 end
 
 nLatent(::GP) = 1
-
-get_Z(model::GP) = model.inference.xview
-get_Z(model::GP, i::Int) = model.inference.xview
+Zviews(model::GP) = [input(model)]
 
 @traitimpl IsFull{GP}
 

@@ -1,14 +1,13 @@
 """
 Class for sparse variational Gaussian Processes
 
-```julia
-SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
-    likelihood::LikelihoodType,inference::InferenceType, nInducingPoints::Int;
-    verbose::Int=0,optimiser=ADAM(0.001),atfrequency::Int=1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-    Zoptimiser=false,
-    ArrayType::UnionAll=Vector)
-```
+
+    SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
+        likelihood::LikelihoodType,inference::InferenceType, nInducingPoints::Int;
+        verbose::Int=0,optimiser=ADAM(0.001),atfrequency::Int=1,
+        mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+        Zoptimiser=false,
+        ArrayType::UnionAll=Vector)
 
 Argument list :
 
@@ -57,7 +56,7 @@ function SVGP(
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     Zoptimiser = false,
-) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+) where {TLikelihood<:Likelihood}
     SVGP(
         X,
         y,
@@ -73,11 +72,11 @@ function SVGP(
 end
 
 function SVGP(
-    X::AbstractArray{T₁},
+    X::AbstractArray{<:Real},
     y::AbstractVector,
     kernel::Kernel,
     likelihood::TLikelihood,
-    inference::TInference,
+    inference::Inference,
     nInducingPoints::AbstractInducingPoints;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
@@ -85,7 +84,7 @@ function SVGP(
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     Zoptimiser = false,
     obsdim::Int = 1,
-) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+) where {TLikelihood<:Likelihood}
 
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
@@ -150,9 +149,7 @@ function Base.show(io::IO, model::SVGP{T,<:Likelihood,<:Inference}) where {T}
     )
 end
 
-get_X(m::SVGP) = m.X
-get_Z(m::SVGP) = get_Z.(m.f)
-get_Z(m::SVGP, i::Int) = get_Z(m.f[i])
+Zviews(m::SVGP) = Zview.(m.f)
 objective(m::SVGP) = ELBO(m)
 
 @traitimpl IsSparse{SVGP}

@@ -136,7 +136,7 @@ end
         ∇E_Σ(m),
         getρ(m.inference),
         m.inference.vi_opt,
-        get_Z(m),
+        viewZs(m),
         m.f,
     )
     global_update!(m)
@@ -154,7 +154,7 @@ end
         ∇E_Σ(m),
         getρ(m.inference),
         m.inference.vi_opt,
-        get_Z(m),
+        Zviews(m),
         m.f,
     ) # Compute the natural gradients of u given the weighted sum of the gradient of f
     global_update!(m) # Update η₁ and η₂

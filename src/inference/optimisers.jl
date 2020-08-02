@@ -48,7 +48,7 @@ function init!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
         natural_gradient!.(
             ∇E_μ(model.likelihood,model.inference.vi_opt[1],yview(model)),
             ∇E_Σ(model.likelihood,model.inference.vi_opt[1],yview(model)),
-            model.inference,model.inference.vi_opt,get_Z(model),model.f)
+            model.inference,model.inference.vi_opt, Zviews(model),model.f)
         init_ALRSVI!.(model.inference.vi_opt,model.f,τ)
     end
     finalize_init_ALRSVI!.(model.inference.vi_opt,model.f)

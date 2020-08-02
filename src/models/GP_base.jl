@@ -45,13 +45,13 @@ nat1(p::VarPosterior) = p.η₁
 nat2(p::VarPosterior) = p.η₂
 
 
-struct SamplePosterior{T} <: AbstractPosterior{T}
+struct SampledPosterior{T} <: AbstractPosterior{T}
     dim::Int
     f::Vector{T}
     Σ::Symmetric{T, Matrix{T}}
 end
 
-mean(p::SamplePosterior) = p.f
+mean(p::SampledPosterior) = p.f
 
 #### Latent models ####
 
@@ -103,7 +103,7 @@ function VarLatent(
             deepcopy(mean),
             PDMat(Matrix{T}(I, dim, dim)),
         ),
-        VarPosterior(dim),
+        VarPosterior{T}(dim),
         deepcopy(opt),
     )
 end
@@ -156,10 +156,10 @@ end
 
 ## Monte-Carlo Gaussian Process
 
-struct SampledLatent{T,Tpr<:GPPrior,Tpo<:SamplePosterior{T}} <:
+struct SampledLatent{T,Tpr<:GPPrior,Tpo<:SampledPosterior{T}} <:
                AbstractLatent{T,Tpr,Tpo}
     prior::Tpr
-    post::SamplePosterior
+    post::SampledPosterior
 end
 
 function SampledLatent(
@@ -304,7 +304,8 @@ var_f(model::AbstractGP) = var_f.(model.f)
 @traitfn var_f(gp::T) where {T <: AbstractLatent; IsFull{T}} = var(gp)
 @traitfn var_f(gp::T) where {T <: AbstractLatent; !IsFull{T}} = opt_diag(gp.κ * cov(gp), gp.κ) + gp.K̃
 
-get_Z(gp::AbstractLatent) = gp.Z
+Zview(gp::SparseVarLatent) = gp.Z
+Zview(gp::OnlineVarLatent) = gp.Z
 
 @traitfn compute_K!(
     gp::TGP,

@@ -38,7 +38,7 @@ end
     cov::Bool = true,
     diag::Bool = true,
 ) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
-    k_star = kernelmatrix.(kernels(m), [X_test], get_Z(m))
+    k_star = kernelmatrix.(kernels(m), [X_test], Zviews(m))
     μf = k_star .* (pr_covs(m) .\ means(m))
     if !cov
         return (μf,)
@@ -64,7 +64,7 @@ end
     cov::Bool = true,
     diag::Bool = true,
 ) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
-    k_star = kernelmatrix(kernels(m), [X_test], get_Z(m))
+    k_star = kernelmatrix(kernels(m), [X_test], Zviews(m))
     μf = k_star .* (pr_covs(m) .\ means(m))
 
     μf =
@@ -98,7 +98,7 @@ function _predict_f(
     cov::Bool = true,
     diag::Bool = true,
 ) where {T}
-    k_star = kernelmatrix.(kernels(model), [X_test], get_Z(m))
+    k_star = kernelmatrix.(kernels(model), [X_test], Zviews(m))
     f = _sample_f(m, X_test, k_star)
     μf = Tuple(vec(mean(f[k], dims = 2)) for k = 1:nLatent(m))
     if !cov
@@ -125,7 +125,7 @@ function _sample_f(
     k_star = kernelmatrix.(
         get_kernel(model),
         [X_test],
-        get_Z(model),
+        Zviews(model),
         obsdim = 1,
     ),
 ) where {T}

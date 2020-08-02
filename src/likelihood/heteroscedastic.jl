@@ -137,7 +137,7 @@ function variational_updates!(
         ∇E_Σ(model.likelihood, opt_type(model.inference), yview(model))[2],
         getρ(model.inference),
         opt_type(model.inference),
-        get_Z(model, 2),
+        Zview(model.f[2]),
         model.f[2],
     )
     global_update!(model.f[2], opt_type(model.inference), model.inference)
@@ -151,7 +151,7 @@ function variational_updates!(
         ∇E_Σ(model.likelihood, opt_type(model.inference), yview(model))[1],
         getρ(model.inference),
         opt_type(model.inference),
-        get_Z(model, 1),
+        Zview(model.f[1]),
         model.f[1],
     )
     global_update!(model.f[1], opt_type(model.inference), model.inference)

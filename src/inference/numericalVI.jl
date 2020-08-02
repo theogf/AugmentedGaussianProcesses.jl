@@ -102,7 +102,7 @@ function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
         ∇E_μ(likelihood(model), model.inference.vi_opt[1],[]),
         ∇E_Σ(likelihood(model), model.inference.vi_opt[1],[]),
         model.inference, model.inference.vi_opt,
-        get_Z(model), model.f)
+        Zviews(model), model.f)
     if isnatural(model.inference)
         natural_gradient!.(model.f, model.inference.vi_opt)
     end

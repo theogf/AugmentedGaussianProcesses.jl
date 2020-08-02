@@ -76,7 +76,7 @@ function train!(
                     ∇E_Σs,
                     getρ(m.inference),
                     get_opt(m.inference),
-                    get_Z(m),
+                    Zviews(m),
                     m.f,
                 )
                 global_update!(m)

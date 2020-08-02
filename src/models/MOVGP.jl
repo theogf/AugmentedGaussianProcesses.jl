@@ -191,6 +191,5 @@ end
 
 
 nOutput(m::MOVGP{<:Real,<:Likelihood,<:Inference,N,Q}) where {N,Q} = Q
-get_Z(m::MOVGP) = m.X
-get_Z(m::MOVGP, i::Int) = nX(m) == 1 ? first(m.X) : m.X[i]
+Zviews(m::MOVGP) = [input(m)]
 objective(m::MOVGP) = ELBO(m)

@@ -204,7 +204,5 @@ end
 @traitimpl IsMultiOutput{MOSVGP}
 
 nOutput(m::MOSVGP{<:Real,<:Likelihood,<:Inference,N,Q}) where {N, Q} = Q
-get_X(m::MOSVGP) = m.X
-get_Z(m::MOSVGP) = get_Z.(m.f)
-get_Z(m::MOSVGP, i::Int) = get_Z(m.f[i])
+Zviews(m::MOSVGP) = Zview.(m.f)
 objective(m::MOSVGP) = ELBO(m)
