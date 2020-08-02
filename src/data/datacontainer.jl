@@ -13,7 +13,7 @@ mutable struct DataContainer{
 end
 
 function wrap_data(X::TX, y::TY) where {TX, TY}
-    @assert size(y, 1) == length(X) "There is not the same number of samples in X and y"
+    size(y, 1) == size(X, 1) || error("There is not the same number of samples in X ($(length(TX))) and y ($(size(y, 1)))")
     Tx = eltype(first(X))
     Ty = eltype(first(y))
     return DataContainer{Tx, TX, Ty, TY}(X, y, length(X), length(first(X)))

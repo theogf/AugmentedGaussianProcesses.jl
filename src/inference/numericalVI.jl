@@ -110,7 +110,7 @@ function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
 end
 
 function classical_gradient!(∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, X::AbstractVector, gp::VarLatent{T}) where {T<:Real}
-    opt.∇η₂ .= Diagonal(∇E_Σ) - 0.5 * (inv(pr_cov(gp).K) - inv(cov(gp)))
+    opt.∇η₂ .= Diagonal(∇E_Σ) - 0.5 * (inv(pr_cov(gp)) - inv(cov(gp)))
     opt.∇η₁ .= ∇E_μ - pr_cov(gp) \ (mean(gp) - pr_mean(gp, X))
 end
 
@@ -127,14 +127,14 @@ end
 function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     for (gp, opt) in zip(model.f, model.inference.vi_opt)
         Δ1 = Optimise.apply!(opt.optimiser, mean(gp), opt.∇η₁)
-        Δ2 = Optimise.apply!(opt.optimiser, cov(gp), opt.∇η₂)
+        Δ2 = Optimise.apply!(opt.optimiser, cov(gp).data, opt.∇η₂)
         gp.post.μ .+= Δ1
         α = 1.0
         while !isposdef(cov(gp) + α * Symmetric(Δ2)) && α > 1e-8
             α *= 0.5
         end
         if α > 1e-8
-            gp.post.Σ .+= α*Symmetric(Δ2)
+            gp.post.Σ .= cov(gp) + α*Symmetric(Δ2)
         else
             @warn "α was too small for update" maxlog=10
         end

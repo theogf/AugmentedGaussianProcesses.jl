@@ -9,7 +9,7 @@ end
 @traitfn function update_hyperparameters!(
     m::TGP,
 ) where {TGP <: AbstractGP; IsFull{TGP}}
-    update_hyperparameters!.(m.f, Ref(xview(m)))
+    update_hyperparameters!.(m.f, [xview(m)])
     setHPupdated!(m.inference, true)
 end
 
@@ -165,14 +165,14 @@ function hyperparameter_gradient_function(
     A =
         (
             I(dim(gp)) .-
-            (gp.χ * pr_cov(gp)) \ (cov(gp) .+ (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))
-        ) / (gp.χ * pr_cov(gp))
+            (pr_cov(gp)) \ (cov(gp) .+ (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))
+        ) / (pr_cov(gp))
     return (
         function (Jnn)
-            return -hyperparameter_KL_gradient(gp.χ * Jnn, A)
+            return -hyperparameter_KL_gradient(prior(gp).χ * Jnn, A)
         end,
         function ()
-            return (gp.χ * pr_cov(gp)) \ (mean(gp) - μ₀)
+            return (pr_cov(gp)) \ (mean(gp) - μ₀)
         end,
     )
 end

@@ -18,7 +18,7 @@ function train!(
 ) where {T}
     if model.verbose > 0
         println(
-            "Starting training $model with $(model.nSamples) samples, $(size(model.X,2)) features and $(model.nLatent) latent GP" *
+            "Starting training $model with $(nSamples(model)) samples, $(nFeatures(model)) features and $(nLatent(model)) latent GP" *
             (model.nLatent > 1 ? "s" : ""),
         )
     end
@@ -135,19 +135,19 @@ end
 
 function update_parameters!(m::VStP)
     computeMatrices!(m); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    local_prior_updates!(m, m.X);
+    local_prior_updates!(m, input(m));
     variational_updates!(m);
 end
 
 function computeMatrices!(m::GP{T}) where {T}
-    compute_K!(getf(m), xview(m), T(jitt))
+    compute_K!(getf(m), input(m), T(jitt))
     setHPupdated!(inference(m), false)
     return nothing
 end
 
 @traitfn function computeMatrices!(m::TGP) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
     if isHPupdated(inference(m))
-        compute_K!.(getf(m), xview(m), T(jitt))
+        compute_K!.(getf(m), [input(m)], T(jitt))
     end
     setHPupdated!(inference(m), false)
     return nothing

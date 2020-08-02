@@ -56,6 +56,7 @@ function SVGP(
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     Zoptimiser = false,
+    obsdim::Int = 1
 ) where {TLikelihood<:Likelihood}
     SVGP(
         X,
@@ -68,6 +69,7 @@ function SVGP(
         optimiser = optimiser,
         atfrequency = atfrequency,
         mean = mean,
+        obsdim = obsdim
     )
 end
 

@@ -86,12 +86,7 @@ function MCGP(
     inference =
         tuple_inference(inference, nLatent, nSamples(data), nSamples(data), nSamples(data), xview, yview)
     MCGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
-        X,
-        y,
-        nFeatures,
-        nDim,
-        nFeatures,
-        nLatent,
+        data,
         latentf,
         likelihood,
         inference,

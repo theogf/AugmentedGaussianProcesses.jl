@@ -55,18 +55,18 @@ function VStP(
     optimiser = ADAM(0.01),
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    obsdim::Int = 1
+    obsdim::Int = 1,
 ) where {TLikelihood<:Likelihood}
 
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
 
-    @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
-    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    inference isa VariationalInference ||  error("The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`")
+    implemented(likelihood, inference) || error("The $likelihood is not compatible or implemented with the $inference")
 
     data = wrap_data(X, y)
 
-    ν > 1  || error("ν should be bigger than 1")
+    ν > 1 || error("ν should be bigger than 1")
 
     nFeatures = nSamples(data)
 
@@ -80,15 +80,29 @@ function VStP(
         mean = EmpiricalMean(mean)
     end
 
-    latentf =
-        ntuple(_ -> TVarLatent(T, ν, nFeatures, kernel, mean, optimiser), nLatent)
+    latentf = ntuple(
+        _ -> TVarLatent(T, ν, nFeatures, kernel, mean, optimiser),
+        nLatent,
+    )
 
-    likelihood =
-        init_likelihood(likelihood, inference, nLatent, nSamples(data), nFeatures)
+    likelihood = init_likelihood(
+        likelihood,
+        inference,
+        nLatent,
+        nSamples(data),
+        nFeatures,
+    )
     xview = view_x(data, 1:nSamples(data))
     yview = view_y(likelihood, data, 1:nSamples(data))
-    inference =
-        tuple_inference(inference, nLatent, nSamples(data), nSamples(data), nSamples(data), xview, yview)
+    inference = tuple_inference(
+        inference,
+        nLatent,
+        nSamples(data),
+        nSamples(data),
+        nSamples(data),
+        xview,
+        yview,
+    )
     VStP{T,TLikelihood,typeof(inference),typeof(data),nLatent}(
         data,
         latentf,
@@ -114,8 +128,14 @@ function local_prior_updates!(model::VStP, X)
 end
 
 function local_prior_updates!(gp::TVarLatent, X)
-    gp.l² = 0.5 * ( gp.ν + digp.dim + invquad(gp.K, gp.μ - gp.μ₀(X)) + opt_trace(inv(gp.K).mat, gp.Σ))
-    gp.χ = (gp.ν + gp.dim) / (gp.ν .+ gp.l²)
+    prior(gp).l² =
+        0.5 * (
+            prior(gp).ν +
+            dim(gp) +
+            invquad(pr_cov(gp), mean(gp) - pr_mean(gp, X)) +
+            opt_trace(inv(pr_cov(gp)).mat, cov(gp))
+        )
+    prior(gp).χ = (prior(gp).ν + dim(gp)) / (prior(gp).ν .+ prior(gp).l²)
 end
 
 Zviews(m::VStP) = [input(m)]

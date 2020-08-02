@@ -136,7 +136,7 @@ end
         ∇E_Σ(m),
         getρ(m.inference),
         m.inference.vi_opt,
-        viewZs(m),
+        Zviews(m),
         m.f,
     )
     global_update!(m)
@@ -182,34 +182,22 @@ function natural_gradient!(
     ∇E_Σ::AbstractVector,
     ρ::Real,
     opt::AVIOptimizer,
-    X::AbstractMatrix,
-    gp::VarLatent{T},
-) where {T,L}
+    X::AbstractVector,
+    gp::Union{VarLatent{T}, TVarLatent{T}},
+) where {T}
     gp.post.η₁ .= ∇E_μ .+ pr_cov(gp) \ pr_mean(gp, X)
     gp.post.η₂ .= - Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(pr_cov(gp)))
 end
 
+#Computation of the natural gradient for the natural parameters
 function natural_gradient!(
     ∇E_μ::AbstractVector,
     ∇E_Σ::AbstractVector,
     ρ::Real,
     opt::AVIOptimizer,
-    X::AbstractMatrix,
-    gp::TVarLatent{T},
-) where {T,L}
-    gp.post.η₁ .= ∇E_μ .+ gp.χ * pr_cov(gp) \ pr_mean(gp, X)
-    gp.post.η₂ .= - Symmetric(Diagonal(∇E_Σ) + 0.5 / gp.χ * inv(pr_cov(gp)))
-end
-
-#Computation of the natural gradient for the natural parameters
-function natural_gradient!(
-    ∇E_μ::AbstractVector{T},
-    ∇E_Σ::AbstractVector{T},
-    ρ::Real,
-    opt::AVIOptimizer,
     Z::AbstractVector,
     gp::SparseVarLatent{T},
-) where {T<:Real}
+) where {T}
     opt.∇η₁ .= ∇η₁(∇E_μ, ρ, gp.κ, pr_cov(gp), pr_mean(gp, Z), nat1(gp))
     opt.∇η₂ .= ∇η₂(∇E_Σ, ρ, gp.κ, pr_cov(gp), nat2(gp))
 end
@@ -272,7 +260,7 @@ function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI)
     if isStochastic(i)
         Δ = Optimise.apply!(opt.optimiser, nat1(gp), vcat(opt.∇η₁, opt.∇η₂[:]))
         gp.post.η₁ .+= Δ[1:dim(gp)]
-        gp.post.η₂ .= Symmetric(reshape(Δ[(gp.dim+1):end], gp.dim, gp.dim) + nat2(gp))
+        gp.post.η₂ .= Symmetric(reshape(Δ[(dim(gp)+1):end], dim(gp), dim(gp)) + nat2(gp))
     else
         gp.post.η₁ .+= opt.∇η₁
         gp.post.η₂ .= Symmetric(opt.∇η₂ + nat2(gp))
@@ -284,15 +272,15 @@ end
 @traitfn function ELBO(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     tot = zero(T)
     tot +=
-        getρ(model.inference) * expec_log_likelihood(
-            model.likelihood,
-            model.inference,
+        getρ(inference(model)) * expec_log_likelihood(
+            likelihood(model),
+            inference(model),
             yview(model),
             mean_f(model),
             var_f(model),
         )
     tot -= GaussianKL(model)
-    tot -= getρ(model.inference) * AugmentedKL(model.likelihood, yview(model))
+    tot -= getρ(inference(model)) * AugmentedKL(likelihood(model), yview(model))
     tot -= extraKL(model)
 end
 

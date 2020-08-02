@@ -1,14 +1,25 @@
 ## Gaussian Process
-mutable struct GPPrior{T,K<:Kernel,Tmean<:PriorMean}
+abstract type AbstractGPPrior{T<:Real,K<:Kernel,Tmean<:PriorMean} end
+
+kernel(gp::AbstractGPPrior) = gp.kernel
+mean(gp::AbstractGPPrior) = gp.μ₀
+mean(gp::AbstractGPPrior, X::AbstractVector) = gp.μ₀(X)
+cov(gp::AbstractGPPrior) = gp.K
+
+mutable struct GPPrior{T,K<:Kernel,Tmean<:PriorMean} <: AbstractGPPrior{T,K,Tmean}
     kernel::K
     μ₀::Tmean
     K::PDMat{T,Matrix{T}}
 end
 
-kernel(gp::GPPrior) = gp.kernel
-mean(gp::GPPrior) = gp.μ₀
-mean(gp::GPPrior, X::AbstractVector) = gp.μ₀(X)
-cov(gp::GPPrior) = gp.K
+mutable struct TPrior{T,K<:Kernel,Tmean<:PriorMean} <: AbstractGPPrior{T,K,Tmean}
+    kernel::K
+    μ₀::Tmean
+    K::PDMat{T,Matrix{T}}
+    ν::T # Number of degrees of freedom
+    l²::T # Expectation of ||L^{-1}(f-μ⁰)||₂²
+    χ::T  # Expectation of σ
+end
 
 abstract type AbstractPosterior{T<:Real} end
 
@@ -159,7 +170,7 @@ end
 struct SampledLatent{T,Tpr<:GPPrior,Tpo<:SampledPosterior{T}} <:
                AbstractLatent{T,Tpr,Tpo}
     prior::Tpr
-    post::SampledPosterior
+    post::Tpo
 end
 
 function SampledLatent(
@@ -243,13 +254,10 @@ end
 
 ## Variational Student-T Process
 
-mutable struct TVarLatent{T<:Real,Tpr<:GPPrior,Tpo<:VarPosterior{T},O} <:
+mutable struct TVarLatent{T<:Real,Tpr<:TPrior,Tpo<:VarPosterior{T},O} <:
                AbstractLatent{T,Tpr,Tpo}
     prior::Tpr
     post::Tpo
-    ν::T # Number of degrees of freedom
-    l²::T # Expectation of ||L^{-1}(f-μ⁰)||₂²
-    χ::T  # Expectation of σ
     opt::O
 end
 
@@ -262,14 +270,15 @@ function TVarLatent(
     opt,
 )
     TVarLatent(
-        GPPrior(
+        TPrior(
             deepcopy(kernel),
             deepcopy(mean),
             PDMat(Matrix{T}(I, dim, dim)),
+            ν,
+            rand(T),
+            rand(T),
         ),
-        VarPosterior{T}(dim)ν,
-        rand(T),
-        rand(T),
+        VarPosterior{T}(dim),
         deepcopy(opt),
     )
 end
@@ -284,6 +293,7 @@ kernel(gp::AbstractLatent) = kernel(prior(gp))
 pr_mean(gp::AbstractLatent) = mean(prior(gp))
 pr_mean(gp::AbstractLatent, X::AbstractVector) = mean(prior(gp), X)
 pr_cov(gp::AbstractLatent) = cov(prior(gp))
+pr_cov(gp::TVarLatent) = prior(gp).χ * cov(prior(gp))
 pr_cov!(gp::AbstractLatent, K::PDMat) = gp.prior.K = K
 
 posterior(gp::AbstractLatent) = gp.post
@@ -291,8 +301,8 @@ dim(gp::AbstractLatent) = dim(posterior(gp))
 mean(gp::AbstractLatent) = mean(posterior(gp))
 cov(gp::AbstractLatent) = cov(posterior(gp))
 var(gp::AbstractLatent) = var(posterior(gp))
-nat1(gp::AbstractLatent{T, <:GPPrior, <:VarPosterior}) where {T} = nat1(posterior(gp))
-nat2(gp::AbstractLatent{T, <:GPPrior, <:VarPosterior}) where {T} = nat2(posterior(gp))
+nat1(gp::AbstractLatent{T, <:AbstractGPPrior, <:VarPosterior}) where {T} = nat1(posterior(gp))
+nat2(gp::AbstractLatent{T, <:AbstractGPPrior, <:VarPosterior}) where {T} = nat2(posterior(gp))
 
 mean_f(model::AbstractGP) = mean_f.(model.f)
 
