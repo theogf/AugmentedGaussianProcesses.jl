@@ -34,14 +34,14 @@ function train!(
             update_parameters!(model) #Update all the variational parameters
             set_trained!(model, true)
             if !isnothing(callback)
-                callback(model, model.inference.nIter) #Use a callback method if set by user
+                callback(model, nIter(inference(model))) #Use a callback method if set by user
             end
-            if (model.inference.nIter % model.atfrequency == 0) &&
+            if (nIter(inference(model)) % model.atfrequency == 0) &&
                model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
             # Print out informations about the convergence
-            if model.verbose > 2 || (model.verbose > 1 && local_iter % 10 == 0)
+            if verbose(model) > 2 || (verbose(model) > 1 && local_iter % 10 == 0)
                 if isa(TInf, GibbsSampling)
                     next!(p; showvalues = [(:samples, local_iter)])
                 else
@@ -79,10 +79,11 @@ function train!(
             end
         end
     end
-    if model.verbose > 0
+    if verbose(model) > 0
         println("Training ended after $(local_iter-1) iterations. Total number of iterations $(model.inference.nIter)")
     end
-    computeMatrices!(model) #Compute final version of the matrices for prediction
+    computeMatrices!(model) # Compute final version of the matrices for predictions
+    post_step!(model)
     set_trained!(model, true)
     return nothing
 end

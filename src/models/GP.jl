@@ -107,6 +107,13 @@ Zviews(model::GP) = [input(model)]
 
 ### Special case where the ELBO is equal to the marginal likelihood
 
+function post_step!(m::GP)
+    f = m.f
+    l = likelihood(m)
+    f.post.Σ = pr_cov(f) + first(l.σ²) * I
+    f.post.α .= cov(f) \ (yview(m) - pr_mean(f, xview(m)))
+end
+
 objective(m::GP) = log_py(m)
 
 function log_py(m::GP)

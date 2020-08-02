@@ -116,21 +116,21 @@ function sample_parameters(
     cat_samples::Bool,
 ) where {T,L}
     init_sampler!(
-        m.inference,
-        m.nLatent,
-        m.nFeatures,
+        inference(m),
+        nLatent(m),
+        nFeatures(m),
         nSamples,
         cat_samples,
     )
     computeMatrices!(m)
     for i in 1:(m.inference.nBurnin+nSamples*m.inference.samplefrequency)
         m.inference.nIter += 1
-        sample_local!(m.likelihood, yview(m), get_f(m))
-        sample_global!.(∇E_μ(m), ∇E_Σ(m), Zviews(m), m.f)
-        if nIter(m.inference) > m.inference.nBurnin &&
-           (nIter(m.inference) - m.inference.nBurnin) %
+        sample_local!(likelihood(m), yview(m), means(m))
+        sample_global!.(∇E_μ(m), ∇E_Σ(m), Zviews(m), getf(m))
+        if nIter(inference(m)) > m.inference.nBurnin &&
+           (nIter(inference(m)) - m.inference.nBurnin) %
            m.inference.samplefrequency == 0 # Store variables every samplefrequency
-            store_variables!(m.inference, get_f(m))
+            store_variables!(inference(m), getf(m))
         end
     end
     symbols = ["f_" * string(i) for i = 1:nFeatures(m)]
@@ -172,7 +172,7 @@ function sample_global!(
     X::AbstractVector,
     gp::SampledLatent{T},
 ) where {T}
-    gp.post.Σ = inv(Symmetric(2.0 * Diagonal(∇E_Σ) + inv(pr_cov(p))))
+    gp.post.Σ .= inv(Symmetric(2.0 * Diagonal(∇E_Σ) + inv(pr_cov(gp))))
     rand!(gp.post.f, MvNormal(cov(gp) * (∇E_μ + pr_cov(gp) \ pr_mean(gp, X)), cov(gp)))
     return nothing
 end

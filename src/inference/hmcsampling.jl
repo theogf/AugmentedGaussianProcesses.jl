@@ -120,7 +120,7 @@ function sample_parameters(
     callback,
     cat_samples::Bool,
 ) where {T,L}
-    f_init = vcat(get_f(model)...)
+    f_init = vcat(means(model)...)
     logpdf(x) = log_joint_model(model, x)
     gradlogpdf(x) = (log_joint_model(model, x), grad_log_joint_model(model, x))
     metric = DiagEuclideanMetric(length(f_init))

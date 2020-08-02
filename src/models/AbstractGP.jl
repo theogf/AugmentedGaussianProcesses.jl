@@ -29,6 +29,10 @@ yview(m::AbstractGP) = yview(inference(m))
 is_trained(m::AbstractGP) = m.trained
 set_trained!(m::AbstractGP, status::Bool) = m.trained = status
 
+verbose(m::AbstractGP) = m.verbose
+
+post_step!(m::AbstractGP) = nothing
+
 function Random.rand!(
     model::AbstractGP,
     A::DenseArray{T},

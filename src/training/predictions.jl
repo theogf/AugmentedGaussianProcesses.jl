@@ -16,19 +16,19 @@ function _predict_f(
     cov::Bool = true,
     diag::Bool = true,
 ) where {T}
-    k_star = kernelmatrix(kernel(m.f), X_test, input(m))
+    global k_star = kernelmatrix(kernel(m.f), X_test, input(m))
     μf = k_star * mean(m.f) # k* * α
     if !cov
         return (μf,)
     end
     if !diag
         k_starstar = kernelmatrix(kernel(m.f), X_test) + T(jitt) * I
-        Σf = Symmetric(k_starstar - inv_quad(AGP.cov(m.f), k_star)) # k** - k* Σ⁻¹ k*
-        return μf, Σf
+        covf = Symmetric(k_starstar - k_star' * (AGP.cov(m.f) \ k_star)) # k** - k* Σ⁻¹ k*
+        return μf, covf
     else
         k_starstar = kerneldiagmatrix(kernel(m.f), X_test) .+ T(jitt)
-        σ²f = k_starstar - opt_diag(k_star \ AGP.cov(m.f), k_star)
-        return μf, σ²f
+        varf = k_starstar - opt_diag(k_star, AGP.cov(m.f) \ k_star)
+        return μf, varf
     end
 end
 
