@@ -28,7 +28,7 @@ mutable struct HMCSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
         samplefrequency >= 0 || error("samplefrequency should be a positive integer")
         return new{T,1,Vector{T},Vector{T}}(nBurnin, samplefrequency, ϵ)
     end
-    function HMCSampling(
+    function HMCSampling{T}(
         nBurnin::Int,
         samplefrequency::Int,
         ϵ::Real,
@@ -48,7 +48,7 @@ mutable struct HMCSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
             true,
             opts,
             xview,
-            yview
+            yview,
         )
     end
 end
@@ -78,7 +78,7 @@ function tuple_inference(
     xview,
     yview
 ) where {T}
-    return HMCSampling(
+    return HMCSampling{T}(
         i.nBurnin,
         i.samplefrequency,
         i.ϵ,

@@ -37,8 +37,8 @@ mutable struct AnalyticVI{T,N,Tx,Ty} <: VariationalInference{T}
             (AVIOptimizer{T}(0, optimiser),),
         )
     end
-    function AnalyticVI(
-        ϵ::T,
+    function AnalyticVI{T}(
+        ϵ::Real,
         Stochastic::Bool,
         nFeatures::Vector{<:Int},
         nSamples::Int,
@@ -109,7 +109,7 @@ function tuple_inference(
     xview,
     yview
 ) where {T}
-    return AnalyticVI(
+    return AnalyticVI{T}(
         conv_crit(i),
         isStochastic(i),
         nFeatures,

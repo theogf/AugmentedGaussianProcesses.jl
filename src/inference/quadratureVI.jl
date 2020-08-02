@@ -45,23 +45,23 @@ mutable struct QuadratureVI{T,N,Tx,Ty} <: NumericalVI{T}
             ϵ,
             0,
             Stochastic,
-            [0],
-            [nMinibatch],
-            ones(T, 1),
+            0,
+            nMinibatch,
+            one(T),
             natural,
             true,
             (NVIOptimizer{T}(0, 0, optimiser),),
         )
     end
 
-    function QuadratureVI(
+    function QuadratureVI{T}(
         ϵ::T,
         Stochastic::Bool,
         nPoints::Int,
         clipping::Real,
         nFeatures::Vector{<:Int},
-        nSamples::Vector{<:Int},
-        nMinibatch::Vector{<:Int},
+        nSamples::Int,
+        nMinibatch::Int,
         nLatent::Int,
         optimiser,
         natural::Bool,
@@ -141,11 +141,11 @@ function tuple_inference(
     nLatent::Int,
     nFeatures:: Vector{<:Int},
     nSamples::Int,
-    nMinibatch::Vector{<:Int},
+    nMinibatch::Int,
     xview,
     yview
 ) where {T}
-    return TInf(
+    return QuadratureVI{T}(
         conv_crit(i),
         isStochastic(i),
         i.nPoints,

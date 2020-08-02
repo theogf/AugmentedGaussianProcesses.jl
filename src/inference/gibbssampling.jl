@@ -28,7 +28,7 @@ mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
         @assert samplefrequency >= 0 "samplefrequency should be a positive integer"
         return new{T,1,Vector{T},Vector{T}}(nBurnin, samplefrequency, ϵ)
     end
-    function GibbsSampling(
+    function GibbsSampling{T}(
         nBurnin::Int,
         samplefrequency::Int,
         ϵ::Real,
@@ -78,7 +78,7 @@ function tuple_inference(
     xview,
     yview
 ) where {T}
-    return GibbsSampling(
+    return GibbsSampling{T}(
         inf.nBurnin,
         inf.samplefrequency,
         inf.ϵ,

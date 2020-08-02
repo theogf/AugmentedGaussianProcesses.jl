@@ -40,16 +40,16 @@ mutable struct MCIntegrationVI{T<:Real,N,Tx,Ty} <: NumericalVI{T}
             ϵ,
             0,
             Stochastic,
-            [0],
-            [nMinibatch],
-            ones(T, 1),
+            0,
+            nMinibatch,
+            one(T),
             natural,
             true,
             (NVIOptimizer{T}(0, 0, optimiser),),
         )
     end
-    function MCIntegrationVI(
-        ϵ::T,
+    function MCIntegrationVI{T}(
+        ϵ::Real,
         Stochastic::Bool,
         nMC::Int,
         clipping::Real,
@@ -74,11 +74,13 @@ mutable struct MCIntegrationVI{T<:Real,N,Tx,Ty} <: NumericalVI{T}
             Stochastic,
             nSamples,
             nMinibatch,
-            T.(nSamples ./ nMinibatch),
+            T(nSamples / nMinibatch),
             natural,
             true,
             vi_opts,
-            range.(1, nMinibatch, step = 1),
+            1:nMinibatch,
+            xview,
+            yview,
         )
     end
 end
@@ -130,7 +132,7 @@ function tuple_inference(
     xview::Tx,
     yview::Ty,
 ) where {T, Tx, Ty}
-    return MCIntegrationVI(
+    return MCIntegrationVI{T}(
         conv_crit(i),
         isStochastic(i),
         i.nMC,

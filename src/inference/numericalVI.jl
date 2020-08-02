@@ -90,7 +90,7 @@ function NumericalSVI(
 end
 
 function Base.show(io::IO,inference::NumericalVI{T}) where T
-    print(io,"$(inference.Stochastic ? "Stochastic numerical" : "Numerical") Inference by $(isa(inference,MCIntegrationVI) ? "Monte Carlo Integration" : "Quadrature")")
+    print(io,"$(isStochastic(inference) ? "Stochastic numerical" : "Numerical") Inference by $(isa(inference, MCIntegrationVI) ? "Monte Carlo Integration" : "Quadrature")")
 end
 
 ∇E_μ(::Likelihood,i::NVIOptimizer,::AbstractVector) = (-i.ν,)
