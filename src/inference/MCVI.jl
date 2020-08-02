@@ -151,15 +151,15 @@ end
 function grad_expectations!(
     model::AbstractGP{T,L,<:MCIntegrationVI{T,N}},
 ) where {T,L,N}
-    raw_samples = randn(model.inference.nMC, nLatent(model))
+    raw_samples = randn(inference(model).nMC, nLatent(model))
     samples = similar(raw_samples)
     μ = mean_f(model)
-    σ = var_f(model)
-    nSamples = length(MBIndices(model))
-    for i = 1:nSamples
+    σ² = var_f(model)
+    nSamples = length(MBIndices(inference(model)))
+    for j = 1:nSamples
         samples .=
-            raw_samples .* [sqrt(σ[k][i]) for k = 1:nLatent(model)]' .+ [μ[k][i] for k = 1:N]'
-        grad_samples(model, samples, i)
+            raw_samples .* [sqrt(σ²[k][j]) for k = 1:N]' .+ [μ[k][j] for k = 1:N]'
+        grad_samples(model, samples, j)
     end
 end
 
@@ -167,21 +167,20 @@ function expec_log_likelihood(
     l::Likelihood,
     i::MCIntegrationVI{T,N},
     y,
-    μ,
-    diag_cov,
+    μ_f,
+    var_f,
 ) where {T,N}
     raw_samples = randn(i.nMC, N)
     samples = similar(raw_samples)
     nSamples = length(MBIndices(i))
     loglike = 0.0
-    for i = 1:nSamples
+    for j = 1:nSamples
         samples .=
-            raw_samples .* [sqrt(diag_cov[k][i]) for k = 1:N]' .+ [μ[k][i] for k = 1:N]'
-        loglike += mean(mapslices(
-            f -> logpdf(l, getindex.(y, i), f),
-            samples,
-            dims = 2,
-        ))
+            raw_samples .* [sqrt(var_f[k][j]) for k = 1:N]' .+ [μ_f[k][j] for k = 1:N]'
+        loglike += sum(
+            f -> logpdf(l, getindex.(y, j), f),
+            eachrow(samples)
+            ) / i.nMC
     end
     return loglike
 end

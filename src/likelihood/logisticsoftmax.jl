@@ -234,8 +234,8 @@ function grad_samples(
     index::Integer,
 ) where {T}
     class = model.likelihood.y_class[index]::Int64
-    grad_μ = zeros(T, model.nLatent)
-    grad_Σ = zeros(T, model.nLatent)
+    grad_μ = zeros(T, nLatent(model))
+    grad_Σ = zeros(T, nLatent(model))
     g_μ = similar(grad_μ)
     nSamples = size(samples, 1)
     @views @inbounds for i = 1:nSamples
@@ -248,7 +248,7 @@ function grad_samples(
             diaghessian_logisticsoftmax(samples[i, :], σ, class) / s -
             abs2.(g_μ)
     end
-    for k = 1:model.nLatent
+    for k = 1:nLatent(model)
         model.inference.vi_opt[k].ν[index] = -grad_μ[k] / nSamples
         model.inference.vi_opt[k].λ[index] = grad_Σ[k] / nSamples
     end

@@ -130,7 +130,7 @@ function sample_parameters(
         if nIter(inference(m)) > m.inference.nBurnin &&
            (nIter(inference(m)) - m.inference.nBurnin) %
            m.inference.samplefrequency == 0 # Store variables every samplefrequency
-            store_variables!(inference(m), getf(m))
+            store_variables!(inference(m), means(m))
         end
     end
     symbols = ["f_" * string(i) for i = 1:nFeatures(m)]
@@ -173,7 +173,7 @@ function sample_global!(
     gp::SampledLatent{T},
 ) where {T}
     gp.post.Σ .= inv(Symmetric(2.0 * Diagonal(∇E_Σ) + inv(pr_cov(gp))))
-    rand!(gp.post.f, MvNormal(cov(gp) * (∇E_μ + pr_cov(gp) \ pr_mean(gp, X)), cov(gp)))
+    rand!(MvNormal(cov(gp) * (∇E_μ + pr_cov(gp) \ pr_mean(gp, X)), cov(gp)), gp.post.f)
     return nothing
 end
 

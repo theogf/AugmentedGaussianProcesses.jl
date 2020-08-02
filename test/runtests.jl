@@ -8,6 +8,7 @@ include("testingtools.jl")
 AGP.setadbackend(:reverse_diff)
 # Global flags for the tests
 @testset "AugmentedGaussianProcesses.jl tests" begin
+    @info "Passing function tests"
     @testset "Functions" begin
         for f in readdir(joinpath(@__DIR__, "functions"))
             include(joinpath("functions",f))
