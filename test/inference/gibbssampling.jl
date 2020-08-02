@@ -10,7 +10,7 @@ y = rand(N)
 @testset "Gibbs Sampling" begin
     i = GibbsSampling(nBurnin = 0)
     @test repr(i) == "Gibbs Sampler"
-    i = AGP.tuple_inference(i, L, D, N, b)
+    i = AGP.tuple_inference(i, L, D, N, b, [], [])
 
     @test AGP.getρ(i) == 1
     @test AGP.isStochastic(i) == false

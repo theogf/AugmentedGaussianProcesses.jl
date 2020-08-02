@@ -19,9 +19,11 @@ var(p::AbstractPosterior) = diag(p.Σ)
 
 mutable struct Posterior{T<:Real} <: AbstractPosterior{T}
     dim::Int
-    μ::Vector{T} # Posterior mean
-    Σ::PDMat{T,Matrix{T}} # Posterior Covariance
+    α::Vector{T} # Σ⁻¹ (y - μ₀)
+    Σ::PDMat{T,Matrix{T}} # Posterior Covariance : K + σ²I
 end
+
+mean(p::Posterior) = p.α
 
 struct VarPosterior{T} <: AbstractPosterior{T}
     dim::Int

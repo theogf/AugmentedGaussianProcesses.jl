@@ -8,53 +8,54 @@ Draw samples from the true posterior via Hamiltonian Monte Carlo.
     - `nBurnin::Int` : Number of samples discarded before starting to save samples
     - `samplefrequency::Int` : Frequency of sampling
 """
-mutable struct HMCSampling{T<:Real,N} <: SamplingInference{T}
-    nBurnin::Integer # Number of burnin samples
+mutable struct HMCSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
+    nBurnin::Int # Number of burnin samples
     samplefrequency::Integer # Frequency at which samples are saved
     ϵ::T #Convergence criteria
-    nIter::Integer #Number of steps performed
-    Stochastic::Bool #Use of mini-batches
-    nSamples::Vector{T} # Number of samples
-    nMinibatch::Vector{Int64}
-    ρ::Vector{T}
+    nIter::Int #Number of samples computed
+    nSamples::Int # Number of data samples
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     opt::NTuple{N,SOptimizer}
-    sample_store::AbstractArray{T,3}
-    xview::Vector#,Tuple{Base.Slice{Base.OneTo{Int64}},Base.Slice{Base.OneTo{Int64}}},true}
-    yview::Vector
+    xview::Tx
+    yview::Ty
+    sample_store::Array{T,3}
     function HMCSampling{T}(
         nBurnin::Int,
         samplefrequency::Int,
         ϵ::Real,
     ) where {T}
-        @assert nBurnin >= 0 "nBurnin should be a positive integer"
-        @assert samplefrequency >= 0 "samplefrequency should be a positive integer"
-        return new{T,1}(nBurnin, samplefrequency, ϵ)
+        nBurnin >= 0 || error("nBurnin should be a positive integer")
+        samplefrequency >= 0 || error("samplefrequency should be a positive integer")
+        return new{T,1,Vector{T},Vector{T}}(nBurnin, samplefrequency, ϵ)
     end
-    function HMCSampling{T,1}(
+    function HMCSampling(
         nBurnin::Int,
         samplefrequency::Int,
         ϵ::Real,
         nFeatures::Vector{<:Int},
-        nSamples::Vector{<:Int},
-        nMinibatch::Vector{<:Int},
+        nSamples::Int,
         nLatent::Int,
-    ) where {T}
-        opts = ntuple(_ -> SOptimizer{T}(Descent(1.0)), nLatent)
-        new{T,nLatent}(
+        xview::Tx,
+        yview::Ty
+    ) where {T,Tx,Ty}
+        opts = ntuple(_ -> SOptimizer{T}(nothing), nLatent)
+        new{T,nLatent,Tx,Ty}(
             nBurnin,
             samplefrequency,
             ϵ,
             0,
-            false,
             nSamples,
-            nMinibatch,
-            T.(nSamples ./ nMinibatch),
             true,
             opts,
+            xview,
+            yview
         )
     end
 end
+
+isStochastic(::HMCSampling) = false
+getρ(::HMCSampling{T}) where {T} = one(T)
+nMinibatch(i::HMCSampling) = i.nSamples
 
 function HMCSampling(;
     ϵ::T = 1e-5,
@@ -69,20 +70,23 @@ function Base.show(io::IO, inference::HMCSampling{T}) where {T<:Real}
 end
 
 function tuple_inference(
-    i::TSamp,
+    i::HMCSampling{T},
     nLatent::Int,
     nFeatures::Vector{<:Int},
-    nSamples::Vector{<:Int},
-    nMinibatch::Vector{<:Int}, #unused
-) where {TSamp<:HMCSampling}
-    return TSamp(
+    nSamples::Int,
+    nMinibatch::Int, #unused
+    xview,
+    yview
+) where {T}
+    return HMCSampling(
         i.nBurnin,
         i.samplefrequency,
         i.ϵ,
         nFeatures,
         nSamples,
-        nSamples,
         nLatent,
+        xview,
+        yview
     )
 end
 

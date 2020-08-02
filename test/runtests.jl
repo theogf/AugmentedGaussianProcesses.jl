@@ -13,7 +13,7 @@ AGP.setadbackend(:reverse_diff)
             include(joinpath("functions",f))
         end
     end
-    @testset "Hyperparameters" begin
+    @testset "Hyperparameter`s" begin
 
     end
     @testset "Inference" begin

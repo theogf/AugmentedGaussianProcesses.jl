@@ -7,16 +7,16 @@ All data is used at each iteration (use AnalyticSVI for Stochastic updates)
 **Keywords arguments**
     - `ϵ::T` : convergence criteria
 """
-mutable struct AnalyticVI{T,N,Tx<:AbstractVector, Ty<:AbstractVector} <: VariationalInference{T}
+mutable struct AnalyticVI{T,N,Tx,Ty} <: VariationalInference{T}
     ϵ::T # Convergence criteria
     nIter::Integer # Number of steps performed
     stoch::Bool # Flag for stochastic optimization
     nSamples::Int
-    nMinibatch::Int64 # Size of mini-batches
+    nMinibatch::Int # Size of mini-batches
     ρ::T # Scaling coeff. for stoch. opt.
-    HyperParametersUpdated::Bool # Flag for updating kernel matrix
+    HyperParametersUpdated::Bool # Flag for updating kernel matrices
     vi_opt::NTuple{N,AVIOptimizer}
-    MBIndices::Vector{Int64} # Indices of the minibatch
+    MBIndices::Vector{Int} # Indices of the minibatch
     xview::Tx # Subset of the input
     yview::Ty # Subset of the outputs
 
@@ -45,11 +45,11 @@ mutable struct AnalyticVI{T,N,Tx<:AbstractVector, Ty<:AbstractVector} <: Variati
         nMinibatch::Int,
         nLatent::Int,
         optimiser,
-        xview::TX,
-        yview::TY,
-    ) where {T,TX,TY}
+        xview::Tx,
+        yview::Ty,
+    ) where {T,Tx,Ty}
         vi_opts = ntuple(i -> AVIOptimizer{T}(nFeatures[i], optimiser), nLatent)
-        new{T,nLatent,TX,TY}(
+        new{T,nLatent,Tx,Ty}(
             ϵ,
             0,
             Stochastic,
@@ -101,15 +101,14 @@ end
 
 ## Initialize the final version of the inference object ##
 function tuple_inference(
-    i::AnalyticVI,
+    i::AnalyticVI{T},
     nLatent::Int,
     nFeatures::Vector{<:Int},
     nSamples::Int,
     nMinibatch::Int,
-    xview::AbstractVector,
-    yview::AbstractVector
-)
-    @show nFeatures, nSamples, nMinibatch, nLatent
+    xview,
+    yview
+) where {T}
     return AnalyticVI(
         conv_crit(i),
         isStochastic(i),

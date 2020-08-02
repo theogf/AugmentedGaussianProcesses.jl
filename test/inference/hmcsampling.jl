@@ -10,7 +10,7 @@ y = rand(N)
     i = HMCSampling(nBurnin = 0, samplefrequency = 1)
 
     @test repr(i) == "Hamilton Monte Carlo Sampler"
-    i = AGP.tuple_inference(i, L, D, N, b)
+    i = AGP.tuple_inference(i, L, D, N, b, [], [])
 
     @test AGP.getρ(i) == 1
     @test AGP.isStochastic(i) == false

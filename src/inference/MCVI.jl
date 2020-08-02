@@ -10,31 +10,31 @@ Variational Inference solver by approximating gradients via MC Integration.
     - `natural::Bool` : Use natural gradients
     - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.01)`
 """
-mutable struct MCIntegrationVI{T<:Real,N} <: NumericalVI{T}
+mutable struct MCIntegrationVI{T<:Real,N,Tx,Ty} <: NumericalVI{T}
     nMC::Int64 #Number of samples for MC Integrations
     clipping::T
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    Stochastic::Bool #Use of mini-batches
-    nSamples::Vector{Int64} #Number of samples of the data
-    nMinibatch::Vector{Int64} #Size of mini-batches
-    ρ::Vector{T} #Stochastic Coefficient
+    stoch::Bool # Flag for stochastic optimization
+    nSamples::Int #Number of samples of the data
+    nMinibatch::Int #Size of mini-batches
+    ρ::T # Scaling coeff. for stoch. opt.
     NaturalGradient::Bool
-    HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
+    HyperParametersUpdated::Bool # Flag for updating kernel matrix
     vi_opt::NTuple{N,NVIOptimizer}
-    MBIndices::Vector{Vector{Int64}} #Indices of the minibatch
-    xview::Vector
-    yview::Vector
+    MBIndices::Vector{Int} #Indices of the minibatch
+    xview::Tx
+    yview::Ty
     function MCIntegrationVI{T}(
         ϵ::T,
-        nMC::Integer,
+        nMC::Int,
         optimiser,
         Stochastic::Bool,
         clipping::Real,
-        nMinibatch::Integer,
+        nMinibatch::Int,
         natural::Bool,
     ) where {T<:Real}
-        return new{T,1}(
+        return new{T,1,Vector{T},Vector{T}}(
             nMC,
             clipping,
             ϵ,
@@ -48,23 +48,25 @@ mutable struct MCIntegrationVI{T<:Real,N} <: NumericalVI{T}
             (NVIOptimizer{T}(0, 0, optimiser),),
         )
     end
-    function MCIntegrationVI{T,1}(
+    function MCIntegrationVI(
         ϵ::T,
         Stochastic::Bool,
         nMC::Int,
         clipping::Real,
         nFeatures::Vector{<:Int},
-        nSamples::Vector{<:Int},
-        nMinibatch::Vector{<:Int},
+        nSamples::Int,
+        nMinibatch::Int,
         nLatent::Int,
         optimiser,
         natural::Bool,
-    ) where {T}
+        xview::Tx,
+        yview::Ty,
+    ) where {T,Tx,Ty}
         vi_opts = ntuple(
-            i -> NVIOptimizer{T}(nFeatures[i], nMinibatch[i], optimiser),
+            i -> NVIOptimizer{T}(nFeatures[i], nMinibatch, optimiser),
             nLatent,
         )
-        new{T,nLatent}(
+        new{T,nLatent,Tx,Ty}(
             nMC,
             clipping,
             ϵ,
@@ -120,13 +122,15 @@ function MCIntegrationSVI(
 end
 
 function tuple_inference(
-    i::TInf,
+    i::MCIntegrationVI{T},
     nLatent::Int,
     nFeatures::Vector{<:Int},
-    nSamples::Vector{<:Int},
-    nMinibatch::Vector{<:Int},
-) where {TInf<:MCIntegrationVI}
-    return TInf(
+    nSamples::Int,
+    nMinibatch::Int,
+    xview::Tx,
+    yview::Ty,
+) where {T, Tx, Ty}
+    return MCIntegrationVI(
         conv_crit(i),
         isStochastic(i),
         i.nMC,
@@ -137,6 +141,8 @@ function tuple_inference(
         nLatent,
         i.vi_opt[1].optimiser,
         i.NaturalGradient,
+        xview,
+        yview,
     )
 end
 

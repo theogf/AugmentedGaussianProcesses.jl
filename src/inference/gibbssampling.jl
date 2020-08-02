@@ -8,20 +8,17 @@ Draw samples from the true posterior via Gibbs Sampling.
     - `nBurnin::Int` : Number of samples discarded before starting to save samples
     - `samplefrequency::Int` : Frequency of sampling
 """
-mutable struct GibbsSampling{T<:Real,N} <: SamplingInference{T}
-    nBurnin::Integer # Number of burnin samples
-    samplefrequency::Integer # Frequency at which samples are saved
+mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
+    nBurnin::Int # Number of burnin samples
+    samplefrequency::Int # Frequency at which samples are saved
     ϵ::T #Convergence criteria
-    nIter::Integer #Number of steps performed
-    Stochastic::Bool #Use of mini-batches
-    nSamples::Vector{T} # Number of samples
-    nMinibatch::Vector{Int64}
-    ρ::Vector{T}
-    HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
+    nIter::Integer #Number of samples computed
+    nSamples::Int # Number of data samples
+    HyperParametersUpdated::Bool # Flag for updating kernel matrices
     opt::NTuple{N,SOptimizer}
-    sample_store::AbstractArray{T,3}
-    xview::Vector
-    yview::Vector
+    xview::Tx
+    yview::Ty
+    sample_store::Array{T,3}
     function GibbsSampling{T}(
         nBurnin::Int,
         samplefrequency::Int,
@@ -29,32 +26,36 @@ mutable struct GibbsSampling{T<:Real,N} <: SamplingInference{T}
     ) where {T}
         @assert nBurnin >= 0 "nBurnin should be a positive integer"
         @assert samplefrequency >= 0 "samplefrequency should be a positive integer"
-        return new{T,1}(nBurnin, samplefrequency, ϵ)
+        return new{T,1,Vector{T},Vector{T}}(nBurnin, samplefrequency, ϵ)
     end
-    function GibbsSampling{T,1}(
+    function GibbsSampling(
         nBurnin::Int,
         samplefrequency::Int,
         ϵ::Real,
         nFeatures::Vector{<:Int},
-        nSamples::Vector{<:Int},
-        nMinibatch::Vector{<:Int},
+        nSamples::Int,
         nLatent::Int,
-    ) where {T}
-        opts = ntuple(_ -> SOptimizer{T}(Descent(1.0)), nLatent)
-        new{T,nLatent}(
+        xview::Tx,
+        yview::Ty
+    ) where {T,Tx,Ty}
+        opts = ntuple(_ -> SOptimizer{T}(nothing), nLatent)
+        new{T,nLatent,Tx,Ty}(
             nBurnin,
             samplefrequency,
             ϵ,
             0,
-            false,
             nSamples,
-            nMinibatch,
-            T.(nSamples ./ nMinibatch),
             true,
             opts,
+            xview,
+            yview,
         )
     end
 end
+
+isStochastic(::GibbsSampling) = false
+getρ(::GibbsSampling{T}) where {T} = one(T)
+nMinibatch(i::GibbsSampling) = i.nSamples
 
 function GibbsSampling(;
     ϵ::T = 1e-5,
@@ -69,26 +70,29 @@ function Base.show(io::IO, inference::GibbsSampling{T}) where {T<:Real}
 end
 
 function tuple_inference(
-    inf::TSamp,
+    inf::GibbsSampling{T},
     nLatent::Int,
-    nFeatures::Vector{<:Integer},
-    nSamples::Vector{<:Integer},
-    nMinibatch::Vector{<:Integer}, #unused
-) where {TSamp<:GibbsSampling}
-    return TSamp(
+    nFeatures::Vector{<:Int},
+    nSamples::Int,
+    nMinibatch::Int, #unused
+    xview,
+    yview
+) where {T}
+    return GibbsSampling(
         inf.nBurnin,
         inf.samplefrequency,
         inf.ϵ,
         nFeatures,
         nSamples,
-        nSamples,
         nLatent,
+        xview,
+        yview,
     )
 end
 
 function init_sampler!(
     inference::GibbsSampling{T},
-    nLatent::Integer,
+    nLatent::Int,
     nFeatures::Integer,
     nSamples::Integer,
     cat_samples::Bool,

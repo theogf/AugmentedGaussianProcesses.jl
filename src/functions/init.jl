@@ -29,7 +29,7 @@ function init_Z(Z::AbstractInducingPoints, Zoptimiser)
     if Zoptimiser isa Bool
         Zoptimiser = Zoptimiser ? ADAM(0.001) : nothing
     end
-    if Z isa OptimIP
+    if Z isa InducingPoints.OptimIP
         return Z
     else
         return InducingPoints.OptimIP(Z, Zoptimiser)

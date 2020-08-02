@@ -44,7 +44,7 @@ end
 
 
 function VGP(
-    X::AbstractArray{T},
+    X::AbstractArray,
     y::AbstractVector,
     kernel::Kernel,
     likelihood::TLikelihood,
@@ -54,7 +54,7 @@ function VGP(
     atfrequency::Integer = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     obsdim::Int = 1,
-) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+) where {TLikelihood<:Likelihood,TInference<:Inference}
 
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
@@ -69,7 +69,7 @@ function VGP(
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
 
-    nFeatures = nSamples(X)
+    nFeatures = nSamples(data)
 
     if typeof(mean) <: Real
         mean = ConstantMean(mean)
