@@ -1,6 +1,6 @@
 abstract type AbstractDataContainer end
 
-mutable struct DataContainer{
+struct DataContainer{
     Tx<:Real,
     TX<:AbstractVector,
     Ty<:Real,
@@ -44,6 +44,21 @@ nDim(d::AbstractDataContainer) = d.nDim
 input(d::AbstractDataContainer) = d.X
 output(d::AbstractDataContainer) = d.y
 
-mutable struct MODataContainer <: AbstractDataContainer
+mutable struct OnlineDataContainer <: AbstractDataContainer
+    X::AbstractVector # Feature vectors
+    y::AbstractVector # Output (-1,1 for classification, real for regression, matrix for multiclass)
+    nSamples::Int # Number of samples
+    nDim::Int # Number of features per sample
+    function OnlineDataContainer()
+        return new()
+    end
+end
 
+
+
+function wrap_data!(data::OnlineDataContainer, X::AbstractVector, y::AbstractVector)
+    data.X = X
+    data.y = y
+    data.nSamples = size(X, 1)
+    data.nDim = size(first(X), 1)
 end

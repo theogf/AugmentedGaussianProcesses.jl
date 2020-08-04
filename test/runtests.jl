@@ -1,5 +1,7 @@
 using AugmentedGaussianProcesses
 using Test
+using LinearAlgebra, Distributions
+using MLDataUtils
 using Random: seed!
 seed!(42)
 
@@ -16,7 +18,7 @@ AGP.setadbackend(:reverse_diff)
     end
 
     @info "Hyperparameter tests"
-    @testset "Hyperparameter`s" begin
+    @testset "Hyperparameters" begin
 
     end
 

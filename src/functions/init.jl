@@ -10,28 +10,12 @@ end
 
 ##
 function init_Z(Z::AbstractInducingPoints, Zoptimiser)
-    # if nInducingPoints isa Int
-    #     @assert nInducingPoints > 0 "The number of inducing points is incorrect (negative or bigger than number of samples)"
-    #     if nInducingPoints > nSamples
-    #         @warn "Number of inducing points bigger than the number of points : reducing it to the number of samples: $(nSamples)"
-    #         nInducingPoints = nSamples
-    #     else
-    #         nInducingPoints = Kmeans(nInducingPoints, nMarkov = 10)
-    #     end
-    # end
-    # if nInducingPoints isa Int && nInducingPoints == nSamples
-    #     Z = X
-    # else
-    #     IPModule.init!(nInducingPoints, X, y, kernel)
-    #     Z = nInducingPoints.Z
-    # end
-    #
     if Zoptimiser isa Bool
-        Zoptimiser = Zoptimiser ? ADAM(0.001) : nothing
+        Zoptimiser = Zoptimiser ? ADAM(1e-3) : nothing
     end
-    if Z isa InducingPoints.OptimIP
+    if Z isa OptimIP
         return Z
     else
-        return InducingPoints.OptimIP(Z, Zoptimiser)
+        return OptimIP(Z, Zoptimiser)
     end
 end

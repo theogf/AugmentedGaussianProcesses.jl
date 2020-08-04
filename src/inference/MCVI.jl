@@ -149,17 +149,17 @@ function tuple_inference(
 end
 
 function grad_expectations!(
-    model::AbstractGP{T,L,<:MCIntegrationVI{T,N}},
+    m::AbstractGP{T,L,<:MCIntegrationVI{T,N}},
 ) where {T,L,N}
-    raw_samples = randn(inference(model).nMC, nLatent(model))
+    raw_samples = randn(inference(m).nMC, nLatent(m))
     samples = similar(raw_samples)
-    μ = mean_f(model)
-    σ² = var_f(model)
-    nSamples = length(MBIndices(inference(model)))
+    μ = mean_f(m)
+    σ² = var_f(m)
+    nSamples = length(MBIndices(m))
     for j = 1:nSamples
         samples .=
             raw_samples .* [sqrt(σ²[k][j]) for k = 1:N]' .+ [μ[k][j] for k = 1:N]'
-        grad_samples(model, samples, j)
+        grad_samples(m, samples, j)
     end
 end
 

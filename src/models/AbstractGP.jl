@@ -19,12 +19,15 @@ nSamples(m::AbstractGP) = nSamples(data(m))
 getf(m::AbstractGP) = m.f
 getf(m::AbstractGP, i::Int) = getindex(m.f, i)
 
+nIter(m::AbstractGP) = nIter(inference(m))
 
 input(m::AbstractGP) = input(data(m))
 output(m::AbstractGP) = output(data(m))
 
 xview(m::AbstractGP) = xview(inference(m))
 yview(m::AbstractGP) = yview(inference(m))
+
+MBIndices(m::AbstractGP) = MBIndices(inference(m))
 
 is_trained(m::AbstractGP) = m.trained
 set_trained!(m::AbstractGP, status::Bool) = m.trained = status

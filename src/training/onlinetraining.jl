@@ -1,5 +1,6 @@
-
-""" `train!(model::AbstractGP;iterations::Integer=100,callback=0,conv_function=0)`
+"""
+    train!(model::AbstractGP, X::AbstractMatrix, y::AbstractVector;obsdim = 1, iterations::Int=10,callback=nothing,conv=0)
+    train!(model::AbstractGP, X::AbstractVector, y::AbstractVector;iterations::Int=20,callback=nothing,conv=0)
 
 Function to train the given GP `model`.
 
@@ -8,47 +9,61 @@ Function to train the given GP `model`.
 there are options to change the number of max iterations,
 - `iterations::Int` : Number of iterations (not necessarily epochs!)for training
 - `callback::Function` : Callback function called at every iteration. Should be of type `function(model,iter) ...  end`
-- `conv_function::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
+- `conv::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
 function train!(
     m::OnlineSVGP,
-    X::AbstractArray,
+    X::AbstractMatrix,
     y::AbstractArray;
-    iterations::Int = 2,
+    iterations::Int = 20,
     callback::Union{Nothing,Function} = nothing,
-    Convergence = 0,
+    conv::Union{Nothing,Function} = nothing,
+    obsdim::Int = 1,
+    )
+    return train!(m, KernelFunctions.vec_of_vecs(X, obsdim=obsdim), y, iterations = iterations)
+end
+
+
+function train!(
+    m::OnlineSVGP,
+    X::AbstractVector,
+    y::AbstractArray;
+    iterations::Int = 20,
+    callback::Union{Nothing,Function} = nothing,
+    conv::Union{Nothing,Function} = nothing,
 )
+    X, T = wrap_X(X)
+    y, _nLatent, m.likelihood = check_data!(y, likelihood(m))
 
-    m.X = wrap_X(X)
-    m.y, _nLatent, m.likelihood = check_data!(m.X, y, m.likelihood)
+    wrap_data!(data(m), X, y)
 
-    @assert _nLatent == m.nLatent "Data should always contains the same number of outputs"
-    @assert iterations > 0 "Number of iterations should be positive"
-    setnMinibatch!(m.inference, size(X, 1))
-    setnSamples!(m.inference, size(X, 1))
-    m.inference.MBIndices = [collect(1:size(X, 1))]
+    _nLatent == nLatent(m) || "Data should always contains the same number of outputs"
+    iterations > 0 || "Number of iterations should be positive"
+    setnMinibatch!(inference(m), nSamples(data(m)))
+    setnSamples!(inference(m), nSamples(data(m)))
+    # setMBIndices!(inference(m), collect(1:nMinibatch(inference(m))))
 
-    if nIter(m.inference) == 1 # The first time data is seen, initialize all parameters
-        init_onlinemodel(m, X, y)
+    if nIter(m) == 1 # The first time data is seen, initialize all parameters
+        init_onlinemodel(m)
         m.likelihood = init_likelihood(
-            m.likelihood,
-            m.inference,
+            likelihood(m),
+            inference(m),
             nLatent(m),
-            size(X, 1),
+            nSamples(data(m)),
             nFeatures(m),
         )
     else
-        setxview!(m.inference, view(X, collect(1:nMinibatch(m.inference)), :))
-        setyview!(
-            m.inference,
-            view_y(m.likelihood, y, collect(1:nMinibatch(m.inference))),
-        )
+        # setxview!(m.inference, view(X, collect(MBIndices(m), :))
+        # setyview!(
+            # m.inference,
+            # view_y(m.likelihood, y, collect(1:nMinibatch(m.inference))),
+        # )
         save_old_parameters!(m)
         m.likelihood = init_likelihood(
-            m.likelihood,
-            m.inference,
+            likelihood(m),
+            inference(m),
             nLatent(m),
-            size(X, 1),
+            nSamples(m),
             nFeatures(m),
         )
         updateZ!(m)
@@ -63,7 +78,7 @@ function train!(
             if local_iter == 1
                 compute_old_matrices!(m)
                 local_updates!(
-                    m.likelihood,
+                    likelihood(m),
                     yview(m),
                     mean_f(m),
                     var_f(m),
@@ -126,12 +141,12 @@ function update_parameters!(model::OnlineSVGP)
 end
 
 
-function updateZ!(model::OnlineSVGP)
-    for gp in model.f
-        add_point!(gp.Z,model.X,model.y,kernel(gp))
-        gp.dim = gp.Z.k
+function updateZ!(m::OnlineSVGP)
+    for gp in m.f
+        add_point!(gp.Z, m, gp)
+        gp.post.dim = length(Zview(gp))
     end
-    model.inference.HyperParametersUpdated = true
+    setHPupdated!(inference, true)
 end
 
 function save_old_parameters!(model::OnlineSVGP)
@@ -141,33 +156,27 @@ function save_old_parameters!(model::OnlineSVGP)
 end
 
 function save_old_gp!(gp::OnlineVarLatent{T}) where {T}
-    gp.Zₐ = copy(gp.Z.Z)
-    remove_point!(gp.Z, kernelmatrix(kernel(gp), gp.Z), kernel(gp))
-    gp.invDₐ = Symmetric(-2.0*nat2(gp)-inv(pr_cov(gp)))
+    gp.Zₐ = copy(gp.Z)
+    remove_point!(gp.Z, m, gp)
+    gp.invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp)))
     gp.prevη₁ = copy(nat1(gp))
-    gp.prev𝓛ₐ = -0.5*logdet(cov(gp)) + 0.5*logdet(pr_cov(gp)) - 0.5*dot(mean(gp), nat1(gp))
+    gp.prev𝓛ₐ = -0.5*logdet(cov(gp)) + 0.5 * logdet(pr_cov(gp)) - 0.5 * dot(mean(gp), nat1(gp))
 end
 
-function init_onlinemodel(m::OnlineSVGP{T},X,y) where {T<:Real}
+function init_onlinemodel(m::OnlineSVGP{T}) where {T<:Real}
     for gp in m.f
-        init_online_gp!(gp,X,y)
+        init_online_gp!(gp, m)
     end
-    m.inference.xview = [view(X, collect(1:nMinibatch(m.inference)), :)]
-    m.inference.yview = [view_y(m.likelihood, y, collect(1:nMinibatch(m.inference)))]
-    m.inference.ρ = [1.0]
-    setHPupdated!(m.inference, false)
+    setρ!(inference(m), one(T))
+    setHPupdated!(inference(m), false)
 end
 
-function init_online_gp!(gp::OnlineVarLatent{T}, X, y, jitt::T = T(jitt)) where {T}
-    init!(gp.Z, X, y, kernel(gp))
-    nSamples = size(X, 1)
-    gp.dim = gp.Z.k
+function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T = T(jitt)) where {T}
+    gp.Z = InducingPoints.init(gp.Z, m, gp)
+    dim = length(gp.Z)
     gp.Zₐ = vec(gp.Z)
-    gp.post.μ = zeros(T, dim(gp))
-    gp.post.η₁ = zero(mean(gp))
-    gp.post.Σ = Symmetric(Matrix{T}(I(dim(gp))))
-    gp.post.η₂ = -0.5 * Symmetric(inv(cov(gp)))
-    gp.prior.K = PDMat(kernelmatrix(kernel(gp), gp.Z) + jitt * I)
+    gp.post = VarLatentPosterior{T}(dim)
+    gp.prior = GPPrior(kernel(gp), pr_mean(gp), PDMat(kernelmatrix(kernel(gp), Zview(gp)) + jitt * I))
 
     gp.Kab = copy(pr_cov(gp).mat)
     gp.κₐ = Matrix{T}(I(dim(gp)))
@@ -186,9 +195,9 @@ function init_online_gp!(gp::OnlineVarLatent{T}, X, y, jitt::T = T(jitt)) where 
 end
 
 
-function compute_old_matrices!(model::OnlineSVGP{T}) where {T}
-    for gp in model.f
-        compute_old_matrices!(gp, xview(model.inference), T(jitt))
+function compute_old_matrices!(m::OnlineSVGP{T}) where {T}
+    for gp in m.f
+        compute_old_matrices!(gp, xview(m), T(jitt))
     end
 end
 

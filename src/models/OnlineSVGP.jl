@@ -3,13 +3,10 @@ mutable struct OnlineSVGP{
     T<:Real,
     TLikelihood<:Likelihood{T},
     TInference<:Inference{T},
+    TData<:AbstractDataContainer,
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Matrix{T} #Feature vectors
-    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nDim::Int64 # Number of covariates per data point
-    nFeatures::Int64 # Number of features of the GP (equal to number of points)
-    nLatent::Int64 # Number of latent GPs
+    data::TData
     f::NTuple{N,OnlineVarLatent{T}}
     likelihood::TLikelihood
     inference::TInference
@@ -18,7 +15,9 @@ mutable struct OnlineSVGP{
     trained::Bool
 end
 
-"""Create a Online Sparse Variational Gaussian Process model
+"""
+    OnlineSVGP(kernel, likelihood, inference, Zalg)
+Create a Online Sparse Variational Gaussian Process model
 Argument list :
 
 **Mandatory arguments**
@@ -43,12 +42,11 @@ function OnlineSVGP(
     atfrequency::Integer = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     IndependentPriors::Bool = true,
-    ArrayType::UnionAll = Vector,
-    T₁ = Float64,
+    T::DataType = Float64,
 )
-
-    @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
-    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    data = OnlineDataContainer()
+    inference isa AnalyticVI || error("The inference object should be of type `AnalyticVI`")
+    implemented(likelihood, inference) || "The $likelihood is not compatible or implemented with the $inference"
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
@@ -61,15 +59,11 @@ function OnlineSVGP(
     end
 
     nLatent = num_latent(likelihood)
-    latentf = ntuple(_ -> _OSVGP{T₁}(0, 0, Z, kernel, mean, optimiser), nLatent)
-    inference = tuple_inference(inference, nLatent, 0, 0, 0)
+    latentf = ntuple(_ -> OnlineVarLatent(T, 0, 0, Z, kernel, mean, optimiser), nLatent)
+    inference = tuple_inference(inference, nLatent, 0, 0, 0, [], [])
     inference.nIter = 1
-    return OnlineSVGP{T₁,typeof(likelihood),typeof(inference),nLatent}(
-        Matrix{T₁}(undef, 0, 0),
-        [],
-        0,
-        0,
-        nLatent,
+    return OnlineSVGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
+        data,
         latentf,
         likelihood,
         inference,
@@ -91,5 +85,18 @@ end
 
 @traitimpl IsSparse{OnlineSVGP}
 
-Zviews(model::OnlineSVGP) = Zview.(model.f)
-objective(model::OnlineSVGP) = ELBO(model)
+Zviews(m::OnlineSVGP) = Zview.(m.f)
+objective(m::OnlineSVGP) = ELBO(m)
+MBIndices(m::OnlineSVGP) = 1:nSamples(m)
+xview(m::OnlineSVGP) = input(m)
+yview(m::OnlineSVGP) = output(m)
+
+## Accessors to InducingPoints methods
+InducingPoints.init(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.init(Z.Z, m, gp)
+InducingPoints.init(Z::OIPS, m, gp) = InducingPoints.init(Z, input(m), kernel(gp))
+
+InducingPoints.add_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.add_point!(Z.Z, m, gp)
+InducingPoints.add_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.add_point!(Z.Z, input(m), kernel(gp))
+
+InducingPoints.remove_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z.Z, m, gp)
+InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z.Z, pr_cov(gp), kernel(gp))

@@ -26,11 +26,11 @@ module AugmentedGaussianProcesses
     using Random
     @reexport using KernelFunctions
     using KernelFunctions: ColVecs, RowVecs
-    @reexport using InducingPoints
     using Zygote
     using ForwardDiff
-    using Flux #Remove full dependency on Flux once params for KernelFunctions is set
+    using Flux # Remove full dependency on Flux once params for KernelFunctions is set
     @reexport using Flux.Optimise
+    @reexport using InducingPoints
     using PDMats: PDMat, invquad
     using AdvancedHMC
     using MCMCChains
