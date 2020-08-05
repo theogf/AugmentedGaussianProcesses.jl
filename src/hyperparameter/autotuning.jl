@@ -53,27 +53,27 @@ function update_hyperparameters!(
     ∇E_μ::AbstractVector,
     ∇E_Σ::AbstractVector,
     i::Inference,
-    opt::InferenceOptimizer,
+    vi_opt::InferenceOptimizer,
 )
     if !isnothing(gp.opt)
         f_ρ, f_Z, f_μ₀ = hyperparameter_gradient_function(gp)
         k_aduse = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
         grads = if k_aduse == :forward_diff
-            ∇L_ρ_forward(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, opt)
+            ∇L_ρ_forward(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         elseif k_aduse == :reverse_diff
-            ∇L_ρ_reverse(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, opt)
+            ∇L_ρ_reverse(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         end
         # @show grads[kernel(gp).transform.s]
         grads[pr_mean(gp)] = f_μ₀()
     end
-    if !isnothing(gp.Z.opt) && !isnothing(gp.opt)
+    if !isnothing(opt(gp.Z)) && !isnothing(gp.opt)
         Z_aduse = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]
-        Z_gradients = if Z_aduse == :forward_diff
-            Z_gradient_forward(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, opt) #Compute the gradient given the inducing points location
+        Z_grads = if Z_aduse == :forward_diff
+            Z_gradient_forward(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt) #Compute the gradient given the inducing points location
         elseif Z_aduse == :reverse_diff
-            Z_gradient_reverse(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, opt)
+            Z_gradient_reverse(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         end
-        gp.Z.Z .+= Flux.Optimise.apply!(gp.Z.opt, gp.Z.Z, Z_gradients) #Apply the gradients on the location
+        update!(opt(gp.Z), gp.Z.Z, Z_grads) #Apply the gradients on the location
     end
     if !isnothing(gp.opt)
         apply_grads_kernel_params!(gp.opt, kernel(gp), grads) # Apply gradients to the kernel parameters
@@ -179,11 +179,11 @@ end
 
 
 function hyperparameter_gradient_function(gp::OnlineVarLatent{T}) where {T<:Real}
-    μ₀ = mean_prior(gp, gp.Z.Z)
+    μ₀ = pr_mean(gp, gp.Z)
     A =
         (
             I(dim(gp)) -
-            pr_cov(gp) \ (cov(gp) + (gp.µ - μ₀) * transpose(mean(gp) - μ₀))
+            pr_cov(gp) \ (cov(gp) + (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))
         ) / pr_cov(gp)
     κΣ = gp.κ * cov(gp)
     κₐΣ = gp.κₐ * cov(gp)
@@ -220,7 +220,7 @@ function hyperparameter_gradient_function(gp::OnlineVarLatent{T}) where {T<:Real
                 κₐΣ,
                 Jmm,
                 Jab,
-                zeros(T, size(gp.Zₐ, 1), size(gp.Zₐ, 1)),
+                zeros(T, length(gp.Zₐ), length(gp.Zₐ)),
             ) - hyperparameter_KL_gradient(Jmm, A)
         end, # Function gradient given inducing points locations
         function ()

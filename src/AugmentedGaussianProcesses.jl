@@ -71,7 +71,7 @@ module AugmentedGaussianProcesses
 
     # Models
     include("models/AbstractGP.jl")
-    include("models/GP_base.jl")
+    include("models/latentgp.jl")
     include("models/GP.jl")
     include("models/VGP.jl")
     include("models/MCGP.jl")

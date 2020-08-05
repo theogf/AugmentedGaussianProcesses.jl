@@ -36,21 +36,21 @@
         end
     end
     @testset "VGP" begin
-        @test_throws AssertionError VGP(
+        @test_throws ErrorException VGP(
             X,
             y,
             k,
             GaussianLikelihood(),
             AnalyticVI(),
         )
-        @test_throws AssertionError VGP(
+        @test_throws ErrorException VGP(
             X,
             y,
             k,
             GaussianLikelihood(),
             QuadratureVI(),
         )
-        @test_throws AssertionError VGP(
+        @test_throws ErrorException VGP(
             X,
             y,
             k,
@@ -92,7 +92,7 @@
                 )
                 tests(model, model_opt, X, f, y, "Regression")
             end
-            @test_throws AssertionError SVGP(
+            @test_throws ErrorException SVGP(
                 X,
                 y,
                 k,
@@ -100,7 +100,7 @@
                 QuadratureVI(),
                 20,
             )
-            @test_throws AssertionError SVGP(
+            @test_throws ErrorException SVGP(
                 X,
                 y,
                 k,
@@ -110,20 +110,20 @@
             )
         end
     end
-    # @testset "MCGP" begin
-    #     @test_throws AssertionError MCGP(
-    #         X,
-    #         y,
-    #         k,
-    #         GaussianLikelihood(),
-    #         GibbsSampling(),
-    #     )
-    #     @test_throws AssertionError MCGP(
-    #         X,
-    #         y,
-    #         k,
-    #         GaussianLikelihood(),
-    #         HMCSampling(),
-    #     )
-    # end
+    @testset "MCGP" begin
+        @test_throws ErrorException MCGP(
+            X,
+            y,
+            k,
+            GaussianLikelihood(),
+            GibbsSampling(),
+        )
+        @test_throws ErrorException MCGP(
+            X,
+            y,
+            k,
+            GaussianLikelihood(),
+            HMCSampling(),
+        )
+    end
 end

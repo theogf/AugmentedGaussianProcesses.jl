@@ -1,87 +1,6 @@
-## Gaussian Process
-abstract type AbstractGPPrior{T<:Real,K<:Kernel,Tmean<:PriorMean} end
-
-kernel(gp::AbstractGPPrior) = gp.kernel
-mean(gp::AbstractGPPrior) = gp.μ₀
-mean(gp::AbstractGPPrior, X::AbstractVector) = gp.μ₀(X)
-cov(gp::AbstractGPPrior) = gp.K
-
-mutable struct GPPrior{T,K<:Kernel,Tmean<:PriorMean} <: AbstractGPPrior{T,K,Tmean}
-    kernel::K
-    μ₀::Tmean
-    K::PDMat{T,Matrix{T}}
-end
-
-mutable struct TPrior{T,K<:Kernel,Tmean<:PriorMean} <: AbstractGPPrior{T,K,Tmean}
-    kernel::K
-    μ₀::Tmean
-    K::PDMat{T,Matrix{T}}
-    ν::T # Number of degrees of freedom
-    l²::T # Expectation of ||L^{-1}(f-μ⁰)||₂²
-    χ::T  # Expectation of σ
-end
-
-abstract type AbstractPosterior{T<:Real} end
-
-dim(p::AbstractPosterior) = p.dim
-mean(p::AbstractPosterior) = p.μ
-cov(p::AbstractPosterior) = p.Σ
-var(p::AbstractPosterior) = diag(p.Σ)
-
-mutable struct Posterior{T<:Real} <: AbstractPosterior{T}
-    dim::Int
-    α::Vector{T} # Σ⁻¹ (y - μ₀)
-    Σ::PDMat{T,Matrix{T}} # Posterior Covariance : K + σ²I
-end
-
-mean(p::Posterior) = p.α
-
-abstract type AbstractVarPosterior{T} <: AbstractPosterior{T} end
-
-nat1(p::AbstractVarPosterior) = p.η₁
-nat2(p::AbstractVarPosterior) = p.η₂
-
-struct VarPosterior{T} <: AbstractVarPosterior{T}
-    dim::Int
-    μ::Vector{T}
-    Σ::Symmetric{T,Matrix{T}}
-    η₁::Vector{T}
-    η₂::Symmetric{T,Matrix{T}}
-end
-
-VarPosterior{T}(dim::Int) where {T<:Real} = VarPosterior{T}(
-    dim,
-    zeros(T, dim),
-    Symmetric(Matrix{T}(I, dim, dim)),
-    zeros(T, dim),
-    Symmetric(Matrix{T}(-0.5 * I, dim, dim)),
-)
-
-mutable struct OnlineVarPosterior{T} <: AbstractVarPosterior{T}
-    dim::Int
-    μ::Vector{T}
-    Σ::Symmetric{T,Matrix{T}}
-    η₁::Vector{T}
-    η₂::Symmetric{T,Matrix{T}}
-end
-
-OnlineVarPosterior{T}(dim::Int) where {T<:Real} = OnlineVarPosterior{T}(
-    dim,
-    zeros(T, dim),
-    Symmetric(Matrix{T}(I, dim, dim)),
-    zeros(T, dim),
-    Symmetric(Matrix{T}(-0.5 * I, dim, dim)),
-)
-
-struct SampledPosterior{T} <: AbstractPosterior{T}
-    dim::Int
-    f::Vector{T}
-    Σ::Symmetric{T, Matrix{T}}
-end
-
-mean(p::SampledPosterior) = p.f
-
-#### Latent models ####
+### Latent models ####
+include("prior.jl")
+include("posterior.jl")
 
 ## Exact Gaussian Process
 struct LatentGP{T,Tpr<:GPPrior,Tpo<:Posterior{T},O} <: AbstractLatent{T,Tpr,Tpo}
@@ -274,7 +193,7 @@ end
 ## Variational Student-T Process
 
 mutable struct TVarLatent{T<:Real,Tpr<:TPrior,Tpo<:VarPosterior{T},O} <:
-               AbstractLatent{T,Tpr,Tpo}
+               AbstractVarLatent{T,Tpr,Tpo}
     prior::Tpr
     post::Tpo
     opt::O

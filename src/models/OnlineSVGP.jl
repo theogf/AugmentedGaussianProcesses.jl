@@ -42,15 +42,18 @@ function OnlineSVGP(
     atfrequency::Integer = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     IndependentPriors::Bool = true,
+    Zoptimiser = nothing,
     T::DataType = Float64,
 )
     data = OnlineDataContainer()
     inference isa AnalyticVI || error("The inference object should be of type `AnalyticVI`")
-    implemented(likelihood, inference) || "The $likelihood is not compatible or implemented with the $inference"
+    implemented(likelihood, inference) || error("The $likelihood is not compatible or implemented with the $inference")
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
+
+    Z = Z isa OptimIP ? Z : init_Z(Z, Zoptimiser)
 
     if typeof(mean) <: Real
         mean = ConstantMean(mean)
@@ -103,3 +106,12 @@ InducingPoints.add_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = Inducin
 
 InducingPoints.remove_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z.Z, m, gp)
 InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z, pr_cov(gp), kernel(gp))
+
+opt(Z::OptimIP) = Z.opt
+opt(Z::AbstractInducingPoints) = nothing
+
+function update!(opt, Z::AbstractInducingPoints, Z_grads)
+    for (z, zgrad) in zip(Z, Z_grads)
+        z .+= apply(opt, z, zgrad)
+    end
+end
