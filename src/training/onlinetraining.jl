@@ -154,7 +154,7 @@ function save_old_parameters!(m::OnlineSVGP)
 end
 
 function save_old_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP) where {T}
-    gp.Zₐ = copy(gp.Z)
+    gp.Zₐ = deepcopy(gp.Z.Z)
     InducingPoints.remove_point!(gp.Z, m, gp)
     gp.invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp)))
     gp.prevη₁ = copy(nat1(gp))
@@ -170,7 +170,7 @@ function init_onlinemodel(m::OnlineSVGP{T}) where {T<:Real}
 end
 
 function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T = T(jitt)) where {T}
-    gp.Z = InducingPoints.init(gp.Z, m, gp)
+    gp.Z = OptimIP(InducingPoints.init(gp.Z, m, gp), opt(gp.Z))
     k = length(gp.Z)
     gp.Zₐ = vec(gp.Z)
     gp.post = OnlineVarPosterior{T}(k)

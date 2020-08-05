@@ -18,13 +18,13 @@ end
 
 function tests(model1::OnlineSVGP, model2, X, f, y, problem)
     for (X_, y_) in eachbatch((X, y), obsdim = 1, size = 10)
-        train!(model1, X_, y_, iterations = 1)
+        train!(model1, X_, y_, iterations = 5)
     end
     L = AGP.objective(model1)
     @test testconv(model1, problem, X, f, y)
     @test all(proba_y(model1, X)[2] .> 0)
     for (X_, y_) in eachbatch((X, y), obsdim = 1, size = 10)
-        train!(model2, X_, y_, iterations = 1)
+        train!(model2, X_, y_, iterations = 5)
     end
     @test testconv(model2, problem, X, f, y)
     @test all(proba_y(model2, X)[2] .> 0)
@@ -174,7 +174,7 @@ function tests_likelihood(
             dictvgp = dict["VGP"]
             @testset "AnalyticVI" begin
                 if dictosvgp["AVI"]
-                    model = OnlineSVGP(
+                    global model = OnlineSVGP(
                         k,
                         l,
                         AnalyticVI(),
