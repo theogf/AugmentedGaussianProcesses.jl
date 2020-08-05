@@ -48,6 +48,7 @@ nSamples(i::Inference) = i.nSamples
 setnSamples!(inf::Inference, n::Int) = inf.nSamples = n
 
 getρ(inf::Inference) = inf.ρ
+setρ!(inf::Inference, ρ) = inf.ρ = ρ
 
 MBIndices(inf::Inference) = inf.MBIndices
 setMBIndices!(inf::Inference, mbindices::AbstractVector) =

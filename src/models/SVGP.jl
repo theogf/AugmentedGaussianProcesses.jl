@@ -91,8 +91,8 @@ function SVGP(
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
 
-    @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
-    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    inference isa VariationalInference  || error("The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`")
+    implemented(likelihood, inference) || error("The $likelihood is not compatible or implemented with the $inference")
 
     data = wrap_data(X, y)
     if isa(optimiser, Bool)
@@ -122,7 +122,7 @@ function SVGP(
     )
 
     likelihood =
-        init_likelihood(likelihood, inference, nLatent, S, nFeatures)
+        init_likelihood(likelihood, inference, nLatent, S)
     xview = view_x(data, collect(1:S))
     yview = view_y(likelihood, data, collect(1:S))
     inference =

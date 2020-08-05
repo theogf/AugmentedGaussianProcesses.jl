@@ -90,6 +90,9 @@ objective(m::OnlineSVGP) = ELBO(m)
 MBIndices(m::OnlineSVGP) = 1:nSamples(m)
 xview(m::OnlineSVGP) = input(m)
 yview(m::OnlineSVGP) = output(m)
+nFeatures(m::OnlineSVGP) = collect(dim.(getf(m)))
+
+
 
 ## Accessors to InducingPoints methods
 InducingPoints.init(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.init(Z.Z, m, gp)

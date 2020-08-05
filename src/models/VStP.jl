@@ -90,7 +90,6 @@ function VStP(
         inference,
         nLatent,
         nSamples(data),
-        nFeatures,
     )
     xview = view_x(data, 1:nSamples(data))
     yview = view_y(likelihood, data, 1:nSamples(data))

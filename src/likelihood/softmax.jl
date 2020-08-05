@@ -64,7 +64,6 @@ function init_likelihood(
     inference::Inference{T},
     nLatent::Int,
     nSamplesUsed::Int,
-    nFeatures::Int,
 ) where {T}
     if inference isa GibbsSampling
         θ = [abs.(rand(T, nSamplesUsed)) * 2 for i = 1:nLatent]

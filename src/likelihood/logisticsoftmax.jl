@@ -101,7 +101,6 @@ function init_likelihood(
     inference::Inference{T},
     nLatent::Integer,
     nSamplesUsed::Integer,
-    nFeatures::Integer,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
         c = [ones(T, nSamplesUsed) for i = 1:nLatent]

@@ -72,7 +72,7 @@ function GP(
     latentf = LatentGP(T, nFeatures, kernel, mean, optimiser)
 
     likelihood =
-        init_likelihood(likelihood, inference, 1, nSamples(data), nFeatures)
+        init_likelihood(likelihood, inference, 1, nSamples(data))
 
     xview = view_x(data, :)
     yview = view_y(likelihood, data, 1:nSamples(data))

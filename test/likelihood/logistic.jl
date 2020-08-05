@@ -1,3 +1,12 @@
+using AugmentedGaussianProcesses
+using Test
+using LinearAlgebra, Distributions
+using MLDataUtils
+using Random: seed!
+seed!(42)
+
+include("../testingtools.jl")
+
 @testset "logistic" begin
     N, d = 20, 2
     k = transform(SqExponentialKernel(), 10.0)

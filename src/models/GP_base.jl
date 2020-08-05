@@ -36,7 +36,12 @@ end
 
 mean(p::Posterior) = p.α
 
-struct VarPosterior{T} <: AbstractPosterior{T}
+abstract type AbstractVarPosterior{T} <: AbstractPosterior{T} end
+
+nat1(p::AbstractVarPosterior) = p.η₁
+nat2(p::AbstractVarPosterior) = p.η₂
+
+struct VarPosterior{T} <: AbstractVarPosterior{T}
     dim::Int
     μ::Vector{T}
     Σ::Symmetric{T,Matrix{T}}
@@ -52,9 +57,21 @@ VarPosterior{T}(dim::Int) where {T<:Real} = VarPosterior{T}(
     Symmetric(Matrix{T}(-0.5 * I, dim, dim)),
 )
 
-nat1(p::VarPosterior) = p.η₁
-nat2(p::VarPosterior) = p.η₂
+mutable struct OnlineVarPosterior{T} <: AbstractVarPosterior{T}
+    dim::Int
+    μ::Vector{T}
+    Σ::Symmetric{T,Matrix{T}}
+    η₁::Vector{T}
+    η₂::Symmetric{T,Matrix{T}}
+end
 
+OnlineVarPosterior{T}(dim::Int) where {T<:Real} = OnlineVarPosterior{T}(
+    dim,
+    zeros(T, dim),
+    Symmetric(Matrix{T}(I, dim, dim)),
+    zeros(T, dim),
+    Symmetric(Matrix{T}(-0.5 * I, dim, dim)),
+)
 
 struct SampledPosterior{T} <: AbstractPosterior{T}
     dim::Int
@@ -93,9 +110,13 @@ end
 
 @traitimpl IsFull{LatentGP}
 
+## AbstractVarLatent
+
+abstract type AbstractVarLatent{T,Tpr,Tpo} <: AbstractLatent{T,Tpr,Tpo} end
+
 ## Variational Gaussian Process
 mutable struct VarLatent{T,Tpr<:GPPrior,Tpo<:VarPosterior{T},O} <:
-               AbstractLatent{T,Tpr,Tpo}
+               AbstractVarLatent{T,Tpr,Tpo}
     prior::Tpr
     post::Tpo
     opt::O
@@ -129,7 +150,7 @@ struct SparseVarLatent{
     Tpo<:VarPosterior{T},
     TZ<:AbstractInducingPoints,
     O,
-} <: AbstractLatent{T,Tpr,Tpo}
+} <: AbstractVarLatent{T,Tpr,Tpo}
     prior::Tpr
     post::Tpo
     Z::TZ
@@ -197,25 +218,23 @@ mutable struct OnlineVarLatent{
     T,
     Tpr<:GPPrior,
     Tpo<:VarPosterior{T},
-    TZ<:AbstractInducingPoints,
-    TZa<:AbstractVector,
     O,
-} <: AbstractLatent{T,Tpo,Tpr}
+} <: AbstractVarLatent{T,Tpo,Tpr}
     prior::Tpr
     post::Tpo
-    prev_post::Tpo
-    Z::TZ
+    Z::InducingPoints.AIP
     Knm::Matrix{T}
     κ::Matrix{T}
     K̃::Vector{T}
     Zupdated::Bool
     opt::O
-    Zₐ::TZa
+    Zₐ::AbstractVector
     Kab::Matrix{T}
     κₐ::Matrix{T}
     K̃ₐ::Matrix{T}
     invDₐ::Symmetric{T,Matrix{T}}
     prev𝓛ₐ::T
+    prevη₁::Vector{T}
 end
 
 function OnlineVarLatent(
@@ -233,20 +252,20 @@ function OnlineVarLatent(
             deepcopy(mean),
             PDMat(Matrix{T}(I, dim, dim)),
         ),
-        VarPosterior{T}(dim),
-        VarPosterior{T}(dim),
-        deepcopy(Z),
+        OnlineVarPosterior{T}(dim),
+        Z,
         Matrix{T}(undef, nSamplesUsed, dim),
         Matrix{T}(undef, nSamplesUsed, dim),
         Vector{T}(undef, nSamplesUsed),
         false,
         deepcopy(opt),
-        deepcopy(vec(Z)),
+        vec(Z),
         Matrix{T}(I, dim, dim),
         Matrix{T}(I, dim, dim),
         Matrix{T}(I, dim, dim),
         Symmetric(Matrix{T}(I, dim, dim)),
         zero(T),
+        Vector{T}(undef, dim),
     )
 end
 
@@ -301,8 +320,8 @@ dim(gp::AbstractLatent) = dim(posterior(gp))
 mean(gp::AbstractLatent) = mean(posterior(gp))
 cov(gp::AbstractLatent) = cov(posterior(gp))
 var(gp::AbstractLatent) = var(posterior(gp))
-nat1(gp::AbstractLatent{T, <:AbstractGPPrior, <:VarPosterior}) where {T} = nat1(posterior(gp))
-nat2(gp::AbstractLatent{T, <:AbstractGPPrior, <:VarPosterior}) where {T} = nat2(posterior(gp))
+nat1(gp::AbstractVarLatent) = nat1(posterior(gp))
+nat2(gp::AbstractVarLatent) = nat2(posterior(gp))
 
 mean_f(model::AbstractGP) = mean_f.(model.f)
 

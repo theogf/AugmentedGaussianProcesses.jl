@@ -67,9 +67,8 @@ end
 function init_likelihood(
     likelihood::HeteroscedasticLikelihood{T},
     inference::Inference{T},
-    nLatent::Integer,
-    nMinibatch::Integer,
-    nFeatures::Integer,
+    nLatent::Int,
+    nMinibatch::Int,
 ) where {T<:Real}
     λ = likelihood.λ
     c = ones(T, nMinibatch)

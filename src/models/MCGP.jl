@@ -80,7 +80,7 @@ function MCGP(
     latentf = ntuple(_ -> SampledLatent(T, nFeatures, kernel, mean), nLatent)
 
     likelihood =
-        init_likelihood(likelihood, inference, nLatent, nSamples(data), nFeatures)
+        init_likelihood(likelihood, inference, nLatent, nSamples(data))
     xview = view_x(data, 1:nSamples(data))
     yview = view_y(likelihood, data, 1:nSamples(data))
     inference =

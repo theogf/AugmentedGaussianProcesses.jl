@@ -50,7 +50,6 @@ function train!(
             inference(m),
             nLatent(m),
             nSamples(data(m)),
-            nFeatures(m),
         )
     else
         # setxview!(m.inference, view(X, collect(MBIndices(m), :))
@@ -64,7 +63,6 @@ function train!(
             inference(m),
             nLatent(m),
             nSamples(m),
-            nFeatures(m),
         )
         updateZ!(m)
     end
@@ -173,19 +171,19 @@ end
 
 function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T = T(jitt)) where {T}
     gp.Z = InducingPoints.init(gp.Z, m, gp)
-    dim = length(gp.Z)
+    k = length(gp.Z)
     gp.Zₐ = vec(gp.Z)
-    gp.post = VarLatentPosterior{T}(dim)
+    gp.post = VarPosterior{T}(k)
     gp.prior = GPPrior(kernel(gp), pr_mean(gp), PDMat(kernelmatrix(kernel(gp), Zview(gp)) + jitt * I))
 
     gp.Kab = copy(pr_cov(gp).mat)
     gp.κₐ = Matrix{T}(I(dim(gp)))
     gp.K̃ₐ = zero(gp.Kab)
 
-    gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
+    gp.Knm = kernelmatrix(kernel(gp), input(m), gp.Z)
     gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ =
-        kerneldiagmatrix(kernel(gp), X) .+ jitt -
+        kerneldiagmatrix(kernel(gp), input(m)) .+ jitt -
         opt_diag(gp.κ, gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 
@@ -202,7 +200,7 @@ function compute_old_matrices!(m::OnlineSVGP{T}) where {T}
 end
 
 function compute_old_matrices!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)
-    gp.K = PDMat(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
+    gp.prior.K = PDMat(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
     gp.Knm = kernelmatrix(kernel(gp), X, gp.Zₐ)
     gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ =

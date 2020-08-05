@@ -60,7 +60,6 @@ function init_likelihood(
     inference::Inference,
     nLatent::Int,
     nSamplesUsed::Int,
-    nFeatures::Int,
 ) where {T}
     return GaussianLikelihood{T}(
         noise(likelihood),
