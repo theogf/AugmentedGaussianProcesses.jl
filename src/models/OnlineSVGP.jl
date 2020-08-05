@@ -99,7 +99,7 @@ InducingPoints.init(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPo
 InducingPoints.init(Z::OIPS, m, gp) = InducingPoints.init(Z, input(m), kernel(gp))
 
 InducingPoints.add_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.add_point!(Z.Z, m, gp)
-InducingPoints.add_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.add_point!(Z.Z, input(m), kernel(gp))
+InducingPoints.add_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.add_point!(Z, input(m), kernel(gp))
 
 InducingPoints.remove_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z.Z, m, gp)
-InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z.Z, pr_cov(gp), kernel(gp))
+InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z, pr_cov(gp), kernel(gp))

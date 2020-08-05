@@ -59,9 +59,9 @@ function VGP(
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
 
-    @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
-    @assert !isa(likelihood, GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
-    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    inference isa VariationalInference || error("The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`")
+    !isa(likelihood, GaussianLikelihood) || error("For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets")
+    implemented(likelihood, inference) ||  error("The $likelihood is not compatible or implemented with the $inference")
 
     data = wrap_data(X, y)
 

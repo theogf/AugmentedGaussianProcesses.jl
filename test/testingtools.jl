@@ -92,7 +92,7 @@ function tests_likelihood(
                     )
                     tests(model, model_opt, X, f, y, problem)
                 else
-                    @test_throws AssertionError VGP(
+                    @test_throws ErrorException VGP(
                         X,
                         y,
                         k,
@@ -124,7 +124,7 @@ function tests_likelihood(
                     )
                     tests(model, model_opt, X, f, y, problem)
                 else
-                    @test_throws AssertionError VGP(
+                    @test_throws ErrorException VGP(
                         X,
                         y,
                         k,
@@ -155,7 +155,7 @@ function tests_likelihood(
                     )
                     tests(model, model_opt, X, f, y, problem)
                 else
-                    @test_throws AssertionError VGP(
+                    @test_throws ErrorException VGP(
                         X,
                         y,
                         k,
@@ -197,7 +197,7 @@ function tests_likelihood(
                     )
                     tests(model, model_opt, X, f, y, problem)
                 else
-                    @test_throws AssertionError OnlineSVGP(
+                    @test_throws ErrorException OnlineSVGP(
                         k,
                         l,
                         AnalyticVI(),
@@ -231,7 +231,7 @@ function tests_likelihood(
                     )
                     tests(model, model_opt, X, f, y, problem)
                 else
-                    @test_throws AssertionError OnlineSVGP(
+                    @test_throws ErrorException OnlineSVGP(
                         k,
                         l,
                         QuadratureVI(),
@@ -263,7 +263,7 @@ function tests_likelihood(
                     )
                     tests(model, model_opt, X, f, y, problem)
                 else
-                    @test_throws AssertionError OnlineSVGP(
+                    @test_throws ErrorException OnlineSVGP(
                         k,
                         l,
                         MCIntegrationVI(),
@@ -322,7 +322,7 @@ function tests_likelihood(
                     )
                     tests(model_svi, model, X, f, y, problem)
                 else
-                    @test_throws AssertionError SVGP(
+                    @test_throws ErrorException SVGP(
                         X,
                         y,
                         k,
@@ -370,7 +370,7 @@ function tests_likelihood(
                     )
                     tests(model_svi, model, X, f, y, problem)
                 else
-                    @test_throws AssertionError SVGP(
+                    @test_throws ErrorException SVGP(
                         X,
                         y,
                         k,
@@ -423,7 +423,7 @@ function tests_likelihood(
                     )
                     tests(model_svi, model, X, f, y, problem)
                 else
-                    @test_throws AssertionError SVGP(
+                    @test_throws ErrorException SVGP(
                         X,
                         y,
                         k,
@@ -454,7 +454,7 @@ function tests_likelihood(
                     @test_broken samples2 =
                         AGP.sample(model, 100, cat_samples = true)
                 else
-                    @test_throws AssertionError MCGP(
+                    @test_throws ErrorException MCGP(
                         X,
                         y,
                         k,
@@ -475,7 +475,7 @@ function tests_likelihood(
                     @test_broken samples2 =
                         AGP.sample(model, 20, cat_samples = true)
                 else
-                    @test_throws AssertionError MCGP(X, y, k, l, HMCSampling())
+                    @test_throws ErrorException MCGP(X, y, k, l, HMCSampling())
                 end
             end # Gibbs Sampling
         end # Loop floattypes

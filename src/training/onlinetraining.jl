@@ -141,21 +141,21 @@ end
 
 function updateZ!(m::OnlineSVGP)
     for gp in m.f
-        add_point!(gp.Z, m, gp)
+        InducingPoints.add_point!(gp.Z, m, gp)
         gp.post.dim = length(Zview(gp))
     end
-    setHPupdated!(inference, true)
+    setHPupdated!(inference(m), true)
 end
 
-function save_old_parameters!(model::OnlineSVGP)
-    for gp in model.f
-        save_old_gp!(gp)
+function save_old_parameters!(m::OnlineSVGP)
+    for gp in m.f
+        save_old_gp!(gp, m)
     end
 end
 
-function save_old_gp!(gp::OnlineVarLatent{T}) where {T}
+function save_old_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP) where {T}
     gp.Zₐ = copy(gp.Z)
-    remove_point!(gp.Z, m, gp)
+    InducingPoints.remove_point!(gp.Z, m, gp)
     gp.invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp)))
     gp.prevη₁ = copy(nat1(gp))
     gp.prev𝓛ₐ = -0.5*logdet(cov(gp)) + 0.5 * logdet(pr_cov(gp)) - 0.5 * dot(mean(gp), nat1(gp))
@@ -173,7 +173,7 @@ function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T = T(jitt
     gp.Z = InducingPoints.init(gp.Z, m, gp)
     k = length(gp.Z)
     gp.Zₐ = vec(gp.Z)
-    gp.post = VarPosterior{T}(k)
+    gp.post = OnlineVarPosterior{T}(k)
     gp.prior = GPPrior(kernel(gp), pr_mean(gp), PDMat(kernelmatrix(kernel(gp), Zview(gp)) + jitt * I))
 
     gp.Kab = copy(pr_cov(gp).mat)

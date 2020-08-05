@@ -61,8 +61,8 @@ function MCGP(
     y, nLatent, likelihood = check_data!(y, likelihood)
 
     inference isa SamplingInference || error("The inference object should be of type `SamplingInference` : either `GibbsSampling` or `HMCSampling`")
-    @assert !isa(likelihood, GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
-    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    !isa(likelihood, GaussianLikelihood) ||  error("For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets")
+    implemented(likelihood, inference) || error("The $likelihood is not compatible or implemented with the $inference")
     !isa(likelihood, Distribution) || error("Using Distributions.jl distributions is unfortunately not yet implemented")
     data = wrap_data(X, y)
     nFeatures = nSamples(data)

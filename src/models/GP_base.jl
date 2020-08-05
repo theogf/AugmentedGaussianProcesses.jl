@@ -217,7 +217,7 @@ end
 mutable struct OnlineVarLatent{
     T,
     Tpr<:GPPrior,
-    Tpo<:VarPosterior{T},
+    Tpo<:AbstractVarPosterior{T},
     O,
 } <: AbstractVarLatent{T,Tpo,Tpr}
     prior::Tpr
