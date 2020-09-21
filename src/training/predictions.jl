@@ -98,15 +98,15 @@ function _predict_f(
     cov::Bool = true,
     diag::Bool = true,
 ) where {T}
-    k_star = kernelmatrix.(kernels(model), [X_test], Zviews(m))
+    k_star = kernelmatrix.(kernels(m), [X_test], Zviews(m))
     f = _sample_f(m, X_test, k_star)
-    μf = Tuple(vec(mean(f[k], dims = 2)) for k = 1:nLatent(m))
+    μf = Tuple(vec(StatsBase.mean(f[k], dims = 2)) for k = 1:nLatent(m))
     if !cov
         return (μf,)
     end
     if !diag
         k_starstar = kernelmatrix.(kernels(m), [X_test]) + T(jitt)
-        Σf = Symmetric.(k_starstar .- invquad.(pr_covs(m), k_star) .+ cov.(f))
+        Σf = Symmetric.(k_starstar .- invquad.(pr_covs(m), k_star) .+ StatsBase.cov.(f))
         return μf, Σf
     else
         k_starstar =
@@ -114,24 +114,23 @@ function _predict_f(
             [T(jitt) * ones(T, length(X_test))]
         σ²f =
             k_starstar .- opt_diag.(k_star ./ pr_covs(m), k_star) .+
-            diag.(cov.(f, dims = 2))
+            StatsBase.var.(f, dims = 2)
         return μf, σ²f
     end
 end
 
 function _sample_f(
-    model::MCGP{T,<:Likelihood,<:GibbsSampling},
-    X_test::AbstractMatrix{T},
+    m::MCGP{T,<:Likelihood,<:GibbsSampling},
+    X_test::AbstractVector,
     k_star = kernelmatrix.(
-        get_kernel(model),
+        kernels(m),
         [X_test],
-        Zviews(model),
-        obsdim = 1,
+        Zviews(m),
     ),
 ) where {T}
     return f = [
-        k_star[k] * (model.f[k].K \ model.inference.sample_store[:, :, k]')
-        for k = 1:nLatent(model)
+        k_star[k] * (pr_cov(m.f[k]) \ inference(m).sample_store[:, :, k]')
+        for k = 1:nLatent(m)
     ]
 end
 
