@@ -76,8 +76,7 @@ function MOSVGP(
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
 
-    X = wrap_X_multi(X, nTask)
-    nX = length(X)
+    X, T = wrap_X(X)
 
     likelihoods = if likelihood isa Likelihood
         likelihoods = [deepcopy(likelihood) for _ = 1:nTask]
@@ -89,14 +88,19 @@ function MOSVGP(
     corrected_y = Vector(undef, nTask)
     for i = 1:nTask
         corrected_y[i], nf_per_task[i], likelihoods[i] =
-            check_data!(X[mod(i, nX)+1], y[i], likelihoods[i])
+            check_data!(y[i], likelihoods[i])
     end
 
-    @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
-    @assert all(implemented.(likelihood, Ref(inference))) "The $likelihood is not compatible or implemented with the $inference"
+    inference isa AnalyticVI || error("The inference object should be of type `AnalyticVI`")
+    all(implemented.(likelihood, Ref(inference))) || error("The $likelihood is not compatible or implemented with the $inference")
 
-    nSamples = size.(X, 1)
-    nDim = size.(X, 2)
+    data = wrap_data(X, corrected_y)
+
+    if mean isa Real
+        mean = ConstantMean(mean)
+    elseif mean isa AbstractVector{<:Real}
+        mean = EmpiricalMean(mean)
+    end
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
@@ -109,33 +113,30 @@ function MOSVGP(
     kernel = if kernel isa Kernel
         [kernel]
     else
-        @assert length(kernel) == nLatent "Number of kernels should be equal to the number of tasks"
+        length(kernel) == nLatent || error("Number of kernels should be equal to the number of tasks")
         kernel
     end
     nKernel = length(kernel)
-    nInducingPoints = nInducingPoints isa AbstractInducingPoints ?
-        [deepcopy(nInducingPoints) for _ = 1:nLatent] : nInducingPoints
-    Z = init_Z.(nInducingPoints, nSamples, X, y, kernel, Ref(Zoptimiser))
+
+    nInducingPoints = if nInducingPoints isa AbstractInducingPoints
+        [deepcopy(nInducingPoints) for _ = 1:nLatent]
+    else 
+        nInducingPoints
+    end
+    Z = init_Z.(nInducingPoints, Ref(Zoptimiser))
 
     nFeatures = size.(Z, 1)
 
-    if typeof(mean) <: Real
-        mean = ConstantMean(mean)
-    elseif typeof(mean) <: AbstractVector{<:Real}
-        mean = EmpiricalMean(mean)
-    end
-
-    _nMinibatch = nSamples
+    _nMinibatch = nSamples(data)
     if isStochastic(inference)
-        @assert all(0 .< nMinibatch(inference) .< nSamples) "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
-        _nMinibatch = inference.nMinibatch
+        0 < nMinibatch(inference) < nSamples || error("The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object")
+        _nMinibatch = nMinibatch(inference)
     end
 
-    @show nFeatures, _nMinibatch
     latent_f = ntuple(
         i -> _SVGP{T}(
-            nFeatures[mod(i, nLatent)+1],
-            _nMinibatch[1],
+            nFeatures[i],
+            _nMinibatch,
             Z[mod(i, nLatent)+1],
             kernel[mod(i, nKernel)+1],
             mean,
@@ -156,20 +157,22 @@ function MOSVGP(
             likelihoods,
             inference,
             nf_per_task,
-            _nMinibatch[1:1],
+            _nMinibatch,
             nFeatures,
         )
+    xview = view_x(data, collect(range(1, _nMinibatch, step = 1)))
+    yview = view_y(likelihood, data, 1:nSamples(data))    
     inference = tuple_inference(
         inference,
         nLatent,
         nFeatures,
-        nSamples,
-        _nMinibatch[1:1],
+        nSamples(data),
+        _nMinibatch,
+        xview,
+        yview
     )
-    inference.xview = view.(X, collect.(range.(1, _nMinibatch, step = 1)), :)
-    inference.yview = view(y, :)
 
-    model = MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
+    return MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
         X,
         corrected_y,
         nSamples,

@@ -26,11 +26,10 @@ module AugmentedGaussianProcesses
     using Random
     @reexport using KernelFunctions
     using KernelFunctions: ColVecs, RowVecs
-    using Zygote
-    using ForwardDiff
+    using Zygote, ForwardDiff
+    using Functors
     using Flux # Remove full dependency on Flux once params for KernelFunctions is set
     @reexport using Flux.Optimise
-    @reexport using InducingPoints
     using PDMats: PDMat, invquad
     using AdvancedHMC
     using MCMCChains
@@ -54,6 +53,10 @@ module AugmentedGaussianProcesses
     #Custom modules
     using .PGSampler
     using .GIGSampler
+
+    include(joinpath("inducingpoints" , "InducingPoints.jl"))
+    @reexport using .InducingPoints
+
     # using .PerturbativeCorrection
     # using .GPAnalysisTools
     # using .IO_model

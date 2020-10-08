@@ -76,11 +76,11 @@ function MOVGP(
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
 
-    X = wrap_X_multi(X, nTask)
-    nX = length(X)
+    X, T = wrap_X(X)
+    n_task = length(y)
 
     likelihoods = if likelihood isa Likelihood
-        likelihoods = [deepcopy(likelihood) for _ = 1:nTask]
+        likelihoods = [deepcopy(likelihood) for _ in 1:n_task]
     else
         likelihood
     end
@@ -89,16 +89,21 @@ function MOVGP(
     corrected_y = Vector(undef, nTask)
     for i = 1:nTask
         corrected_y[i], nf_per_task[i], likelihoods[i] =
-            check_data!(X[mod(i, nX)+1], y[i], likelihoods[i])
+            check_data!(y[i], likelihoods[i])
     end
 
-    @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
-    @assert all(implemented.(likelihood, Ref(inference))) "One (or all) of the likelihoods:  $likelihoods are not compatible or implemented with $inference"
+    inference isa AnalyticVI || error("The inference object should be of type `AnalyticVI`")
+    all(implemented.(likelihood, Ref(inference))) || error("One (or all) of the likelihoods:  $likelihoods are not compatible or implemented with $inference")
 
-    nSamples = size.(X, 1)
-    nDim = size.(X, 2)
-    nFeatures = nSamples
-    _nMinibatch = nSamples
+    data = wrap_data(X, corrected_y)
+
+    nFeatures = nSamples(data)
+
+    if mean isa Real
+        mean = ConstantMean(mean)
+    elseif mean isa AbstractVector{<:Real}
+        mean = EmpiricalMean(mean)
+    end
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
@@ -108,25 +113,17 @@ function MOVGP(
         Aoptimiser = Aoptimiser ? ADAM(0.01) : nothing
     end
 
-    mean = if typeof(mean) <: Real
-        ConstantMean(mean)
-    elseif typeof(mean) <: AbstractVector{<:Real}
-        EmpiricalMean(mean)
-    else
-        mean
-    end
-
     kernel = if kernel isa Kernel
         [kernel]
-    else
-        @assert length(kernel) == nLatent "Number of kernels should be equal to the number of tasks"
+    elseif kernel isa AbstractVector{<:Kernel}
+        length(kernel) == nLatent || error("Number of kernels should be equal to the number of tasks")
         kernel
     end
     nKernel = length(kernel)
 
     latent_f = ntuple(
         i -> _VGP{T}(
-            nFeatures[mod(i, nX)+1], #?????
+            nFeatures,
             kernel[mod(i, nKernel)+1],
             mean,
             optimiser,
@@ -146,23 +143,16 @@ function MOVGP(
             likelihoods,
             inference,
             nf_per_task,
-            _nMinibatch,
+            nFeatures,
             nFeatures,
         )
+    xview = view_x(data, :)
+    yview = view_y(likelihood, data, 1:nSamples(data))
     inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch)
-    inference.xview = view.(X, range.(1, _nMinibatch, step = 1), :)
-    inference.yview = view(y, :)
+        tuple_inference(inference, nLatent, nFeatures, nSamples(data), nSamples(data), xview, yview)
 
-    model = MOVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
-        X,
-        corrected_y,
-        nSamples,
-        nDim,
-        nFeatures,
-        nLatent,
-        nX,
-        nTask,
+    return MOVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
+        data,
         nf_per_task,
         latent_f,
         likelihoods,
