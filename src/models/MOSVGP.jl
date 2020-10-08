@@ -21,11 +21,11 @@ Argument list :
  - `nInducingPoints` : number of inducing points
 **Optional arguments**
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
-- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
+ - `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
+ - `mean` : `PriorMean` object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
-- `Zoptimiser` : Optimiser used for inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
+ - `Zoptimiser` : Optimiser used for inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
 mutable struct MOSVGP{

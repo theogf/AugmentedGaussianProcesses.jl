@@ -266,29 +266,26 @@ compute_proba(
     σ²::AbstractVector{<:AbstractVector},
 ) = compute_proba(l, first(μ), first(σ²))
 
+function StatsBase.mean_and_var(lik, fs)
+    @show typeof(fs), size(fs)
+    vals = lik.(eachcol(fs))
+    @show typeof(vals), size(vals)
+    return StatsBase.mean(vals), StatsBase.var(vals)
+end
+
 function proba_y(
-    model::MCGP,
+    model::MCGP{T},
     X_test::AbstractVector;
     nSamples::Int = 200,
 ) where {T<:Real}
     nTest = length(X_test)
-    f = _sample_f(model, X_test)
-    nf = length(inference(model).sample_store[1])
-    proba = [zeros(T, nTest) for i = 1:nLatent(model)]
-    sig_proba = [zeros(T, nTest) for i = 1:nLatent(model)]
-    return error("Wrong implementation, please open an issue")
-    for i = 1:nf
-        for k = 1:nLatent(model)
-            proba[k], sig_proba[k] =
-                (proba[k], sig_proba[k]) .+
-                compute_proba(likelihood(model), getindex.(f, [i])[k], K̃[k])
-        end
-    end
-    if model.nLatent == 1
-        return (proba[1] / nf, sig_proba[1] / nf)
-    else
-        return (proba ./ nf, sig_proba ./ nf)
-    end
+    f = first(_sample_f(model, X_test))
+    return proba, sig_proba =  mean_and_var(x->compute_proba.(likelihood(model), x), f)
+    # if nLatent(model) == 1
+    #     return (proba[1], sig_proba[1])
+    # else
+    #     return (proba, sig_proba)
+    # end
 end
 
 #

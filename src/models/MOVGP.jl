@@ -22,7 +22,7 @@ MOVGP(
 Argument list :
 
 **Mandatory arguments**
- - `X` : input features, should be a vector of matrices N×D or one matrix NxD where N is the number of observation and D the number of dimension
+ - `X` : input features, should be a matrix NxD where N is the number of observation and D the number of dimension
  - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
  - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
  - `likelihood` : likelihood of the model, currently implemented : Gaussian, Student-T, Laplace, Bernoulli (with logistic link), Bayesian SVM, Multiclass (softmax or logistic-softmax) see [`Likelihood`](@ref likelihood_user)

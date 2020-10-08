@@ -1,39 +1,37 @@
-function check_kernel_forward_diff(kernel)
-    ps = Flux.params(kernel)
-    isempty(ps) || return false
-    p = first(ps)
-    if p isa AbstractArray
-        return true
-    else
-        @warn "ForwardDiff backend only works for simple kernels with `ARDTransform` or `ScaleTransform`, use `setadbackend(:reverse_diff)` to use reverse differentiation"
-        return false
+function ∇L_ρ_forward(f, gp::AbstractLatent, X::AbstractVector)
+    θ, re = functor(kernel(gp))
+    g = ForwardDiff.gradient(θ) do x
+        k = re(x)
+        Knn = kernelmatrix(k, X)
+        f(Knn)
     end
+    return IdDict{Any,Any}(θ => g)
 end
 
-function ∇L_ρ_forward(f, gp, X)
-    check_kernel_forward_diff(kernel(gp))
-    Jnn = kernelderivativematrix(kernel(gp), X)
-    grads = map(f, Jnn)
-    return IdDict{Any,Any}(first(Flux.params(kernel(gp))) => grads)
+function ∇L_ρ_forward(f, gp::SparseVarLatent, X::AbstractVector, ∇E_μ, ∇E_Σ, i, opt)
+    θ, re = functor(kernel(gp))
+    g = ForwardDiff.gradient(θ) do x
+        k = re(x)
+        Kmm = kernelmatrix(k, Zview(gp))
+        Knm = kernelmatrix(k, X, Zview(gp))
+        Knn = kerneldiagmatrix(k, X)
+        f(Kmm, Knm, Knn, Ref(∇E_μ), Ref(∇E_Σ), Ref(i), Ref(opt))
+    end
+    return IdDict{Any,Any}(θ => g)
 end
 
-function ∇L_ρ_forward(f, gp::SparseVarLatent, X, ∇E_μ, ∇E_Σ, i, opt)
-    Jmm = kernelderivativematrix(kernel(gp), gp.Z)
-    Jnm = kernelderivativematrix(kernel(gp), X, gp.Z)
-    Jnn = kerneldiagderivativematrix(kernel(gp), X)
-    grads = f.(Jmm, Jnm, Jnn, Ref(∇E_μ), Ref(∇E_Σ), Ref(i), Ref(opt))
-    return IdDict{Any,Any}(first(Flux.params(kernel(gp))) => grads)
-end
-
-function ∇L_ρ_forward(f, gp::OnlineVarLatent, X, ∇E_μ, ∇E_Σ, i, opt)
-    Jmm = kernelderivativematrix(kernel(gp), gp.Z)
-    Jnm = kernelderivativematrix(kernel(gp), X, gp.Z)
-    Jnn = kerneldiagderivativematrix(kernel(gp), X)
-    Jaa = kernelderivativematrix(kernel(gp), gp.Zₐ)
-    Jab = kernelderivativematrix(kernel(gp), gp.Zₐ, gp.Z.Z)
-    grads =
-        map(f, Jmm, Jnm, Jnn, Jab, Jaa, Ref(∇E_μ), Ref(∇E_Σ), Ref(i), Ref(opt))
-    return IdDict{Any,Any}(first(Flux.params(kernel(gp))) => grads)
+function ∇L_ρ_forward(f, gp::OnlineVarLatent, X::AbstractVector, ∇E_μ, ∇E_Σ, i, opt)
+    θ, re = functor(kernel(gp))
+    g = ForwardDiff.gradient(θ) do x
+        k = re(x)
+        Kmm = kernelmatrix(k, Zview(gp))
+        Knm = kernelmatrix(k, X, Zview(gp))
+        Knn = kerneldiagmatrix(k, X)
+        Kaa = kernelmatrix(k, gp.Zₐ)
+        Kab = kernelmatrix(k, gp.Zₐ, Zview(gp))
+        f(Kmm, Knm, Jnn, Jab, Jaa, Ref(∇E_μ), Ref(∇E_Σ), Ref(i), Ref(opt))
+    end
+    return IdDict{Any,Any}(θ => g)
 end
 
 ## Return a function computing the gradient of the ELBO given the inducing point locations ##

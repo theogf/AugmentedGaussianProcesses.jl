@@ -45,9 +45,9 @@ module AugmentedGaussianProcesses
     export KMeansInducingPoints
 
     #Useful functions and module
-    include("functions/PGSampler.jl")
-    include("functions/GIGSampler.jl")
-    include("functions/lap_transf_dist.jl")
+    include(joinpath("functions", "PGSampler.jl"))
+    include(joinpath("functions", "GIGSampler.jl"))
+    include(joinpath("functions", "lap_transf_dist.jl"))
     #include("functions/PerturbativeCorrection.jl")
     # include("functions/GPAnalysisTools.jl")
     # include("functions/IO_model.jl")
@@ -57,8 +57,7 @@ module AugmentedGaussianProcesses
     # using .PerturbativeCorrection
     # using .GPAnalysisTools
     # using .IO_model
-    include("prior/priormean.jl")
-    include("data/datacontainer.jl")
+
 
     # Main classes
     abstract type Inference{T<:Real} end
@@ -67,34 +66,36 @@ module AugmentedGaussianProcesses
     abstract type Likelihood{T<:Real} end
     abstract type AbstractLatent{T<:Real,Tpr,Tpo} end
 
-    include("functions/utils.jl")
+    include(joinpath("mean", "priormean.jl"))
+    include(joinpath("data", "datacontainer.jl"))
+    include(joinpath("functions", "utils.jl"))
 
     # Models
-    include("models/AbstractGP.jl")
-    include("models/latentgp.jl")
-    include("models/GP.jl")
-    include("models/VGP.jl")
-    include("models/MCGP.jl")
-    include("models/SVGP.jl")
-    include("models/VStP.jl")
-    include("models/MOSVGP.jl")
-    include("models/MOVGP.jl")
-    include("models/OnlineSVGP.jl")
-    include("models/single_output_utils.jl")
-    include("models/multi_output_utils.jl")
+    include(joinpath("models", "AbstractGP.jl"))
+    include(joinpath("gpblocks", "latentgp.jl"))
+    include(joinpath("models", "GP.jl"))
+    include(joinpath("models", "VGP.jl"))
+    include(joinpath("models", "MCGP.jl"))
+    include(joinpath("models", "SVGP.jl"))
+    include(joinpath("models", "VStP.jl"))
+    include(joinpath("models", "MOSVGP.jl"))
+    include(joinpath("models", "MOVGP.jl"))
+    include(joinpath("models", "OnlineSVGP.jl"))
+    include(joinpath("models", "single_output_utils.jl"))
+    include(joinpath("models", "multi_output_utils.jl"))
 
-    include("inference/inference.jl")
-    include("likelihood/likelihood.jl")
+    include(joinpath("inference", "inference.jl"))
+    include(joinpath("likelihood", "likelihood.jl"))
 
-    include("functions/init.jl")
-    include("data/utils.jl")
-    include("functions/KLdivergences.jl")
-    include("functions/plotting.jl")
+    include(joinpath("functions", "init.jl"))
+    include(joinpath("functions", "KLdivergences.jl"))
+    include(joinpath("data", "utils.jl"))
+    include(joinpath("functions", "plotting.jl"))
 
-    #Training Functions
-    include("training/training.jl")
-    include("training/onlinetraining.jl")
-    include("hyperparameter/autotuning.jl")
-    include("training/predictions.jl")
+    # Training and prediction functions
+    include(joinpath("training", "training.jl"))
+    include(joinpath("training", "onlinetraining.jl"))
+    include(joinpath("hyperparameter", "autotuning.jl"))
+    include(joinpath("training", "predictions.jl"))
     include("ar_predict.jl")
 end #End Module
