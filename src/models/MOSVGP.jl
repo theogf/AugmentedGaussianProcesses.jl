@@ -52,11 +52,11 @@ end
 
 
 function MOSVGP(
-    X::Union{AbstractArray{T},AbstractVector{<:AbstractArray{T}}},
+    X::Union{AbstractMatrix,AbstractVector{<:AbstractVector}},
     y::AbstractVector{<:AbstractVector},
     kernel::Union{Kernel,AbstractVector{<:Kernel}},
     likelihood::Union{TLikelihood,AbstractVector{<:TLikelihood}},
-    inference::TInference,
+    inference::Inference,
     nLatent::Int,
     nInducingPoints::Union{
         Int,
@@ -71,7 +71,7 @@ function MOSVGP(
     Aoptimiser = ADAM(0.01),
     Zoptimiser = false,
     ArrayType::UnionAll = Vector,
-) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+) where {TLikelihood<:Likelihood}
 
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
@@ -120,7 +120,7 @@ function MOSVGP(
 
     nInducingPoints = if nInducingPoints isa AbstractInducingPoints
         [deepcopy(nInducingPoints) for _ = 1:nLatent]
-    else 
+    else
         nInducingPoints
     end
     Z = init_Z.(nInducingPoints, Ref(Zoptimiser))
@@ -161,7 +161,7 @@ function MOSVGP(
             nFeatures,
         )
     xview = view_x(data, collect(range(1, _nMinibatch, step = 1)))
-    yview = view_y(likelihood, data, 1:nSamples(data))    
+    yview = view_y(likelihood, data, 1:nSamples(data))
     inference = tuple_inference(
         inference,
         nLatent,

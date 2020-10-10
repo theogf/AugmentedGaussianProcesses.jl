@@ -3,7 +3,6 @@ abstract type AbstractDataContainer end
 nSamples(d::AbstractDataContainer) = d.nSamples
 nDim(d::AbstractDataContainer) = d.nDim
 nOutput(d::AbstractDataContainer) = 1
-nOutput(d::MODataContainer) = d.nOutput
 
 input(d::AbstractDataContainer) = d.X
 output(d::AbstractDataContainer) = d.y
@@ -46,11 +45,14 @@ struct MODataContainer{
     nOutput::Int # Number of outputs
 end
 
-function wrap_data(X::TX, y::TY) where {TX; TY<:AbstractVector}
+function wrap_data(X::TX, y::TY) where {TX, TY<:AbstractVector}
     all(size.(y, 1) .== size(X, 1)) || error("There is not the same number of samples in X ($(length(TX))) and y ($(size(y, 1)))")
     Tx = eltype(first(X))
     return MODataContainer{Tx, TX, TY}(X, y, length(X), length(first(X)), length(y))
 end
+
+nOutput(d::MODataContainer) = d.nOutput
+
 
 function wrap_X(X::AbstractMatrix{T}, obsdim = 1) where {T<:Real}
     return KernelFunctions.vec_of_vecs(X, obsdim = obsdim), T

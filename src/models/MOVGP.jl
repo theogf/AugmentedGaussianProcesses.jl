@@ -58,11 +58,11 @@ end
 
 
 function MOVGP(
-    X::Union{AbstractArray{T},AbstractVector{<:AbstractArray{T}}},
+    X::Union{AbstractVector,AbstractVector{<:AbstractArray}},
     y::AbstractVector{<:AbstractArray},
     kernel::Union{Kernel,AbstractVector{<:Kernel}},
     likelihood::Union{TLikelihood,AbstractVector{<:TLikelihood}},
-    inference::TInference,
+    inference::Inference,
     nLatent::Int;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
@@ -71,7 +71,7 @@ function MOVGP(
     variance::Real = 1.0,
     Aoptimiser = ADAM(0.01),
     ArrayType::UnionAll = Vector,
-) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+) where {TLikelihood<:Likelihood}
 
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
