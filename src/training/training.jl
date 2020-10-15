@@ -19,7 +19,7 @@ function train!(
     if model.verbose > 0
         println(
             "Starting training $model with $(nSamples(model)) samples, $(nFeatures(model)) features and $(nLatent(model)) latent GP" *
-            (model.nLatent > 1 ? "s" : ""),
+            (nLatent(model) > 1 ? "s" : ""),
         )
     end
 
@@ -42,7 +42,7 @@ function train!(
             end
             # Print out informations about the convergence
             if verbose(model) > 2 || (verbose(model) > 1 && local_iter % 10 == 0)
-                if isa(TInf, GibbsSampling)
+                if inference(model) isa GibbsSampling
                     next!(p; showvalues = [(:samples, local_iter)])
                 else
                     if (model.verbose ==  2 && local_iter % 10 == 0)
