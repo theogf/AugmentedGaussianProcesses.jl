@@ -17,7 +17,8 @@ nOutput(m::AbstractGP) = 1
 nSamples(m::AbstractGP) = nSamples(data(m))
 
 getf(m::AbstractGP) = m.f
-getf(m::AbstractGP, i::Int) = getindex(m.f, i)
+getf(m::AbstractGP, i::Int) = m.f[i]
+Base.getindex(m::AbstractGP, i::Int) = getf(m, i)
 
 nIter(m::AbstractGP) = nIter(inference(m))
 

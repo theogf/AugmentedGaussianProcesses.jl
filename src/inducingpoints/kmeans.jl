@@ -46,7 +46,7 @@ function kmeans_ip(
   obsdim::Int = 1,
   nMarkov::Int = 10,
   weights = nothing,
-  tol = 1e-3,
+  tol = 1e-5,
 )
   if obsdim == 2
     C = kmeans_seeding(X, nC, nMarkov)

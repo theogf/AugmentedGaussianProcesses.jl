@@ -235,10 +235,10 @@ pr_cov(gp::TVarLatent) = prior(gp).χ * cov(prior(gp))
 pr_cov!(gp::AbstractLatent, K::PDMat) = gp.prior.K = K
 
 posterior(gp::AbstractLatent) = gp.post
-dim(gp::AbstractLatent) = dim(posterior(gp))
-mean(gp::AbstractLatent) = mean(posterior(gp))
-cov(gp::AbstractLatent) = cov(posterior(gp))
-var(gp::AbstractLatent) = var(posterior(gp))
+Distributions.dim(gp::AbstractLatent) = dim(posterior(gp))
+Distributions.mean(gp::AbstractLatent) = mean(posterior(gp))
+Distributions.cov(gp::AbstractLatent) = cov(posterior(gp))
+Distributions.var(gp::AbstractLatent) = var(posterior(gp))
 nat1(gp::AbstractVarLatent) = nat1(posterior(gp))
 nat2(gp::AbstractVarLatent) = nat2(posterior(gp))
 

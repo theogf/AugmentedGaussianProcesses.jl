@@ -1,9 +1,9 @@
 abstract type AbstractGPPrior{T<:Real,K<:Kernel,Tmean<:PriorMean} end
 
 kernel(gp::AbstractGPPrior) = gp.kernel
-mean(gp::AbstractGPPrior) = gp.μ₀
-mean(gp::AbstractGPPrior, X::AbstractVector) = gp.μ₀(X)
-cov(gp::AbstractGPPrior) = gp.K
+Distributions.mean(gp::AbstractGPPrior) = gp.μ₀
+Distributions.mean(gp::AbstractGPPrior, X::AbstractVector) = gp.μ₀(X)
+Distributions.cov(gp::AbstractGPPrior) = gp.K
 
 mutable struct GPPrior{T,K<:Kernel,Tmean<:PriorMean} <: AbstractGPPrior{T,K,Tmean}
     kernel::K

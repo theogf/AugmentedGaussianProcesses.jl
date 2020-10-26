@@ -90,7 +90,6 @@ module AugmentedGaussianProcesses
     include(joinpath("inference", "inference.jl"))
     include(joinpath("likelihood", "likelihood.jl"))
 
-    include(joinpath("functions", "init.jl"))
     include(joinpath("functions", "KLdivergences.jl"))
     include(joinpath("data", "utils.jl"))
     include(joinpath("functions", "plotting.jl"))

@@ -1,9 +1,9 @@
 abstract type AbstractPosterior{T<:Real} end
 
-dim(p::AbstractPosterior) = p.dim
-mean(p::AbstractPosterior) = p.μ
-cov(p::AbstractPosterior) = p.Σ
-var(p::AbstractPosterior) = diag(p.Σ)
+Distributions.dim(p::AbstractPosterior) = p.dim
+Distributions.mean(p::AbstractPosterior) = p.μ
+Distributions.cov(p::AbstractPosterior) = p.Σ
+Distributions.var(p::AbstractPosterior) = diag(p.Σ)
 
 mutable struct Posterior{T<:Real} <: AbstractPosterior{T}
     dim::Int
@@ -11,7 +11,7 @@ mutable struct Posterior{T<:Real} <: AbstractPosterior{T}
     Σ::PDMat{T,Matrix{T}} # Posterior Covariance : K + σ²I
 end
 
-mean(p::Posterior) = p.α
+Distributions.mean(p::Posterior) = p.α
 
 abstract type AbstractVarPosterior{T} <: AbstractPosterior{T} end
 
@@ -56,4 +56,4 @@ struct SampledPosterior{T} <: AbstractPosterior{T}
     Σ::Symmetric{T, Matrix{T}}
 end
 
-mean(p::SampledPosterior) = p.f
+Distributions.mean(p::SampledPosterior) = p.f

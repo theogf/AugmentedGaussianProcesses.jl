@@ -4,6 +4,8 @@ const pred_nodes, pred_weights =
     gausshermite(100) |> x -> (x[1] .* sqrt2, x[2] ./ sqrtπ)
 
 """
+    predict_f(m::AbstractGP, X_test, cov::Bool=true, diag::Bool=true)
+
 Compute the mean of the predicted latent distribution of `f` on `X_test` for the variational GP `model`
 
 Return also the diagonal variance if `cov=true` and the full covariance if `diag=false`
@@ -16,8 +18,8 @@ function _predict_f(
     cov::Bool = true,
     diag::Bool = true,
 ) where {T}
-    global k_star = kernelmatrix(kernel(m.f), X_test, input(m))
-    μf = k_star * mean(m.f) # k* * α
+    k_star = kernelmatrix(kernel(m.f), X_test, input(m))
+    μf = k_star * mean(m.f) # k * α
     if !cov
         return (μf,)
     end
@@ -27,7 +29,7 @@ function _predict_f(
         return μf, covf
     else
         k_starstar = kerneldiagmatrix(kernel(m.f), X_test) .+ T(jitt)
-        varf = k_starstar - opt_diag(k_star, AGP.cov(m.f) \ k_star)
+        varf = k_starstar - opt_diag(k_star / AGP.cov(m.f), k_star)
         return μf, varf
     end
 end
