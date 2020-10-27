@@ -1,6 +1,5 @@
 @testset "Analytic" begin
     seed!(42)
-    L = 3
     D = 10
     N = 20
     b = 5
@@ -11,7 +10,7 @@
     @test repr(i) == "Analytic Inference"
     xview = view(x, :)
     yview = view(y, :)
-    i = AGP.tuple_inference(i, L, D, N, b, xview, yview)
+    i = AGP.init_inference(i, N, xview, yview)
 
     @test AGP.xview(i) == view(x, :)
     @test AGP.yview(i) == view(y, :)

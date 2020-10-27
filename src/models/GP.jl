@@ -78,9 +78,6 @@ function GP(
     yview = view_y(likelihood, data, 1:nSamples(data))
     inference = init_inference(
         inference,
-        1,
-        nSamples(data),
-        nSamples(data),
         nSamples(data),
         xview,
         yview,

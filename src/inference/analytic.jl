@@ -40,10 +40,7 @@ end
 
 function init_inference(
     i::Analytic{T},
-    nLatent::Integer,
-    nFeatures::Integer,
     nSamples::Integer,
-    nSamplesUsed::Integer,
     xview::TX,
     yview::TY,
 ) where {T<:Real, TX, TY}
