@@ -9,24 +9,24 @@
 Where `σ` is the logistic function
 
 """
-struct NegBinomialLikelihood{T<:Real,A<:AbstractVector{T}} <: EventLikelihood{T}
-    r::T
+struct NegBinomialLikelihood{T<:Real,Tr<:Real,A<:AbstractVector{T}} <: EventLikelihood{T}
+    r::Tr
     c::A
     θ::A
     function NegBinomialLikelihood{T}(r::Real) where {T<:Real}
-        new{T,Vector{T}}(T(r))
+        new{T,typeof(r),Vector{T}}(r)
     end
     function NegBinomialLikelihood{T}(
         r::Real,
         c::A,
         θ::A,
     ) where {T<:Real,A<:AbstractVector{T}}
-        new{T,A}(T(r), c, θ)
+        new{T,typeof(r),A}(r, c, θ)
     end
 end
 
-function NegBinomialLikelihood(r::T = 10) where {T<:Real}
-    NegBinomialLikelihood{T}(r)
+function NegBinomialLikelihood(r::Real = 10)
+    NegBinomialLikelihood{Float64}(r)
 end
 
 implemented(::NegBinomialLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) =
