@@ -1,33 +1,32 @@
 """
-```julia
-    NegBinomialLikelihood(r::Int=10)
-```
+    NegBinomialLikelihood(r::Real=10)
 
 [Negative Binomial likelihood](https://en.wikipedia.org/wiki/Negative_binomial_distribution) with number of failures `r`
 ```math
-    p(y|r,f) = binomial(y+r-1,y) (1-σ(f))ʳσ(f)ʸ
+    p(y|r, f) = binomial(y + r - 1, y) (1 - σ(f))ʳ σ(f)ʸ
+    p(y|r, f) = Γ(y + r)/Γ(y + 1)Γ(r) (1 - σ(f))ʳ σ(f)ʸ
 ```
 Where `σ` is the logistic function
 
 """
 struct NegBinomialLikelihood{T<:Real,A<:AbstractVector{T}} <: EventLikelihood{T}
-    r::Int
+    r::T
     c::A
     θ::A
-    function NegBinomialLikelihood{T}(r::Int) where {T<:Real}
-        new{T,Vector{T}}(r)
+    function NegBinomialLikelihood{T}(r::Real) where {T<:Real}
+        new{T,Vector{T}}(T(r))
     end
     function NegBinomialLikelihood{T}(
-        r::Int,
+        r::Real,
         c::A,
         θ::A,
     ) where {T<:Real,A<:AbstractVector{T}}
-        new{T,A}(r, c, θ)
+        new{T,A}(T(r), c, θ)
     end
 end
 
-function NegBinomialLikelihood(r::Int = 10)
-    NegBinomialLikelihood{Float64}(r)
+function NegBinomialLikelihood(r::T = 10) where {T<:Real}
+    NegBinomialLikelihood{T}(r)
 end
 
 implemented(::NegBinomialLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) =
@@ -35,8 +34,8 @@ implemented(::NegBinomialLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) =
 
 function init_likelihood(
     likelihood::NegBinomialLikelihood{T},
-    inference::Inference{T},
-    nLatent::Int,
+    ::Inference{T},
+    ::Int,
     nSamplesUsed::Int,
 ) where {T}
     NegBinomialLikelihood{T}(
@@ -121,6 +120,14 @@ function logabsbinomial(n, k)
     log(binomial(n, k))
 end
 
+function negbin_logconst(y, r::Real)
+    loggamma.(y .+ r) - loggamma.(y .+ 1) .- loggamma(r)
+end
+
+function negbin_logconst(y, r::Int)
+    logabsbinomial.(y .+ (r - 1), y)
+end
+
 function expec_log_likelihood(
     l::NegBinomialLikelihood{T},
     i::AnalyticVI,
@@ -128,7 +135,7 @@ function expec_log_likelihood(
     μ::AbstractVector,
     diag_cov::AbstractVector,
 ) where {T}
-    tot = sum(logabsbinomial.(y .+ (l.r - 1), y)) - log(2.0) * sum(y .+ l.r)
+    tot = sum(negbin_logconst(y, l.r)) - log(2.0) * sum(y .+ l.r)
     tot +=
         0.5 * dot(μ, (y .- l.r)) - 0.5 * dot(l.θ, μ) - 0.5 * dot(l.θ, diag_cov)
     return tot
