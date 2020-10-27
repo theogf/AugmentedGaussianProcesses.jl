@@ -68,14 +68,13 @@ function PolyaGammaKL(b, c, θ)
     dot(b, logcosh.(0.5 * c)) - 0.5 * dot(abs2.(c), θ)
 end
 
-
 """
     Entropy of GIG variables with parameters a,b and p and omitting the derivative d/dpK_p cf <https://en.wikipedia.org/wiki/Generalized_inverse_Gaussian_distribution#Entropy>
 """
 function GIGEntropy(a, b, p)
     sqrt_ab = sqrt.(a .* b)
-    return sum(0.5 * log.(a ./ b)) +
-           sum(log.(2 * besselk.(p, sqrt_ab))) +
+    return 0.5 * (sum(log, a) - sum(log, b)) +
+           mapreduce((p, s) -> log(2 * besselk(p, s), +, p, sqrt_ab)) +
            sum(
                0.5 * sqrt_ab ./ besselk.(p, sqrt_ab) .*
                (besselk.(p + 1, sqrt_ab) + besselk.(p - 1, sqrt_ab)),
