@@ -34,11 +34,13 @@ function update_hyperparameters!(
 )
     if !isnothing(gp.opt)
         f_l, f_μ₀ = hyperparameter_gradient_function(gp, X)
-        aduse = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
-        grads = if aduse == :forward_diff
+        ad_use = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
+        grads = if ad_use == :forward_diff
             ∇L_ρ_forward(f_l, gp, X)
-        elseif aduse == :reverse_diff
+        elseif ad_use == :reverse_diff
             ∇L_ρ_reverse(f_l, gp, X)
+        else
+            error("Uncompatible ADBackend")
         end
         grads[pr_mean(gp)] = f_μ₀()
         apply_grads_kernel_params!(gp.opt, kernel(gp), grads) # Apply gradients to the kernel parameters

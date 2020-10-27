@@ -45,12 +45,12 @@ function Z_gradient_forward(
     opt::InferenceOptimizer,
 ) where {T<:Real}
     gradient_inducing_points = similar(gp.Z.Z)
-    #preallocation
+    #pre-allocation
     Jmm, Jnm = indpoint_derivative(kernel(gp), gp.Z),
     indpoint_derivative(kernel(gp), X, gp.Z)
     for j = 1:gp.dim #Iterate over the points
         for k = 1:size(gp.Z, 2) #iterate over the dimensions
-            @views gradient_inducing_points[j, k] =
+            @views gradient_inducing_points[j, k] .=
                 f_Z(Jmm[:, :, j, k], Jnm[:, :, j, k], ∇E_μ, ∇E_Σ, i, opt)
         end
     end
@@ -71,7 +71,7 @@ function Z_gradient_forward(
     indpoint_derivative(kernel(gp), gp.Z)
     for j = 1:gp.dim #Iterate over the points
         for k = 1:size(gp.Z, 2) #iterate over the dimensions
-            @views Z_gradient[j, k] = f_Z(
+            @views Z_gradient[j, k] .= f_Z(
                 Jmm[:, :, j, k],
                 Jnm[:, :, j, k],
                 Jab[:, :, j, k],
