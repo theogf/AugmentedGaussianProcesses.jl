@@ -21,7 +21,7 @@ ks = []
     @assert length(y_past) == m.nTask
     @assert all(length.(y_past).>= p)
     @assert all(m.nDim .== p)
-    global Xtest = [reshape(y[(end-p+1):end],1,:) for y in y_past]
+    Xtest = [reshape(y[(end-p+1):end],1,:) for y in y_past]
     y_new = [zeros(T, n) for _ in 1:m.nTask]
     for i in 1:n
         setindex!.(y_new, first.(first.(first(_predict_f(m, Xtest, covf = false)))), i)
