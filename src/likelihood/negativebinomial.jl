@@ -113,7 +113,7 @@ end
 
 ## ELBO Section ##
 
-AugmentedKL(l::NegBinomialLikelihood{T}, y::AbstractVector) where {T} =
+AugmentedKL(l::NegBinomialLikelihood, y::AbstractVector) =
     PolyaGammaKL(l, y)
 
 function logabsbinomial(n, k)
@@ -130,7 +130,7 @@ end
 
 function expec_log_likelihood(
     l::NegBinomialLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
