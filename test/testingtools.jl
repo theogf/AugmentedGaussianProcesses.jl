@@ -174,7 +174,7 @@ function tests_likelihood(
             dictvgp = dict["VGP"]
             @testset "AnalyticVI" begin
                 if dictosvgp["AVI"]
-                    global model = OnlineSVGP(
+                    model = OnlineSVGP(
                         k,
                         l,
                         AnalyticVI(),

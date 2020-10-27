@@ -88,11 +88,11 @@ function compute_proba(
 end
 
 function local_updates!(
-    l::HeteroscedasticLikelihood{T},
+    l::HeteroscedasticLikelihood,
     y::AbstractVector,
     μ::NTuple{2,<:AbstractVector},
     diagΣ::NTuple{2,<:AbstractVector},
-) where {T}
+)
     # gp[1] is f and gp[2] is g (for approximating the noise)
     @. l.ϕ = 0.5 * (abs2(μ[1] - y) + diagΣ[1])
     @. l.c = sqrt(abs2(μ[2]) + diagΣ[2])
@@ -103,37 +103,37 @@ function local_updates!(
 end
 
 function variational_updates!(
-    model::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI},
-) where {T,L}
+    m::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI},
+) where {T}
     local_updates!(
-        model.likelihood,
-        yview(model),
-        mean_f(model),
-        var_f(model),
+        likelihood(m),
+        yview(m),
+        mean_f(m),
+        var_f(m),
     )
     natural_gradient!(
-        ∇E_μ(model.likelihood, opt_type(model.inference), yview(model))[2],
-        ∇E_Σ(model.likelihood, opt_type(model.inference), yview(model))[2],
-        getρ(model.inference),
-        opt_type(model.inference),
-        last(Zviews(model)),
-        model.f[2],
+        ∇E_μ(likelihood(m), opt_type(inference(m)), yview(m))[2],
+        ∇E_Σ(likelihood(m), opt_type(inference(m)), yview(m))[2],
+        getρ(inference(m)),
+        opt_type(inference(m)),
+        last(Zviews(m)),
+        m.f[2],
     )
-    global_update!(model.f[2], opt_type(model.inference), model.inference)
+    global_update!(m.f[2], opt_type(inference(m)), inference(m))
     heteroscedastic_expectations!(
-        model.likelihood,
-        mean_f(model.f[2]),
-        var_f(model.f[2]),
+        likelihood(m),
+        mean_f(m.f[2]),
+        var_f(m.f[2]),
     )
     natural_gradient!(
-        ∇E_μ(model.likelihood, opt_type(model.inference), yview(model))[1],
-        ∇E_Σ(model.likelihood, opt_type(model.inference), yview(model))[1],
-        getρ(model.inference),
-        opt_type(model.inference),
-        first(Zviews(model)),
-        model.f[1],
+        ∇E_μ(likelihood(m), opt_type(inference(m)), yview(m))[1],
+        ∇E_Σ(likelihood(m), opt_type(inference(m)), yview(m))[1],
+        getρ(inference(m)),
+        opt_type(inference(m)),
+        first(Zviews(m)),
+        m.f[1],
     )
-    global_update!(model.f[1], opt_type(model.inference), model.inference)
+    global_update!(m.f[1], opt_type(inference(m)), inference(m))
 end
 
 function heteroscedastic_expectations!(
@@ -154,13 +154,13 @@ end
     l::HeteroscedasticLikelihood,
     ::AOptimizer,
     y::AbstractVector,
-) where {T} = (0.5 * y .* l.λ .* l.σg, 0.5 * (0.5 .- l.γ))
+) = (0.5 * y .* l.λ .* l.σg, 0.5 * (0.5 .- l.γ))
 
 @inline ∇E_Σ(
     l::HeteroscedasticLikelihood,
     ::AOptimizer,
-    y::AbstractVector,
-) where {T} = (0.5 * l.λ .* l.σg, 0.5 * l.θ)
+    ::AbstractVector,
+) = (0.5 * l.λ .* l.σg, 0.5 * l.θ)
 
 function proba_y(
     model::AbstractGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}},

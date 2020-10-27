@@ -96,7 +96,7 @@ function sample_local!(
     l::LaplaceLikelihood,
     y::AbstractVector,
     f::AbstractVector,
-) where {T}
+)
     @. l.b = rand(GeneralizedInverseGaussian(1 / l.β^2, abs2(f - y), 0.5))
     set_ω!(l, inv.(l.b))
     return nothing

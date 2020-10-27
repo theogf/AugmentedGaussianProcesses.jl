@@ -2,6 +2,8 @@ view_x(d::AbstractDataContainer, indices) = view(d.X, indices)
 view_y(l::Likelihood, y::AbstractVector, i::AbstractVector) = view(y, i)
 view_y(l::Likelihood, d::AbstractDataContainer, i::AbstractVector) = view_y(l, output(d), i)
 view_y(l::Likelihood, d::MODataContainer, i::AbstractVector) = view_y.(l, output(d), Ref(i))
+view_y(l::AbstractVector{<:Likelihood}, d::MODataContainer, i::AbstractVector) = view_y.(l, output(d), Ref(i))
+
 
 # Verify that the data is self-consistent and consistent with the likelihood ##
 function check_data!(

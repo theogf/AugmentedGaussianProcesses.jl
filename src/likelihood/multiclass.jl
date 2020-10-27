@@ -11,8 +11,8 @@ function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:MultiC
     return likelihood.Y, num_class(likelihood), likelihood
 end
 
-function init_multiclass_likelihood!(l::MultiClassLikelihood,y::AbstractVector) where {L<:MultiClassLikelihood}
-    if !isdefined(l,:ind_mapping)
+function init_multiclass_likelihood!(l::MultiClassLikelihood,y::AbstractVector)
+    if !isdefined(l, :ind_mapping)
         create_mapping!(l,y)
     end
     create_one_hot!(l,y)
@@ -79,10 +79,10 @@ function expec_logpdf(model::AbstractGP{T,<:MultiClassLikelihood,<:NumericalVI})
     compute_log_expectations(model)
 end
 
-log_likelihood(l::MultiClassLikelihood,y::AbstractVector,fs) where {T<:Real} = logpdf.(l,y,[getindex.(fs,i) for i in 1:length(y)])
+log_likelihood(l::MultiClassLikelihood, y::AbstractVector, fs) = logpdf.(l, y, [getindex.(fs, i) for i in 1:length(y)])
 
 function grad_log_likelihood(l::Likelihood,y::AbstractVector,fs)
-    grad_logpdf.(l,y,[getindex.(fs,i) for i in 1:length(y)])
+    grad_logpdf.(l, y, [getindex.(fs, i) for i in 1:length(y)])
 end
 
 

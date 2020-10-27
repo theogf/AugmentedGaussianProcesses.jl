@@ -14,20 +14,20 @@ struct DataContainer{
     TY<:AbstractVector,
 } <: AbstractDataContainer
     X::TX # Feature vectors
-    y::TY # Output (-1,1 for classification, real for regression, matrix for multiclass)
+    y::TY # Output (-1,1 for classification, real for regression, vector{vector} for multiclass)
     nSamples::Int # Number of samples
     nDim::Int # Number of features per sample
 end
 
 function wrap_data(X::TX, y::TY) where {TX, TY<:AbstractVector{<:Real}}
-    size(y, 1) == size(X, 1) || error("There is not the same number of samples in X ($(length(TX))) and y ($(size(y, 1)))")
+    length(y) == length(X) || error("There is not the same number of samples in X ($(length(X))) and y ($(length(y)))")
     Tx = eltype(first(X))
     Ty = eltype(first(y))
     return DataContainer{Tx, TX, Ty, TY}(X, y, length(X), length(first(X)))
 end
 
 function wrap_data(X::TX, y::TY) where {TX, TY<:AbstractVector}
-    size(first(y), 1) == size(X, 1) || error("There is not the same number of samples in X ($(length(TX))) and y ($(size(y, 1)))")
+    all(length.(y) .== length(X)) || error("There is not the same number of samples in X ($(length(X))) and y ($(length.(y))))")
     Tx = eltype(first(X))
     Ty = eltype(first(y))
     return DataContainer{Tx, TX, Ty, TY}(X, y, length(X), length(first(X)))
@@ -46,7 +46,7 @@ struct MODataContainer{
 end
 
 function wrap_modata(X::TX, y::TY) where {TX, TY<:AbstractVector}
-    all(size.(y, 1) .== size(X, 1)) || error("There is not the same number of samples in X ($(length(TX))) and y ($(size(y, 1)))")
+    all(length.(y) .== length(X)) || error("There is not the same number of samples in X ($(length(X))) and y ($(length.(y))))")
     Tx = eltype(first(X))
     return MODataContainer{Tx, TX, TY}(X, y, length(X), length(first(X)), length(y))
 end

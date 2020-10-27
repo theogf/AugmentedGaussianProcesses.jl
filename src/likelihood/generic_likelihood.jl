@@ -181,8 +181,6 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ)
                     sig_pred[i] = dot(AGP.pred_weights,AGP.pdf.(l,1,x).^2) - pred[i]^2
                 end
                 return pred,sig_pred
-            else
-                @error "Prediction not implemented yet, please file an issue"
             end
         end
 

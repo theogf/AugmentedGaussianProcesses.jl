@@ -16,8 +16,8 @@ const jitt = Jittering()
 @inline function δ(T, i::Integer, j::Integer)
     ifelse(i == j, one(T), zero(T))
 end
-
 δ(i::Integer, j::Integer) = δ(Float64, i, j)
+
 ## Hadamard product between two arrays of same size ##
 @inline function hadamard(A::AbstractArray{<:Real}, B::AbstractArray{<:Real})
     A .* B
@@ -78,7 +78,7 @@ function opt_add_diag_mat(
     A
 end
 
-Base.:/(c::AbstractMatrix, a::PDMat) = c / a.mat ### SAAAAAADDDDDD
+Base.:/(c::AbstractMatrix, a::PDMat) = c / a.mat ### TODO : SAAAAAADDDDDD
 
 ## Compute exp(μ)/cosh(c) safely if there is an overflow ##
 function safe_expcosh(μ::Real, c::Real)

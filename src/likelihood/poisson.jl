@@ -97,7 +97,7 @@ function sample_local!(
     l::PoissonLikelihood,
     y::AbstractVector,
     f::AbstractVector,
-) where {T}
+)
     @. l.γ = rand(Poisson(l.λ * logistic(f))) # Sample n
     pg = PolyaGammaDist()
     set_ω!(l, draw.([pg], y + l.γ, f)) # Sample ω

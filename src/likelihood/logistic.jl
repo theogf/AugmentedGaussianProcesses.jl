@@ -97,7 +97,7 @@ end
 
 function local_updates!(
     l::LogisticLikelihood{T},
-    y::AbstractVector,
+    ::AbstractVector,
     μ::AbstractVector,
     diagΣ::AbstractVector,
 ) where {T}
@@ -107,9 +107,9 @@ end
 
 function sample_local!(
     l::LogisticLikelihood,
-    y::AbstractVector,
+    ::AbstractVector,
     f::AbstractVector,
-) where {T}
+)
     pg = PolyaGammaDist()
     set_ω!(l, draw.([pg], [1.0], f))
 end

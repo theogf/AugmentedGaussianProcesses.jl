@@ -68,7 +68,7 @@ end;
 
 function plot_contour(model, σ)
     n_grid = 100
-    global pred_proba, pred, x, y = compute_grid(model, n_grid);
+    pred_proba, pred, x, y = compute_grid(model, n_grid);
     colors = reshape(
             [
                 RGB([pred_proba[model.likelihood.ind_mapping[j]][i] for j in 1:n_class]...)

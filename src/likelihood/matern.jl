@@ -99,7 +99,7 @@ function sample_local!(
     l::Matern3_2Likelihood,
     y::AbstractVector,
     f::AbstractVector,
-) where {T}
+)
     l.c .=
         rand.(GeneralizedInverseGaussian.(
             3 / (2 * l.ρ^2),
@@ -114,12 +114,12 @@ end
     l::Matern3_2Likelihood,
     ::AOptimizer,
     y::AbstractVector,
-) where {T} = (2.0 * l.θ .* y,)
+) = (2.0 * l.θ .* y,)
 @inline ∇E_Σ(
     l::Matern3_2Likelihood,
     ::AOptimizer,
-    y::AbstractVector,
-) where {T} = (l.θ,)
+    ::AbstractVector,
+) = (l.θ,)
 
 ## ELBO  ##
 
@@ -129,7 +129,7 @@ function expecLogLikelihood(
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
-) where {T}
+)
     throw(error("Not implemented yet"))
 end
 
