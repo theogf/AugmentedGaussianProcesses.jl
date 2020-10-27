@@ -1,6 +1,7 @@
 using AugmentedGaussianProcesses
 using Test
 using LinearAlgebra, Distributions
+using PDMats
 using MLDataUtils
 using Random: seed!
 seed!(42)
@@ -10,6 +11,12 @@ include("testingtools.jl")
 AGP.setadbackend(:reverse_diff)
 # Global flags for the tests
 @testset "AugmentedGaussianProcesses.jl tests" begin
+    @info "Testing data"
+    @testset "Data test" begin
+        include(joinpath("data", "datacontainer.jl"))
+        include(joinpath("data", "utils.jl"))
+    end
+
     @info "Function tests"
     @testset "Functions" begin
         for f in readdir(joinpath(@__DIR__, "functions"))
