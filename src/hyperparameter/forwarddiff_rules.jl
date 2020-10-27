@@ -1,44 +1,42 @@
-function check_kernel_forward_diff(kernel)
-    ps = Flux.params(kernel)
-    isempty(ps) || return false
-    p = first(ps)
-    if p isa AbstractArray
-        return true
-    else
-        @warn "ForwardDiff backend only works for simple kernels with ARD or ScaleTransform, use `setadbackend(:reverse_diff)` to use reverse differentiation"
-        return false
+function ∇L_ρ_forward(f, gp::AbstractLatent, X::AbstractVector)
+    θ, re = functor(kernel(gp))
+    g = ForwardDiff.gradient(θ) do x
+        k = re(x)
+        Knn = kernelmatrix(k, X)
+        f(Knn)
     end
+    return IdDict{Any,Any}(θ => g)
 end
 
-function ∇L_ρ_forward(f, gp, X)
-    check_kernel_forward_diff(gp.kernel)
-    Jnn = kernelderivativematrix(gp.kernel, X, obsdim = 1)
-    grads = map(f, Jnn)
-    return IdDict{Any,Any}(first(Flux.params(gp.kernel)) => grads)
+function ∇L_ρ_forward(f, gp::SparseVarLatent, X::AbstractVector, ∇E_μ, ∇E_Σ, i, opt)
+    θ, re = functor(kernel(gp))
+    g = ForwardDiff.gradient(θ) do x
+        k = re(x)
+        Kmm = kernelmatrix(k, Zview(gp))
+        Knm = kernelmatrix(k, X, Zview(gp))
+        Knn = kerneldiagmatrix(k, X)
+        f(Kmm, Knm, Knn, Ref(∇E_μ), Ref(∇E_Σ), Ref(i), Ref(opt))
+    end
+    return IdDict{Any,Any}(θ => g)
 end
 
-function ∇L_ρ_forward(f, gp::_SVGP, X, ∇E_μ, ∇E_Σ, i, opt)
-    Jmm = kernelderivativematrix(gp.kernel, gp.Z.Z, obsdim = 1)
-    Jnm = kernelderivativematrix(gp.kernel, X, gp.Z.Z, obsdim = 1)
-    Jnn = kerneldiagderivativematrix(gp.kernel, X, obsdim = 1)
-    grads = f.(Jmm, Jnm, Jnn, Ref(∇E_μ), Ref(∇E_Σ), Ref(i), Ref(opt))
-    return IdDict{Any,Any}(first(Flux.params(gp.kernel)) => grads)
-end
-
-function ∇L_ρ_forward(f, gp::_OSVGP, X, ∇E_μ, ∇E_Σ, i, opt)
-    Jmm = kernelderivativematrix(gp.kernel, gp.Z.Z, obsdim = 1)
-    Jnm = kernelderivativematrix(gp.kernel, X, gp.Z.Z, obsdim = 1)
-    Jnn = kerneldiagderivativematrix(gp.kernel, X, obsdim = 1)
-    Jaa = kernelderivativematrix(gp.kernel, gp.Zₐ, obsdim = 1)
-    Jab = kernelderivativematrix(gp.kernel, gp.Zₐ, gp.Z.Z, obsdim = 1)
-    grads =
-        map(f, Jmm, Jnm, Jnn, Jab, Jaa, Ref(∇E_μ), Ref(∇E_Σ), Ref(i), Ref(opt))
-    return IdDict{Any,Any}(first(Flux.params(gp.kernel)) => grads)
+function ∇L_ρ_forward(f, gp::OnlineVarLatent, X::AbstractVector, ∇E_μ, ∇E_Σ, i, opt)
+    θ, re = functor(kernel(gp))
+    g = ForwardDiff.gradient(θ) do x
+        k = re(x)
+        Kmm = kernelmatrix(k, Zview(gp))
+        Knm = kernelmatrix(k, X, Zview(gp))
+        Knn = kerneldiagmatrix(k, X)
+        Kaa = kernelmatrix(k, gp.Zₐ)
+        Kab = kernelmatrix(k, gp.Zₐ, Zview(gp))
+        f(Kmm, Knm, Jnn, Jab, Jaa, Ref(∇E_μ), Ref(∇E_Σ), Ref(i), Ref(opt))
+    end
+    return IdDict{Any,Any}(θ => g)
 end
 
 ## Return a function computing the gradient of the ELBO given the inducing point locations ##
 function Z_gradient_forward(
-    gp::_SVGP{T},
+    gp::SparseVarLatent{T},
     f_Z::Function,
     X,
     ∇E_μ::AbstractVector{T},
@@ -48,8 +46,8 @@ function Z_gradient_forward(
 ) where {T<:Real}
     gradient_inducing_points = similar(gp.Z.Z)
     #preallocation
-    Jmm, Jnm = indpoint_derivative(gp.kernel, gp.Z),
-    indpoint_derivative(gp.kernel, X, gp.Z)
+    Jmm, Jnm = indpoint_derivative(kernel(gp), gp.Z),
+    indpoint_derivative(kernel(gp), X, gp.Z)
     for j = 1:gp.dim #Iterate over the points
         for k = 1:size(gp.Z, 2) #iterate over the dimensions
             @views gradient_inducing_points[j, k] =
@@ -59,7 +57,7 @@ function Z_gradient_forward(
 end
 
 function Z_gradient_forward(
-    gp::_OSVGP{T},
+    gp::OnlineVarLatent{T},
     f_Z::Function,
     X,
     ∇E_μ::AbstractVector{T},
@@ -68,9 +66,9 @@ function Z_gradient_forward(
     opt::InferenceOptimizer,
 ) where {T<:Real}
     Z_gradient = similar(gp.Z.Z)
-    Jnm, Jab, Jmm = indpoint_derivative(gp.kernel, X, gp.Z),
-    indpoint_derivative(gp.kernel, gp.Zₐ, gp.Z),
-    indpoint_derivative(gp.kernel, gp.Z)
+    Jnm, Jab, Jmm = indpoint_derivative(kernel(gp), X, gp.Z),
+    indpoint_derivative(kernel(gp), gp.Zₐ, gp.Z),
+    indpoint_derivative(kernel(gp), gp.Z)
     for j = 1:gp.dim #Iterate over the points
         for k = 1:size(gp.Z, 2) #iterate over the dimensions
             @views Z_gradient[j, k] = f_Z(
@@ -87,126 +85,7 @@ function Z_gradient_forward(
     return Z_gradient
 end
 
-
-
-function kernelderivativematrix(
-    kernel::Kernel,
-    X::AbstractMatrix;
-    obsdim = obsdim,
-)
-    p = first(Flux.params(kernel))
-    if length(p) == 1
-        J = reshape(
-            ForwardDiff.jacobian(
-                x -> kernelmatrix(
-                    KernelFunctions.base_kernel(kernel)(first(x)),
-                    X,
-                    obsdim = obsdim,
-                ),
-                p,
-            ),
-            size(X, 1),
-            size(X, 1),
-            1,
-        )
-    else
-        J = reshape(
-            ForwardDiff.jacobian(
-                x -> kernelmatrix(
-                    KernelFunctions.base_kernel(kernel)(x),
-                    X,
-                    obsdim = obsdim,
-                ),
-                p,
-            ),
-            size(X, 1),
-            size(X, 1),
-            length(p),
-        )
-    end
-    return [J[:, :, i] for i = 1:length(p)]
-end
-
-function kernelderivativematrix(
-    kernel::Kernel,
-    X::AbstractMatrix,
-    Y::AbstractMatrix;
-    obsdim = obsdim,
-)
-    p = first(Flux.params(kernel))
-    @assert p isa AbstractVector
-    if length(p) == 1
-        J = reshape(
-            ForwardDiff.jacobian(
-                x -> kernelmatrix(
-                    KernelFunctions.base_kernel(kernel)(first(x)),
-                    X,
-                    Y,
-                    obsdim = obsdim,
-                ),
-                p,
-            ),
-            size(X, 1),
-            size(Y, 1),
-            1,
-        )
-    else
-        J = reshape(
-            ForwardDiff.jacobian(
-                x -> kernelmatrix(
-                    KernelFunctions.base_kernel(kernel)(x),
-                    X,
-                    Y,
-                    obsdim = obsdim,
-                ),
-                p,
-            ),
-            size(X, 1),
-            size(Y, 1),
-            length(p),
-        )
-    end
-    return [J[:, :, i] for i = 1:length(p)]
-end
-
-function kerneldiagderivativematrix(
-    kernel::Kernel,
-    X::AbstractMatrix;
-    obsdim = obsdim,
-)
-    p = first(Flux.params(kernel))
-    @assert p isa AbstractVector
-    if length(p) == 1
-        J = reshape(
-            ForwardDiff.jacobian(
-                x -> kerneldiagmatrix(
-                    KernelFunctions.base_kernel(kernel)(first(x)),
-                    X,
-                    obsdim = obsdim,
-                ),
-                p,
-            ),
-            size(X, 1),
-            1,
-        )
-    else
-        J = reshape(
-            ForwardDiff.jacobian(
-                x -> kerneldiagmatrix(
-                    KernelFunctions.base_kernel(kernel)(x),
-                    X,
-                    obsdim = 1,
-                ),
-                p,
-            ),
-            size(X, 1),
-            length(p),
-        )
-    end
-    return [J[:, i] for i = 1:length(p)]
-end
-
-function indpoint_derivative(kernel::Kernel, Z::InducingPoints)
+function indpoint_derivative(kernel::Kernel, Z::AbstractInducingPoints)
     reshape(
         ForwardDiff.jacobian(x -> kernelmatrix(kernel, x, obsdim = 1), Z),
         size(Z, 1),
@@ -216,7 +95,7 @@ function indpoint_derivative(kernel::Kernel, Z::InducingPoints)
     )
 end
 
-function indpoint_derivative(kernel::Kernel, X, Z::InducingPoints)
+function indpoint_derivative(kernel::Kernel, X, Z::AbstractInducingPoints)
     reshape(
         ForwardDiff.jacobian(x -> kernelmatrix(kernel, X, x, obsdim = 1), Z),
         size(X, 1),

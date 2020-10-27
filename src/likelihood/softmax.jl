@@ -64,7 +64,6 @@ function init_likelihood(
     inference::Inference{T},
     nLatent::Int,
     nSamplesUsed::Int,
-    nFeatures::Int,
 ) where {T}
     if inference isa GibbsSampling
         θ = [abs.(rand(T, nSamplesUsed)) * 2 for i = 1:nLatent]
@@ -105,8 +104,8 @@ function grad_samples(
     index::Integer,
 ) where {T}
     class = model.likelihood.y_class[index]
-    grad_μ = zeros(T, model.nLatent)
-    grad_Σ = zeros(T, model.nLatent)
+    grad_μ = zeros(T, nLatent(model))
+    grad_Σ = zeros(T, nLatent(model))
     nSamples = size(samples, 1)
     samples .= mapslices(StatsFuns.softmax, samples, dims = 2)
     t = 0.0
@@ -117,7 +116,7 @@ function grad_samples(
         @views h = diaghessian_softmax(samples[i, :], class) / s
         grad_Σ += h - abs2.(g_μ)
     end
-    for k = 1:model.nLatent
+    for k = 1:nLatent(model)
         model.inference.vi_opt[k].ν[index] = -grad_μ[k] / nSamples
         model.inference.vi_opt[k].λ[index] = grad_Σ[k] / nSamples
     end

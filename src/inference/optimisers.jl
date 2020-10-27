@@ -44,17 +44,17 @@ function init!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
         model.inference.xview = view(model.X,model.inference.MBIndices,:)
         model.inference.yview = view_y(model.likelihood,model.y,model.inference.MBIndices)
         computeMatrices!(model)
-        local_updates!(model.likelihood,get_y(model),mean_f(model),diag_cov_f(model))
+        local_updates!(likelihood(model), yview(model), mean_f(model),var_f(model))
         natural_gradient!.(
-            ∇E_μ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
-            ∇E_Σ(model.likelihood,model.inference.vi_opt[1],get_y(model)),
-            model.inference,model.inference.vi_opt,get_Z(model),model.f)
+            ∇E_μ(model.likelihood,model.inference.vi_opt[1],yview(model)),
+            ∇E_Σ(model.likelihood,model.inference.vi_opt[1],yview(model)),
+            model.inference,model.inference.vi_opt, Zviews(model),model.f)
         init_ALRSVI!.(model.inference.vi_opt,model.f,τ)
     end
     finalize_init_ALRSVI!.(model.inference.vi_opt,model.f)
 end
 
-function init_ALRSVI!(vi_opt::AVIOptimizer,gp::Abstract_GP{T},τ) where {T}
+function init_ALRSVI!(vi_opt::AVIOptimizer,gp::AbstractLatent{T},τ) where {T}
     objη₁ = get!(vi_opt.opt.state,gp.η₁,ALRSVIBase(zeros(T,gp.dims),Ref(zero(T)),Ref(1.0),Ref(τ),Ref(1)))
     objη₁.g .+= inf.∇η₁
     objη₁.h[] += norm(inf.∇η₁)
@@ -64,7 +64,7 @@ function init_ALRSVI!(vi_opt::AVIOptimizer,gp::Abstract_GP{T},τ) where {T}
     objη₂.h[] += sum(abs2,inf.∇η₂)
 end
 
-function finalize_init_ALRSVI!(vi_opt::AVIOptimizer,gp::Abstract_GP{T}) where {T}
+function finalize_init_ALRSVI!(vi_opt::AVIOptimizer,gp::AbstractLatent{T}) where {T}
     objη₁ = get(vi_opt.opt.state,gp.η₁)
     objη₁.g ./= obj.τ
     objη₁.h[] /= obj.τ

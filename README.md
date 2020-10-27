@@ -64,14 +64,14 @@ Run `julia`, press `]` and type `add AugmentedGaussianProcesses`, it will instal
 
 ## Use the package
 
-A complete documentation is available [in the docs](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable). For a short start now you can use this very basic example where `X_train` is a matrix ``N x D`` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs (or matrix of independent outputs).
+A complete documentation is available [in the docs](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable). For a short start now you can use this very basic example where `X_train` is a matrix `N x D` where `N` is the number of training points and `D` is the number of dimensions and `Y_train` is a vector of outputs (or matrix of independent outputs).
 
 ```julia
 using AugmentedGaussianProcesses;
 using KernelFunctions
-model = SVGP(X_train,Y_train,SqExponentialKernel(1.0),LogisticLikelihood(),AnalyticSVI(100),64)
-train!(model,100)
-Y_predic = predict_y(model,X_test) #For getting the label directly
+model = SVGP(X_train, Y_train, SqExponentialKernel(), LogisticLikelihood(),AnalyticSVI(100), 64)
+train!(model, 100)
+Y_predic = predict_y(model, X_test) #For getting the label directly
 Y_predic_prob, Y_predic_prob_var = proba_y(model,X_test) #For getting the likelihood (and likelihood uncertainty) of predicting class 1
 ```
 

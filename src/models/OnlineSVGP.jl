@@ -3,22 +3,21 @@ mutable struct OnlineSVGP{
     T<:Real,
     TLikelihood<:Likelihood{T},
     TInference<:Inference{T},
+    TData<:AbstractDataContainer,
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Matrix{T} #Feature vectors
-    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nDim::Int64 # Number of covariates per data point
-    nFeatures::Int64 # Number of features of the GP (equal to number of points)
-    nLatent::Int64 # Number of latent GPs
-    f::NTuple{N,_OSVGP}
+    data::TData
+    f::NTuple{N,OnlineVarLatent{T}}
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
-"""Create a Online Sparse Variational Gaussian Process model
+"""
+    OnlineSVGP(kernel, likelihood, inference, Zalg)
+Create a Online Sparse Variational Gaussian Process model
 Argument list :
 
 **Mandatory arguments**
@@ -37,22 +36,24 @@ function OnlineSVGP(
     kernel::Kernel,
     likelihood::Likelihood,
     inference::Inference,
-    Z::InducingPoints = CircleKMeans(0.9, 0.8);
+    Z::AbstractInducingPoints = OIPS(0.9);
     verbose::Integer = 0,
     optimiser = ADAM(0.01),
     atfrequency::Integer = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     IndependentPriors::Bool = true,
-    ArrayType::UnionAll = Vector,
-    T₁ = Float64,
+    Zoptimiser = nothing,
+    T::DataType = Float64,
 )
-
-    @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
-    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    data = OnlineDataContainer()
+    inference isa AnalyticVI || error("The inference object should be of type `AnalyticVI`")
+    implemented(likelihood, inference) || error("The $likelihood is not compatible or implemented with the $inference")
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
+
+    Z = Z isa OptimIP ? Z : init_Z(Z, Zoptimiser)
 
     if typeof(mean) <: Real
         mean = ConstantMean(mean)
@@ -61,15 +62,11 @@ function OnlineSVGP(
     end
 
     nLatent = num_latent(likelihood)
-    latentf = ntuple(_ -> _OSVGP{T₁}(0, 0, Z, kernel, mean, optimiser), nLatent)
-    inference = tuple_inference(inference, nLatent, 0, 0, 0)
+    latentf = ntuple(_ -> OnlineVarLatent(T, 0, 0, Z, kernel, mean, optimiser), nLatent)
+    inference = tuple_inference(inference, nLatent, 0, 0, 0, [], [])
     inference.nIter = 1
-    return OnlineSVGP{T₁,typeof(likelihood),typeof(inference),nLatent}(
-        Matrix{T₁}(undef, 0, 0),
-        [],
-        0,
-        0,
-        nLatent,
+    return OnlineSVGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
+        data,
         latentf,
         likelihood,
         inference,
@@ -91,7 +88,30 @@ end
 
 @traitimpl IsSparse{OnlineSVGP}
 
-get_Z(model::OnlineSVGP) = get_Z.(model.f)
-get_Z(model::OnlineSVGP, i::Int) = get_Z(model.f[i])
-get_Zₐ(model::OnlineSVGP) = getproperty.(model.f, :Zₐ)
-objective(model::OnlineSVGP) = ELBO(model)
+Zviews(m::OnlineSVGP) = Zview.(m.f)
+objective(m::OnlineSVGP) = ELBO(m)
+MBIndices(m::OnlineSVGP) = 1:nSamples(m)
+xview(m::OnlineSVGP) = input(m)
+yview(m::OnlineSVGP) = output(m)
+nFeatures(m::OnlineSVGP) = collect(dim.(getf(m)))
+
+
+
+## Accessors to InducingPoints methods
+InducingPoints.init(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.init(Z.Z, m, gp)
+InducingPoints.init(Z::OIPS, m, gp) = InducingPoints.init(Z, input(m), kernel(gp))
+
+InducingPoints.add_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.add_point!(Z.Z, m, gp)
+InducingPoints.add_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.add_point!(Z, input(m), kernel(gp))
+
+InducingPoints.remove_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z.Z, m, gp)
+InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z, pr_cov(gp), kernel(gp))
+
+opt(Z::OptimIP) = Z.opt
+opt(Z::AbstractInducingPoints) = nothing
+
+function update!(opt, Z::AbstractInducingPoints, Z_grads)
+    for (z, zgrad) in zip(Z, Z_grads)
+        z .+= apply(opt, z, zgrad)
+    end
+end

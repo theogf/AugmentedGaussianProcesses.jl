@@ -111,7 +111,7 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ)
             $(lname){Float64}()
         end
 
-        function AGP.init_likelihood(likelihood::$(lname){T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int,nFeatures::Int) where T
+        function AGP.init_likelihood(likelihood::$(lname){T},inference::Inference{T},nLatent::Int,nSamplesUsed::Int) where T
             if inference isa AnalyticVI || inference isa GibbsSampling
                 $(lname){T}(zeros(T,nSamplesUsed),zeros(T,nSamplesUsed))
             else

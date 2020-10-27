@@ -46,7 +46,6 @@ function init_likelihood(
     inference::Inference{T},
     nLatent::Int,
     nSamplesUsed::Int,
-    nFeatures::Int,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
         LogisticLikelihood{T}(
@@ -70,6 +69,12 @@ function Base.show(io::IO, ::LogisticLikelihood)
     print(io, "Bernoulli Likelihood with Logistic Link")
 end
 
+function compute_proba(
+    l::LogisticLikelihood{T},
+    f::Real
+    ) where {T<:Real}
+    pdf(l, 1, f)
+end
 
 function compute_proba(
     l::LogisticLikelihood{T},

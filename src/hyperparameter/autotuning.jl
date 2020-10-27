@@ -2,10 +2,14 @@ include("autotuning_utils.jl")
 include("zygote_rules.jl")
 include("forwarddiff_rules.jl")
 
+function update_hyperparameters!(m::GP)
+    update_hyperparameters!(getf(m), xview(m))
+end
+
 @traitfn function update_hyperparameters!(
     m::TGP,
 ) where {TGP <: AbstractGP; IsFull{TGP}}
-    update_hyperparameters!.(m.f, get_Z(m))
+    update_hyperparameters!.(m.f, [xview(m)])
     setHPupdated!(m.inference, true)
 end
 
@@ -14,20 +18,20 @@ end
 ) where {TGP <: AbstractGP; !IsFull{TGP}}
     update_hyperparameters!.(
         m.f,
-        m.inference.xview,
+        Ref(xview(m)),
         ∇E_μ(m),
         ∇E_Σ(m),
-        m.inference,
-        m.inference.vi_opt,
+        inference(m),
+        inference(m).vi_opt,
     )
     setHPupdated!(m.inference, true)
 end
 
 ## Update all hyperparameters for the full batch GP models ##
 function update_hyperparameters!(
-    gp::Union{_GP{T},_VGP{T},_VStP{T}},
-    X::AbstractMatrix,
-) where {T}
+    gp::AbstractLatent,
+    X::AbstractVector,
+)
     if !isnothing(gp.opt)
         f_l, f_μ₀ = hyperparameter_gradient_function(gp, X)
         aduse = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
@@ -36,44 +40,44 @@ function update_hyperparameters!(
         elseif aduse == :reverse_diff
             ∇L_ρ_reverse(f_l, gp, X)
         end
-        grads[gp.μ₀] = f_μ₀()
-        apply_grads_kernel_params!(gp.opt, gp.kernel, grads) # Apply gradients to the kernel parameters
-        apply_gradients_mean_prior!(gp.μ₀, grads[gp.μ₀], X)
+        grads[pr_mean(gp)] = f_μ₀()
+        apply_grads_kernel_params!(gp.opt, kernel(gp), grads) # Apply gradients to the kernel parameters
+        apply_gradients_mean_prior!(pr_mean(gp), grads[pr_mean(gp)], X)
     end
 end
 
 ## Update all hyperparameters for the sparse variational GP models ##
 function update_hyperparameters!(
-    gp::Union{_SVGP{T},_OSVGP{T}},
-    X,
-    ∇E_μ::AbstractVector{T},
-    ∇E_Σ::AbstractVector{T},
+    gp::AbstractLatent,
+    X::AbstractVector,
+    ∇E_μ::AbstractVector,
+    ∇E_Σ::AbstractVector,
     i::Inference,
-    opt::InferenceOptimizer,
-) where {T}
+    vi_opt::InferenceOptimizer,
+)
     if !isnothing(gp.opt)
         f_ρ, f_Z, f_μ₀ = hyperparameter_gradient_function(gp)
         k_aduse = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
         grads = if k_aduse == :forward_diff
-            ∇L_ρ_forward(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, opt)
+            ∇L_ρ_forward(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         elseif k_aduse == :reverse_diff
-            ∇L_ρ_reverse(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, opt)
+            ∇L_ρ_reverse(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         end
-        # @show grads[gp.kernel.transform.s]
-        grads[gp.μ₀] = f_μ₀()
+        # @show grads[kernel(gp).transform.s]
+        grads[pr_mean(gp)] = f_μ₀()
     end
-    if !isnothing(gp.Z.opt) && !isnothing(gp.opt)
+    if !isnothing(opt(gp.Z)) && !isnothing(gp.opt)
         Z_aduse = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]
-        Z_gradients = if Z_aduse == :forward_diff
-            Z_gradient_forward(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, opt) #Compute the gradient given the inducing points location
+        Z_grads = if Z_aduse == :forward_diff
+            Z_gradient_forward(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt) #Compute the gradient given the inducing points location
         elseif Z_aduse == :reverse_diff
-            Z_gradient_reverse(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, opt)
+            Z_gradient_reverse(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         end
-        gp.Z.Z .+= Flux.Optimise.apply!(gp.Z.opt, gp.Z.Z, Z_gradients) #Apply the gradients on the location
+        update!(opt(gp.Z), gp.Z.Z, Z_grads) #Apply the gradients on the location
     end
     if !isnothing(gp.opt)
-        apply_grads_kernel_params!(gp.opt, gp.kernel, grads) # Apply gradients to the kernel parameters
-        apply_gradients_mean_prior!(gp.μ₀, grads[gp.μ₀], X)
+        apply_grads_kernel_params!(gp.opt, kernel(gp), grads) # Apply gradients to the kernel parameters
+        apply_gradients_mean_prior!(pr_mean(gp), grads[pr_mean(gp)], X)
     end
 end
 
@@ -85,43 +89,39 @@ end
 
 
 function hyperparameter_gradient_function(
-    gp::_GP{T},
-    X::AbstractMatrix,
+    gp::LatentGP{T},
+    X::AbstractVector,
 ) where {T}
-    A = (inv(gp.Σ).mat - (gp.μ) * transpose(gp.μ)) # μ = inv(K+σ²)*(y-μ₀)
+    A = (inv(cov(gp)) - mean(gp) * transpose(mean(gp))) # μ = inv(K+σ²)*(y-μ₀)
     return (function (Jnn)
         return -hyperparameter_KL_gradient(Jnn, A)
     end, function ()
-        return -gp.μ
+        return -mean(gp)
     end)
 end
 
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model ##
 function hyperparameter_gradient_function(
-    gp::_VGP{T},
-    X::AbstractMatrix,
+    gp::VarLatent{T},
+    X::AbstractVector,
 ) where {T<:Real}
-    μ₀ = gp.μ₀(X)
-    A = (I - gp.K \ (gp.Σ + (gp.µ - μ₀) * transpose(gp.μ - μ₀))) / gp.K
+    μ₀ = pr_mean(gp, X)
+    A = (I - pr_cov(gp) \ (cov(gp) + (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))) / pr_cov(gp)
     return (
         function (Jnn)
             return -hyperparameter_KL_gradient(Jnn, A)
         end,
         function ()
-            return gp.K \ (gp.μ - μ₀)
+            return pr_cov(gp) \ (mean(gp) - μ₀)
         end,
     )
 end
 
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse latent GP ##
-function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
-    μ₀ = gp.μ₀(gp.Z.Z)
-    A =
-        (
-            Diagonal{T}(I, gp.dim) -
-            gp.K \ (gp.Σ + (gp.µ - μ₀) * transpose(gp.μ - μ₀))
-        ) / gp.K
-    κΣ = gp.κ * gp.Σ
+function hyperparameter_gradient_function(gp::SparseVarLatent{T}) where {T<:Real}
+    μ₀ = pr_mean(gp, gp.Z)
+    A = (I(dim(gp)) - pr_cov(gp) \ (cov(gp) + (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))) / cov(gp)
+    κΣ = gp.κ * cov(gp)
     return (
         function (Jmm, Jnm, Jnn, ∇E_μ, ∇E_Σ, i, opt)
             return (
@@ -152,41 +152,41 @@ function hyperparameter_gradient_function(gp::_SVGP{T}) where {T<:Real}
             ) - hyperparameter_KL_gradient(Jmm, A)
         end,
         function ()
-            return gp.K \ (gp.μ - μ₀)
+            return pr_cov(gp) \ (mean(gp) - μ₀)
         end,
     )
 end
 
 function hyperparameter_gradient_function(
-    gp::_VStP{T},
-    X::AbstractMatrix,
+    gp::TVarLatent{T},
+    X::AbstractVector,
 ) where {T<:Real}
-    μ₀ = gp.μ₀(X)
+    μ₀ = pr_mean(gp, X)
     A =
         (
-            Diagonal{T}(I, gp.dim) .-
-            (gp.χ * gp.K) \ (gp.Σ .+ (gp.µ - μ₀) * transpose(gp.μ - μ₀))
-        ) / (gp.χ * gp.K)
+            I(dim(gp)) .-
+            (pr_cov(gp)) \ (cov(gp) .+ (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))
+        ) / (pr_cov(gp))
     return (
         function (Jnn)
-            return -hyperparameter_KL_gradient(gp.χ * Jnn, A)
+            return -hyperparameter_KL_gradient(prior(gp).χ * Jnn, A)
         end,
         function ()
-            return (gp.χ * gp.K) \ (gp.μ - μ₀)
+            return (pr_cov(gp)) \ (mean(gp) - μ₀)
         end,
     )
 end
 
 
-function hyperparameter_gradient_function(gp::_OSVGP{T}) where {T<:Real}
-    μ₀ = gp.μ₀(gp.Z.Z)
+function hyperparameter_gradient_function(gp::OnlineVarLatent{T}) where {T<:Real}
+    μ₀ = pr_mean(gp, gp.Z)
     A =
         (
-            Diagonal{T}(I, gp.dim) -
-            gp.K \ (gp.Σ + (gp.µ - μ₀) * transpose(gp.μ - μ₀))
-        ) / gp.K
-    κΣ = gp.κ * gp.Σ
-    κₐΣ = gp.κₐ * gp.Σ
+            I(dim(gp)) -
+            pr_cov(gp) \ (cov(gp) + (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))
+        ) / pr_cov(gp)
+    κΣ = gp.κ * cov(gp)
+    κₐΣ = gp.κₐ * cov(gp)
     return (
         function (Jmm, Jnm, Jnn, Jab, Jaa, ∇E_μ, ∇E_Σ, i, opt)
             ∇E = hyperparameter_expec_gradient(
@@ -220,64 +220,64 @@ function hyperparameter_gradient_function(gp::_OSVGP{T}) where {T<:Real}
                 κₐΣ,
                 Jmm,
                 Jab,
-                zeros(T, size(gp.Zₐ, 1), size(gp.Zₐ, 1)),
+                zeros(T, length(gp.Zₐ), length(gp.Zₐ)),
             ) - hyperparameter_KL_gradient(Jmm, A)
         end, # Function gradient given inducing points locations
         function ()
-            return -(gp.K \ (μ₀ - gp.μ))
+            return -(pr_cov(gp) \ (μ₀ - mean(gp)))
         end,
     ) # Function gradient given mean prior
 end
 
 ## Gradient with respect to hyperparameter for analytical VI ##
 function hyperparameter_expec_gradient(
-    gp::Union{_SVGP{T},_OSVGP{T}},
-    ∇E_μ::AbstractVector{T},
-    ∇E_Σ::AbstractVector{T},
+    gp::AbstractLatent,
+    ∇E_μ::AbstractVector{<:Real},
+    ∇E_Σ::AbstractVector{<:Real},
     i::AnalyticVI,
     opt::AVIOptimizer,
     κΣ::AbstractMatrix{<:Real},
     Jmm::AbstractMatrix{<:Real},
     Jnm::AbstractMatrix{<:Real},
     Jnn::AbstractVector{<:Real},
-) where {T<:Real}
-    ι = (Jnm - gp.κ * Jmm) / gp.K
+)
+    ι = (Jnm - gp.κ * Jmm) / pr_cov(gp)
     J̃ = Jnn - (opt_diag(ι, gp.Knm) + opt_diag(gp.κ, Jnm))
-    dμ = dot(∇E_μ, ι * gp.μ)
+    dμ = dot(∇E_μ, ι * mean(gp))
     dΣ = -dot(∇E_Σ, J̃)
     dΣ += -dot(∇E_Σ, 2.0 * (opt_diag(ι, κΣ)))
-    dΣ += -dot(∇E_Σ, 2.0 * (ι * gp.μ) .* (gp.κ * gp.μ))
+    dΣ += -dot(∇E_Σ, 2.0 * (ι * mean(gp)) .* (gp.κ * mean(gp)))
     return getρ(i) * (dμ + dΣ)
 end
 
 
 ## Gradient with respect to hyperparameters for numerical VI ##
 function hyperparameter_expec_gradient(
-    gp::_SVGP{T},
-    ∇E_μ::AbstractVector{T},
-    ∇E_Σ::AbstractVector{T},
+    gp::AbstractLatent,
+    ∇E_μ::AbstractVector{<:Real},
+    ∇E_Σ::AbstractVector{<:Real},
     i::NumericalVI,
     opt::NVIOptimizer,
-    κΣ::AbstractMatrix{T},
+    κΣ::AbstractMatrix{<:Real},
     Jmm::AbstractMatrix{<:Real},
     Jnm::AbstractMatrix{<:Real},
     Jnn::AbstractVector{<:Real},
-) where {T<:Real}
-    ι = (Jnm - gp.κ * Jmm) / gp.K
+)
+    ι = (Jnm - gp.κ * Jmm) / pr_cov(gp)
     J̃ = Jnn - (opt_diag(ι, gp.Knm) + opt_diag(gp.κ, Jnm))
-    dμ = dot(∇E_μ, ι * gp.μ)
+    dμ = dot(∇E_μ, ι * mean(gp))
     dΣ = dot(∇E_Σ, J̃ + 2.0 * opt_diag(ι, κΣ))
     return getρ(i) * (dμ + dΣ)
 end
 
 function hyperparameter_online_gradient(
-    gp::_OSVGP{T},
-    κₐΣ::Matrix{T},
-    Jmm::AbstractMatrix,
-    Jab::AbstractMatrix{T},
-    Jaa::AbstractMatrix{T},
-) where {T<:Real}
-    ιₐ = (Jab - gp.κₐ * Jmm) / gp.K
+    gp::AbstractLatent,
+    κₐΣ::Matrix{<:Real},
+    Jmm::AbstractMatrix{<:Real},
+    Jab::AbstractMatrix{<:Real},
+    Jaa::AbstractMatrix{<:Real},
+)
+    ιₐ = (Jab - gp.κₐ * Jmm) / pr_cov(gp)
     trace_term =
         -0.5 * sum(opt_trace.(
             [gp.invDₐ],
@@ -288,7 +288,7 @@ function hyperparameter_online_gradient(
                 -gp.κₐ * transpose(Jab),
             ],
         ))
-    term_1 = dot(gp.prevη₁, ιₐ * gp.μ)
-    term_2 = -dot(ιₐ * gp.μ, gp.invDₐ * gp.κₐ * gp.μ)
+    term_1 = dot(gp.prevη₁, ιₐ * mean(gp))
+    term_2 = -dot(ιₐ * mean(gp), gp.invDₐ * gp.κₐ * mean(gp))
     return trace_term + term_1 + term_2
 end

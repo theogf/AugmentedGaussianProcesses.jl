@@ -67,9 +67,8 @@ end
 function init_likelihood(
     likelihood::HeteroscedasticLikelihood{T},
     inference::Inference{T},
-    nLatent::Integer,
-    nMinibatch::Integer,
-    nFeatures::Integer,
+    nLatent::Int,
+    nMinibatch::Int,
 ) where {T<:Real}
     λ = likelihood.λ
     c = ones(T, nMinibatch)
@@ -103,55 +102,35 @@ function local_updates!(
     l.λ = 0.5 * length(l.ϕ) / dot(l.ϕ, l.σg)
 end
 
-# function local_autotuning!(model::VGP{T,<:HeteroscedasticLikelihood}) where {T}
-#     Jnn = kernelderivativematrix.([model.X], model.likelihood.kernel)
-#     f_l, f_v, f_μ₀ = hyperparameter_local_gradient_function(model)
-#     grads_l = map(
-#         compute_hyperparameter_gradient,
-#         model.likelihood.kernel,
-#         fill(f_l, model.nLatent),
-#         Jnn,
-#         1:model.nLatent,
-#     )
-#     grads_v = map(f_v, model.likelihood.kernel, 1:model.nPrior)
-#     grads_μ₀ = map(f_μ₀, 1:model.nLatent)
-#
-#     apply_gradients_lengthscale!.(model.likelihood.kernel, grads_l) #Send the derivative of the matrix to the specific gradient of the model
-#     apply_gradients_variance!.(model.likelihood.kernel, grads_v) #Send the derivative of the matrix to the specific gradient of the model
-#     update!.(model.likelihood.μ₀, grads_μ₀)
-#
-#     model.inference.HyperParametersUpdated = true
-# end
-
 function variational_updates!(
     model::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI},
 ) where {T,L}
     local_updates!(
         model.likelihood,
-        get_y(model),
+        yview(model),
         mean_f(model),
-        diag_cov_f(model),
+        var_f(model),
     )
     natural_gradient!(
-        ∇E_μ(model.likelihood, opt_type(model.inference), get_y(model))[2],
-        ∇E_Σ(model.likelihood, opt_type(model.inference), get_y(model))[2],
+        ∇E_μ(model.likelihood, opt_type(model.inference), yview(model))[2],
+        ∇E_Σ(model.likelihood, opt_type(model.inference), yview(model))[2],
         getρ(model.inference),
         opt_type(model.inference),
-        get_Z(model, 2),
+        last(Zviews(model)),
         model.f[2],
     )
     global_update!(model.f[2], opt_type(model.inference), model.inference)
     heteroscedastic_expectations!(
         model.likelihood,
         mean_f(model.f[2]),
-        diag_cov_f(model.f[2]),
+        var_f(model.f[2]),
     )
     natural_gradient!(
-        ∇E_μ(model.likelihood, opt_type(model.inference), get_y(model))[1],
-        ∇E_Σ(model.likelihood, opt_type(model.inference), get_y(model))[1],
+        ∇E_μ(model.likelihood, opt_type(model.inference), yview(model))[1],
+        ∇E_Σ(model.likelihood, opt_type(model.inference), yview(model))[1],
         getρ(model.inference),
         opt_type(model.inference),
-        get_Z(model, 1),
+        first(Zviews(model)),
         model.f[1],
     )
     global_update!(model.f[1], opt_type(model.inference), model.inference)

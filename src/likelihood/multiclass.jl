@@ -7,8 +7,8 @@ num_class(l::MultiClassLikelihood) = l.nClasses
 ## Return the labels in a vector of vectors for multiple outputs ##
 function treat_labels!(y::AbstractArray{T,N},likelihood::L) where {T,N,L<:MultiClassLikelihood}
     @assert N <= 1 "Target should be a vector of labels"
-    init_multiclass_likelihood!(likelihood,y)
-    return likelihood.Y,num_class(likelihood),likelihood
+    init_multiclass_likelihood!(likelihood, y)
+    return likelihood.Y, num_class(likelihood), likelihood
 end
 
 function init_multiclass_likelihood!(l::MultiClassLikelihood,y::AbstractVector) where {L<:MultiClassLikelihood}
@@ -18,12 +18,12 @@ function init_multiclass_likelihood!(l::MultiClassLikelihood,y::AbstractVector) 
     create_one_hot!(l,y)
 end
 
-view_y(l::MultiClassLikelihood,y::AbstractVector,indices::AbstractVector) = view(view.(l.Y,Ref(indices)),:)
+view_y(::MultiClassLikelihood, y::AbstractVector, i::AbstractVector) = view.(y, Ref(i))
 
 onehot_to_ind(y::AbstractVector) = findfirst(y.==1)
 
-function logpdf(l::MultiClassLikelihood,y::AbstractVector,f::AbstractVector)
-    logpdf(l,onehot_to_ind(y),f)
+function logpdf(l::MultiClassLikelihood, y::AbstractVector, f::AbstractVector)
+    logpdf(l, onehot_to_ind(y), f)
 end
 
 

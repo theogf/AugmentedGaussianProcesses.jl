@@ -10,23 +10,23 @@ Variational Inference solver by approximating gradients via numerical integratio
     - `natural::Bool` : Use natural gradients
     - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
 """
-mutable struct QuadratureVI{T,N} <: NumericalVI{T}
-    nPoints::Int64 # Number of points for the quadrature
+mutable struct QuadratureVI{T,N,Tx,Ty} <: NumericalVI{T}
+    nPoints::Int # Number of points for the quadrature
     nodes::Vector{T} # Nodes locations
     weights::Vector{T} # Weights for each node
     clipping::T # Clipping value of the gradient
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    Stochastic::Bool #Use of mini-batches
-    nSamples::Vector{Int64} #Number of samples of the data
-    nMinibatch::Vector{Int64} #Size of mini-batches
-    ρ::Vector{T} #Stochastic Coefficient
+    stoch::Bool #Use of mini-batches
+    nSamples::Int #Number of samples of the data
+    nMinibatch::Int #Size of mini-batches
+    ρ::T #Stochastic Coefficient
     NaturalGradient::Bool
-    HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
+    HyperParametersUpdated::Bool # Flag for updating kernel matrices
     vi_opt::NTuple{N,NVIOptimizer}
-    MBIndices::Vector{Vector{Int64}} #Indices of the minibatch
-    xview::Vector
-    yview::Vector
+    MBIndices::Vector{Int} #Indices of the minibatch
+    xview::Tx
+    yview::Ty
 
     function QuadratureVI{T}(
     ϵ::T,
@@ -37,7 +37,7 @@ mutable struct QuadratureVI{T,N} <: NumericalVI{T}
     nMinibatch::Int,
     natural::Bool,
     ) where {T}
-        return new{T,1}(
+        return new{T,1,Vector{T},Vector{T}}(
             nPoints,
             [],
             [],
@@ -45,31 +45,33 @@ mutable struct QuadratureVI{T,N} <: NumericalVI{T}
             ϵ,
             0,
             Stochastic,
-            [0],
-            [nMinibatch],
-            ones(T, 1),
+            0,
+            nMinibatch,
+            one(T),
             natural,
             true,
             (NVIOptimizer{T}(0, 0, optimiser),),
         )
     end
 
-    function QuadratureVI{T,1}(
+    function QuadratureVI{T}(
         ϵ::T,
         Stochastic::Bool,
         nPoints::Int,
         clipping::Real,
         nFeatures::Vector{<:Int},
-        nSamples::Vector{<:Int},
-        nMinibatch::Vector{<:Int},
+        nSamples::Int,
+        nMinibatch::Int,
         nLatent::Int,
         optimiser,
         natural::Bool,
-    ) where {T}
+        xview::Tx,
+        yview::Ty
+    ) where {T,Tx,Ty}
         gh = gausshermite(nPoints)
         vi_opts =
             ntuple(i -> NVIOptimizer{T}(nFeatures[i], nMinibatch[i], optimiser), nLatent)
-        new{T,nLatent}(
+        new{T,nLatent,Tx,Ty}(
             nPoints,
             gh[1] .* sqrt2,
             gh[2] ./ sqrtπ,
@@ -79,11 +81,13 @@ mutable struct QuadratureVI{T,N} <: NumericalVI{T}
             Stochastic,
             nSamples,
             nMinibatch,
-            T.(nSamples ./ nMinibatch),
+            T(nSamples / nMinibatch),
             natural,
             true,
             vi_opts,
-            range.(1, nMinibatch, step = 1),
+            1:nMinibatch,
+            xview,
+            yview,
         )
     end
 end
@@ -133,15 +137,17 @@ function QuadratureSVI(
 end
 
 function tuple_inference(
-    i::TInf,
+    i::QuadratureVI{T},
     nLatent::Int,
     nFeatures:: Vector{<:Int},
-    nSamples::Vector{<:Int},
-    nMinibatch::Vector{<:Int},
-) where {TInf<:QuadratureVI}
-    return TInf(
-        i.ϵ,
-        i.Stochastic,
+    nSamples::Int,
+    nMinibatch::Int,
+    xview,
+    yview
+) where {T}
+    return QuadratureVI{T}(
+        conv_crit(i),
+        isStochastic(i),
         i.nPoints,
         i.clipping,
         nFeatures,
@@ -150,6 +156,8 @@ function tuple_inference(
         nLatent,
         i.vi_opt[1].optimiser,
         i.NaturalGradient,
+        xview,
+        yview,
     )
 end
 
@@ -158,9 +166,9 @@ function expec_log_likelihood(
     i::QuadratureVI,
     y,
     μ::AbstractVector,
-    diag_cov::AbstractVector,
+    diagΣ::AbstractVector,
 )
-    sum(apply_quad.(y, μ, diag_cov, i, l))
+    sum(apply_quad.(y, μ, diagΣ, i, l))
 end
 
 function apply_quad(
@@ -177,10 +185,10 @@ end
 function grad_expectations!(
     m::AbstractGP{T,L,<:QuadratureVI},
 ) where {T,L}
-    y = get_y(m)
+    y = yview(m)
     for (gp, opt) in zip(m.f, get_opt(m.inference))
         μ = mean_f(gp)
-        Σ = diag_cov_f(gp)
+        Σ = var_f(gp)
         for i in 1:nMinibatch(m.inference)
             opt.ν[i], opt.λ[i] =
                 grad_quad(m.likelihood, y[i], μ[i], Σ[i], m.inference)

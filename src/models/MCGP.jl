@@ -28,47 +28,45 @@ Argument list :
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct MCGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference{T},N} <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Matrix{T} #Feature vectors
-    y::LatentArray #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Int64 # Number of data points
-    nDim::Int64 # Number of covariates per data point
-    nFeatures::Int64 # Number of features of the GP (equal to number of points)
-    nLatent::Int64 # Number pf latent GPs
-    f::NTuple{N,_MCGP} # Vector of latent GPs
+mutable struct MCGP{
+    T<:Real,
+    TLikelihood<:Likelihood{T},
+    TInference<:Inference{T},
+    TData<:AbstractDataContainer,
+    N,
+} <: AbstractGP{T,TLikelihood,TInference,N}
+    data::TData
+    f::NTuple{N,SampledLatent{T}} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64 #Level of printing information
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
 
 function MCGP(
-    X::AbstractArray{T},
+    X::AbstractArray{<:Real},
     y::AbstractVector,
     kernel::Kernel,
-    likelihood::Union{TLikelihood,Distribution},
-    inference::TInference;
+    likelihood::Union{Likelihood,Distribution},
+    inference::Inference;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
     atfrequency::Integer = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    ArrayType::UnionAll = Vector,
-) where {T<:Real,TLikelihood<:Likelihood,TInference<:SamplingInference}
+    obsdim::Int = 1,
+)
+    X, T = wrap_X(X, obsdim)
+    y, nLatent, likelihood = check_data!(y, likelihood)
 
-    X = if X isa AbstractVector
-        reshape(X, :, 1)
-    else
-        X
-    end
-    y, nLatent, likelihood = check_data!(X, y, likelihood)
-    @assert inference isa SamplingInference "The inference object should be of type `SamplingInference` : either `GibbsSampling` or `HMCSampling`"
-    @assert !isa(likelihood,GaussianLikelihood) "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets"
-    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    inference isa SamplingInference || error("The inference object should be of type `SamplingInference` : either `GibbsSampling` or `HMCSampling`")
+    !isa(likelihood, GaussianLikelihood) ||  error("For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets")
+    implemented(likelihood, inference) || error("The $likelihood is not compatible or implemented with the $inference")
+    !isa(likelihood, Distribution) || error("Using Distributions.jl distributions is unfortunately not yet implemented")
+    data = wrap_data(X, y)
+    nFeatures = nSamples(data)
 
-    nFeatures = nSamples = size(X, 1)
-    nDim = size(X, 2)
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
@@ -79,20 +77,16 @@ function MCGP(
         mean = EmpiricalMean(mean)
     end
 
-    latentf = ntuple(_ -> _MCGP{T}(nFeatures, kernel, mean), nLatent)
+    latentf = ntuple(_ -> SampledLatent(T, nFeatures, kernel, mean), nLatent)
 
     likelihood =
-        init_likelihood(likelihood, inference, nLatent, nSamples, nFeatures)
-    inference = tuple_inference(inference, nLatent, nSamples, nSamples, nSamples)
-    inference.xview = [view(X, :, :)]
-    inference.yview = [view_y(likelihood, y, 1:nSamples)]
-    MCGP{T,TLikelihood,typeof(inference),nLatent}(
-        X,
-        y,
-        nFeatures,
-        nDim,
-        nFeatures,
-        nLatent,
+        init_likelihood(likelihood, inference, nLatent, nSamples(data))
+    xview = view_x(data, 1:nSamples(data))
+    yview = view_y(likelihood, data, 1:nSamples(data))
+    inference =
+        tuple_inference(inference, nLatent, nSamples(data), nSamples(data), nSamples(data), xview, yview)
+    MCGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
+        data,
         latentf,
         likelihood,
         inference,
@@ -102,13 +96,14 @@ function MCGP(
     )
 end
 
-function Base.show(io::IO,model::MCGP{T,<:Likelihood,<:Inference}) where {T}
-    print(io,"Monte Carlo Gaussian Process with a $(model.likelihood) sampled via $(model.inference) ")
+function Base.show(io::IO, model::MCGP{T,<:Likelihood,<:Inference}) where {T}
+    print(
+        io,
+        "Monte Carlo Gaussian Process with a $(model.likelihood) sampled via $(model.inference) ",
+    )
 end
 
-get_f(model::MCGP) = getproperty.(model.f,:f)
-get_Z(model::MCGP) = model.inference.xview
-get_Z(model::MCGP, i::Int )= model.inference.xview
+Zviews(model::MCGP) = [input(model)]
 objective(model::MCGP{T}) where {T} = NaN
 
 @traitimpl IsFull{MCGP}

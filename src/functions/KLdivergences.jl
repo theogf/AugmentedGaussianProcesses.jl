@@ -1,13 +1,13 @@
 """Compute the KL Divergence between the GP Prior and the variational distribution"""
-GaussianKL(model::AbstractGP) = sum(broadcast(GaussianKL, model.f, get_Z(model)))
+GaussianKL(model::AbstractGP) = sum(broadcast(GaussianKL, model.f, Zviews(model)))
 
-GaussianKL(gp::Abstract_GP, X::AbstractMatrix) = GaussianKL(gp.μ, gp.μ₀(X), gp.Σ, gp.K)
+GaussianKL(gp::AbstractLatent, X::AbstractVector) = GaussianKL(mean(gp), pr_mean(gp, X), cov(gp), pr_cov(gp))
 
 ## See https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Multivariate_normal_distributions ##
 function GaussianKL(
     μ::AbstractVector{T},
     μ₀::AbstractVector,
-    Σ::Matrix{T},
+    Σ::Symmetric{T,Matrix{T}},
     K::PDMat{T,Matrix{T}},
 ) where {T<:Real}
     0.5 * (logdet(K) - logdet(Σ) + tr(K \ Σ) + invquad(K, μ - μ₀) - length(μ))
@@ -19,9 +19,9 @@ extraKL(model::AbstractGP{T}) where {T} = zero(T)
 function extraKL(model::OnlineSVGP{T}) where {T}
     KLₐ = zero(T)
     for gp in model.f
-        κₐμ = gp.κₐ*gp.μ
+        κₐμ = gp.κₐ * mean(gp)
         KLₐ += gp.prev𝓛ₐ
-        KLₐ += -0.5 *  sum(opt_trace.([gp.invDₐ], [gp.K̃ₐ, gp.κₐ * gp.Σ * transpose(gp.κₐ)]))
+        KLₐ += -0.5 *  sum(opt_trace.([gp.invDₐ], [gp.K̃ₐ, gp.κₐ * cov(gp) * transpose(gp.κₐ)]))
         KLₐ += dot(gp.prevη₁, κₐμ) - 0.5 * dot(κₐμ, gp.invDₐ * κₐμ)
     end
     return KLₐ

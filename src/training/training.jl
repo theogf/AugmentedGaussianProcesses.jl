@@ -11,15 +11,15 @@ there are options to change the number of max iterations,
 - `convergence::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
 function train!(
-    model::AbstractGP{T,TLike,TInf},
+    model::AbstractGP{T},
     iterations::Int = 100;
     callback::Union{Nothing,Function} = nothing,
     convergence::Union{Nothing,Function} = nothing,
-) where {T,TLike<:Likelihood,TInf<:Inference}
+) where {T}
     if model.verbose > 0
         println(
-            "Starting training $model with $(model.nSamples) samples, $(size(model.X,2)) features and $(model.nLatent) latent GP" *
-            (model.nLatent > 1 ? "s" : ""),
+            "Starting training $model with $(nSamples(model)) samples, $(nFeatures(model)) features and $(nLatent(model)) latent GP" *
+            (nLatent(model) > 1 ? "s" : ""),
         )
     end
 
@@ -32,17 +32,17 @@ function train!(
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
             update_parameters!(model) #Update all the variational parameters
-            model.Trained = true
+            set_trained!(model, true)
             if !isnothing(callback)
-                callback(model, model.inference.nIter) #Use a callback method if set by user
+                callback(model, nIter(inference(model))) #Use a callback method if set by user
             end
-            if (model.inference.nIter % model.atfrequency == 0) &&
+            if (nIter(inference(model)) % model.atfrequency == 0) &&
                model.inference.nIter >= 3
                 update_hyperparameters!(model) #Update the hyperparameters
             end
             # Print out informations about the convergence
-            if model.verbose > 2 || (model.verbose > 1 && local_iter % 10 == 0)
-                if isa(TInf, GibbsSampling)
+            if verbose(model) > 2 || (verbose(model) > 1 && local_iter % 10 == 0)
+                if inference(model) isa GibbsSampling
                     next!(p; showvalues = [(:samples, local_iter)])
                 else
                     if (model.verbose ==  2 && local_iter % 10 == 0)
@@ -79,11 +79,13 @@ function train!(
             end
         end
     end
-    if model.verbose > 0
+    if verbose(model) > 0
         println("Training ended after $(local_iter-1) iterations. Total number of iterations $(model.inference.nIter)")
     end
-    computeMatrices!(model) #Compute final version of the matrices for prediction
-    return model.Trained = true
+    computeMatrices!(model) # Compute final version of the matrices for predictions
+    post_step!(model)
+    set_trained!(model, true)
+    return nothing
 end
 
 function sample(model::MCGP{T,TLike,TInf},nSamples::Int=1000;callback::Union{Nothing,Function}=nothing,cat_samples::Bool=false) where {T,TLike<:Likelihood,TInf<:Inference}
@@ -95,8 +97,8 @@ function sample(model::MCGP{T,TLike,TInf},nSamples::Int=1000;callback::Union{Not
 end
 
 function update_parameters!(model::GP)
-    analytic_updates!(model)
     computeMatrices!(model); #Recompute the matrices if necessary (when hyperparameters have been updated)
+    analytic_updates!(model)
 end
 
 function update_parameters!(model::VGP)
@@ -106,10 +108,10 @@ end
 
 """Update all variational parameters of the sparse variational GP Model"""
 function update_parameters!(m::SVGP)
-    if isStochastic(m.inference)
-        setMBIndices!(m.inference, StatsBase.sample(1:nSamples(m), nMinibatch(m.inference), replace = false))
-        setxview!(m.inference, view(m.X, MBIndices(m.inference), :))
-        setyview!(m.inference, view_y(m.likelihood, m.y, MBIndices(m.inference)))
+    if isStochastic(inference(m))
+        setMBIndices!(inference(m), StatsBase.sample(1:nSamples(m), nMinibatch(inference(m)), replace = false))
+        setxview!(inference(m), view_x(data(m), MBIndices(inference(m))))
+        setyview!(inference(m), view_y(likelihood(m), data(m), MBIndices(inference(m))))
     end
     computeMatrices!(m); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(m);
@@ -123,12 +125,9 @@ end
 
 function update_parameters!(m::MOSVGP)
     if isStochastic(m.inference)
-        # MBIndices = StatsBase.sample(1:nSamples(m)[1], nMinibatch(m.inference), replace = false)
-        for i in 1:nX(m)
-            setMBIndices!(m.inference, 1, StatsBase.sample(1:nSamples(m, i), nMinibatch(m.inference), replace = false)) #TODO ugly hack
-            setxview!(m.inference, i, view(m.X[i], MBIndices(m.inference, 1), :)) #TODO
-            setyview!(m.inference, i, view_y(m.likelihood[i], m.y[i], MBIndices(m.inference, 1))) #TODO
-        end
+        setMBIndices!(inference(m), StatsBase.sample(1:nSamples(m), nMinibatch(inference(m)), replace = false))
+        setxview!(inference(m), view_x(data(m), MBIndices(inference(m))))
+        setyview!(m.inference, view_y(likelihood(m), data(m), MBIndices(m.inference)))
     end
     computeMatrices!(m); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     update_A!(m)
@@ -137,33 +136,35 @@ end
 
 function update_parameters!(m::VStP)
     computeMatrices!(m); #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    local_prior_updates!(m, m.X);
+    local_prior_updates!(m, input(m));
     variational_updates!(m);
 end
 
 function computeMatrices!(m::GP{T}) where {T}
-    compute_K!.(m.f, m.inference.xview, T(jitt))
-    setHPupdated!(m.inference, false)
+    compute_K!(getf(m), input(m), T(jitt))
+    setHPupdated!(inference(m), false)
+    return nothing
 end
 
 @traitfn function computeMatrices!(m::TGP) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
-    if isHPupdated(m.inference)
-        compute_K!.(m.f, m.inference.xview, T(jitt))
+    if isHPupdated(inference(m))
+        compute_K!.(getf(m), [input(m)], T(jitt))
     end
-    setHPupdated!(m.inference, false)
+    setHPupdated!(inference(m), false)
+    return nothing
 end
 
 @traitfn function computeMatrices!(m::TGP) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
-    if isHPupdated(m.inference)
-        compute_K!.(m.f, T(jitt))
+    if isHPupdated(inference(m))
+        compute_K!.(getf(m), T(jitt))
     end
     #If change of hyperparameters or if stochatic
-    if isHPupdated(m.inference) || isStochastic(m.inference)
-        compute_κ!.(m.f, m.inference.xview, T(jitt))
+    if isHPupdated(inference(m)) || isStochastic(inference(m))
+        compute_κ!.(getf(m), [xview(m)], T(jitt))
     end
-    setHPupdated!(m.inference, false)
+    setHPupdated!(inference(m), false)
+    return nothing
 end
-
 # function computeMatrices!(model::VStP{T,<:Likelihood,<:Inference}) where {T}
 #     if model.inference.HyperParametersUpdated
 #         compute_K!.(model.f,[],T(jitt))

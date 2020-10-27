@@ -1,29 +1,40 @@
-mutable struct Webscale{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
-    k::Int64
-    opt::O
-    v::Array{Int64,1}
-    Z::M
-    function Webscale(k::Int,opt=ADAM(0.001))
-        return new{Float64,Matrix{Float64},typeof(opt)}(k,opt)
-    end
+"""
+    Webscale(k::Int)
+
+Online k-means algorithm based on [1].
+
+[1] Sculley, D. Web-scale k-means clustering. in Proceedings of the 19th international conference on World wide web - WWW ’10 1177 (ACM Press, 2010). doi:10.1145/1772690.1772862.
+"""
+mutable struct Webscale{S,TZ<:AbstractVector{S}} <: OnIP{S,TZ}
+    k::Int
+    v::Vector{Int}
+    Z::TZ
 end
 
-
-function init!(alg::Webscale,X,y,kernel)
-    @assert size(X,1)>=alg.k "Input data not big enough given $k"
-    alg.v = zeros(Int64,alg.k);
-    alg.Z = X[sample(1:size(X,1),alg.k,replace=false),:];
+function Webscale(k::Int)
+    return Webscale(k, [], [])
 end
 
-function add_point!(alg::Webscale,X,y,model)
-    b = size(X,1)
-    d = zeros(Int64,b)
-    for i in 1:b
-        d[i] = find_nearest_center(X[i,:],alg.Z)[1]
+function Webscale(Z::Webscale, X::AbstractVector)
+    size(X, 1) >= Z.k || error("Input data not big enough given desired number of inducing points : $(Z.k)")
+    v = zeros(Int, Z.k)
+    Z = Vector.(X[sample(1:size(X, 1), alg.k, replace = false)])
+    return Webscale(Z.k, v, Z)
+end
+
+function init(Z::Webscale, X::AbstractVector)
+    return Webscale(Z, X)
+end
+
+function add_point!(alg::Webscale, X::AbstractVector)
+    b = size(X, 1)
+    d = zeros(Int64, b)
+    for i = 1:b
+        d[i] = find_nearest_center(X[i], Z)[1]
     end
-    for i in 1:b
-        alg.v[d[i]] += 1
-        η = 1/alg.v[d[i]]
-        alg.Z[d[i],:] = (1-η)*alg.Z[d[i],:]+ η*X[i,:]
+    for i = 1:b
+        Z.v[d[i]] += 1
+        η = 1 / Z.v[d[i]]
+        Z[d[i]] = (1 - η) * Z[d[i]] + η * X[i]
     end
 end

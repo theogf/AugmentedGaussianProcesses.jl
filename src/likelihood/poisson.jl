@@ -38,7 +38,6 @@ function init_likelihood(
     inference::Inference{T},
     nLatent::Integer,
     nSamplesUsed::Int,
-    nFeatures::Int,
 ) where {T}
     PoissonLikelihood{T}(
         likelihood.λ,

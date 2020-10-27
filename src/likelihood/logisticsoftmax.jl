@@ -1,7 +1,5 @@
 """
-```julia
-    LogisticSoftMaxLikelihood()
-```
+    LogisticSoftMaxLikelihood(num_class)
 
 The multiclass likelihood with a logistic-softmax mapping: :
 ```math
@@ -11,7 +9,8 @@ where `σ` is the logistic function.
 This likelihood has the same properties as [softmax](https://en.wikipedia.org/wiki/Softmax_function).
 ---
 
-For the analytical version, the likelihood is augmented multiple times. More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670)
+For the analytical version, the likelihood is augmented multiple times.
+More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670)
 """
 mutable struct LogisticSoftMaxLikelihood{T<:Real, A<:AbstractVector{T}} <: MultiClassLikelihood{T}
     nClasses::Int
@@ -101,7 +100,6 @@ function init_likelihood(
     inference::Inference{T},
     nLatent::Integer,
     nSamplesUsed::Integer,
-    nFeatures::Integer,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
         c = [ones(T, nSamplesUsed) for i = 1:nLatent]
@@ -126,7 +124,7 @@ function init_likelihood(
     end
 end
 
-## Local Updates##
+## Local Updates ##
 function local_updates!(
     l::LogisticSoftMaxLikelihood,
     y,
@@ -148,10 +146,10 @@ function local_updates!(
     end
     broadcast!(
         (y, γ, c) -> 0.5 * (y + γ) ./ c .* tanh.(0.5 .* c),
-        l.θ,
-        y,
-        l.γ,
-        l.c,
+        l.θ, # target
+        y, # argument 1
+        l.γ, # argument 2
+        l.c, # argument 3
     )
     return nothing
 end
@@ -234,8 +232,8 @@ function grad_samples(
     index::Integer,
 ) where {T}
     class = model.likelihood.y_class[index]::Int64
-    grad_μ = zeros(T, model.nLatent)
-    grad_Σ = zeros(T, model.nLatent)
+    grad_μ = zeros(T, nLatent(model))
+    grad_Σ = zeros(T, nLatent(model))
     g_μ = similar(grad_μ)
     nSamples = size(samples, 1)
     @views @inbounds for i = 1:nSamples
@@ -248,7 +246,7 @@ function grad_samples(
             diaghessian_logisticsoftmax(samples[i, :], σ, class) / s -
             abs2.(g_μ)
     end
-    for k = 1:model.nLatent
+    for k = 1:nLatent(model)
         model.inference.vi_opt[k].ν[index] = -grad_μ[k] / nSamples
         model.inference.vi_opt[k].λ[index] = grad_Σ[k] / nSamples
     end

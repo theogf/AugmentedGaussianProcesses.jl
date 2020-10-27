@@ -1,13 +1,15 @@
 include("gibbssampling.jl")
 include("hmcsampling.jl")
 
-function log_gp_prior(gp::_MCGP, f::AbstractVector)
-    Distributions.logpdf(MvNormal(zero(f), gp.K), f)
+isStochastic(::SamplingInference) = false
+
+function log_gp_prior(gp::SampledLatent, f::AbstractVector, X::AbstractVector)
+    Distributions.logpdf(MvNormal(pr_mean(gp, X), pr_cov(gp)), f)
 end
 
 function log_joint_model(model::MCGP{T,L,<:SamplingInference}, x) where {T,L}
     fs = unsqueeze(model, x)
-    log_likelihood(model.likelihood, get_y(model), fs) +
+    log_likelihood(model.likelihood, yview(model), fs) +
     sum(log_gp_prior.(model.f, fs))
 end
 
@@ -21,7 +23,7 @@ function grad_log_joint_model(
     x,
 ) where {T,L}
     fs = unsqueeze(model, x)
-    vcat(grad_log_likelihood(model.likelihood, get_y(model), fs)...) +
+    vcat(grad_log_likelihood(model.likelihood, yview(model), fs)...) +
     vcat(grad_log_gp_prior.(model.f, fs)...)
 end
 
@@ -40,11 +42,11 @@ function grad_log_likelihood(
 end
 
 function grad_log_gp_prior(gp, f)
-    -gp.K / (f)#Remove μ₀ temp
+    -pr_cov(gp) / f#Remove μ₀ temp
 end
 
 function log_gp_prior(gp, f)
-    -0.5 * logdet(gp.K) - 0.5 * invquad(gp.K, f)#Remove μ₀ temp
+    -0.5 * logdet(pr_cov(gp)) - 0.5 * invquad(pr_cov(gp), f)#Remove μ₀ temp
 end
 
 function store_variables!(i::SamplingInference{T}, fs) where {T}

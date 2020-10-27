@@ -1,15 +1,25 @@
-mutable struct UniformSampling{T,M<:AbstractMatrix{T},O} <:
-               InducingPoints{T,M,O}
-    k::Int64
-    opt::O
-    Z::M
-    function UniformSampling(nInducingPoints::Integer, opt = ADAM(0.001))
-        return new{Float64,Matrix{Float64},typeof(opt)}(nInducingPoints, opt)
-    end
+"""
+    UniformSampling(X::AbstractVector, m::Int; weights)
+    UniformSampling(X::AbstractMatrix, m::int; weights, obsdim = 1)
+
+Uniform sampling of a subset of the data.
+"""
+struct UniformSampling{S,TZ<:AbstractVector{S}} <: OffIP{S,TZ}
+    k::Int
+    Z::TZ
 end
 
-function init!(alg::UniformSampling,X,y,kernel)
-    @assert size(X,1)>=alg.k "Input data not big enough given $k"
-    samp = sample(1:size(X,1),alg.k,replace=false)
-    alg.Z = X[samp,:]
+function UniformSampling(X::AbstractVector, m::Int; weights = nothing)
+    UniformSampling(m, uniformsamplig_ip(X, m, weights))
+end
+
+function uniformsampling(X::AbstractVector, m::Int, weights)
+    N = size(X, 1)
+    N >= m || "Input data not big enough given $k"
+    samp = if isnothing(weights)
+        sample(1:N, m, replace = false)
+    else
+        sample(1:N, m, replace = false, weights = weights)
+    end
+    Z = Vector.(X[samp])
 end

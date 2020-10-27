@@ -48,7 +48,6 @@ function init_likelihood(
     inference::Inference{T},
     nLatent::Int,
     nSamplesUsed::Int,
-    nFeatures::Int,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
         LaplaceLikelihood{T}(

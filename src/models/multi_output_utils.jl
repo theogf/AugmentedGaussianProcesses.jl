@@ -1,5 +1,3 @@
-@traitfn get_y(model::TGP) where {TGP<:AbstractGP;IsMultiOutput{TGP}} = view_y.(model.likelihood, model.y, Ref(MBIndices(model.inference)))
-
 ##
 @traitfn function mean_f(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     μ_q = mean_f.(model.f)
@@ -15,8 +13,8 @@
 end
 
 ##
-@traitfn function diag_cov_f(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
-    Σ_q = diag_cov_f.(model.f)
+@traitfn function var_f(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+    Σ_q = var_f.(model.f)
     Σ_f = []
     for i in 1:model.nTask
         x = ntuple(_->zeros(T,model.inference.nMinibatch),model.nf_per_task[i])
@@ -32,8 +30,8 @@ end
 ## return the linear sum of the expectation gradient given μ ##
 @traitfn function ∇E_μ(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     ∇ = [zeros(T,nMinibatch(m.inference)) for i in 1:nLatent(m)]
-    ∇Eμs = ∇E_μ.(m.likelihood, Ref(opt_type(m.inference)),get_y(m))
-    ∇EΣs = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)),get_y(m))
+    ∇Eμs = ∇E_μ.(m.likelihood, Ref(opt_type(m.inference)),yview(m))
+    ∇EΣs = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)),yview(m))
     μ_f = mean_f.(m.f)
     for t in 1:m.nTask
         for j in 1:m.nf_per_task[t]
@@ -48,7 +46,7 @@ end
 ## return the linear sum of the expectation gradient given diag(Σ) ##
 @traitfn function ∇E_Σ(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     ∇ = [zeros(T, nMinibatch(m.inference)) for i in 1:m.nLatent]
-    ∇Es = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), get_y(m))
+    ∇Es = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), yview(m))
     for t in 1:m.nTask
         for j in 1:m.nf_per_task[t]
             for q in 1:nLatent(m)
@@ -63,9 +61,9 @@ end
 @traitfn function update_A!(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     if !isnothing(m.A_opt)
         μ_f = mean_f.(m.f) # κμ || μ
-        Σ_f = diag_cov_f.(m.f) #Diag(K̃ + κΣκ) || Diag(Σ)
-        ∇Eμ = ∇E_μ.(m.likelihood, Ref(opt_type(m.inference)), get_y(m))
-        ∇EΣ = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), get_y(m))
+        Σ_f = var_f.(m.f) #Diag(K̃ + κΣκ) || Diag(Σ)
+        ∇Eμ = ∇E_μ.(m.likelihood, Ref(opt_type(m.inference)), yview(m))
+        ∇EΣ = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), yview(m))
         # new_A = zero(model.A)
         for t in 1:m.nTask
             for j in 1:m.nf_per_task[t]

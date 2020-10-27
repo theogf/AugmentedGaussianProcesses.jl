@@ -21,43 +21,48 @@ Argument list :
  - `nInducingPoints` : number of inducing points
 **Optional arguments**
  - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
-- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
+ - `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
+ - `mean` : `PriorMean` object, check the documentation on it [`MeanPrior`](@ref meanprior)
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
-- `Zoptimiser` : Optimiser used for inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
+ - `Zoptimiser` : Optimiser used for inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct MOSVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N,Q} <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Vector{Matrix{T}} #Feature vectors
-    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Vector{Int64} # Number of data points
-    nDim::Vector{Int64} # Number of covariates per data point
+mutable struct MOSVGP{
+    T<:Real,
+    TLikelihood<:Likelihood{T},
+    TInference<:Inference,
+    TData<:AbstractDataContainer,
+    N,
+    Q,
+} <: AbstractGP{T,TLikelihood,TInference,N}
+    data::TData
     nFeatures::Vector{Int64} # Number of features of the GP (equal to number of points)
-    nLatent::Int64 # Number of latent GPs
-    nX::Int64
-    nTask::Int64
     nf_per_task::Vector{Int64}
-    f::NTuple{Q,_SVGP}
+    f::NTuple{Q,SparseVarLatent}
     likelihood::Vector{TLikelihood}
     inference::TInference
     A::Vector{Vector{Vector{T}}}
-    A_opt
+    A_opt::Any
     verbose::Int64
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
 
 
 function MOSVGP(
-    X::Union{AbstractArray{T},AbstractVector{<:AbstractArray{T}}},
+    X::Union{AbstractMatrix,AbstractVector{<:AbstractVector}},
     y::AbstractVector{<:AbstractVector},
-    kernel::Union{Kernel, AbstractVector{<:Kernel}},
-    likelihood::Union{TLikelihood, AbstractVector{<:TLikelihood}},
-    inference::TInference,
+    kernel::Union{Kernel,AbstractVector{<:Kernel}},
+    likelihood::Union{TLikelihood,AbstractVector{<:TLikelihood}},
+    inference::Inference,
     nLatent::Int,
-    nInducingPoints::Union{Int,InducingPoints, AbstractVector{<:InducingPoints}};
+    nInducingPoints::Union{
+        Int,
+        AbstractInducingPoints,
+        AbstractVector{<:AbstractInducingPoints},
+    };
     verbose::Int = 0,
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
@@ -66,32 +71,36 @@ function MOSVGP(
     Aoptimiser = ADAM(0.01),
     Zoptimiser = false,
     ArrayType::UnionAll = Vector,
-) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+) where {TLikelihood<:Likelihood}
 
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
 
-    X = wrap_X_multi(X, nTask)
-    nX = length(X)
+    X, T = wrap_X(X)
 
     likelihoods = if likelihood isa Likelihood
-        likelihoods = [deepcopy(likelihood) for _ in 1:nTask]
+        likelihoods = [deepcopy(likelihood) for _ = 1:nTask]
     else
         likelihood
     end
 
     nf_per_task = zeros(Int64, nTask)
     corrected_y = Vector(undef, nTask)
-    for i in 1:nTask
+    for i = 1:nTask
         corrected_y[i], nf_per_task[i], likelihoods[i] =
-            check_data!(X[mod(i, nX) + 1], y[i], likelihoods[i])
+            check_data!(y[i], likelihoods[i])
     end
 
-    @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
-    @assert all(implemented.(likelihood, Ref(inference))) "The $likelihood is not compatible or implemented with the $inference"
+    inference isa AnalyticVI || error("The inference object should be of type `AnalyticVI`")
+    all(implemented.(likelihood, Ref(inference))) || error("The $likelihood is not compatible or implemented with the $inference")
 
-    nSamples = size.(X, 1)
-    nDim = size.(X, 2)
+    data = wrap_data(X, corrected_y)
+
+    if mean isa Real
+        mean = ConstantMean(mean)
+    elseif mean isa AbstractVector{<:Real}
+        mean = EmpiricalMean(mean)
+    end
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
@@ -104,34 +113,32 @@ function MOSVGP(
     kernel = if kernel isa Kernel
         [kernel]
     else
-        @assert length(kernel) == nLatent "Number of kernels should be equal to the number of tasks"
+        length(kernel) == nLatent || error("Number of kernels should be equal to the number of tasks")
         kernel
     end
     nKernel = length(kernel)
-    nInducingPoints = isa(nInducingPoints, InducingPoints) ? [deepcopy(nInducingPoints) for _ in 1:nLatent] : nInducingPoints
-    Z = init_Z.(nInducingPoints, nSamples, X, y, kernel, Ref(Zoptimiser))
+
+    nInducingPoints = if nInducingPoints isa AbstractInducingPoints
+        [deepcopy(nInducingPoints) for _ = 1:nLatent]
+    else
+        nInducingPoints
+    end
+    Z = init_Z.(nInducingPoints, Ref(Zoptimiser))
 
     nFeatures = size.(Z, 1)
 
-    if typeof(mean) <: Real
-        mean = ConstantMean(mean)
-    elseif typeof(mean) <: AbstractVector{<:Real}
-        mean = EmpiricalMean(mean)
-    end
-
-    _nMinibatch = nSamples
+    _nMinibatch = nSamples(data)
     if isStochastic(inference)
-        @assert all(0 .< nMinibatch(inference) .< nSamples)  "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
-        _nMinibatch = inference.nMinibatch
+        0 < nMinibatch(inference) < nSamples || error("The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object")
+        _nMinibatch = nMinibatch(inference)
     end
 
-    @show nFeatures, _nMinibatch
     latent_f = ntuple(
         i -> _SVGP{T}(
-            nFeatures[mod(i, nLatent) + 1],
-            _nMinibatch[1],
-            Z[mod(i, nLatent) + 1],
-            kernel[mod(i, nKernel) + 1],
+            nFeatures[i],
+            _nMinibatch,
+            Z[mod(i, nLatent)+1],
+            kernel[mod(i, nKernel)+1],
             mean,
             optimiser,
         ),
@@ -150,15 +157,22 @@ function MOSVGP(
             likelihoods,
             inference,
             nf_per_task,
-            _nMinibatch[1:1],
+            _nMinibatch,
             nFeatures,
         )
-    inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch[1:1])
-    inference.xview = view.(X, collect.(range.(1, _nMinibatch, step = 1)), :)
-    inference.yview = view(y, :)
+    xview = view_x(data, collect(range(1, _nMinibatch, step = 1)))
+    yview = view_y(likelihood, data, 1:nSamples(data))
+    inference = tuple_inference(
+        inference,
+        nLatent,
+        nFeatures,
+        nSamples(data),
+        _nMinibatch,
+        xview,
+        yview
+    )
 
-    model = MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
+    return MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
         X,
         corrected_y,
         nSamples,
@@ -192,7 +206,6 @@ end
 
 @traitimpl IsMultiOutput{MOSVGP}
 
-get_X(m::MOSVGP) = m.X
-get_Z(m::MOSVGP) = get_Z.(m.f)
-get_Z(m::MOSVGP, i::Int) = get_Z(m.f[i])
+nOutput(m::MOSVGP{<:Real,<:Likelihood,<:Inference,N,Q}) where {N, Q} = Q
+Zviews(m::MOSVGP) = Zview.(m.f)
 objective(m::MOSVGP) = ELBO(m)

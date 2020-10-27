@@ -1,74 +1,82 @@
 ##From paper "An Algorithm for Online K-Means Clustering" ##
+"""
+    StreamOnline(k_target::Int)
 
-
-mutable struct StreamOnline{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
-    k_target::Int64
-    opt::O
-    k_efficient::Int64
-    k::Int64
+Online clustering algorithm [1] to select inducing points in a streaming setting.
+Reference :
+[1] Liberty, E., Sriharsha, R. & Sviridenko, M. An Algorithm for Online K-Means Clustering. arXiv:1412.5721 [cs] (2015).
+"""
+mutable struct StreamOnline{S,TZ<:AbstractVector{S}} <: OnIP{S,TZ}
+    k_target::Int
+    k_efficient::Int
+    k::Int
     f::Float64
-    q::Int64
-    Z::M
-    function StreamOnline(k_target::Int64,opt=Flux.ADAM(0.001))
-        return new{Float64,Matrix{Float64},typeof(opt)}(k_target,opt)
-    end
+    q::Int
+    Z::TZ
 end
 
+StreamOnline(k_target::Int) = StreamOnline(k_target, 0, 0, 0.0, 0, [])
 
-function init!(alg::StreamOnline,X,y,kernel)
-    @assert size(X,1)>=10 "The first batch of data should be bigger than 10 samples"
-    alg.k_efficient = max(1,ceil(Int64,(alg.k_target-15)/5))
-    if alg.k_efficient+10 > size(X,1)
-         alg.k_efficient = 0
+function StreamOnline(Z::StreamOnline, X::AbstractVector, kernel = nothing)
+    size(X, 1) > 10 ||
+        error("The first batch of data should be bigger than 10 samples")
+    k_efficient = max(1, ceil(Int64, (Z.k_target - 15) / 5))
+    if k_efficient + 10 > size(X, 1)
+        k_efficient = 0
     end
-    alg.Z = X[sample(1:size(X,1),alg.k_efficient+10,replace=false),:]
-    # alg.centers = X[1:(alg.k_efficient+10),:]
-    alg.k = alg.k_efficient+10
-    w=zeros(alg.k)
-    for i in 1:alg.k
-        w[i] = 0.5*find_nearest_center(alg.Z[i,:],alg.Z[1:alg.k.!=i,:])[2]
+    samp = sample(1:size(X, 1), alg.k_efficient + 10, replace = false)
+    Z = Vector.(X[samp])
+    k = k_efficient + 10
+    w = zeros(k)
+    for i = 1:k
+        w[i] = 0.5 * find_nearest_center(Z[i], Z[1:alg.k.!=i], kernel)[2]
     end
-    alg.f = sum(sort(w)[1:10]) #Take the 10 smallest values
-    alg.q = 0
+    f = sum(sort(w)[1:10]) #Take the 10 smallest values
+    q = 0
+    StreamOnline(Z.k_target, k_efficient, k, f, q, Z)
 end
 
-function add_point!(alg::StreamOnline,X,y,model)
-    b = size(X,1)
-    for i in 1:b
-        val = find_nearest_center(X[i,:],alg.Z)[2]
-        if val>(alg.f*rand())
+function init(Z::StreamOnline, X::AbstractVector)
+    Z = StreamOnline(Z, X)
+end
+
+function add_point!(alg::StreamOnline, X::AbstractVector, kernel = nothing)
+    b = size(X, 1)
+    for i = 1:b
+        val = find_nearest_center(X[i], Z, kernel)[2]
+        if val > (Z.f * rand())
             # new_centers = vcat(new_centers,X[i,:]')
-            alg.Z = vcat(alg.Z,X[i,:]')
-            alg.q += 1
-            alg.k += 1
+            Z.Z = vcat(Z.Z, Vector(X[i]))
+            Z.q += 1
+            Z.k += 1
         end
-        if alg.q >= alg.k_efficient
-            alg.q = 0
-            alg.f *=10
+        if Z.q >= Z.k_efficient
+            Z.q = 0
+            Z.f *= 10
         end
     end
-    # alg.centers = vcat(alg.centers,new_centers)
 end
 
 "Find the closest center to X among C, return the index and the distance"
-function find_nearest_center(X,C,kernel=0)
-    nC = size(C,1)
-    best = Int64(1); best_val = Inf
-    for i in 1:nC
-        val = distance(X,C[i,:],kernel)
+function find_nearest_center(X::AbstractVector, C::AbstractVector, kernel = nothing)
+    nC = size(C, 1)
+    best = Int64(1)
+    best_val = Inf
+    for i = 1:nC
+        val = distance(X, C[i], kernel)
         if val < best_val
             best_val = val
             best = i
         end
     end
-    return best,best_val
+    return best, best_val
 end
 
 "Compute the distance (kernel if included) between a point and a find_nearest_center"
-function distance(X,C,k=nothing)
+function distance(X, C, k = nothing)
     if isnothing(k)
-        return norm(X-C,2)^2
+        return norm(X - C, 2)^2
     else
-        k(X,C)
+        k(X, C)
     end
 end

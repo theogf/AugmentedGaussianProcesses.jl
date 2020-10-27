@@ -22,7 +22,7 @@ MOVGP(
 Argument list :
 
 **Mandatory arguments**
- - `X` : input features, should be a vector of matrices N×D or one matrix NxD where N is the number of observation and D the number of dimension
+ - `X` : input features, should be a matrix NxD where N is the number of observation and D the number of dimension
  - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
  - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
  - `likelihood` : likelihood of the model, currently implemented : Gaussian, Student-T, Laplace, Bernoulli (with logistic link), Bayesian SVM, Multiclass (softmax or logistic-softmax) see [`Likelihood`](@ref likelihood_user)
@@ -35,34 +35,34 @@ Argument list :
  - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct MOVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N,Q} <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Vector{Matrix{T}} #Feature vectors
-    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Vector{Int64} # Number of data points
-    nDim::Vector{Int64} # Number of covariates per data point
-    nFeatures::Vector{Int64} # Number of features of the GP (equal to number of points)
-    nLatent::Int64 # Number of latent GPs
-    nX::Int64
-    nTask::Int64
+mutable struct MOVGP{
+    T<:Real,
+    TLikelihood<:Likelihood{T},
+    TInference<:Inference,
+    TData<:AbstractDataContainer,
+    N,
+    Q,
+} <: AbstractGP{T,TLikelihood,TInference,N}
+    data::TData
     nf_per_task::Vector{Int64}
-    f::NTuple{Q,_VGP}
+    f::NTuple{Q,VarLatent{T}}
     likelihood::Vector{TLikelihood}
     inference::TInference
     A::Vector{Vector{Vector{T}}}
-    A_opt
+    A_opt::Any
     verbose::Int64
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
 
 
 function MOVGP(
-    X::Union{AbstractArray{T}, AbstractVector{<:AbstractArray{T}}},
+    X::Union{AbstractVector,AbstractVector{<:AbstractArray}},
     y::AbstractVector{<:AbstractArray},
-    kernel::Union{Kernel, AbstractVector{<:Kernel}},
-    likelihood::Union{TLikelihood, AbstractVector{<:TLikelihood}},
-    inference::TInference,
+    kernel::Union{Kernel,AbstractVector{<:Kernel}},
+    likelihood::Union{TLikelihood,AbstractVector{<:TLikelihood}},
+    inference::Inference,
     nLatent::Int;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
@@ -71,34 +71,39 @@ function MOVGP(
     variance::Real = 1.0,
     Aoptimiser = ADAM(0.01),
     ArrayType::UnionAll = Vector,
-) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+) where {TLikelihood<:Likelihood}
 
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
 
-    X = wrap_X_multi(X, nTask)
-    nX = length(X)
+    X, T = wrap_X(X)
+    n_task = length(y)
 
     likelihoods = if likelihood isa Likelihood
-        likelihoods = [deepcopy(likelihood) for _ in 1:nTask]
+        likelihoods = [deepcopy(likelihood) for _ in 1:n_task]
     else
         likelihood
     end
 
     nf_per_task = zeros(Int64, nTask)
     corrected_y = Vector(undef, nTask)
-    for i in 1:nTask
+    for i = 1:nTask
         corrected_y[i], nf_per_task[i], likelihoods[i] =
-            check_data!(X[mod(i, nX) + 1], y[i], likelihoods[i])
+            check_data!(y[i], likelihoods[i])
     end
 
-    @assert inference isa AnalyticVI "The inference object should be of type `AnalyticVI`"
-    @assert all(implemented.(likelihood, Ref(inference))) "One (or all) of the likelihoods:  $likelihoods are not compatible or implemented with $inference"
+    inference isa AnalyticVI || error("The inference object should be of type `AnalyticVI`")
+    all(implemented.(likelihood, Ref(inference))) || error("One (or all) of the likelihoods:  $likelihoods are not compatible or implemented with $inference")
 
-    nSamples = size.(X, 1)
-    nDim = size.(X, 2)
-    nFeatures = nSamples
-    _nMinibatch = nSamples
+    data = wrap_data(X, corrected_y)
+
+    nFeatures = nSamples(data)
+
+    if mean isa Real
+        mean = ConstantMean(mean)
+    elseif mean isa AbstractVector{<:Real}
+        mean = EmpiricalMean(mean)
+    end
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
@@ -108,56 +113,46 @@ function MOVGP(
         Aoptimiser = Aoptimiser ? ADAM(0.01) : nothing
     end
 
-    mean = if typeof(mean) <: Real
-        ConstantMean(mean)
-    elseif typeof(mean) <: AbstractVector{<:Real}
-        EmpiricalMean(mean)
-    else
-        mean
-    end
-
     kernel = if kernel isa Kernel
         [kernel]
-    else
-        @assert length(kernel) == nLatent "Number of kernels should be equal to the number of tasks"
+    elseif kernel isa AbstractVector{<:Kernel}
+        length(kernel) == nLatent || error("Number of kernels should be equal to the number of tasks")
         kernel
     end
     nKernel = length(kernel)
 
     latent_f = ntuple(
         i -> _VGP{T}(
-            nFeatures[mod(i, nX) + 1], #?????
-            kernel[mod(i, nKernel) + 1],
+            nFeatures,
+            kernel[mod(i, nKernel)+1],
             mean,
             optimiser,
         ),
         nLatent,
     )
 
-    A = [[randn(nLatent) |> x->x/sqrt(sum(abs2,x)) for i in 1:nf_per_task[j]] for j in 1:nTask]
+    A = [
+        [
+            randn(nLatent) |> x -> x / sqrt(sum(abs2, x))
+            for i = 1:nf_per_task[j]
+        ] for j = 1:nTask
+    ]
 
     likelihoods .=
         init_likelihood.(
             likelihoods,
             inference,
             nf_per_task,
-            _nMinibatch,
+            nFeatures,
             nFeatures,
         )
+    xview = view_x(data, :)
+    yview = view_y(likelihood, data, 1:nSamples(data))
     inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch)
-    inference.xview = view.(X, range.(1,_nMinibatch,step=1), :)
-    inference.yview = view(y, :)
+        tuple_inference(inference, nLatent, nFeatures, nSamples(data), nSamples(data), xview, yview)
 
-    model = MOVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
-        X,
-        corrected_y,
-        nSamples,
-        nDim,
-        nFeatures,
-        nLatent,
-        nX,
-        nTask,
+    return MOVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
+        data,
         nf_per_task,
         latent_f,
         likelihoods,
@@ -174,13 +169,17 @@ function MOVGP(
     # return model
 end
 
-function Base.show(io::IO,model::MOVGP{T,<:Likelihood,<:Inference}) where {T}
-    print(io,"Multioutput Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ")
+function Base.show(io::IO, model::MOVGP{T,<:Likelihood,<:Inference}) where {T}
+    print(
+        io,
+        "Multioutput Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ",
+    )
 end
 
 @traitimpl IsMultiOutput{MOVGP}
 @traitimpl IsFull{MOVGP}
 
-get_Z(m::MOVGP) = m.X
-get_Z(m::MOVGP, i::Int) = nX(m) == 1 ? first(m.X) : m.X[i]
+
+nOutput(m::MOVGP{<:Real,<:Likelihood,<:Inference,N,Q}) where {N,Q} = Q
+Zviews(m::MOVGP) = [input(m)]
 objective(m::MOVGP) = ELBO(m)

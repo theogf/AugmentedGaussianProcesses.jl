@@ -1,14 +1,13 @@
 """
 Class for sparse variational Gaussian Processes
 
-```julia
-SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
-    likelihood::LikelihoodType,inference::InferenceType, nInducingPoints::Int;
-    verbose::Int=0,optimiser=ADAM(0.001),atfrequency::Int=1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-    Zoptimiser=false,
-    ArrayType::UnionAll=Vector)
-```
+
+    SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
+        likelihood::LikelihoodType,inference::InferenceType, nInducingPoints::Int;
+        verbose::Int=0,optimiser=ADAM(0.001),atfrequency::Int=1,
+        mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+        Zoptimiser=false,
+        ArrayType::UnionAll=Vector)
 
 Argument list :
 
@@ -28,55 +27,81 @@ Argument list :
 - `Zoptimiser` : Optimiser used for the inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
  - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
 """
-mutable struct SVGP{T<:Real,TLikelihood<:Likelihood{T},TInference<:Inference,N} <: AbstractGP{T,TLikelihood,TInference,N}
-    X::Matrix{T} #Feature vectors
-    y::Vector #Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Int64 # Number of data points
-    nDim::Int64 # Number of covariates per data point
-    nFeatures::Int64 # Number of features of the GP (equal to number of points)
-    nLatent::Int64 # Number pf latent GPs
-    f::NTuple{N,_SVGP}
+mutable struct SVGP{
+    T<:Real,
+    TLikelihood<:Likelihood{T},
+    TInference<:Inference,
+    TData<:AbstractDataContainer,
+    N,
+} <: AbstractGP{T,TLikelihood,TInference,N}
+    data::TData
+    nFeatures::Vector{Int} # Number of features of each latent
+    f::NTuple{N,SparseVarLatent{T}}
     likelihood::TLikelihood
     inference::TInference
     verbose::Int64
     atfrequency::Int64
-    Trained::Bool
+    trained::Bool
 end
 
 function SVGP(
-    X::AbstractArray{T₁},
+    X::AbstractArray{<:Real},
     y::AbstractVector,
     kernel::Kernel,
-    likelihood::TLikelihood,
-    inference::TInference,
-    nInducingPoints::Union{Int,InducingPoints};
+    likelihood::Likelihood,
+    inference::Inference,
+    nInducingPoints::Int;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     Zoptimiser = false,
-    ArrayType::UnionAll = Vector,
-) where {T₁<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+    obsdim::Int = 1
+) where {TLikelihood<:Likelihood}
+    SVGP(
+        X,
+        y,
+        kernel,
+        likelihood,
+        inference,
+        KmeansIP(X, nInducingPoints),
+        verbose = verbose,
+        optimiser = optimiser,
+        atfrequency = atfrequency,
+        mean = mean,
+        obsdim = obsdim
+    )
+end
 
-    X = if X isa AbstractVector
-        reshape(X, :, 1)
-    else
-        X
-    end
+function SVGP(
+    X::AbstractArray{<:Real},
+    y::AbstractVector,
+    kernel::Kernel,
+    likelihood::TLikelihood,
+    inference::Inference,
+    nInducingPoints::AbstractInducingPoints;
+    verbose::Int = 0,
+    optimiser = ADAM(0.01),
+    atfrequency::Int = 1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
+    Zoptimiser = false,
+    obsdim::Int = 1,
+) where {TLikelihood<:Likelihood}
 
-    y, nLatent, likelihood = check_data!(X, y, likelihood)
-    @assert inference isa VariationalInference "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`"
-    @assert implemented(likelihood, inference) "The $likelihood is not compatible or implemented with the $inference"
+    X, T = wrap_X(X, obsdim)
+    y, nLatent, likelihood = check_data!(y, likelihood)
 
-    nSamples = size(X, 1)
-    nDim = size(X, 2)
+    inference isa VariationalInference  || error("The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`")
+    implemented(likelihood, inference) || error("The $likelihood is not compatible or implemented with the $inference")
+
+    data = wrap_data(X, y)
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.001) : nothing
     end
 
-    Z = init_Z(nInducingPoints, nSamples, X, y, kernel, Zoptimiser)
+    Z = init_Z(nInducingPoints, Zoptimiser)
 
-    nFeatures = size(Z, 1)
+    nFeatures = length(Z)
 
     if typeof(mean) <: Real
         mean = ConstantMean(mean)
@@ -84,31 +109,28 @@ function SVGP(
         mean = EmpiricalMean(mean)
     end
 
-    _nMinibatch = nSamples
-    if isStochastic(inference)
-        @assert 0 < nMinibatch(inference) < nSamples  "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
-        _nMinibatch = nMinibatch(inference)
+    S = if isStochastic(inference)
+        @assert 0 < nMinibatch(inference) < nSamples(data) "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object"
+        nMinibatch(inference)
+    else
+        nSamples(data)
     end
 
     latentf = ntuple(
-        _ -> _SVGP{T₁}(nFeatures, _nMinibatch, Z, kernel, mean, optimiser),
+        _ -> SparseVarLatent(T, nFeatures, S, Z, kernel, mean, optimiser),
         nLatent,
     )
 
     likelihood =
-        init_likelihood(likelihood, inference, nLatent, _nMinibatch, nFeatures)
+        init_likelihood(likelihood, inference, nLatent, S)
+    xview = view_x(data, collect(1:S))
+    yview = view_y(likelihood, data, collect(1:S))
     inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples, _nMinibatch)
-    inference.xview = [view(X, collect(1:nMinibatch(inference)), :)]
-    inference.yview = [view_y(likelihood, y, collect(1:nMinibatch(inference)))]
+        tuple_inference(inference, nLatent, nFeatures, nSamples(data), S, xview, yview)
 
-    model = SVGP{T₁,TLikelihood,typeof(inference),nLatent}(
-        X,
-        y,
-        nSamples,
-        nDim,
-        nFeatures,
-        nLatent,
+    model = SVGP{T,TLikelihood,typeof(inference),typeof(data),nLatent}(
+        data,
+        fill(nFeatures, nLatent), # WARNING workaround
         latentf,
         likelihood,
         inference,
@@ -122,13 +144,14 @@ function SVGP(
     return model
 end
 
-function Base.show(io::IO,model::SVGP{T,<:Likelihood,<:Inference}) where {T}
-    print(io,"Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ")
+function Base.show(io::IO, model::SVGP{T,<:Likelihood,<:Inference}) where {T}
+    print(
+        io,
+        "Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ",
+    )
 end
 
-get_X(m::SVGP) = m.X
-get_Z(m::SVGP) = get_Z.(m.f)
-get_Z(m::SVGP, i::Int) = get_Z(m.f[i])
+Zviews(m::SVGP) = Zview.(m.f)
 objective(m::SVGP) = ELBO(m)
 
 @traitimpl IsSparse{SVGP}

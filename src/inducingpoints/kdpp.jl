@@ -1,30 +1,43 @@
-mutable struct kDPP{T,M<:AbstractMatrix{T},O} <: InducingPoints{T,M,O}
-    k::Int64
-    kernel::Kernel
-    opt::O
-    Z::M
-    function kDPP(k::Int, kernel::Kernel, opt = ADAM(0.001)) where {T}
-        return new{Float64,Matrix{Float64},typeof(opt)}(k, kernel, opt)
-    end
+"""
+    kDPP(X::AbstractVector, m::Int, kernel::Kernel)
+    kDPP(X::AbstractMatrix, m::Int, kernel::Kernel; obsdim::Int = 1)
+
+k-DPP (Determinantal Point Process) will return a subset of `X` of size `m`,
+according to DPP probability
+"""
+struct kDPP{S,TZ<:AbstractVector{S},K<:Kernel} <: OffIP{S,TZ}
+    k::Int
+    kernel::K
+    Z::TZ
 end
 
-Base.show(io::IO, alg::kDPP) = print(io, "kDPP selection of inducing points")
+function kDPP(X::AbstractMatrix, m::Int, kernel::Kernel; obsdim::Int = 1)
+    kDPP(KernelFunctions.vec_of_vecs(X, obsdim=obsdim), m, kernel)
+end
 
-function init!(alg::kDPP{T}, X, y, kernel) where {T}
-    samp = rand(1:size(X, 1))
-    alg.Z = X[samp:samp, :]
-    Zset = Set(samp)
+function kDPP(X::AbstractVector, m::Int, kernel::Kernel)
+    Z = kddp_ip(X, m, kernel)
+    return kDPP(m, kernel, Z)
+end
+
+Base.show(io::IO, alg::kDPP) = print(io, "k-DPP selection of inducing points")
+
+function kdpp_ip(X::AbstractVector, m::Int, kernel::Kernel)
+    N = size(X, 1)
+    Z = Vector{eltype(X)}()
+    i = rand(1:N)
+    push!(Z, Vector(X[i]))
+    IP_set = Set(i)
     k = 1
-    kᵢᵢ = kerneldiagmatrix(kernel, X, obsdim = 1) .+ jitt
-    while k < alg.k
-        Xset = setdiff(1:size(X, 1), Zset)
-        kᵢZ = kernelmatrix(kernel, X[collect(Xset), :], alg.Z, obsdim = 1)
-        KZ = kernelmatrix(kernel, alg.Z, obsdim = 1) + jitt * I
-        Vᵢ = kᵢᵢ[collect(Xset)] - diag(kᵢZ * inv(KZ) * kᵢZ')
+    kᵢᵢ = kerneldiagmatrix(kernel, X) .+ jitt
+    while k < m
+        X_set = setdiff(1:N, IP_set)
+        kᵢZ = kernelmatrix(kernel, X[collect(X_set)], Z)
+        KZ = kernelmatrix(kernel, Z) + jitt * I
+        Vᵢ = kᵢᵢ[collect(X_set)] - diag(kᵢZ * inv(KZ) * kᵢZ')
         pᵢ = Vᵢ / sum(Vᵢ)
-        j = sample(collect(Xset), Weights(pᵢ))
-        push!(Zset, j)
-        alg.Z = vcat(alg.Z, X[j:j, :])
+        j = sample(collect(X_set), Weights(pᵢ))
+        push!(Z, Vector(X[j])); push!(IP_set, j)
         k += 1
     end
 end

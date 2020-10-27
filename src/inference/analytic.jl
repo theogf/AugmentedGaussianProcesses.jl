@@ -1,24 +1,22 @@
 ## Solve the classical GP Regression ##
-mutable struct Analytic{T<:Real} <: Inference{T}
+mutable struct Analytic{T<:Real,Tx<:AbstractVector,Ty<:AbstractVector} <:
+               Inference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
-    Stochastic::Bool #Use of mini-batches
-    nSamples::Int64
-    nMinibatch::Int64 #Size of mini-batches
-    MBIndices::Vector{Int64} #Indices of the minibatch
-    ρ::T #Stochastic Coefficient
+    nSamples::Int
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
-    xview::AbstractArray
-    yview::AbstractVector
+    xview::Tx
+    yview::Ty
+    function Analytic{T}(ϵ::T) where {T}
+        return new{T,Vector{T},Vector{T}}(ϵ)
+    end
     function Analytic{T}(
         ϵ::T,
-        nIter::Integer,
-        Stochastic::Bool,
         nSamples::Integer,
-        MBIndices::AbstractVector,
-        ρ::T,
-    ) where {T}
-        return new{T}(ϵ, nIter, Stochastic, nSamples, nSamples, MBIndices, ρ, true)
+        xview::Tx,
+        yview::Ty,
+    ) where {T,Tx<:AbstractVector,Ty<:AbstractVector}
+        return new{T,Tx,Ty}(ϵ, 0, nSamples, true, xview, yview)
     end
 end
 
@@ -31,46 +29,46 @@ Analytic inference structure for the classical GP regression
     - `ϵ::T` : convergence criteria, which can be user defined
 """
 function Analytic(; ϵ::T = 1e-5) where {T<:Real}
-    Analytic{T}(ϵ, 0, false, 1, collect(1:1), T(1.0))
+    Analytic{T}(ϵ)
 end
 
 
-function Base.show(io::IO,inference::Analytic{T}) where T
-    print(io,"Analytic Inference")
+function Base.show(io::IO, inference::Analytic{T}) where {T}
+    print(io, "Analytic Inference")
 end
 
 
 function init_inference(
-    inference::Analytic{T},
+    i::Analytic{T},
     nLatent::Integer,
     nFeatures::Integer,
     nSamples::Integer,
     nSamplesUsed::Integer,
-) where {T<:Real}
-    inference.nSamples = nSamples
-    inference.nMinibatch = nSamples
-    inference.MBIndices = 1:nSamples
-    inference.ρ = one(T)
-    return inference
+    xview::TX,
+    yview::TY,
+) where {T<:Real, TX, TY}
+    return Analytic{T}(conv_crit(i), nSamples, xview, yview)
 end
 
-function analytic_updates!(model::GP{T}) where {T}
-    f = first(model.f); l = model.likelihood
-    f.Σ = f.K + first(l.σ²) * I
-    f.μ = f.Σ \ (model.y - f.μ₀(model.X))
+function analytic_updates!(m::GP{T}) where {T}
+    f = getf(m)
+    l = likelihood(m)
+    f.post.Σ = pr_cov(f) + first(l.σ²) * I
+    f.post.α .= cov(f) \ (yview(m) - pr_mean(f, xview(m)))
     if !isnothing(l.opt_noise)
-        g = 0.5 * (norm(f.μ, 2) - tr(inv(f.Σ).mat))
+        g = 0.5 * (norm(mean(f), 2) - tr(inv(cov(f))))
         Δlogσ² = Flux.Optimise.apply!(l.opt_noise, l.σ², g .* l.σ²)
         l.σ² .= exp.(log.(l.σ²) .+ Δlogσ²)
-        # mean(abs2, model.y .- f.μ)
     end
 end
 
-xview(inf::Analytic) = inf.xview
-yview(inf::Analytic) = inf.yview
+xview(i::Analytic) = i.xview
+yview(i::Analytic) = i.yview
 
-nMinibatch(inf::Analytic) = inf.nMinibatch
+nMinibatch(i::Analytic) = i.nSamples
 
-getρ(inf::Analytic) = inf.ρ
+getρ(i::Analytic{T}) where {T} = one(T)
 
-MBIndices(inf::Analytic) = inf.MBIndices
+MBIndices(i::Analytic) = 1:nSamples(i)
+
+isStochastic(::Analytic) = false

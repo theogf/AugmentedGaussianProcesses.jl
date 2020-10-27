@@ -1,29 +1,59 @@
 abstract type AbstractGP{T<:Real,L<:Likelihood{T},I<:Inference{T},N} end
 
-const AbstractGP1 = AbstractGP{<:Real,<:Likelihood,<:Inference,1}
-
 @traitdef IsFull{X}
 @traitdef IsMultiOutput{X}
 @traitdef IsSparse{X}
 
-nLatent(m::AbstractGP) = m.nLatent
-nFeatures(m::AbstractGP) = m.nFeatures
-nSamples(m::AbstractGP) = m.nSamples
-nSamples(m::AbstractGP, i::Int) = m.nSamples[i]
+Base.eltype(m::AbstractGP{T}) where {T} = T
+data(m::AbstractGP) = m.data
+likelihood(m::AbstractGP) = m.likelihood
+inference(m::AbstractGP) = m.inference
+nLatent(m::AbstractGP{<:Real,<:Likelihood,<:Inference, N}) where {N} = N
+nOutput(m::AbstractGP) = 1
+@traitfn nFeatures(m::TGP) where {TGP <: AbstractGP; !IsSparse{TGP}} =
+    nSamples(m)
+@traitfn nFeatures(m::TGP) where {TGP <: AbstractGP; IsSparse{TGP}} =
+    m.nFeatures
+nSamples(m::AbstractGP) = nSamples(data(m))
 
-isTrained(m::AbstractGP) = m.Trained
-setTrained!(m::AbstractGP, status::Bool) = m.Trained = status
+getf(m::AbstractGP) = m.f
+getf(m::AbstractGP, i::Int) = m.f[i]
+Base.getindex(m::AbstractGP, i::Int) = getf(m, i)
 
-@traitfn nX(m::TGP) where {TGP<:AbstractGP;!IsMultiOutput{TGP}} = 1
-@traitfn nX(m::TGP) where {TGP<:AbstractGP;IsMultiOutput{TGP}} = m.nX
+nIter(m::AbstractGP) = nIter(inference(m))
 
-function Random.rand!(model::AbstractGP,A::DenseArray{T},X::AbstractArray{T}) where {T<:Real}
-    rand!(MvNormal(predict_f(model,X,covf=true,fullcov=true)...),A)
+input(m::AbstractGP) = input(data(m))
+output(m::AbstractGP) = output(data(m))
+
+xview(m::AbstractGP) = xview(inference(m))
+yview(m::AbstractGP) = yview(inference(m))
+
+MBIndices(m::AbstractGP) = MBIndices(inference(m))
+
+is_trained(m::AbstractGP) = m.trained
+set_trained!(m::AbstractGP, status::Bool) = m.trained = status
+
+verbose(m::AbstractGP) = m.verbose
+
+post_step!(m::AbstractGP) = nothing
+
+function Random.rand!(
+    model::AbstractGP,
+    A::DenseArray{T},
+    X::AbstractVector,
+) where {T<:Real}
+    rand!(MvNormal(predict_f(model, X, covf = true, diag = false)...), A)
 end
 
-function Random.rand(model::AbstractGP,X::AbstractArray{T},n::Int=1) where {T<:Real}
-    if model.nLatent == 1
-        rand!(model,Array{T}(undef,size(X,1),n),X)
+Random.rand(model::AbstractGP, X::AbstractMatrix, n::Int = 1) = rand(model, KernelFunctions.RowVecs(X), n)
+
+function Random.rand(
+    model::AbstractGP{T},
+    X::AbstractVector,
+    n::Int = 1,
+) where {T<:Real}
+    if nLatent(model) == 1
+        rand!(model, Array{T}(undef, length(X), n), X)
     else
         @error "Sampling not implemented for multiple output GPs"
     end
@@ -31,23 +61,32 @@ end
 
 # Statistics.mean(model::AbstractGP) = model.μ
 
-get_K(model::AbstractGP) = getproperty.(model.f,:K)
+pr_covs(model::AbstractGP) = pr_cov.(model.f)
 
-get_μ(model::AbstractGP) = getproperty.(model.f,:μ)
+means(model::AbstractGP) = mean.(model.f)
 
-get_Σ(model::AbstractGP) = getproperty.(model.f,:Σ)
+covs(model::AbstractGP) = cov.(model.f)
 
-get_kernel(model::AbstractGP) = getproperty.(model.f,:kernel)
+kernels(model::AbstractGP) = kernel.(model.f)
 
 
-@traitfn function setZ!(m::TGP, Z::AbstractMatrix, i::Int) where {TGP;!IsFull{TGP}}
+## TODO this should probably be moved to InducingPoints.jl
+
+function setZ!(
+    m::AbstractGP,
+    Z::AbstractVector{<:AbstractVector{<:Real}},
+    i::Int,
+)
     @assert size(Z) == size(m.f[i].Z) "Size of Z $(size(Z)) is not the same as in the model $(size(m.f[i].Z))"
     m.f[i].Z.Z = copy(Z)
 end
 
-@traitfn function setZ!(m::TGP, Z::AbstractVector{<:AbstractMatrix}) where {TGP; !IsFull{TGP}}
+function setZ!(
+    m::AbstractGP,
+    Z::AbstractVector{<:AbstractVector},
+)
     @assert length(Z) == nLatent(m) "There is not the right number of Z matrices"
-    for i in 1:nLatent(m)
+    for i = 1:nLatent(m)
         setZ!(m, Z[i], i)
     end
 end

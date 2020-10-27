@@ -7,63 +7,58 @@ include("optimisers.jl")
 
 export RobbinsMonro, ALRSVI
 
-function post_process!(model::AbstractGP{T,<:Likelihood,<:Inference}) where {T}
-    nothing
-end
+post_process!(model::AbstractGP) = nothing
 
+# Utils to iterate over inference objects
 Base.length(::Inference) = 1
 
-Base.iterate(l::Inference) = (l,nothing)
-Base.iterate(l::Inference, ::Any) = nothing
+Base.iterate(i::Inference) = (i, nothing)
+Base.iterate(i::Inference, ::Any) = nothing
 
-isStochastic(l::Inference) = l.Stochastic
+isStochastic(i::Inference) = i.stoch
+
+## Multiple accessors
+conv_crit(i::Inference) = i.ϵ
+
 
 ## Conversion from natural to standard distribution parameters ##
-function global_update!(gp::Abstract_GP) where {T,L}
-    gp.Σ .= -0.5*inv(gp.η₂)
-    gp.μ .= gp.Σ*gp.η₁
+function global_update!(gp::AbstractLatent)
+    gp.post.Σ .= -0.5 * inv(nat2(gp))
+    gp.post.μ .= cov(gp) * nat1(gp)
 end
 
 ## For the online case, the size may vary and inplace updates are note valid
-function global_update!(gp::_OSVGP) where {T,L}
-    gp.Σ = -0.5*inv(gp.η₂)
-    gp.μ = gp.Σ*gp.η₁
+function global_update!(gp::OnlineVarLatent) where {T,L}
+    gp.post.Σ = -0.5 * inv(nat2(gp))
+    gp.post.μ = cov(gp) * nat1(gp)
 end
 
 
 ## Default function for getting a view on y
-xview(inf::Inference, i::Int) = inf.xview[i]
-xview(inf::Inference) = xview(inf, 1)
-yview(inf::Inference, i::Int) = inf.yview[i]
-yview(inf::Inference) = yview(inf, 1)
+xview(inf::Inference) = inf.xview
+setxview!(inf::Inference, xview) = inf.xview = xview
 
-setxview!(inf::Inference, i::Int, xview) = inf.xview[i] = xview
-setxview!(inf::Inference, xview) = setxview!(inf, 1, xview)
-setyview!(inf::Inference, i::Int, yview) = inf.yview[i] = yview
-setyview!(inf::Inference, yview) = setyview!(inf, 1, yview)
+setyview!(inf::Inference, yview) = inf.yview = yview
+yview(inf::Inference) = inf.yview
 
-nMinibatch(inf::Inference, i::Int) = inf.nMinibatch[i]
-nMinibatch(inf::Inference) = nMinibatch(inf, 1)
-setnMinibatch!(inf::Inference, n::AbstractVector) = inf.nMinibatch = n
-setnMinibatch!(inf::Inference, n::Real) = setnMinibatch!(inf,[n])
+nMinibatch(inf::Inference) = inf.nMinibatch
+setnMinibatch!(inf::Inference, n::Int) = inf.nMinibatch = n
 
-setnSamples!(inf::Inference, n::AbstractVector) = inf.nSamples = n
-setnSamples!(inf::Inference, n::Real) = setnSamples!(inf,[n])
+nSamples(i::Inference) = i.nSamples
+setnSamples!(inf::Inference, n::Int) = inf.nSamples = n
 
-getρ(inf::Inference, i::Int) = inf.ρ[i]
-getρ(inf::Inference) = getρ(inf, 1)
+getρ(inf::Inference) = inf.ρ
+setρ!(inf::Inference, ρ) = inf.ρ = ρ
 
-MBIndices(inf::Inference, i::Int) = inf.MBIndices[i]
-MBIndices(inf::Inference) = MBIndices(inf, 1)
-setMBIndices!(inf::Inference, i::Int, mbindices::AbstractVector) = inf.MBIndices[i] .= mbindices
-setMBIndices!(inf::Inference, mbindices::AbstractVector) = setMBIndices!(inf, 1, mbindices)
+MBIndices(inf::Inference) = inf.MBIndices
+setMBIndices!(inf::Inference, mbindices::AbstractVector) =
+    inf.MBIndices .= mbindices
 
-setHPupdated!(inf::Inference, status::Bool) = inf.HyperParametersUpdated = status
+setHPupdated!(inf::Inference, status::Bool) =
+    inf.HyperParametersUpdated = status
 isHPupdated(inf::Inference) = inf.HyperParametersUpdated
 
 nIter(inf::Inference) = inf.nIter
-
-@inline view_y(l::Likelihood, y::AbstractVector, i::AbstractVector) = view(y, i)
 
 get_opt(i::Inference) = nothing
 get_opt(i::VariationalInference) = i.vi_opt
@@ -71,20 +66,22 @@ get_opt(i::SamplingInference) = i.opt
 get_opt(i::Inference, n::Int) = get_opt(i)[n]
 opt_type(i::Inference) = first(get_opt(i))
 
-# isStochastic(inf::Inference) = inf.Stochastic
-
 function tuple_inference(
     i::Inference,
-    nLatent::Integer,
-    nFeatures::Integer,
-    nSamples::Integer,
-    nMinibatch::Integer,
+    nLatent::Int,
+    nFeatures::Int,
+    nSamples::Int,
+    nMinibatch::Int,
+    xview::AbstractVector,
+    yview::AbstractVector
 )
     return tuple_inference(
         i,
         nLatent,
         fill(nFeatures, nLatent),
-        fill(nSamples, nLatent),
-        fill(nMinibatch, nLatent),
+        nSamples,
+        nMinibatch,
+        xview,
+        yview
     )
 end
