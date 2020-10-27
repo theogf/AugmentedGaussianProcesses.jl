@@ -58,7 +58,7 @@ function get_p(::NegBinomialLikelihood, f)
 end
 
 function Base.show(io::IO, model::NegBinomialLikelihood{T}) where {T}
-    print(io, "Negative Binomial Likelihood")
+    print(io, "Negative Binomial Likelihood (r = $(model.r))")
 end
 
 function compute_proba(
