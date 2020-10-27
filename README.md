@@ -59,7 +59,7 @@ AugmentedGaussianProcesses.jl is a Julia package in development for **Data Augme
 
 ## Install the package
 
-The package requires at least [Julia 1.1](https://julialang.org/)
+The package requires at least [Julia 1.3](https://julialang.org/)
 Run `julia`, press `]` and type `add AugmentedGaussianProcesses`, it will install the package and all its dependencies.
 
 ## Use the package
