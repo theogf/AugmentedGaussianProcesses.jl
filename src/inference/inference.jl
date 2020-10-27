@@ -28,7 +28,7 @@ function global_update!(gp::AbstractLatent)
 end
 
 ## For the online case, the size may vary and inplace updates are note valid
-function global_update!(gp::OnlineVarLatent) where {T,L}
+function global_update!(gp::OnlineVarLatent)
     gp.post.Σ = -0.5 * inv(nat2(gp))
     gp.post.μ = cov(gp) * nat1(gp)
 end

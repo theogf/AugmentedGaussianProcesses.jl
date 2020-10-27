@@ -25,7 +25,7 @@ end
 function apply_grads_kernel_params!(opt, k::Kernel, Δ::IdDict)
     ps = Flux.params(k)
     for p in ps
-        Δ[p] == nothing && continue
+        isnothing(Δ[p]) && continue
         Δlogp = Flux.Optimise.apply!(opt, p, p .* vec(Δ[p]))
         p .= exp.(log.(p) + Δlogp)
     end

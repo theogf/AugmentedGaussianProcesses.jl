@@ -78,7 +78,7 @@ function opt_add_diag_mat(
     A
 end
 
-Base.:/(c::AbstractMatrix, a::PDMat) = c / a.mat ### SAAAAAADDDDDD
+Base.:/(c::AbstractMatrix, a::PDMat) = c / a.mat ### TODO : SAAAAAADDDDDD
 
 ## Compute exp(μ)/cosh(c) safely if there is an overflow ##
 function safe_expcosh(μ::Real, c::Real)

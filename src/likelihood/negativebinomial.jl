@@ -26,7 +26,7 @@ struct NegBinomialLikelihood{T<:Real,A<:AbstractVector{T}} <: EventLikelihood{T}
     end
 end
 
-function NegBinomialLikelihood(r::Int = 10) where {T<:Real}
+function NegBinomialLikelihood(r::Int = 10)
     NegBinomialLikelihood{Float64}(r)
 end
 
@@ -51,7 +51,7 @@ function pdf(l::NegBinomialLikelihood, y::Real, f::Real)
 end
 
 function expec_count(l::NegBinomialLikelihood, f)
-    broadcast((p, r) -> p * r ./ (1.0 .- p), get_p.(l, f), l.r)
+    broadcast((p, r) -> p * r ./ (1 .- p), get_p.(l, f), l.r)
 end
 
 function get_p(::NegBinomialLikelihood, f)
@@ -94,7 +94,7 @@ function sample_local!(
     l::NegBinomialLikelihood,
     y::AbstractVector,
     f::AbstractVector,
-) where {T}
+)
     pg = PolyaGammaDist()
     set_ω!(l, draw.([pg], y .- l.r, f))
 end
@@ -134,6 +134,6 @@ function expec_log_likelihood(
     return tot
 end
 
-function PolyaGammaKL(l::NegBinomialLikelihood, y::AbstractVector) where {T}
+function PolyaGammaKL(l::NegBinomialLikelihood, y::AbstractVector)
     PolyaGammaKL(y .+ l.r, l.c, l.θ)
 end

@@ -130,7 +130,7 @@ function local_updates!(
     y,
     μ::NTuple{N,<:AbstractVector},
     Σ::NTuple{N,<:AbstractVector},
-) where {T,N}
+) where {N}
     @. l.c = broadcast((Σ, μ) -> sqrt.(Σ + abs2.(μ)), Σ, μ)
     for _ = 1:2
         broadcast!(
@@ -176,12 +176,12 @@ end
     l::LogisticSoftMaxLikelihood,
     ::AOptimizer,
     y::AbstractVector,
-) where {T} = 0.5 .* (y .- l.γ)
+) = 0.5 .* (y .- l.γ)
 @inline ∇E_Σ(
     l::LogisticSoftMaxLikelihood,
     ::AOptimizer,
     y::AbstractVector,
-) where {T} = 0.5 .* l.θ
+) = 0.5 .* l.θ
 
 ## ELBO Section ##
 function expec_log_likelihood(

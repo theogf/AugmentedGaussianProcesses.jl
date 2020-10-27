@@ -35,7 +35,7 @@ end
 
 """ Construct Adaptive Learning Rate for Stochastic Variational Inference"""
 function ALRSVI(ρ::Real=0.1,τ::Int=100)
-    ALRSVI(ρ,τ,IdDict())
+    ALRSVI(ρ, τ, IdDict())
 end
 
 function init!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
@@ -75,7 +75,7 @@ function finalize_init_ALRSVI!(vi_opt::AVIOptimizer,gp::AbstractLatent{T}) where
     objη₂.ρ[] = sum(abs2,objη₂.g)/objη₂.h
 end
 
-function Optimise.apply!(opt::ALRSVI, x, Δ) where {T<:Real,N}
+function Optimise.apply!(opt::ALRSVI, x, Δ)
     # update timestep
     obj = get(opt.state,x)
     obj.t += 1

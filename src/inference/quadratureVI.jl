@@ -177,7 +177,7 @@ function apply_quad(
     σ²::Real,
     i::QuadratureVI,
     l::Likelihood,
-) where {T}
+)
     x = i.nodes * sqrt(σ²) .+ μ
     return dot(i.weights, AGP.logpdf.(l, y, x))
 end

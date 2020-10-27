@@ -57,7 +57,7 @@ function SVGP(
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     Zoptimiser = false,
     obsdim::Int = 1
-) where {TLikelihood<:Likelihood}
+)
     SVGP(
         X,
         y,
