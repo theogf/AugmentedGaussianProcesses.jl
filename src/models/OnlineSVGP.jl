@@ -36,7 +36,7 @@ function OnlineSVGP(
     kernel::Kernel,
     likelihood::Likelihood,
     inference::Inference,
-    Z::AbstractInducingPoints = CircleKMeans(0.9, 0.8);
+    Z::AbstractInducingPoints = OIPS(0.9);
     verbose::Integer = 0,
     optimiser = ADAM(0.01),
     atfrequency::Integer = 1,

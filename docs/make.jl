@@ -5,7 +5,8 @@ using AugmentedGaussianProcesses
 
 # Regression
 Literate.markdown(joinpath(@__DIR__, "examples", "gpregression.jl"),
-                    joinpath(@__DIR__, "src", "examples")
+                    joinpath(@__DIR__, "src", "examples");
+                    documenter = true,
                 )
 Literate.notebook(joinpath(@__DIR__, "examples", "gpregression.jl"),
                     joinpath(@__DIR__, "notebooks")
@@ -13,17 +14,30 @@ Literate.notebook(joinpath(@__DIR__, "examples", "gpregression.jl"),
 
 # Classification
 Literate.markdown(joinpath(@__DIR__, "examples", "gpclassification.jl"),
-                    joinpath(@__DIR__, "src", "examples")
+                    joinpath(@__DIR__, "src", "examples");
+                    documenter = true,
                 ) 
 Literate.notebook(joinpath(@__DIR__, "examples", "gpclassification.jl"),
                 joinpath(@__DIR__, "src", "examples")
             ) 
 
 # Multi-Class Classification
-
+Literate.markdown(joinpath(@__DIR__, "examples", "multiclassgp.jl"),
+                    joinpath(@__DIR__, "src", "examples");
+                    documenter = true,
+                ) 
+Literate.notebook(joinpath(@__DIR__, "examples", "multiclassgp.jl"),
+                joinpath(@__DIR__, "src", "examples")
+            ) 
 
 # Online GP
-
+Literate.markdown(joinpath(@__DIR__, "examples", "onlinegp.jl"),
+                    joinpath(@__DIR__, "src", "examples");
+                    documenter = true,
+                ) 
+Literate.notebook(joinpath(@__DIR__, "examples", "onlinegp.jl"),
+                joinpath(@__DIR__, "src", "examples")
+            ) 
 
 # Make the docs
 

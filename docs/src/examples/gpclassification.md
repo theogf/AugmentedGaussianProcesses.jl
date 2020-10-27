@@ -4,11 +4,16 @@ EditURL = "<unknown>/docs/examples/gpclassification.jl"
 
 ```@example gpclassification
 using Plots; pyplot()
-using DelimitedFiles
+using HTTP, CSV, DataFrames
 using AugmentedGaussianProcesses
 
-X = readdlm(joinpath(@__DIR__, "data", "banana_X_train"))
-Y = vec(readdlm(joinpath(@__DIR__, "data", "banana_Y_train")))
+
+data = HTTP.get("https://www.openml.org/data/get_csv/1586217/phpwRjVjk")
+data = CSV.read(data.body)
+data.Class[data.Class .== 2] .= -1
+data = Matrix(data)
+X = data[:, 1:2]
+Y = data[:, end]
 ```
 
 Run sparse classification with increasing number of inducing points

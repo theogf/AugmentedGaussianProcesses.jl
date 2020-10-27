@@ -1,7 +1,5 @@
 """
-```julia
-    LogisticSoftMaxLikelihood()
-```
+    LogisticSoftMaxLikelihood(num_class)
 
 The multiclass likelihood with a logistic-softmax mapping: :
 ```math
@@ -11,7 +9,8 @@ where `σ` is the logistic function.
 This likelihood has the same properties as [softmax](https://en.wikipedia.org/wiki/Softmax_function).
 ---
 
-For the analytical version, the likelihood is augmented multiple times. More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670)
+For the analytical version, the likelihood is augmented multiple times.
+More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670)
 """
 mutable struct LogisticSoftMaxLikelihood{T<:Real, A<:AbstractVector{T}} <: MultiClassLikelihood{T}
     nClasses::Int
@@ -125,7 +124,7 @@ function init_likelihood(
     end
 end
 
-## Local Updates##
+## Local Updates ##
 function local_updates!(
     l::LogisticSoftMaxLikelihood,
     y,
@@ -147,10 +146,10 @@ function local_updates!(
     end
     broadcast!(
         (y, γ, c) -> 0.5 * (y + γ) ./ c .* tanh.(0.5 .* c),
-        l.θ,
-        y,
-        l.γ,
-        l.c,
+        l.θ, # target
+        y, # argument 1
+        l.γ, # argument 2
+        l.c, # argument 3
     )
     return nothing
 end

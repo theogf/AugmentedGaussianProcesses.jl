@@ -1,12 +1,3 @@
-"""
-    AnalyticVI(;ϵ::T=1e-5)
-
-Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
-All data is used at each iteration (use AnalyticSVI for Stochastic updates)
-
-**Keywords arguments**
-    - `ϵ::T` : convergence criteria
-"""
 mutable struct AnalyticVI{T,N,Tx,Ty} <: VariationalInference{T}
     ϵ::T # Convergence criteria
     nIter::Integer # Number of steps performed
@@ -65,13 +56,19 @@ mutable struct AnalyticVI{T,N,Tx,Ty} <: VariationalInference{T}
     end
 end
 
+"""
+    AnalyticVI(;ϵ::T=1e-5)
 
-function AnalyticVI(; ϵ::T = 1e-5) where {T<:Real}
-    AnalyticVI{T}(ϵ, Descent(1.0), 0, false)
-end
+Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
+All data is used at each iteration (use AnalyticSVI for Stochastic updates)
+
+**Keywords arguments**
+    - `ϵ::T` : convergence criteria
+"""
+AnalyticVI
 
 """
-    AnalyticSVI(nMinibatch::Integer;ϵ::T=1e-5,optimiser=RobbinsMonro())
+    AnalyticSVI(nMinibatch::Integer; ϵ::T=1e-5, optimiser=RobbinsMonro())
 
 Stochastic Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
 
@@ -83,6 +80,12 @@ Stochastic Variational Inference solver for conjugate or conditionally conjugate
     - `ϵ::T` : convergence criteria
     - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `RobbinsMonro()` (ρ=(τ+iter)^-κ)
 """
+AnalyticSVI
+
+function AnalyticVI(; ϵ::T = 1e-5) where {T<:Real}
+    AnalyticVI{T}(ϵ, Descent(1.0), 0, false)
+end
+
 function AnalyticSVI(
     nMinibatch::Integer;
     ϵ::T = 1e-5,
@@ -124,9 +127,10 @@ end
 
 
 ## Generic method for variational updates using analytical formulas ##
+# Single output version
 @traitfn function variational_updates!(m::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     local_updates!(
-        m.likelihood,
+        likelihood(m),
         yview(m),
         mean_f(m),
         var_f(m),
@@ -141,10 +145,10 @@ end
     )
     global_update!(m)
 end
-
+# Multioutput version
 @traitfn function variational_updates!(m::TGP) where {T, L, TGP<:AbstractGP{T,L,<:AnalyticVI}; IsMultiOutput{TGP}}
     local_updates!.(
-        m.likelihood,
+        likelihood(m),
         yview(m),
         mean_f(m),
         var_f(m),

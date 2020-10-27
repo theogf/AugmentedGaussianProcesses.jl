@@ -18,7 +18,7 @@ function init_multiclass_likelihood!(l::MultiClassLikelihood,y::AbstractVector) 
     create_one_hot!(l,y)
 end
 
-view_y(l::MultiClassLikelihood,y::AbstractVector,indices::AbstractVector) = view(view.(l.Y,Ref(indices)),:)
+view_y(::MultiClassLikelihood, y::AbstractVector, i::AbstractVector) = view.(y, Ref(i))
 
 onehot_to_ind(y::AbstractVector) = findfirst(y.==1)
 

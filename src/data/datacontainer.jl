@@ -26,7 +26,7 @@ function wrap_data(X::TX, y::TY) where {TX, TY<:AbstractVector{<:Real}}
     return DataContainer{Tx, TX, Ty, TY}(X, y, length(X), length(first(X)))
 end
 
-function wrap_data(X::TX, y::TY) where {TX, TY}
+function wrap_data(X::TX, y::TY) where {TX, TY<:AbstractVector}
     size(first(y), 1) == size(X, 1) || error("There is not the same number of samples in X ($(length(TX))) and y ($(size(y, 1)))")
     Tx = eltype(first(X))
     Ty = eltype(first(y))
@@ -45,7 +45,7 @@ struct MODataContainer{
     nOutput::Int # Number of outputs
 end
 
-function wrap_data(X::TX, y::TY) where {TX, TY<:AbstractVector}
+function wrap_modata(X::TX, y::TY) where {TX, TY<:AbstractVector}
     all(size.(y, 1) .== size(X, 1)) || error("There is not the same number of samples in X ($(length(TX))) and y ($(size(y, 1)))")
     Tx = eltype(first(X))
     return MODataContainer{Tx, TX, TY}(X, y, length(X), length(first(X)), length(y))
@@ -72,7 +72,7 @@ mutable struct OnlineDataContainer <: AbstractDataContainer
     nSamples::Int # Number of samples
     nDim::Int # Number of features per sample
     function OnlineDataContainer()
-        return new
+        return new()
     end
 end
 

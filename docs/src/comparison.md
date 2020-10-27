@@ -1,5 +1,11 @@
 # Julia GP Package Comparison
 
+## JuliaGaussianProcesses Organization
+
+There is a common effort to bring GP people together through the JuliaGP organization.
+We work on making the building blocks necessary for GP such as [KernelFunctions.jl](https://github.com/JuliaGaussianProcesses/KernelFunctions.jl) for kernels, [AbstractGPs.jl](https://github.com/JuliaGaussianProcesses/AbstractGPs.jl) for the basic GP definitions and more is coming.
+The long-term goal is to have AGP.jl depend on all of the constituent and to simply have it as a wrapper.
+
 ## AugmentedGaussianProcesses.jl vs [Stheno.jl](https://github.com/willtebbutt/Stheno.jl) vs [GaussianProcesses.jl](https://github.com/STOR-i/GaussianProcesses.jl)
 
 There are already two other Gaussian Process packages in Julia, however their feature are quite orthogonal. They are roughly compared here:

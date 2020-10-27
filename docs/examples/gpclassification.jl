@@ -1,11 +1,17 @@
 using Plots; pyplot()
-using DelimitedFiles
+using HTTP, CSV
+using DataFrames: DataFrame
 using AugmentedGaussianProcesses
 
-X = readdlm(joinpath(@__DIR__, "data", "banana_X_train"))
-Y = vec(readdlm(joinpath(@__DIR__, "data", "banana_Y_train")))
+# ## Loading the banana dataset from OpenML
+data = HTTP.get("https://www.openml.org/data/get_csv/1586217/phpwRjVjk")
+data = CSV.read(data.body)
+data.Class[data.Class .== 2] .= -1
+data = Matrix(data)
+X = data[:, 1:2]
+Y = data[:, end]
 
-# Run sparse classification with increasing number of inducing points
+# ## Run sparse classification with increasing number of inducing points
 Ms = [4, 8, 16, 32, 64]
 models = Vector{AbstractGP}(undef, length(Ms) + 1)
 kernel = transform(SqExponentialKernel(), 1.0)
@@ -22,7 +28,7 @@ for (i, num_inducing) in enumerate(Ms)
     @time train!(m, 20)
     models[i] = m
 end
-
+# ## Running the full model
 @info "Running full model"
 mfull = VGP(X, Y,
             kernel,
@@ -33,6 +39,7 @@ mfull = VGP(X, Y,
 @time train!(mfull, 5)
 models[end] = mfull
 
+# Prediction and plot function on a grid
 function compute_grid(model, n_grid=50)
     mins = [-3.25,-2.85]
     maxs = [3.65,3.4]
@@ -93,6 +100,6 @@ mbsvm = VGP(X, Y,
             optimiser = false
             )
 @time train!(mbsvm, 5)
-
+# ## Comparison with Logistic likelihood
 Plots.plot(plot_model.([models[end], mbsvm], Ref(X), Ref(Y), ["Logistic", "BSVM"])...,
             layout=(1, 2))
