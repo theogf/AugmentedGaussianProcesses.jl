@@ -1,7 +1,6 @@
 # using AbstractPlotting
 using RecipesBase
 
-
 @recipe function f(gp::AbstractGP, x::AbstractVector; showX=false, nSigma=2.0)
     showX isa Bool || error("showX should be a boolean")
     nSigma isa Real || error("nSigma should be a Real")
@@ -17,7 +16,7 @@ using RecipesBase
             x, gp.y
         end
     end
-    if gp.nLatent == 1
+    if nLatent(gp) == 1
         @series begin
             ribbon := nSigma*sqrt.(sig_f)
             fillalpha --> 0.3
@@ -26,13 +25,13 @@ using RecipesBase
             x, f
         end
     else
-        for t in 1:gp.nLatent
+        for t in 1:nLatent(gp)
             @series begin
-                ribbon := nSigma*sqrt.(sig_f[t])
+                ribbon := nSigma * sqrt.(sig_f[t])
                 fillalpha --> 0.3
                 width --> 3.0
                 label --> "$(Char(ch1-1+t))"
-                x,f[t]
+                x, f[t]
             end
         end
     end
@@ -67,7 +66,7 @@ end
                 title --> "Task $i"
                 label -->  "$(Char(ch1-1+j))"
                 subplot := i
-                x,f[i][j]
+                x, f[i][j]
             end
         end
     end

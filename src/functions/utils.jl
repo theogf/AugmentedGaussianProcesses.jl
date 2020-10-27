@@ -16,8 +16,8 @@ const jitt = Jittering()
 @inline function δ(T, i::Integer, j::Integer)
     ifelse(i == j, one(T), zero(T))
 end
-
 δ(i::Integer, j::Integer) = δ(Float64, i, j)
+
 ## Hadamard product between two arrays of same size ##
 @inline function hadamard(A::AbstractArray{<:Real}, B::AbstractArray{<:Real})
     A .* B
