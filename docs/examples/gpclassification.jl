@@ -45,7 +45,7 @@ function compute_grid(model, n_grid=50)
     maxs = [3.65,3.4]
     x_lin = range(mins[1], maxs[1], length=n_grid)
     y_lin = range(mins[2], maxs[2], length=n_grid)
-    x_grid = Iterators.product(xlin, ylin)
+    x_grid = Iterators.product(x_lin, y_lin)
     y_grid, _ =  proba_y(model,vec(collect.(x_grid)))
     return y_grid, x_lin, y_lin
 end
