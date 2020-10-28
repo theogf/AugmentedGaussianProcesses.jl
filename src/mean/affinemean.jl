@@ -22,7 +22,7 @@ end
 
 function AffineMean(dims::Int; opt = ADAM(0.01))
     AffineMean{Float64,Vector{Float64},typeof(opt)}(
-        randn(dims),
+        randn(Float64, dims),
         [0.0],
         dims,
         opt,

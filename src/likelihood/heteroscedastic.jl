@@ -44,7 +44,7 @@ function pdf(l::HeteroscedasticLikelihood, y::Real, f::AbstractVector)
 end
 
 function logpdf(l::HeteroscedasticLikelihood, y::Real, f::AbstractVector)
-    logpdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
+    Distributions.logpdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
 end
 
 function Base.show(io::IO, model::HeteroscedasticLikelihood{T}) where {T}
