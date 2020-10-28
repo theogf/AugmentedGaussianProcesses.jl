@@ -77,7 +77,7 @@ end
 
 function Optimise.apply!(opt::ALRSVI, x, Δ)
     # update timestep
-    obj = get(opt.state,x)
+    obj = get(opt.state, x)
     obj.t += 1
     obj.g .= (1.0-1.0/obj.τ)*obj.g .+ 1.0/obj.τ * Δ
     obj.h[] = (1.0-1.0/obj.τ)*obj.h[] + 1.0/obj.τ * sum(abs2,Δ)

@@ -42,7 +42,7 @@ function Random.rand!(
     A::DenseArray{T},
     X::AbstractVector,
 ) where {T<:Real}
-    rand!(MvNormal(predict_f(model, X, covf = true, diag = false)...), A)
+    rand!(MvNormal(predict_f(model, X, cov = true, diag = false)...), A)
 end
 
 Random.rand(model::AbstractGP, X::AbstractMatrix, n::Int = 1) = rand(model, KernelFunctions.RowVecs(X), n)
