@@ -1,4 +1,4 @@
-using Plots; pyplot()
+using Plots
 using Distributions
 using AugmentedGaussianProcesses
 

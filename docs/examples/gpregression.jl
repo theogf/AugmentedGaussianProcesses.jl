@@ -4,7 +4,7 @@
 using AugmentedGaussianProcesses
 const AGP = AugmentedGaussianProcesses
 using Distributions
-using Plots; pyplot()
+using Plots
 
 # We create a toy dataset with X ∈ [-20, 20] and y = 5 * sinc(X)
 N = 1000

@@ -1,4 +1,4 @@
-using Plots; pyplot()
+using Plots
 using HTTP, CSV
 using DataFrames: DataFrame
 using AugmentedGaussianProcesses
