@@ -64,7 +64,7 @@ function plot_model(model, X, Y, title = nothing)
     n_grid = 50
     y_pred, x_lin, y_lin = compute_grid(model, n_grid)
     title = if isnothing(title)
-        (model isa SVGP ? "M = $(dim(model[1]))" : "full")
+        (model isa SVGP ? "M = $(AGP.dim(model[1]))" : "full")
     else
         title
     end
