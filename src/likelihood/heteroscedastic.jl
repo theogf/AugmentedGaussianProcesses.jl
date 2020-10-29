@@ -39,15 +39,15 @@ end
 
 implemented(::HeteroscedasticLikelihood, ::AnalyticVI) = true
 
-function pdf(l::HeteroscedasticLikelihood, y::Real, f::AbstractVector)
-    pdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
+function (l::HeteroscedasticLikelihood)(y::Real, f::AbstractVector)
+    Distributions.pdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
 end
 
-function logpdf(l::HeteroscedasticLikelihood, y::Real, f::AbstractVector)
+function Distributions.loglikelihood(l::HeteroscedasticLikelihood, y::Real, f::AbstractVector)
     Distributions.logpdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
 end
 
-function Base.show(io::IO, model::HeteroscedasticLikelihood{T}) where {T}
+function Base.show(io::IO, ::HeteroscedasticLikelihood{T}) where {T}
     print(io, "Gaussian likelihood with heteroscedastic noise")
 end
 
@@ -66,8 +66,8 @@ end
 
 function init_likelihood(
     likelihood::HeteroscedasticLikelihood{T},
-    inference::Inference{T},
-    nLatent::Int,
+    ::Inference{T},
+    ::Int,
     nMinibatch::Int,
 ) where {T<:Real}
     λ = likelihood.λ

@@ -3,29 +3,27 @@ include("classification.jl")
 include("multiclass.jl")
 include("event.jl")
 # include("generic_likelihood.jl")
-function pdf(l::Likelihood{T},y::Real,f::Real) where {T}
+function (l::Likelihood)(y::Real,f::Real)
     error("pdf not implemented for likelihood $(typeof(l))")
 end
 
-@inline logpdf(l::Likelihood{T}, y::Real, f::Real) where {T} = log(pdf(l,y,f))
-
-logpdf(l::Likelihood{T},y::Real,f::AbstractVector) where {T} = log(pdf(l,y,f))
+Distributions.loglikelihood(l::Likelihood, y::Real, f) = log(l(y,f))
 
 ## Default function for getting gradient ##
-function grad_logpdf(l::Likelihood,y::Real,f::Real)
-    ForwardDiff.gradient(x->AugmentedGaussianProcesses.logpdf(l,y,x[1]),[f])[1]
+function grad_loglike(l::Likelihood, y::Real, f::Real)
+    first(ForwardDiff.gradient(x->loglikelihood(l, y, x[1]), [f]))
 end
 
-function grad_logpdf(l::Likelihood,y::Real,f::AbstractVector)
-    ForwardDiff.gradient(x->AugmentedGaussianProcesses.logpdf(l,y,x),f)
+function grad_loglike(l::Likelihood, y::Real, f::AbstractVector)
+    ForwardDiff.gradient(x->loglikelihood(l, y, x), f)
 end
 
-function hessian_logpdf(l::Likelihood,y::Real,f::Real)
-    ForwardDiff.hessian(x->AugmentedGaussianProcesses.logpdf(l,y,x[1]),[f])[1]
+function hessian_loglike(l::Likelihood, y::Real, f::Real)
+    first(ForwardDiff.hessian(x->loglikelihood(l, y, x[1]), [f]))
 end
 
-function hessian_logpdf(l::Likelihood,y::Real,f::AbstractVector)
-    ForwardDiff.hessian(x->AugmentedGaussianProcesses.logpdf(l,y,x),f)
+function hessian_loglike(l::Likelihood,y::Real,f::AbstractVector)
+    ForwardDiff.hessian(x->loglikelihood(l, y, x), f)
 end
 
 implemented(::Likelihood,::Inference) = false

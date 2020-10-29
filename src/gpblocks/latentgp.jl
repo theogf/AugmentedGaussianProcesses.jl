@@ -250,7 +250,7 @@ mean_f(model::AbstractGP) = mean_f.(model.f)
 var_f(model::AbstractGP) = var_f.(model.f)
 
 @traitfn var_f(gp::T) where {T <: AbstractLatent; IsFull{T}} = var(gp)
-@traitfn var_f(gp::T) where {T <: AbstractLatent; !IsFull{T}} = opt_diag(gp.κ * cov(gp), gp.κ) + gp.K̃
+@traitfn var_f(gp::T) where {T <: AbstractLatent; !IsFull{T}} = diag_ABt(gp.κ * cov(gp), gp.κ) + gp.K̃
 
 Zview(gp::SparseVarLatent) = gp.Z
 Zview(gp::OnlineVarLatent) = gp.Z
@@ -270,7 +270,7 @@ function compute_κ!(gp::SparseVarLatent, X::AbstractVector, jitt::Real)
     gp.κ .= gp.Knm / pr_cov(gp)
     gp.K̃ .=
         kerneldiagmatrix(kernel(gp), X) .+ jitt -
-        opt_diag(gp.κ, gp.Knm)
+        diag_ABt(gp.κ, gp.Knm)
 
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end
@@ -285,6 +285,6 @@ function compute_κ!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)
     # Covariance with a new batch
     gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
     gp.κ = gp.Knm / pr_cov(gp)
-    gp.K̃ = kerneldiagmatrix(kernel(gp), X) .+ jitt - opt_diag(gp.κ, gp.Knm)
+    gp.K̃ = kerneldiagmatrix(kernel(gp), X) .+ jitt - diag_ABt(gp.κ, gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

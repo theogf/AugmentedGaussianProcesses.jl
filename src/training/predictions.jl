@@ -29,7 +29,7 @@ function _predict_f(
         return μf, covf
     else
         k_starstar = kerneldiagmatrix(kernel(m.f), X_test) .+ T(jitt)
-        varf = k_starstar - opt_diag(k_star / AGP.cov(m.f), k_star)
+        varf = k_starstar - diag_ABt(k_star / AGP.cov(m.f), k_star)
         return μf, varf
     end
 end
@@ -54,7 +54,7 @@ end
         k_starstar =
             kerneldiagmatrix.(kernels(m), Ref(X_test)) .+
             Ref(T(jitt) * ones(T, size(X_test, 1)))
-        σ²f = k_starstar .- opt_diag.(k_star .* A, k_star)
+        σ²f = k_starstar .- diag_ABt.(k_star .* A, k_star)
         return μf, σ²f
     end
 end
@@ -86,7 +86,7 @@ end
         k_starstar =
             kerneldiagmatrix.(kernels(m), [X_test]) .+
             [T(jitt) * ones(T, length(X_test))]
-        σ²f = k_starstar .- opt_diag.(k_star .* A, k_star)
+        σ²f = k_starstar .- diag_ABt.(k_star .* A, k_star)
         σ²f = [
             [sum(m.A[i][j] .^ 2 .* σ²f) for j = 1:m.nf_per_task[i]] for i = 1:nOutput(m)
         ]
@@ -115,7 +115,7 @@ function _predict_f(
             kerneldiagmatrix.(kernels(m), [X_test]) .+
             [T(jitt) * ones(T, length(X_test))]
         σ²f =
-            k_starstar .- opt_diag.(k_star ./ pr_covs(m), k_star) .+
+            k_starstar .- diag_ABt.(k_star ./ pr_covs(m), k_star) .+
             StatsBase.var.(f, dims = 2)
         return μf, σ²f
     end
@@ -295,7 +295,7 @@ end
 #     k_star = kernelmatrix.([X_test],[model.inference.x],model.kernel)
 #     f = [[k_star[min(k,model.nPrior)]*model.invKnn[min(k,model.nPrior)]].*model.inference.sample_store[k] for k in 1:model.nLatent]
 #     k_starstar = kerneldiagmatrix.([X_test],model.kernel)
-#     K̃ = k_starstar .- opt_diag.(k_star.*model.invKnn,k_star) .+ [zeros(size(X_test,1)) for i in 1:model.nLatent]
+#     K̃ = k_starstar .- diag_ABt.(k_star.*model.invKnn,k_star) .+ [zeros(size(X_test,1)) for i in 1:model.nLatent]
 #     nf = length(model.inference.sample_store[1])
 #     proba = zeros(size(X_test,1),model.nLatent)
 #     labels = Array{Symbol}(undef,model.nLatent)

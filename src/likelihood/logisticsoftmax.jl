@@ -81,12 +81,12 @@ function logisticsoftmax(f::AbstractVector{<:Real}, i::Integer)
     return logisticsoftmax(f)[i]
 end
 
-function pdf(l::LogisticSoftMaxLikelihood, f::AbstractVector)
+function (::LogisticSoftMaxLikelihood)(f::AbstractVector)
     logisticsoftmax(f)
 end
 
 
-function pdf(l::LogisticSoftMaxLikelihood, y::Integer, f::AbstractVector)
+function (::LogisticSoftMaxLikelihood)(y::Integer, f::AbstractVector)
     logisticsoftmax(f)[y]
 end
 
@@ -180,7 +180,7 @@ end
 @inline ∇E_Σ(
     l::LogisticSoftMaxLikelihood,
     ::AOptimizer,
-    y::AbstractVector,
+    ::AbstractVector,
 ) = 0.5 .* l.θ
 
 ## ELBO Section ##

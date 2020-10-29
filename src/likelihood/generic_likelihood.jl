@@ -119,12 +119,12 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ)
             end
         end
 
-        function AGP.pdf(l::$(lname),y::Real,f::Real)
-            C(l)*exp(g(l,y)*f)*φ(l,α(l,y)-β(l,y)*f+γ(l,y)*f^2)
+        function (l::$(lname))(y::Real,f::Real)
+            C(l) * exp(g(l, y) * f) * φ(l, α(l, y) - β(l, y) * f + γ(l, y) * f^2)
         end
 
-        function AGP.logpdf(l::$(lname),y::Real,f::Real)
-            log(C(l))+g(l,y)*f+log(φ(l,α(l,y)-β(l,y)*f+γ(l,y)*f^2))
+        function Distributions.loglikelihood(l::$(lname),y::Real,f::Real)
+            log(C(l)) + g(l, y) * f + log(φ(l, α(l, y) - β(l, y) * f + γ(l, y) * f^2))
         end
 
         function C(l::$(lname){T}) where {T}

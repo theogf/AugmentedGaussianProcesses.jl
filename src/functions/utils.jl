@@ -29,20 +29,20 @@ end
 end
 
 ## Return the trace of A*B' ##
-@inline function opt_trace(A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real})
+@inline function trace_ABt(A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real})
     dot(A, B)
 end
 
 ## Return the diagonal of A*B' ##
-@inline function opt_diag(
-    A::AbstractArray{T,N},
-    B::AbstractArray{T,N},
+@inline function diag_ABt(
+    A::AbstractMatrix,
+    B::AbstractMatrix,
 ) where {T<:Real,N}
     vec(sum(A .* B, dims = 2))
 end
 
 ## Return the multiplication of Diagonal(v)*B ##
-function opt_diag_mul_mat(
+function diagv_B(
     v::AbstractVector{T},
     B::AbstractMatrix{T},
 ) where {T<:Real}

@@ -6,8 +6,8 @@
         f = 0.5
         y = 0.2
         @test AGP.noise(l) == σ²
-        @test AGP.pdf(l, y, f) == pdf(Normal(f, sqrt(σ²)), y)
-        @test AGP.logpdf(l, y, f) == logpdf(Normal(f, sqrt(σ²)), y)
+        @test l(y, f) == pdf(Normal(f, sqrt(σ²)), y)
+        @test loglikelihood(l, y, f) == logpdf(Normal(f, sqrt(σ²)), y)
         @test repr(l) == "Gaussian likelihood (σ² = $(AGP.noise(l)))"
         @test AGP.AugmentedKL(l, []) == 0.0
         @test AGP.num_latent(l) == 1

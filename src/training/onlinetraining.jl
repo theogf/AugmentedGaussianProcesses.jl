@@ -184,7 +184,7 @@ function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T = T(jitt
     gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ =
         kerneldiagmatrix(kernel(gp), input(m)) .+ jitt -
-        opt_diag(gp.κ, gp.Knm)
+        diag_ABt(gp.κ, gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 
     gp.invDₐ = Symmetric(Matrix{T}(I(dim(gp))))
@@ -205,6 +205,6 @@ function compute_old_matrices!(gp::OnlineVarLatent, X::AbstractVector, jitt::Rea
     gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ =
         kerneldiagmatrix(kernel(gp), X) .+ jitt -
-        opt_diag(gp.κ, gp.Knm)
+        diag_ABt(gp.κ, gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

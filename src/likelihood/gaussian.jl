@@ -33,11 +33,11 @@ end
 
 implemented(::GaussianLikelihood, ::Union{<:AnalyticVI,<:Analytic}) = true
 
-function pdf(l::GaussianLikelihood, y::Real, f::Real)
+function (l::GaussianLikelihood)(y::Real, f::Real)
     Distributions.pdf(Normal(y, sqrt(noise(l))), f)
 end
 
-function logpdf(l::GaussianLikelihood, y::Real, f::Real)
+function Distributions.loglikelihood(l::GaussianLikelihood, y::Real, f::Real)
     Distributions.logpdf(Normal(y, sqrt(noise(l))), f)
 end
 
@@ -57,8 +57,8 @@ end
 
 function init_likelihood(
     likelihood::GaussianLikelihood{T},
-    inference::Inference,
-    nLatent::Int,
+    ::Inference,
+    ::Int,
     nSamplesUsed::Int,
 ) where {T}
     return GaussianLikelihood{T}(
@@ -78,7 +78,7 @@ function local_updates!(
         grad =
             0.5 * ((sum(abs2, y - μ) + sum(var_f)) / noise(l) - length(y))
         l.σ² .=
-            exp.(log.(l.σ²) + Flux.Optimise.apply!(l.opt_noise, l.σ², [grad]))
+            exp.(log.(l.σ²) + Optimise.apply!(l.opt_noise, l.σ², [grad]))
     end
     l.θ .= inv(noise(l))
 end
@@ -97,7 +97,7 @@ end
 
 function expec_log_likelihood(
     l::GaussianLikelihood,
-    i::AnalyticVI,
+    ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,

@@ -23,30 +23,31 @@ function grad_log_joint_model(
     x,
 ) where {T,L}
     fs = unsqueeze(model, x)
-    vcat(grad_log_likelihood(model.likelihood, yview(model), fs)...) +
-    vcat(grad_log_gp_prior.(model.f, fs)...)
+    vcat(grad_loglike(likelihood(model), yview(model), fs)...) +
+    vcat(grad_logprior(model.f, fs)...)
 end
 
-log_likelihood(
+Distributions.loglikelihood(
     l::Likelihood,
     y::AbstractVector,
     f::Tuple{<:AbstractVector{T}},
-) where {T<:Real} = sum(logpdf.(l, y, first(f)))
+) where {T<:Real} = sum(logpdf.(l, y, f...))
 
-function grad_log_likelihood(
+function grad_loglike(
     l::Likelihood,
     y::AbstractVector,
     f::Tuple{<:AbstractVector{T}},
 ) where {T}
-    grad_logpdf.(l, y, f)
+    grad_loglike.(l, y, f...)
 end
 
-function grad_log_gp_prior(gp, f)
-    -pr_cov(gp) / f#Remove μ₀ temp
+
+function grad_logprior(gp::AbstractLatent, f)
+    -pr_cov(gp) / f # Remove μ₀ temp
 end
 
-function log_gp_prior(gp, f)
-    -0.5 * logdet(pr_cov(gp)) - 0.5 * invquad(pr_cov(gp), f)#Remove μ₀ temp
+function logprior(gp::AbstractLatent, f)
+    -0.5 * logdet(pr_cov(gp)) - 0.5 * invquad(pr_cov(gp), f) # Remove μ₀ temp
 end
 
 function store_variables!(i::SamplingInference{T}, fs) where {T}

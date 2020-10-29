@@ -179,7 +179,7 @@ function apply_quad(
     l::Likelihood,
 )
     x = i.nodes * sqrt(σ²) .+ μ
-    return dot(i.weights, AGP.logpdf.(l, y, x))
+    return dot(i.weights, loglikelihood.(l, y, x))
 end
 
 function grad_expectations!(
@@ -205,16 +205,16 @@ function grad_quad(
     i::Inference,
 ) where {T<:Real}
     x = i.nodes * sqrt(max(σ², zero(T))) .+ μ
-    Edlogpdf = dot(i.weights, grad_logpdf.(l, y, x))
-    Ed²logpdf = dot(i.weights, hessian_logpdf.(l, y, x))
+    Edloglike = dot(i.weights, grad_loglike.(l, y, x))
+    Ed²loglike = dot(i.weights, hessian_loglike.(l, y, x))
     if i.clipping != 0
         return (
-            abs(Edlogpdf) > i.clipping ? sign(Edlogpdf) * i.clipping :
-            -Edlogpdf::T,
-            abs(Ed²logpdf) > i.clipping ? sign(Ed²logpdf) * i.clipping :
-            -Ed²logpdf::T,
+            abs(Edloglike) > i.clipping ? sign(Edloglike) * i.clipping :
+            -Edloglike::T,
+            abs(Ed²loglike) > i.clipping ? sign(Ed²loglike) * i.clipping :
+            -Ed²loglike::T,
         )
     else
-        return -Edlogpdf::T, Ed²logpdf::T
+        return -Edloglike::T, Ed²loglike::T
     end
 end

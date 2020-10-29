@@ -21,15 +21,28 @@ function setZadbackend(backend_sym)
     Z_ADBACKEND[] = backend_sym
 end
 
-##
-function apply_grads_kernel_params!(opt, k::Kernel, Δ::IdDict)
-    ps = Flux.params(k)
+## Updating kernel parameters ##
+function apply_Δk!(opt, k::Kernel, Δ::IdDict)
+    ps = params(k)
     for p in ps
         isnothing(Δ[p]) && continue
-        Δlogp = Flux.Optimise.apply!(opt, p, p .* vec(Δ[p]))
+        Δlogp = Optimise.apply!(opt, p, p .* vec(Δ[p]))
         p .= exp.(log.(p) + Δlogp)
     end
 end
+
+function apply_Δk!(opt, k::Kernel, Δ::AbstractVector)
+    ps = params(k)
+    i = 1
+    for p in ps
+        d = length(p)
+        Δp = Δ[i:i+d-1]
+        Δlogp = Optimise.apply!(opt, p, p .* Δp)
+        @. p = exp(log(p) + Δlogp)
+        i += d
+    end
+end
+
 
 function apply_gradients_mean_prior!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
     update!(μ, g, X)
