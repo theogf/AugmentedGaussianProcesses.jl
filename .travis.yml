@@ -22,7 +22,7 @@ jobs:
       script:
         - export DOCUMENTER_DEBUG=true
         - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-        - julia --project=docs/ docs/make.jl
+        - travis_wait 50 julia --project=docs/ docs/make.jl
       after_succes: skip
   allow-failures:
     - julia: nightly

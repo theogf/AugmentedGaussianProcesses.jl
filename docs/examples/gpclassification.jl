@@ -93,10 +93,11 @@ Plots.plot(plot_model.(models, Ref(X), Ref(Y))...,
 
 # ## Comparison with Bayesian SVM
 
-mbsvm = VGP(X, Y,
+mbsvm = SVGP(X, Y,
             kernel,
             BayesianSVM(),
             AnalyticVI(),
+            100,
             optimiser = false
             )
 @time train!(mbsvm, 5)
