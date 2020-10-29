@@ -39,6 +39,14 @@ Literate.notebook(joinpath(@__DIR__, "examples", "onlinegp.jl"),
                 joinpath(@__DIR__, "src", "examples")
             ) 
 
+# Events GP
+Literate.markdown(joinpath(@__DIR__, "examples", "gpevents.jl"),
+                    joinpath(@__DIR__, "src", "examples");
+                    documenter = true,
+                ) 
+Literate.notebook(joinpath(@__DIR__, "examples", "gpevents.jl"),
+                joinpath(@__DIR__, "src", "examples")
+
 # Make the docs
 
 makedocs(modules=[AugmentedGaussianProcesses],
@@ -57,6 +65,7 @@ makedocs(modules=[AugmentedGaussianProcesses],
              "GP Classification" => "examples/gpclassification.md",
              "Multi-Class GP" => "examples/multiclassgp.md",
              "Online GP" => "examples/onlinegp.md",
+             "GP with event data" => "examples/gpevents.md",
             ],
          "Julia GP Packages"=>"comparison.md",
          "API"=>"api.md"

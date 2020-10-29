@@ -1,32 +1,31 @@
 """
-```julia
-    NegBinomialLikelihood(r::Int=10)
-```
+    NegBinomialLikelihood(r::Real=10)
 
 [Negative Binomial likelihood](https://en.wikipedia.org/wiki/Negative_binomial_distribution) with number of failures `r`
 ```math
-    p(y|r,f) = binomial(y+r-1,y) (1-σ(f))ʳσ(f)ʸ
+    p(y|r, f) = binomial(y + r - 1, y) (1 - σ(f))ʳ σ(f)ʸ
+    p(y|r, f) = Γ(y + r)/Γ(y + 1)Γ(r) (1 - σ(f))ʳ σ(f)ʸ
 ```
 Where `σ` is the logistic function
 
 """
-struct NegBinomialLikelihood{T<:Real,A<:AbstractVector{T}} <: EventLikelihood{T}
-    r::Int
+struct NegBinomialLikelihood{T<:Real,Tr<:Real,A<:AbstractVector{T}} <: EventLikelihood{T}
+    r::Tr
     c::A
     θ::A
-    function NegBinomialLikelihood{T}(r::Int) where {T<:Real}
-        new{T,Vector{T}}(r)
+    function NegBinomialLikelihood{T}(r::Real) where {T<:Real}
+        new{T,typeof(r),Vector{T}}(r)
     end
     function NegBinomialLikelihood{T}(
-        r::Int,
+        r::Real,
         c::A,
         θ::A,
     ) where {T<:Real,A<:AbstractVector{T}}
-        new{T,A}(r, c, θ)
+        new{T,typeof(r),A}(r, c, θ)
     end
 end
 
-function NegBinomialLikelihood(r::Int = 10)
+function NegBinomialLikelihood(r::Real = 10)
     NegBinomialLikelihood{Float64}(r)
 end
 
@@ -35,8 +34,8 @@ implemented(::NegBinomialLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) =
 
 function init_likelihood(
     likelihood::NegBinomialLikelihood{T},
-    inference::Inference{T},
-    nLatent::Int,
+    ::Inference{T},
+    ::Int,
     nSamplesUsed::Int,
 ) where {T}
     NegBinomialLikelihood{T}(
@@ -118,21 +117,29 @@ end
 
 ## ELBO Section ##
 
-AugmentedKL(l::NegBinomialLikelihood{T}, y::AbstractVector) where {T} =
+AugmentedKL(l::NegBinomialLikelihood, y::AbstractVector) =
     PolyaGammaKL(l, y)
 
 function logabsbinomial(n, k)
     log(binomial(n, k))
 end
 
+function negbin_logconst(y, r::Real)
+    loggamma.(y .+ r) - loggamma.(y .+ 1) .- loggamma(r)
+end
+
+function negbin_logconst(y, r::Int)
+    logabsbinomial.(y .+ (r - 1), y)
+end
+
 function expec_log_likelihood(
     l::NegBinomialLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
 ) where {T}
-    tot = sum(logabsbinomial.(y .+ (l.r - 1), y)) - log(2.0) * sum(y .+ l.r)
+    tot = sum(negbin_logconst(y, l.r)) - log(2.0) * sum(y .+ l.r)
     tot +=
         0.5 * dot(μ, (y .- l.r)) - 0.5 * dot(l.θ, μ) - 0.5 * dot(l.θ, diag_cov)
     return tot
