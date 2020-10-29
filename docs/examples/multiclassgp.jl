@@ -1,9 +1,9 @@
-using Plots; pyplot()
+using Plots
 using Distributions
 using AugmentedGaussianProcesses
 
 # Generate data from a mixture of gaussians (you can control the noise)
-n_data = 500
+n_data = 300
 n_dim = 2
 n_grid = 100
 minx=-2.5; maxx=3.5

@@ -147,7 +147,7 @@ function MOSVGP(
 
     A = [
         [
-            randn(nLatent) |> x -> x / sqrt(sum(abs2, x))
+            randn(T, nLatent) |> x -> x / sqrt(sum(abs2, x))
             for i = 1:nf_per_task[j]
         ] for j = 1:nTask
     ]

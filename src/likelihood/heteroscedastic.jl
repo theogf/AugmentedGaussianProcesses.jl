@@ -44,7 +44,7 @@ function pdf(l::HeteroscedasticLikelihood, y::Real, f::AbstractVector)
 end
 
 function logpdf(l::HeteroscedasticLikelihood, y::Real, f::AbstractVector)
-    logpdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
+    Distributions.logpdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
 end
 
 function Base.show(io::IO, model::HeteroscedasticLikelihood{T}) where {T}
@@ -166,7 +166,7 @@ function proba_y(
     model::AbstractGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}},
     X_test::AbstractMatrix{T},
 ) where {T<:Real}
-    (μf, σ²f), (μg, σ²g) = predict_f(model, X_test, covf = true)
+    (μf, σ²f), (μg, σ²g) = predict_f(model, X_test, cov = true)
     return μf,
     σ²f + expectation.(x -> inv(model.likelihood.λ * logistic(x)), μg, σ²g)
 end

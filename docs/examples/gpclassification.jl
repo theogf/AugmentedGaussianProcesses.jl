@@ -1,4 +1,4 @@
-using Plots; pyplot()
+using Plots
 using HTTP, CSV
 using DataFrames: DataFrame
 using AugmentedGaussianProcesses
@@ -45,7 +45,7 @@ function compute_grid(model, n_grid=50)
     maxs = [3.65,3.4]
     x_lin = range(mins[1], maxs[1], length=n_grid)
     y_lin = range(mins[2], maxs[2], length=n_grid)
-    x_grid = Iterators.product(xlin, ylin)
+    x_grid = Iterators.product(x_lin, y_lin)
     y_grid, _ =  proba_y(model,vec(collect.(x_grid)))
     return y_grid, x_lin, y_lin
 end
@@ -64,7 +64,7 @@ function plot_model(model, X, Y, title = nothing)
     n_grid = 50
     y_pred, x_lin, y_lin = compute_grid(model, n_grid)
     title = if isnothing(title)
-        (model isa SVGP ? "M = $(dim(model[1]))" : "full")
+        (model isa SVGP ? "M = $(AGP.dim(model[1]))" : "full")
     else
         title
     end
@@ -93,10 +93,11 @@ Plots.plot(plot_model.(models, Ref(X), Ref(Y))...,
 
 # ## Comparison with Bayesian SVM
 
-mbsvm = VGP(X, Y,
+mbsvm = SVGP(X, Y,
             kernel,
             BayesianSVM(),
             AnalyticVI(),
+            100,
             optimiser = false
             )
 @time train!(mbsvm, 5)

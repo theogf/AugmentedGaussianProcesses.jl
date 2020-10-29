@@ -1,5 +1,5 @@
 # ## Load the necessary packages
-using Plots; pyplot()
+using Plots
 using AugmentedGaussianProcesses
 using MLDataUtils, Distributions
 

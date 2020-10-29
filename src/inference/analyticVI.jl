@@ -184,8 +184,8 @@ expec_log_likelihood(
 function natural_gradient!(
     ∇E_μ::AbstractVector,
     ∇E_Σ::AbstractVector,
-    ρ::Real,
-    opt::AVIOptimizer,
+    ::Real,
+    ::AVIOptimizer,
     X::AbstractVector,
     gp::Union{VarLatent{T}, TVarLatent{T}},
 ) where {T}

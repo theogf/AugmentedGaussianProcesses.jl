@@ -151,7 +151,7 @@ end
 function grad_expectations!(
     m::AbstractGP{T,L,<:MCIntegrationVI{T,N}},
 ) where {T,L,N}
-    raw_samples = randn(inference(m).nMC, nLatent(m))
+    raw_samples = randn(T, inference(m).nMC, nLatent(m))
     samples = similar(raw_samples)
     μ = mean_f(m)
     σ² = var_f(m)

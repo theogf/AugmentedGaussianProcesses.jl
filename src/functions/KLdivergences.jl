@@ -74,7 +74,7 @@ end
 function GIGEntropy(a, b, p)
     sqrt_ab = sqrt.(a .* b)
     return 0.5 * (sum(log, a) - sum(log, b)) +
-           mapreduce((p, s) -> log(2 * besselk(p, s), +, p, sqrt_ab)) +
+           mapreduce((p, s) -> log(2 * besselk(p, s)), +, p, sqrt_ab) +
            sum(
                0.5 * sqrt_ab ./ besselk.(p, sqrt_ab) .*
                (besselk.(p + 1, sqrt_ab) + besselk.(p - 1, sqrt_ab)),
