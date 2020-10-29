@@ -164,8 +164,6 @@ sample_local!(l::Likelihood, y, f::Tuple{<:AbstractVector{T}}) where {T} =
 set_ω!(l::Likelihood, ω) = l.θ .= ω
 get_ω(l::Likelihood) = l.θ
 
-# logpdf(model::AbstractGP{T,<:Likelihood,<:GibbsSampling}) where {T} = zero(T)
-
 function sample_global!(
     ∇E_μ::AbstractVector,
     ∇E_Σ::AbstractVector,

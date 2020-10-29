@@ -64,8 +64,12 @@ function init_likelihood(
     end
 end
 
-function pdf(l::StudentTLikelihood, y::Real, f::Real)
+function (l::StudentTLikelihood)(y::Real, f::Real)
     tdistpdf(l.ν, (y - f) / l.σ)
+end
+
+function Distributions.loglikelihood(l::StudentTLikelihood, y::Real, f::Real)
+    tdistlogpdf(l.ν, (y - f) / l.σ)
 end
 
 function Base.show(io::IO, model::StudentTLikelihood{T}) where {T}
@@ -138,11 +142,11 @@ end
 
 ## PDF and Log PDF Gradients ## (verified gradients)
 
-function grad_logpdf(l::StudentTLikelihood{T}, y::Real, f::Real) where {T<:Real}
+function grad_loglike(l::StudentTLikelihood{T}, y::Real, f::Real) where {T<:Real}
     (one(T) + l.ν) * (y - f) / ((f - y)^2 + l.σ^2 * l.ν)
 end
 
-function hessian_logpdf(
+function hessian_loglike(
     l::StudentTLikelihood{T},
     y::Real,
     f::Real,

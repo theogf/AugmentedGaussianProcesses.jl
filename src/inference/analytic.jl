@@ -54,7 +54,7 @@ function analytic_updates!(m::GP{T}) where {T}
     f.post.α .= cov(f) \ (yview(m) - pr_mean(f, xview(m)))
     if !isnothing(l.opt_noise)
         g = 0.5 * (norm(mean(f), 2) - tr(inv(cov(f))))
-        Δlogσ² = Flux.Optimise.apply!(l.opt_noise, l.σ², g .* l.σ²)
+        Δlogσ² = Optimise.apply!(l.opt_noise, l.σ², g .* l.σ²)
         l.σ² .= exp.(log.(l.σ²) .+ Δlogσ²)
     end
 end

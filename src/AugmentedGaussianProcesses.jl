@@ -27,8 +27,7 @@ module AugmentedGaussianProcesses
     @reexport using KernelFunctions
     using KernelFunctions: ColVecs, RowVecs
     using Zygote, ForwardDiff
-    using Functors
-    using Flux # Remove full dependency on Flux once params for KernelFunctions is set
+    using Flux: params, destructure
     @reexport using Flux.Optimise
     using PDMats: PDMat, invquad
     using AdvancedHMC
