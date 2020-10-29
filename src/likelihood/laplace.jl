@@ -60,16 +60,16 @@ function init_likelihood(
     end
 end
 
-function pdf(l::LaplaceLikelihood, y::Real, f::Real)
+function (l::LaplaceLikelihood)(y::Real, f::Real)
     Distributions.pdf(Laplace(f, l.β), y)
 end
 
-function logpdf(l::LaplaceLikelihood, y::Real, f::Real)
+function Distributions.loglikelihood(l::LaplaceLikelihood, y::Real, f::Real)
     Distributions.logpdf(Laplace(f, l.β), y)
 end
 
-function Base.show(io::IO, model::LaplaceLikelihood{T}) where {T}
-    print(io, "Laplace likelihood")
+function Base.show(io::IO, l::LaplaceLikelihood{T}) where {T}
+    print(io, "Laplace likelihood (β=$(l.β))")
 end
 
 function compute_proba(
@@ -110,13 +110,13 @@ end
 @inline ∇E_Σ(
     l::LaplaceLikelihood{T},
     ::AOptimizer,
-    y::AbstractVector,
+    ::AbstractVector,
 ) where {T} = (0.5 * l.θ,)
 
 ## ELBO ##
 function expec_log_likelihood(
     l::LaplaceLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
@@ -153,17 +153,17 @@ function grad_quad(
     inference::Inference,
 ) where {T<:Real}
     nodes = inference.nodes * sqrt(σ²) .+ μ
-    Edlogpdf = dot(inference.weights, grad_logpdf.(likelihood, y, nodes))
-    Ed²logpdf = (1 / sqrt(twoπ * σ²)) / (likelihood.β^2)
-    return -Edlogpdf::T, Ed²logpdf::T
+    Edloglike = dot(inference.weights, grad_loglike.(likelihood, y, nodes))
+    Ed²loglike = (1 / sqrt(twoπ * σ²)) / (likelihood.β^2)
+    return -Edloglike::T, Ed²loglike::T
 end
 
 
-@inline grad_logpdf(l::LaplaceLikelihood{T}, y::Real, f::Real) where {T<:Real} =
+@inline grad_loglike(l::LaplaceLikelihood{T}, y::Real, f::Real) where {T<:Real} =
     sign(y - f) ./ l.β
 
-@inline hessian_logpdf(
-    l::LaplaceLikelihood{T},
-    y::Real,
-    f::Real,
+@inline hessian_logl(
+    ::LaplaceLikelihood{T},
+    ::Real,
+    ::Real,
 ) where {T<:Real} = zero(T)

@@ -8,7 +8,6 @@ seed!(42)
 
 include("testingtools.jl")
 
-AGP.setadbackend(:reverse_diff)
 # Global flags for the tests
 @testset "AugmentedGaussianProcesses.jl tests" begin
     @info "Testing data"
@@ -36,8 +35,17 @@ AGP.setadbackend(:reverse_diff)
         end
     end
 
-    @info "Likelihood tests"
-    @testset "Likelihoods" begin
+    @info "Likelihood tests with Forward Diff"
+    AGP.setadbackend(:forward_diff)
+    @testset "Likelihoods (ForwardDiff)" begin
+        for f in readdir(joinpath(@__DIR__, "likelihood"))
+            include(joinpath("likelihood",f))
+        end
+    end
+
+    @info "Likelihood tests with Zygote"
+    AGP.setadbackend(:reverse_diff)
+    @testset "Likelihoods (Zygote)" begin
         for f in readdir(joinpath(@__DIR__, "likelihood"))
             include(joinpath("likelihood",f))
         end

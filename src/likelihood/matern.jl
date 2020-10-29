@@ -62,18 +62,18 @@ function init_likelihood(
     end
 end
 
-function pdf(l::Matern3_2Likelihood{T}, y::Real, f::Real) where {T}
+function (l::Matern3_2Likelihood)(y::Real, f::Real)
     u = sqrt(3) * abs(y - f) / l.ρ
     4 * l.ρ / sqrt(3) * (one(T) + u) * exp(-u)
 end
 
-function logpdf(l::Matern3_2Likelihood{T}, y::Real, f::Real) where {T}
+function Distributions.loglikelihood(l::Matern3_2Likelihood, y::Real, f::Real)
     u = sqrt(3) * abs(y - f) / l.ρ
     log(4 * l.ρ / sqrt(3)) + log(one(T) + u) - u
 end
 
-function Base.show(io::IO, model::Matern3_2Likelihood{T}) where {T}
-    print(io, "Matern 3/2 likelihood")
+function Base.show(io::IO, l::Matern3_2Likelihood{T}) where {T}
+    print(io, "Matern 3/2 likelihood (ρ = $(l.ρ))")
 end
 
 function compute_proba(
@@ -81,7 +81,7 @@ function compute_proba(
     μ::AbstractVector{<:Real},
     σ²::AbstractVector{<:Real},
 ) where {T<:Real}
-    return μ, max.(σ², 0.0) .+ 4 * l.ρ^2 / 3
+    return μ, max.(σ², zero(T)) .+ 4 * l.ρ^2 / 3
 end
 
 ## Local Updates ##
@@ -147,18 +147,18 @@ end
 
 ## PDF and Log PDF Gradients ## (verified gradients)
 
-@inline function grad_logpdf(
-    l::Matern3_2Likelihood{T},
+@inline function grad_loglike(
+    l::Matern3_2Likelihood,
     y::Real,
     f::Real,
-) where {T<:Real}
+)
     3.0 * (y - f) / (l.ρ * (abs(f - y) * sqrt(3) + l.ρ))
 end
 
-@inline function hessian_logpdf(
-    l::Matern3_2Likelihood{T},
+@inline function hessian_loglike(
+    l::Matern3_2Likelihood,
     y::Real,
     f::Real,
-) where {T<:Real}
+)
     3.0 / (l.ρ + sqrt(3) * abs(f - y))^2
 end

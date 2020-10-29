@@ -35,16 +35,16 @@ function update_hyperparameters!(
     if !isnothing(gp.opt)
         f_l, f_μ₀ = hyperparameter_gradient_function(gp, X)
         ad_use = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
-        grads = if ad_use == :forward_diff
+        Δμ₀ = f_μ₀()
+        Δk = if ad_use == :forward_diff
             ∇L_ρ_forward(f_l, gp, X)
         elseif ad_use == :reverse_diff
             ∇L_ρ_reverse(f_l, gp, X)
         else
             error("Uncompatible ADBackend")
         end
-        grads[pr_mean(gp)] = f_μ₀()
-        apply_grads_kernel_params!(gp.opt, kernel(gp), grads) # Apply gradients to the kernel parameters
-        apply_gradients_mean_prior!(pr_mean(gp), grads[pr_mean(gp)], X)
+        apply_Δk!(gp.opt, kernel(gp), Δk) # Apply gradients to the kernel parameters
+        apply_gradients_mean_prior!(pr_mean(gp), Δμ₀, X)
     end
 end
 
@@ -57,18 +57,20 @@ function update_hyperparameters!(
     i::Inference,
     vi_opt::InferenceOptimizer,
 )
-    if !isnothing(gp.opt)
+    Δμ₀, Δk = if !isnothing(gp.opt)
         f_ρ, f_Z, f_μ₀ = hyperparameter_gradient_function(gp)
         k_aduse = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
-        grads = if k_aduse == :forward_diff
+        Δμ₀ = f_μ₀()
+        Δk = if k_aduse == :forward_diff
             ∇L_ρ_forward(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         elseif k_aduse == :reverse_diff
             ∇L_ρ_reverse(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         end
-        # @show grads[kernel(gp).transform.s]
-        grads[pr_mean(gp)] = f_μ₀()
+        (Δμ₀, Δk)
+    else
+        nothing, nothing
     end
-    if !isnothing(opt(gp.Z)) && !isnothing(gp.opt)
+    if !isnothing(opt(gp.Z))
         Z_aduse = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]
         Z_grads = if Z_aduse == :forward_diff
             Z_gradient_forward(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt) #Compute the gradient given the inducing points location
@@ -77,16 +79,16 @@ function update_hyperparameters!(
         end
         update!(opt(gp.Z), gp.Z.Z, Z_grads) #Apply the gradients on the location
     end
-    if !isnothing(gp.opt)
-        apply_grads_kernel_params!(gp.opt, kernel(gp), grads) # Apply gradients to the kernel parameters
-        apply_gradients_mean_prior!(pr_mean(gp), grads[pr_mean(gp)], X)
+    if !all([isnothing(Δk), isnothing(Δμ₀)])
+        apply_Δk!(gp.opt, kernel(gp), Δk) # Apply gradients to the kernel parameters
+        apply_gradients_mean_prior!(pr_mean(gp), Δμ₀, X)
     end
 end
 
 
 ## Return the derivative of the KL divergence between the posterior and the GP prior ##
 function hyperparameter_KL_gradient(J::AbstractMatrix, A::AbstractMatrix)
-    return 0.5 * opt_trace(J, A)
+    return 0.5 * trace_ABt(J, A)
 end
 
 
@@ -244,10 +246,10 @@ function hyperparameter_expec_gradient(
     Jnn::AbstractVector{<:Real},
 )
     ι = (Jnm - gp.κ * Jmm) / pr_cov(gp)
-    J̃ = Jnn - (opt_diag(ι, gp.Knm) + opt_diag(gp.κ, Jnm))
+    J̃ = Jnn - (diag_ABt(ι, gp.Knm) + diag_ABt(gp.κ, Jnm))
     dμ = dot(∇E_μ, ι * mean(gp))
     dΣ = -dot(∇E_Σ, J̃)
-    dΣ += -dot(∇E_Σ, 2.0 * (opt_diag(ι, κΣ)))
+    dΣ += -dot(∇E_Σ, 2.0 * (diag_ABt(ι, κΣ)))
     dΣ += -dot(∇E_Σ, 2.0 * (ι * mean(gp)) .* (gp.κ * mean(gp)))
     return getρ(i) * (dμ + dΣ)
 end
@@ -266,9 +268,9 @@ function hyperparameter_expec_gradient(
     Jnn::AbstractVector{<:Real},
 )
     ι = (Jnm - gp.κ * Jmm) / pr_cov(gp)
-    J̃ = Jnn - (opt_diag(ι, gp.Knm) + opt_diag(gp.κ, Jnm))
+    J̃ = Jnn - (diag_ABt(ι, gp.Knm) + diag_ABt(gp.κ, Jnm))
     dμ = dot(∇E_μ, ι * mean(gp))
-    dΣ = dot(∇E_Σ, J̃ + 2.0 * opt_diag(ι, κΣ))
+    dΣ = dot(∇E_Σ, J̃ + 2.0 * diag_ABt(ι, κΣ))
     return getρ(i) * (dμ + dΣ)
 end
 
@@ -281,7 +283,7 @@ function hyperparameter_online_gradient(
 )
     ιₐ = (Jab - gp.κₐ * Jmm) / pr_cov(gp)
     trace_term =
-        -0.5 * sum(opt_trace.(
+        -0.5 * sum(trace_ABt.(
             [gp.invDₐ],
             [
                 Jaa,

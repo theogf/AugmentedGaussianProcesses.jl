@@ -47,8 +47,12 @@ function init_likelihood(
     )
 end
 
-function pdf(l::PoissonLikelihood, y::Real, f::Real)
-    pdf(Poisson(get_p(l, l.λ, f)), y)
+function (l::PoissonLikelihood)(y::Real, f::Real)
+    Distributions.pdf(Poisson(get_p(l, l.λ, f)), y)
+end
+
+function Distributions.loglikelihood(l::PoissonLikelihood, y::Real, f::Real)
+    Distributions.logpdf(Poisson(expec_count(l, f)), y)
 end
 
 function expec_count(l::PoissonLikelihood, f)

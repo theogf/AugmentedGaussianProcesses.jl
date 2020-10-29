@@ -57,11 +57,11 @@ function init_likelihood(
     end
 end
 
-function pdf(l::LogisticLikelihood, y::Real, f::Real)
+function (::LogisticLikelihood)(y::Real, f::Real)
     logistic(y * f)
 end
 
-function logpdf(l::LogisticLikelihood, y::T, f::T) where {T<:Real}
+function Distributions.loglikelihood(::LogisticLikelihood{T}, y::Real, f::Real) where {T}
     -log(one(T) + exp(-y * f))
 end
 
@@ -73,11 +73,11 @@ function compute_proba(
     l::LogisticLikelihood{T},
     f::Real
     ) where {T<:Real}
-    pdf(l, 1, f)
+    l(1, f)
 end
 
 function compute_proba(
-    l::LogisticLikelihood{T},
+    ::LogisticLikelihood{T},
     μ::AbstractVector{<:Real},
     σ²::AbstractVector{<:Real},
 ) where {T<:Real}
@@ -116,14 +116,14 @@ end
 
 ### Natural Gradient Section ###
 
-∇E_μ(l::LogisticLikelihood, ::AOptimizer, y::AbstractVector) = (0.5 * y,)
-∇E_Σ(l::LogisticLikelihood, ::AOptimizer, y::AbstractVector) = (0.5 * l.θ,)
+∇E_μ(::LogisticLikelihood, ::AOptimizer, y::AbstractVector) = (0.5 * y,)
+∇E_Σ(l::LogisticLikelihood, ::AOptimizer, ::AbstractVector) = (0.5 * l.θ,)
 
 ### ELBO Section ###
 
 function expec_log_likelihood(
     l::LogisticLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
@@ -141,10 +141,10 @@ end
 
 ### Gradient Section ###
 
-@inline grad_logpdf(::LogisticLikelihood{T}, y::Real, f::Real) where {T} =
+@inline grad_loglike(::LogisticLikelihood{T}, y::Real, f::Real) where {T} =
     y * logistic(-y * f)
 
-@inline hessian_logpdf(
+@inline hessian_loglike(
     ::LogisticLikelihood{T},
     y::Real,
     f::Real,

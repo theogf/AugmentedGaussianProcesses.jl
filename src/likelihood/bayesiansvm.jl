@@ -44,11 +44,11 @@ function init_likelihood(
 ) where {T}
     BayesianSVM{T}(rand(T, nSamplesUsed), zeros(T, nSamplesUsed))
 end
-function pdf(l::BayesianSVM, y::Real, f::Real)
+function (::BayesianSVM)(y::Real, f::Real)
     svmlikelihood(y * f)
 end
 
-function Base.show(io::IO, model::BayesianSVM{T}) where {T}
+function Base.show(io::IO, ::BayesianSVM{T}) where {T}
     print(io, "Bayesian SVM")
 end
 
@@ -96,14 +96,14 @@ end
 @inline ∇E_μ(l::BayesianSVM{T}, ::AOptimizer, y::AbstractVector) where {T} =
     (y .* (l.θ .+ one(T)),)
 
-@inline ∇E_Σ(l::BayesianSVM{T}, ::AOptimizer, y::AbstractVector) where {T} =
+@inline ∇E_Σ(l::BayesianSVM{T}, ::AOptimizer, ::AbstractVector) where {T} =
     (0.5 .* l.θ,)
 
 ## Lower bounds
 
 function expec_log_likelihood(
     l::BayesianSVM{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,

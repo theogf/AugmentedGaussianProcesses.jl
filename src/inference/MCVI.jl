@@ -178,7 +178,7 @@ function expec_log_likelihood(
         samples .=
             raw_samples .* [sqrt(var_f[k][j]) for k = 1:N]' .+ [μ_f[k][j] for k = 1:N]'
         loglike += sum(
-            f -> logpdf(l, getindex.(y, j), f),
+            f -> loglikelihood(l, getindex.(y, j), f),
             eachrow(samples)
             ) / i.nMC
     end

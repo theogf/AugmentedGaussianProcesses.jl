@@ -1,6 +1,6 @@
 function ∇L_ρ_reverse(f, gp::AbstractLatent, X)
     k = kernel(gp)
-    return (Flux.gradient(Flux.params(k)) do
+    return (Zygote.gradient(params(k)) do
         _∇L_ρ_reverse(f, k, X)
     end).grads # Zygote gradient
 end
@@ -9,7 +9,7 @@ _∇L_ρ_reverse(f, k, X) = f(kernelmatrix(k, X))
 
 function ∇L_ρ_reverse(f, gp::SparseVarLatent, X, ∇E_μ, ∇E_Σ, i, opt)
     k = kernel(gp)
-    return (Zygote.gradient(Flux.params(k)) do
+    return (Zygote.gradient(params(k)) do
         _∇L_ρ_reverse(f, k, gp.Z, X, ∇E_μ, ∇E_Σ, i, opt)
     end).grads
 end
@@ -26,7 +26,7 @@ function ∇L_ρ_reverse(f, gp::OnlineVarLatent, X, ∇E_μ, ∇E_Σ, i, opt)
     k = kernel(gp)
     Zrv = RowVecs(copy(hcat(gp.Z...)')) # TODO Fix that once https://github.com/JuliaGaussianProcesses/KernelFunctions.jl/issues/151 is solved
     Zarv = RowVecs(copy(hcat(gp.Zₐ...)'))
-    return  (Zygote.gradient(Flux.params(k)) do
+    return  (Zygote.gradient(params(k)) do
         _∇L_ρ_reverse(f, k, Zrv, X, Zarv, ∇E_μ, ∇E_Σ, i, opt)
     end).grads
 end

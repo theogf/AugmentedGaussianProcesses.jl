@@ -45,8 +45,12 @@ function init_likelihood(
     )
 end
 
-function pdf(l::NegBinomialLikelihood, y::Real, f::Real)
-    pdf(NegativeBinomial(lr, get_p(l, f)), y)
+function (l::NegBinomialLikelihood)(y::Real, f::Real)
+    Distributions.pdf(NegativeBinomial(lr, get_p(l, f)), y)
+end
+
+function Distributions.loglikelihood(l::NegBinomialLikelihood, y::Real, f::Real)
+    Distributions.logpdf(NegativeBinomial(lr, get_p(l, f)), y)
 end
 
 function expec_count(l::NegBinomialLikelihood, f)
@@ -57,8 +61,8 @@ function get_p(::NegBinomialLikelihood, f)
     logistic.(f)
 end
 
-function Base.show(io::IO, model::NegBinomialLikelihood{T}) where {T}
-    print(io, "Negative Binomial Likelihood (r = $(model.r))")
+function Base.show(io::IO, l::NegBinomialLikelihood{T}) where {T}
+    print(io, "Negative Binomial Likelihood (r = $(l.r))")
 end
 
 function compute_proba(

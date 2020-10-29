@@ -46,11 +46,11 @@ SoftMaxLikelihood(ylabels::AbstractVector) = SoftMaxLikelihood{Float64}(
 
 implemented(::SoftMaxLikelihood, ::MCIntegrationVI) = true
 
-function pdf(l::SoftMaxLikelihood, f::AbstractVector)
+function (::SoftMaxLikelihood)(f::AbstractVector)
     StatsFuns.softmax(f)
 end
 
-function pdf(l::SoftMaxLikelihood, y::Int, f::AbstractVector{<:Real})
+function (l::SoftMaxLikelihood)(y::Int, f::AbstractVector{<:Real})
     StatsFuns.softmax(f)[y]
 end
 

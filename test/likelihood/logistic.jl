@@ -1,6 +1,6 @@
 @testset "logistic" begin
     N, d = 20, 2
-    k = transform(SqExponentialKernel(), 10.0)
+    k = 2.0 * transform(SqExponentialKernel(), 10.0)
     X, f = generate_f(N, d, k)
     y = sign.(f)
     floattypes = [Float64]

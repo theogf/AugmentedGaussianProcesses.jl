@@ -22,8 +22,8 @@ view_y(::MultiClassLikelihood, y::AbstractVector, i::AbstractVector) = view.(y, 
 
 onehot_to_ind(y::AbstractVector) = findfirst(y.==1)
 
-function logpdf(l::MultiClassLikelihood, y::AbstractVector, f::AbstractVector)
-    logpdf(l, onehot_to_ind(y), f)
+function Distributions.loglikelihood(l::MultiClassLikelihood, y::AbstractVector, f::AbstractVector)
+    loglikelihood(l, onehot_to_ind(y), f)
 end
 
 
@@ -68,21 +68,22 @@ function compute_proba(l::MultiClassLikelihood{T},μ::AbstractVector{<:AbstractV
     for i in 1:n
             # p = MvNormal(μ[i],sqrt.(abs.(σ²[i])))
             # p = MvNormal(μ[i],sqrt.(max.(eps(T),σ²[i]))) #WARNING DO NOT USE VARIANCE
-            pred[i,:] .= pdf(l,μ[i])
+            pred[i,:] .= l(μ[i])
             # for _ in 1:nSamples
             # end
     end
     return NamedTuple{Tuple(Symbol.(l.class_mapping))}(eachcol(pred))
 end
 
-function expec_logpdf(model::AbstractGP{T,<:MultiClassLikelihood,<:NumericalVI}) where {T}
+function expec_loglike(model::AbstractGP{T,<:MultiClassLikelihood,<:NumericalVI}) where {T}
     compute_log_expectations(model)
 end
 
-log_likelihood(l::MultiClassLikelihood, y::AbstractVector, fs) = logpdf.(l, y, [getindex.(fs, i) for i in 1:length(y)])
+Distributions.loglikelihood(l::MultiClassLikelihood, y::AbstractVector, fs) =
+         loglikelihood.(l, y, [getindex.(fs, i) for i in 1:length(y)])
 
-function grad_log_likelihood(l::Likelihood,y::AbstractVector,fs)
-    grad_logpdf.(l, y, [getindex.(fs, i) for i in 1:length(y)])
+function grad_loglike(l::Likelihood, y::AbstractVector, fs)
+    grad_loglike.(l, y, [getindex.(fs, i) for i in 1:length(y)])
 end
 
 
