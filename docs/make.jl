@@ -46,15 +46,17 @@ Literate.markdown(joinpath(@__DIR__, "examples", "gpevents.jl"),
                 ) 
 Literate.notebook(joinpath(@__DIR__, "examples", "gpevents.jl"),
                 joinpath(@__DIR__, "src", "examples")
+            )
 
 # Make the docs
 
-makedocs(modules=[AugmentedGaussianProcesses],
+makedocs(modules = [AugmentedGaussianProcesses],
          format = Documenter.Writers.HTMLWriter.HTML(
-         assets = ["assets/icon.ico"],
-         analytics="UA-129106538-2"),
+            assets = ["assets/icon.ico"],
+            analytics = "UA-129106538-2",
+            ),
          sitename= "AugmentedGaussianProcesses",
-         authors="Theo Galy-Fajou",
+         authors = "Théo Galy-Fajou",
          pages = [
          "Home"=>"index.md",
          "Background"=>"background.md",
