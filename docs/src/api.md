@@ -19,7 +19,9 @@ AugmentedGaussianProcesses
 ```@docs
 GP
 VGP
+MCGP
 SVGP
+OnlineSVGP
 ```
 
 ## Likelihood Types
@@ -56,22 +58,6 @@ train!
 predict_f
 predict_y
 proba_y
-```
-
-## Kernels
-
-```@docs
-RBFKernel
-MaternKernel
-```
-
-## Kernel functions
-
-```@docs
-kernelmatrix
-kernelmatrix!
-getvariance
-getlengthscales
 ```
 
 ## Prior Means

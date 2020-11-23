@@ -9,6 +9,8 @@
 
 AugmentedGaussianProcesses.jl is a Julia package in development for **Data Augmented Sparse Gaussian Processes**. It contains a collection of models for different **gaussian and non-gaussian likelihoods**, which are transformed via data augmentation into **conditionally conjugate likelihood** allowing for **extremely fast inference** via block coordinate updates. There are also more options to use more traditional **variational inference** via quadrature or Monte Carlo integration.
 
+The theory for the augmentation is given in the following paper : [Automated Augmented Conjugate Inference for Non-conjugate Gaussian Process Models](https://arxiv.org/abs/2002.11451)
+
 ### You can also use the package in Python via [PyJulia](https://github.com/JuliaPy/pyjulia)!
 
 # Packages models :
@@ -83,6 +85,8 @@ Both [documentation](https://theogf.github.io/AugmentedGaussianProcesses.jl/stab
 Check out [my website for more news](https://theogf.github.io)
 
 ["Gaussian Processes for Machine Learning"](http://www.gaussianprocess.org/gpml/) by Carl Edward Rasmussen and Christopher K.I. Williams
+
+AISTATS 20' ["Automated Augmented Conjugate Inference for Non-conjugate Gaussian Process Models"](https://arxiv.org/abs/2002.11451) by  Théo Galy-Fajou, Florian Wenzel and Manfred Opper [https://arxiv.org/abs/2002.11451][autoconj]
 
 UAI 19' "Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation" by Théo Galy-Fajou, Florian Wenzel, Christian Donner and Manfred Opper [https://arxiv.org/abs/1905.09670][uaimulticlass]
 

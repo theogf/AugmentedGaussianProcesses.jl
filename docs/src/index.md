@@ -2,7 +2,7 @@
 
 [![Docs Latest](https://img.shields.io/badge/docs-dev-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/dev)
 [![Docs Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable)
-[![Build Status](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl.svg?branch=master)](https://travis-ci.org/theogf/AugmentedGaussianProcesses.jl)
+![BuildStatus](https://github.com/theogf/AugmentedGaussianProcesses.jl/workflows/CI/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/theogf/AugmentedGaussianProcesses.jl/badge.svg?branch=master)](https://coveralls.io/github/theogf/AugmentedGaussianProcesses.jl?branch=master)
 
 
@@ -34,10 +34,13 @@ y_pred = predict_y(model,X_test)
 
 - [GaussianProcesses.jl](https://github.com/STOR-i/GaussianProcesses.jl) : General package for Gaussian Processes with many available likelihoods
 - [Stheno.jl](https://github.com/willtebbutt/Stheno.jl) : Package for Gaussian Process regression
+- [AbstractGP.jl](https://github.com/JuliaGaussianProcesses/AbstractGP.jl) : General package containing base functions for working with GPs
+- [GPLikelihoods.jl](https://github.com/JuliaGaussianProcesses/GPLikelihoods.jl) : Package to define likelihoods for latent GP models
 
 A general comparison between this package is done on [Julia GP Package Comparison](@ref). Benchmark evaluations may come later.
 
 ### License
+
 AugmentedGaussianProcesses.jl is licensed under the MIT "Expat" license; see
 [LICENSE](https://github.com/theogf/AugmentedGaussianProcesses.jl/LICENSE.md) for
 the full license text.
