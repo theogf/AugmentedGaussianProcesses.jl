@@ -1,6 +1,4 @@
-# # Regression with a Gaussian Likelihood
-
-# ## Use necessary packages
+# ### Loading necessary packages
 using AugmentedGaussianProcesses
 const AGP = AugmentedGaussianProcesses
 using Distributions
@@ -14,7 +12,7 @@ X = reshape((sort(rand(N)) .- 0.5) * 40.0, N, 1)
 function latent(x)
     5.0 * sinc.(x)
 end
-Y = vec(latent(X) + σ * randn(N))
+Y = vec(latent(X) + σ * randn(N));
 
 # Visualization of the data :
 scatter(X, Y, lab="")
@@ -25,11 +23,12 @@ scatter(X, Y, lab="")
 # inducing points compared to the true Gaussian Process
 # For simplicity we will keep all inducing points and kernel parameters fixed
 
-# Run sparse classification with an increasing number of inducing points
-Ms = [4, 8, 16, 32, 64]
+Ms = [4, 8, 16, 32, 64];
 # Create an empty array of GPs
-models = Vector{AbstractGP}(undef,length(Ms) + 1)
-kernel = SqExponentialKernel()#  + PeriodicKernel()
+models = Vector{AbstractGP}(undef,length(Ms) + 1);
+# Chose a kernel
+kernel = SqExponentialKernel();#  + PeriodicKernel()
+# And Run sparse classification with an increasing number of inducing points
 for (index, num_inducing) in enumerate(Ms)
     @info "Training with $(num_inducing) points"
     m = SVGP(X, Y, # First arguments are the input and output
@@ -60,7 +59,7 @@ function compute_grid(model, n_grid=50)
     x_grid = range(mins, maxs, length = n_grid) # Create a grid
     y_grid, sig_y_grid = proba_y(model, reshape(x_grid, :, 1)) # Predict the mean and variance on the grid
     return y_grid, sig_y_grid, x_grid
-end
+end;
 
 # Plot the data as a scatter plot
 function plotdata(X,Y)
@@ -126,6 +125,6 @@ end
 ngmodels[end] = models[end] # Add the Gaussian model
 # We can now repeat the prediction from before :
 Plots.plot(plot_model.(ngmodels, Ref(X), Ref(Y), ["Student-T", "Laplace", "Heteroscedastic", "Gaussian"])...,
-            layout=(1, length(ngmodels)),
+            layout=(2, 2),
             size=(1000,200)
         ) # Plot all models and combine the plots
