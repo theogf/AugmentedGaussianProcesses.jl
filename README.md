@@ -4,7 +4,6 @@
 [![Docs Latest](https://img.shields.io/badge/docs-dev-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/dev)
 [![Docs Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable)
 ![BuildStatus](https://github.com/theogf/AugmentedGaussianProcesses.jl/workflows/CI/badge.svg)
-[![Build Status](https://travis-ci.com/theogf/AugmentedGaussianProcesses.jl.svg?branch=master)](https://travis-ci.com/theogf/AugmentedGaussianProcesses.jl)
 [![Coverage Status](https://coveralls.io/repos/github/theogf/AugmentedGaussianProcesses.jl/badge.svg?branch=master)](https://coveralls.io/github/theogf/AugmentedGaussianProcesses.jl?branch=master)
 [![DOI](https://zenodo.org/badge/118922202.svg)](https://zenodo.org/badge/latestdoi/118922202)
 
