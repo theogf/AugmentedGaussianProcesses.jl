@@ -1,16 +1,17 @@
+# ## Data generation
 using Plots
 using Distributions
 using AugmentedGaussianProcesses
 
-# Generate data from a mixture of gaussians (you can control the noise)
+# ### Generate data from a mixture of gaussians (you can control the noise)
 n_data = 300
 n_dim = 2
 n_grid = 100
-minx=-2.5; maxx=3.5
-# We try different noises (different overlaps)
+minx=-2.5; maxx=3.5;
+# ### We try different noises (different overlaps)
 σs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.8]
-n_class = n_dim + 1
-
+n_class = n_dim + 1;
+# ### We create a function generating a mixture of Gaussians
 function generate_mixture_data(σ)
     centers = zeros(n_class, n_dim)
     ## Create equidistant centers
@@ -29,7 +30,7 @@ function generate_mixture_data(σ)
     end
     return X, y
 end
-
+# ### And a function to plot the data
 function plot_data(X, Y, σ)
     p = Plots.plot(size(300, 500), lab="", title="sigma = $σ")
     ys = unique(Y)
@@ -39,7 +40,8 @@ end
 
 plot([plot_data(generate_mixture_data(σ)..., σ) for σ in σs]...)
 
-# Run sparse multiclass classification with different level of noise
+# ## Model training
+# ### Run sparse multiclass classification with different level of noise
 models = Vector{AbstractGP}(undef, length(σs))
 kernel = SqExponentialKernel()
 num_inducing = 50
@@ -57,6 +59,7 @@ for (i, σ) in enumerate(σs)
     models[i] = m
 end
 
+# ### Function to create predictions and plot them
 function compute_grid(model, n_grid=50)
     xlin = range(minx, maxx, length=n_grid)
     ylin = range(minx, maxx, length=n_grid)
@@ -82,6 +85,6 @@ function plot_contour(model, σ)
                     clims=(0,100), colorbar=false,
                     color=:gray, levels=10)
 end;
-
+# ### Plot the final results
 Plots.plot(plot_contour.(models, σs)...)
 

@@ -1,13 +1,13 @@
-# # Gaussian Process Classification
+# ## Preliminary steps
 
-# ## Loading necessary packages
+# ### Loading necessary packages
 
 using Plots
 using HTTP, CSV
 using DataFrames: DataFrame
 using AugmentedGaussianProcesses
 
-# ## Loading the banana dataset from OpenML
+# ### Loading the banana dataset from OpenML
 data = HTTP.get("https://www.openml.org/data/get_csv/1586217/phpwRjVjk")
 data = CSV.read(data.body)
 data.Class[data.Class .== 2] .= -1
@@ -28,7 +28,7 @@ function plot_data(X, Y; size=(300,500))
 end
 plot_data(X, Y; size = (500, 500))
 
-# ## Run sparse classification with increasing number of inducing points
+# ### Run sparse classification with increasing number of inducing points
 Ms = [4, 8, 16, 32, 64]
 models = Vector{AbstractGP}(undef, length(Ms) + 1)
 kernel = transform(SqExponentialKernel(), 1.0)
@@ -45,7 +45,7 @@ for (i, num_inducing) in enumerate(Ms)
     @time train!(m, 20)
     models[i] = m
 end
-# ## Running the full model
+# ### Running the full model
 @info "Running full model"
 mfull = VGP(X, Y,
             kernel,
@@ -56,7 +56,7 @@ mfull = VGP(X, Y,
 @time train!(mfull, 5)
 models[end] = mfull
 
-# ## We create a prediction and plot function on a grid
+# ### We create a prediction and plot function on a grid
 function compute_grid(model, n_grid=50)
     mins = [-3.25,-2.85]
     maxs = [3.65,3.4]
@@ -99,7 +99,8 @@ Plots.plot(plot_model.(models, Ref(X), Ref(Y))...,
             size=(1000, 200)
             )
 
-# ## We now create a model with the Bayesian SVM likelihood
+# ## Bayesian SVM vs Logistic
+# ### We now create a model with the Bayesian SVM likelihood
 
 mbsvm = VGP(X, Y,
             kernel,
@@ -108,7 +109,7 @@ mbsvm = VGP(X, Y,
             optimiser = false
             )
 @time train!(mbsvm, 5)
-# ## And compare it with the Logistic likelihood
+# ### And compare it with the Logistic likelihood
 Plots.plot(plot_model.(
                 [models[end], mbsvm], 
                 Ref(X), 
