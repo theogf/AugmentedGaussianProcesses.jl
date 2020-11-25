@@ -75,7 +75,6 @@ function update_hyperparameters!(
         elseif ad_backend == :zygote
             Z_gradient_zygote(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         end
-        @show Z_grads
         update!(opt(gp.Z), gp.Z.Z, Z_grads) #Apply the gradients on the location
     end
     if !all([isnothing(Δk), isnothing(Δμ₀)])

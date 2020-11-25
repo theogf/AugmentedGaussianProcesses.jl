@@ -2,7 +2,7 @@ function ∇L_ρ_zygote(f, gp::AbstractLatent, X)
     k = kernel(gp)
     return (Zygote.gradient(params(k)) do
         _∇L_ρ_zygote(f, k, X)
-    end).grads # Zygote gradient
+    end).grads
 end
 
 _∇L_ρ_zygote(f, k, X) = f(kernelmatrix(k, X))
@@ -50,10 +50,9 @@ function Z_gradient_zygote(
     i::Inference,
     opt::InferenceOptimizer,
 ) where {T<:Real}
-    p = params(gp.Z)
-    return (Zygote.gradient(p) do
-            _Z_gradient_zygote(f_Z, kernel(gp), gp.Z, X, ∇E_μ, ∇E_Σ, i, opt)
-        end).grads[first(p)]
+    return first(Zygote.gradient(gp.Z.Z) do Z
+            _Z_gradient_zygote(f_Z, kernel(gp), Z, X, ∇E_μ, ∇E_Σ, i, opt)
+        end)
 end
 
 function _Z_gradient_zygote(f_Z, kernel, Z, X, ∇E_μ, ∇E_Σ, i, opt)
@@ -62,11 +61,10 @@ function _Z_gradient_zygote(f_Z, kernel, Z, X, ∇E_μ, ∇E_Σ, i, opt)
     f_Z(Kmm, Knm, ∇E_μ, ∇E_Σ, i, opt)
 end
 
-function Z_gradient_zygote(gp::OnlineVarLatent{T},f_Z::Function,X,∇E_μ::AbstractVector{T},∇E_Σ::AbstractVector{T},i::Inference,opt::InferenceOptimizer) where {T<:Real}
-    p = params(gp.Z)
-    return (Zygote.gradient(p) do
-        _Z_gradient_zygote(f_Z,kernel(gp),gp.Z.Z,X,gp.Zₐ,∇E_μ,∇E_Σ,i,opt)
-    end).grads[first(p)] # Zygote gradient
+function Z_gradient_zygote(gp::OnlineVarLatent{T}, f_Z::Function, X, ∇E_μ::AbstractVector{T}, ∇E_Σ::AbstractVector{T}, i::Inference, opt::InferenceOptimizer) where {T<:Real}
+    return first(Zygote.gradient(gp.Z.Z) do Z
+        _Z_gradient_zygote(f_Z, kernel(gp), Z,X, gp.Zₐ, ∇E_μ, ∇E_Σ, i, opt)
+    end)
 end
 
 function _Z_gradient_zygote(f, kernel, Z, X, Zₐ, ∇E_μ, ∇E_Σ, i, opt)

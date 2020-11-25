@@ -53,6 +53,6 @@ end
 
 function update!(opt, Z::AbstractInducingPoints, Z_grads)
     for (z, zgrad) in zip(Z, Z_grads)
-        z .+= apply(opt, z, zgrad)
+        z .+= Optimise.apply!(opt, z, zgrad)
     end
 end
