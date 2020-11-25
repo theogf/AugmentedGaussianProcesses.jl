@@ -290,7 +290,7 @@ end
 
 @traitfn function ELBO(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     tot = zero(T)
-    tot += sum(model.inference.ρ .* expec_log_likelihood.(model.likelihood,model.inference, yview(model),mean_f(model),var_f(model)))
+    tot += sum(getρ(inference(model)) .* expec_log_likelihood.(model.likelihood,model.inference, yview(model),mean_f(model),var_f(model)))
     tot -= GaussianKL(model)
-    tot -= sum(model.inference.ρ .* AugmentedKL.(model.likelihood, yview(model)))
+    tot -= sum(getρ(inference(model)) .* AugmentedKL.(model.likelihood, yview(model)))
 end

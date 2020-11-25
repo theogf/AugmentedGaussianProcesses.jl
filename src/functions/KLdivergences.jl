@@ -15,6 +15,15 @@ function GaussianKL(
     0.5 * (logdet(K) - logdet(Σ) + tr(K \ Σ) + invquad(K, μ - μ₀) - length(μ))
 end
 
+function GaussianKL(
+    μ::AbstractVector{T},
+    μ₀::AbstractVector,
+    Σ::Symmetric{T,Matrix{T}},
+    K::AbstractMatrix{T},
+) where {T<:Real}
+    0.5 * (logdet(K) - logdet(Σ) + tr(K \ Σ) + dot(μ-μ₀, K \ (μ - μ₀)) - length(μ))
+end
+
 extraKL(::AbstractGP{T}) where {T} = zero(T)
 
 """

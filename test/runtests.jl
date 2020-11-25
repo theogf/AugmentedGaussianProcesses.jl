@@ -36,7 +36,7 @@ include("testingtools.jl")
     end
 
     @info "Likelihood tests with Forward Diff"
-    AGP.setadbackend(:forward_diff)
+    AGP.setadbackend(:forward)
     @testset "Likelihoods (ForwardDiff)" begin
         for f in readdir(joinpath(@__DIR__, "likelihood"))
             include(joinpath("likelihood",f))
@@ -44,7 +44,7 @@ include("testingtools.jl")
     end
 
     @info "Likelihood tests with Zygote"
-    AGP.setadbackend(:reverse_diff)
+    AGP.setadbackend(:zygote)
     @testset "Likelihoods (Zygote)" begin
         for f in readdir(joinpath(@__DIR__, "likelihood"))
             include(joinpath("likelihood",f))

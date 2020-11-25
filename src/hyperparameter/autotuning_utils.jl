@@ -39,7 +39,7 @@ function apply_Δk!(opt, k::Kernel, Δ::AbstractVector)
     i = 1
     for p in ps
         d = length(p)
-        Δp = Δ[i:i+d-1]
+        Δp = Δ[i:i + d - 1]
         Δlogp = Optimise.apply!(opt, p, p .* Δp)
         @. p = exp(log(p) + Δlogp)
         i += d
