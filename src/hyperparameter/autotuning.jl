@@ -34,14 +34,12 @@ function update_hyperparameters!(
 )
     if !isnothing(gp.opt)
         f_l, f_μ₀ = hyperparameter_gradient_function(gp, X)
-        ad_use = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
+        ad_backend = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
         Δμ₀ = f_μ₀()
-        Δk = if ad_use == :forward_diff
+        Δk = if ad_backend == :forward
             ∇L_ρ_forward(f_l, gp, X)
-        elseif ad_use == :reverse_diff
-            ∇L_ρ_reverse(f_l, gp, X)
-        else
-            error("Uncompatible ADBackend")
+        elseif ad_backend == :zygote
+            ∇L_ρ_zygote(f_l, gp, X)
         end
         apply_Δk!(gp.opt, kernel(gp), Δk) # Apply gradients to the kernel parameters
         apply_gradients_mean_prior!(pr_mean(gp), Δμ₀, X)
@@ -59,24 +57,25 @@ function update_hyperparameters!(
 )
     Δμ₀, Δk = if !isnothing(gp.opt)
         f_ρ, f_Z, f_μ₀ = hyperparameter_gradient_function(gp)
-        k_aduse = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
+        ad_backend = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
         Δμ₀ = f_μ₀()
-        Δk = if k_aduse == :forward_diff
+        Δk = if ad_backend == :forward
             ∇L_ρ_forward(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
-        elseif k_aduse == :reverse_diff
-            ∇L_ρ_reverse(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
+        elseif ad_backend == :zygote
+            ∇L_ρ_zygote(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         end
         (Δμ₀, Δk)
     else
         nothing, nothing
     end
     if !isnothing(opt(gp.Z))
-        Z_aduse = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]
-        Z_grads = if Z_aduse == :forward_diff
+        ad_backend = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]
+        Z_grads = if ad_backend == :forward
             Z_gradient_forward(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt) #Compute the gradient given the inducing points location
-        elseif Z_aduse == :reverse_diff
-            Z_gradient_reverse(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt)
+        elseif ad_backend == :zygote
+            Z_gradient_zygote(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         end
+        @show Z_grads
         update!(opt(gp.Z), gp.Z.Z, Z_grads) #Apply the gradients on the location
     end
     if !all([isnothing(Δk), isnothing(Δμ₀)])
@@ -94,7 +93,7 @@ end
 
 function hyperparameter_gradient_function(
     gp::LatentGP{T},
-    X::AbstractVector,
+    ::AbstractVector,
 ) where {T}
     A = (inv(cov(gp)) - mean(gp) * transpose(mean(gp))) # μ = inv(K+σ²)*(y-μ₀)
     return (function (Jnn)

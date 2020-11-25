@@ -1,24 +1,27 @@
 
-### Global constant allowing to chose between forward_diff and reverse_diff for hyperparameter optimization ###
-const ADBACKEND = Ref(:reverse_diff)
+### Global constant allowing to chose between forward_diff and zygote_diff for hyperparameter optimization ###
+const ADBACKEND = Ref(:zygote)
 
 const Z_ADBACKEND = Ref(:auto)
 
 const K_ADBACKEND = Ref(:auto)
 
-function setadbackend(backend_sym)
-    @assert backend_sym == :forward_diff || backend_sym == :reverse_diff
-    ADBACKEND[] = backend_sym
+function setadbackend(ad_backend::Symbol)
+    (ad_backend == :forward || ad_backend == :zygote) ||
+        error("Wrong backend symbol, options are :forward or :zygote")
+    ADBACKEND[] = ad_backend
 end
 
-function setKadbackend(backend_sym)
-    @assert backend_sym == :forward_diff || backend_sym == :reverse_diff || backend_sym == :auto
-    K_ADBACKEND[] = backend_sym
+function setKadbackend(ad_backend::Symbol)
+    (ad_backend == :forward || ad_backend == :zygote || ad_backend == :auto) ||
+        error("Wrong backend symbol, options are :forward, :zygote or :auto")
+    K_ADBACKEND[] = ad_backend
 end
 
-function setZadbackend(backend_sym)
-    @assert backend_sym == :forward_diff || backend_sym == :reverse_diff || backend_sym == :auto
-    Z_ADBACKEND[] = backend_sym
+function setZadbackend(ad_backend::Symbol)
+    (ad_backend == :forward || ad_backend == :zygote || ad_backend == :auto) ||
+        error("Wrong backend symbol, options are :forward, :zygote or :auto")
+    Z_ADBACKEND[] = ad_backend
 end
 
 ## Updating kernel parameters ##
@@ -46,4 +49,10 @@ end
 
 function apply_gradients_mean_prior!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
     update!(μ, g, X)
+end
+
+function update!(opt, Z::AbstractInducingPoints, Z_grads)
+    for (z, zgrad) in zip(Z, Z_grads)
+        z .+= apply(opt, z, zgrad)
+    end
 end

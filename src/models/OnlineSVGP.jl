@@ -109,9 +109,3 @@ InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = Indu
 
 opt(Z::OptimIP) = Z.opt
 opt(Z::AbstractInducingPoints) = nothing
-
-function update!(opt, Z::AbstractInducingPoints, Z_grads)
-    for (z, zgrad) in zip(Z, Z_grads)
-        z .+= apply(opt, z, zgrad)
-    end
-end
