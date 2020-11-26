@@ -186,7 +186,7 @@ end
 ## ELBO Section ##
 function expec_log_likelihood(
     l::LogisticSoftMaxLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y,
     μ,
     Σ,

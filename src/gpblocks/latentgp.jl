@@ -228,8 +228,10 @@ end
 
 prior(gp::AbstractLatent) = gp.prior
 kernel(gp::AbstractLatent) = kernel(prior(gp))
+setkernel!(gp::AbstractLatent, kernel) = setkernel!(prior(gp), kernel)
 pr_mean(gp::AbstractLatent) = mean(prior(gp))
 pr_mean(gp::AbstractLatent, X::AbstractVector) = mean(prior(gp), X)
+setpr_mean!(gp::AbstractLatent, μ₀::PriorMean) = setmean!(prior(gp), μ₀)
 pr_cov(gp::AbstractLatent) = cov(prior(gp))
 pr_cov(gp::TVarLatent) = prior(gp).χ * cov(prior(gp))
 pr_cov!(gp::AbstractLatent, K::PDMat) = gp.prior.K = K
@@ -244,16 +246,24 @@ nat2(gp::AbstractVarLatent) = nat2(posterior(gp))
 
 mean_f(model::AbstractGP) = mean_f.(model.f)
 
-@traitfn mean_f(gp::T) where {T <: AbstractLatent; IsFull{T}} = mean(gp)
-@traitfn mean_f(gp::T) where {T <: AbstractLatent; !IsFull{T}} = gp.κ * mean(gp)
+@traitfn mean_f(gp::T) where {T <: AbstractLatent; IsFull{T}} = mean_f(mean(gp))
+@traitfn mean_f(gp::T) where {T <: AbstractLatent; !IsFull{T}} = mean_f(mean(gp), gp.κ)
+
+mean_f(μ::AbstractVector) = μ
+mean_f(μ::AbstractVector, κ::AbstractMatrix) = κ * μ
 
 var_f(model::AbstractGP) = var_f.(model.f)
 
-@traitfn var_f(gp::T) where {T <: AbstractLatent; IsFull{T}} = var(gp)
-@traitfn var_f(gp::T) where {T <: AbstractLatent; !IsFull{T}} = diag_ABt(gp.κ * cov(gp), gp.κ) + gp.K̃
+@traitfn var_f(gp::T) where {T <: AbstractLatent; IsFull{T}} = var_f(cov(gp))
+@traitfn var_f(gp::T) where {T <: AbstractLatent; !IsFull{T}} = var_f(cov(gp), gp.κ, gp.K̃)
+
+var_f(Σ::AbstractMatrix) = diag(Σ)
+var_f(Σ::AbstractMatrix, κ::AbstractMatrix, K̃::AbstractVector) = diag_ABt(κ * Σ, κ) + K̃
 
 Zview(gp::SparseVarLatent) = gp.Z
 Zview(gp::OnlineVarLatent) = gp.Z
+
+setZ!(gp::AbstractLatent, Z::AbstractVector) = InducingPoints.setZ!(Zview(gp), Z)
 
 @traitfn compute_K!(
     gp::TGP,

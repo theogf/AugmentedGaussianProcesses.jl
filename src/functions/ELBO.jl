@@ -4,18 +4,18 @@
 ELBO function directly as a function of the variational and hyperparameters
 """
 function ELBO(
-    model::SVGP{T,L,<:AnalyticVI},
+    gp::SparseVarLatent{T},
+    l::Likelihood,
+    i::AnalyticVI,
     X,
     Y,
-    μ = mean(model[1]),
-    Σ = cov(model[1]),
-    kernel = kernel(model[1]),
-    Z = Zview(model[1]).Z,
-    μ₀ = pr_mean(model[1]);
-    ρ = getρ(inference(model)),
-    likelihood = likelihood(model),
-    inference = inference(model),
-) where {T<:Real,L<:Likelihood}
+    kernel = kernel(gp),
+    μ₀ = pr_mean(model[1]),
+    Z = Zview(gp).Z;
+    μ = mean(gp),
+    Σ = cov(gp),
+    ρ = getρ(i),
+) where {T<:Real}
     F = zero(T) # Free energy (negative ELBO)
     Kᵤᵤ = kernelmatrix(kernel, Z) + T(jitt) * I
     Kₓᵤ = kernelmatrix(kernel, X, Z)
@@ -25,8 +25,21 @@ function ELBO(
     m₀ = μ₀(Z)
     μf = κ * μ
     Σf = diag_ABt(κ * Σ, κ) + K̃
-    F -= ρ * expec_log_likelihood(likelihood, inference, Y, μf, Σf)
+    F -= ρ * expec_log_likelihood(l, i, Y, μf, Σf)
     F += GaussianKL(μ, m₀, Σ, Kᵤᵤ)
-    F += ρ * AugmentedKL(likelihood, Y)
+    F += ρ * AugmentedKL(l, Y)
     return -F
+end
+
+function ELBO(
+    model::SVGP{T},
+    pr_means,
+    kernels,
+    Zs,
+) where {T<:Real}
+    setpr_means!(model, pr_means)
+    setkernels!(model, kernels)
+    setZs!(model, Zs)
+    computeMatrices!(model)
+    ELBO(model)
 end

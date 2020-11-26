@@ -7,6 +7,12 @@ end
 
 _∇L_ρ_zygote(f, k, X) = f(kernelmatrix(k, X))
 
+function ∇L_ρ_zygote(gp::SparseVarLatent, l, i, X, Y)
+    return Zygote.gradient(pr_mean(gp), kernel(gp)) do μ₀, k
+        ELBO(gp, l, i, X, Y, k, μ₀)
+    end
+end
+
 function ∇L_ρ_zygote(f, gp::SparseVarLatent, X, ∇E_μ, ∇E_Σ, i, opt)
     k = kernel(gp)
     return (Zygote.gradient(params(k)) do
@@ -52,6 +58,18 @@ function Z_gradient_zygote(
 ) where {T<:Real}
     return first(Zygote.gradient(gp.Z.Z) do Z
             _Z_gradient_zygote(f_Z, kernel(gp), Z, X, ∇E_μ, ∇E_Σ, i, opt)
+        end)
+end
+
+function Z_gradient_zygote(
+    gp::SparseVarLatent{T},
+    l::Likelihood,
+    i::Inference,
+    X,
+    Y
+) where {T<:Real}
+    return first(Zygote.gradient(Zview(gp).Z) do Z
+            ELBO(gp, l, i, X, Y, kernel(gp), pr_mean(gp), Z)
         end)
 end
 

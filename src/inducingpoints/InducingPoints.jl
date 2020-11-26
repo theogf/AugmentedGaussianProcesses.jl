@@ -53,6 +53,8 @@ add_point!(Z::OnIP, X::AbstractVector, k::Kernel) = add_point!(Z, X)
 remove_point!(Z::OnIP, args...) = nothing
 
 
+
+
 include("optimIP.jl")
 include("seqdpp.jl")
 include("kdpp.jl")
@@ -65,6 +67,10 @@ include("greedy.jl")
 include("uniform.jl")
 include("unigrid.jl")
 
+setZ!(Z::OptimIP, Zvec::AbstractVector) = OptimIP(setZ!(Z.Z, Zvec), Z.opt)
+setZ!(Z::OffIP, Zvec::AbstractVector) = Z.Z .= Zvec
+setZ!(Z::AIP, Zvec::AbstractVector) = Z.Z .= Zvec
+setZ!(Z::OnIP, Zvec::AbstractVector) = Z.Z = Zvec
 
 
 end

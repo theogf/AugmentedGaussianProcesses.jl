@@ -4,11 +4,11 @@ abstract type AbstractGP{T<:Real,L<:Likelihood{T},I<:Inference{T},N} end
 @traitdef IsMultiOutput{X}
 @traitdef IsSparse{X}
 
-Base.eltype(m::AbstractGP{T}) where {T} = T
+Base.eltype(::AbstractGP{T}) where {T} = T
 data(m::AbstractGP) = m.data
 likelihood(m::AbstractGP) = m.likelihood
 inference(m::AbstractGP) = m.inference
-nLatent(m::AbstractGP{<:Real,<:Likelihood,<:Inference, N}) where {N} = N
+nLatent(::AbstractGP{<:Real,<:Likelihood,<:Inference, N}) where {N} = N
 nOutput(m::AbstractGP) = 1
 @traitfn nFeatures(m::TGP) where {TGP <: AbstractGP; !IsSparse{TGP}} =
     nSamples(m)
@@ -63,30 +63,17 @@ end
 
 pr_covs(model::AbstractGP) = pr_cov.(model.f)
 
+pr_means(model::AbstractGP) = pr_mean.(model.f)
+pr_means(model::AbstractGP, X::AbstractVector) = pr_mean.(model.f, Ref(X))
+
+setpr_means!(model::AbstractGP, pr_means) = setpr_mean!.(model.f, pr_means)
+
 means(model::AbstractGP) = mean.(model.f)
 
 covs(model::AbstractGP) = cov.(model.f)
 
 kernels(model::AbstractGP) = kernel.(model.f)
 
+setkernels!(model::AbstractGP, kernels) = setkernel!.(model.f, kernels)
 
-## TODO this should probably be moved to InducingPoints.jl
-
-function setZ!(
-    m::AbstractGP,
-    Z::AbstractVector{<:AbstractVector{<:Real}},
-    i::Int,
-)
-    @assert size(Z) == size(m.f[i].Z) "Size of Z $(size(Z)) is not the same as in the model $(size(m.f[i].Z))"
-    m.f[i].Z.Z = copy(Z)
-end
-
-function setZ!(
-    m::AbstractGP,
-    Z::AbstractVector{<:AbstractVector},
-)
-    @assert length(Z) == nLatent(m) "There is not the right number of Z matrices"
-    for i = 1:nLatent(m)
-        setZ!(m, Z[i], i)
-    end
-end
+setZs!(model::AbstractGP, Zs) = setZ!.(model.f, Zs)

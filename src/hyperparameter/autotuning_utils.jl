@@ -47,7 +47,17 @@ function apply_Δk!(opt, k::Kernel, Δ::AbstractVector)
 end
 
 
-function apply_gradients_mean_prior!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
+function apply!(k::Union{Kernel, Transform}, g::NamedTuple, opt)
+    foreach(pairs(g)) do (fieldname, grad)
+        apply!(getfield(k, fieldname), grad, opt)
+    end
+end
+
+apply!(::Any, ::Nothing, ::Any) = nothing
+
+apply!(x::AbstractArray, g::AbstractArray, opt) = Optimise.apply!(opt, x, g)
+
+function apply!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
     update!(μ, g, X)
 end
 

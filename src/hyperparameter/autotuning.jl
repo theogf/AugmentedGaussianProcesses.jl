@@ -13,18 +13,31 @@ end
     setHPupdated!(m.inference, true)
 end
 
+# @traitfn function update_hyperparameters!(
+#     m::TGP,
+# ) where {TGP <: AbstractGP; !IsFull{TGP}}
+#     update_hyperparameters!.(
+#         m.f,
+#         Ref(xview(m)),
+#         ∇E_μ(m),
+#         ∇E_Σ(m),
+#         inference(m),
+#         inference(m).vi_opt,
+#     )
+#     setHPupdated!(m.inference, true)
+# end
+
 @traitfn function update_hyperparameters!(
     m::TGP,
 ) where {TGP <: AbstractGP; !IsFull{TGP}}
     update_hyperparameters!.(
         m.f,
-        Ref(xview(m)),
-        ∇E_μ(m),
-        ∇E_Σ(m),
+        likelihood(m),
         inference(m),
-        inference(m).vi_opt,
+        Ref(xview(m)),
+        Ref(yview(m)),
     )
-    setHPupdated!(m.inference, true)
+    setHPupdated!(inference(m), true)
 end
 
 ## Update all hyperparameters for the full batch GP models ##
@@ -80,6 +93,38 @@ function update_hyperparameters!(
     if !all([isnothing(Δk), isnothing(Δμ₀)])
         apply_Δk!(gp.opt, kernel(gp), Δk) # Apply gradients to the kernel parameters
         apply_gradients_mean_prior!(pr_mean(gp), Δμ₀, X)
+    end
+end
+
+function update_hyperparameters!(
+    gp::AbstractLatent,
+    l::Likelihood,
+    i::Inference,
+    X::AbstractVector,
+    Y::AbstractVector,
+)
+    Δμ₀, Δk = if !isnothing(gp.opt)
+        ad_backend = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
+        (Δμ₀, Δk) = if ad_backend == :forward
+            ∇L_ρ_forward(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
+        elseif ad_backend == :zygote
+            ∇L_ρ_zygote(gp, l, i, X, Y)
+        end
+    else
+        nothing, nothing
+    end
+    if !isnothing(opt(gp.Z))
+        ad_backend = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]
+        global Z_grads = if ad_backend == :forward
+            Z_gradient_forward(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt) #Compute the gradient given the inducing points location
+        elseif ad_backend == :zygote
+            Z_gradient_zygote(gp, l, i, X, Y)
+        end
+        update!(opt(gp.Z), gp.Z.Z, Z_grads) #Apply the gradients on the location
+    end
+    if !all([isnothing(Δk), isnothing(Δμ₀)])
+        apply!(kernel(gp), Δk, gp.opt) # Apply gradients to the kernel parameters
+        update!(pr_mean(gp), Δμ₀, X)
     end
 end
 
