@@ -40,6 +40,7 @@ function ELBO(
     setpr_means!(model, pr_means)
     setkernels!(model, kernels)
     setZs!(model, Zs)
+    setHPupdated!(inference(model), true)
     computeMatrices!(model)
-    ELBO(model)
+    return ELBO(model)
 end

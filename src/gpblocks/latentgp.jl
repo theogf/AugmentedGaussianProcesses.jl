@@ -228,7 +228,7 @@ end
 
 prior(gp::AbstractLatent) = gp.prior
 kernel(gp::AbstractLatent) = kernel(prior(gp))
-setkernel!(gp::AbstractLatent, kernel) = setkernel!(prior(gp), kernel)
+setkernel!(gp::AbstractLatent, kernel::Kernel) = setkernel!(prior(gp), kernel)
 pr_mean(gp::AbstractLatent) = mean(prior(gp))
 pr_mean(gp::AbstractLatent, X::AbstractVector) = mean(prior(gp), X)
 setpr_mean!(gp::AbstractLatent, μ₀::PriorMean) = setmean!(prior(gp), μ₀)
