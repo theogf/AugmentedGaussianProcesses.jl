@@ -30,7 +30,6 @@ using KernelFunctions: ColVecs, RowVecs
 using Zygote, ForwardDiff
 using Flux: params, destructure
 @reexport using Flux.Optimise
-using PDMats: PDMat, invquad
 using AdvancedHMC
 using MCMCChains
 using StatsBase

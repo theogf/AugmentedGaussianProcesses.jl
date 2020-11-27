@@ -210,7 +210,7 @@ function ∇η₁(
     ∇μ::AbstractVector{T},
     ρ::Real,
     κ::AbstractMatrix{T},
-    K::PDMat{T,Matrix{T}},
+    K::Cholesky{T,Matrix{T}},
     μ₀::AbstractVector,
     η₁::AbstractVector{T},
 ) where {T<:Real}
@@ -221,7 +221,7 @@ function ∇η₂(
     θ::AbstractVector{T},
     ρ::Real,
     κ::AbstractMatrix{<:Real},
-    K::PDMat{T,Matrix{T}},
+    K::Cholesky{T,Matrix{T}},
     η₂::Symmetric{T,Matrix{T}},
 ) where {T<:Real}
     -(ρκdiagθκ(ρ, κ, θ) + 0.5 * inv(K)) - η₂

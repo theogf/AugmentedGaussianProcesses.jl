@@ -7,10 +7,10 @@ GaussianKL(gp::AbstractLatent, X::AbstractVector) = GaussianKL(mean(gp), pr_mean
 
 ## See https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Multivariate_normal_distributions ##
 function GaussianKL(
-    μ::AbstractVector{T},
+    μ::AbstractVector,
     μ₀::AbstractVector,
     Σ::Symmetric{T,Matrix{T}},
-    K::PDMat{T,Matrix{T}},
+    K::Cholesky{T,Matrix{T}},
 ) where {T<:Real}
     0.5 * (logdet(K) - logdet(Σ) + tr(K \ Σ) + invquad(K, μ - μ₀) - length(μ))
 end
@@ -21,6 +21,7 @@ function GaussianKL(
     Σ::Symmetric{T,Matrix{T}},
     K::AbstractMatrix{T},
 ) where {T<:Real}
+    K
     0.5 * (logdet(K) - logdet(Σ) + tr(K \ Σ) + dot(μ-μ₀, K \ (μ - μ₀)) - length(μ))
 end
 

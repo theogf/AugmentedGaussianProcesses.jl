@@ -28,6 +28,8 @@ end
     A .+= A'
 end
 
+invquad(a::Cholesky, x::AbstractVector) = sum(abs2, a.L \ x)
+
 ## Return the trace of A*B' ##
 @inline function trace_ABt(A::AbstractMatrix{<:Real}, B::AbstractMatrix{<:Real})
     dot(A, B)
@@ -37,15 +39,15 @@ end
 @inline function diag_ABt(
     A::AbstractMatrix,
     B::AbstractMatrix,
-) where {T<:Real,N}
+)
     vec(sum(A .* B, dims = 2))
 end
 
 ## Return the multiplication of Diagonal(v)*B ##
 function diagv_B(
-    v::AbstractVector{T},
-    B::AbstractMatrix{T},
-) where {T<:Real}
+    v::AbstractVector,
+    B::AbstractMatrix,
+)
     v .* B
 end
 
@@ -77,8 +79,6 @@ function opt_add_diag_mat(
     end
     A
 end
-
-Base.:/(c::AbstractMatrix, a::PDMat) = c / a.mat ### TODO : SAAAAAADDDDDD
 
 ## Compute exp(μ)/cosh(c) safely if there is an overflow ##
 function safe_expcosh(μ::Real, c::Real)

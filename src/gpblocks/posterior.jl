@@ -8,7 +8,7 @@ Distributions.var(p::AbstractPosterior) = diag(p.Σ)
 mutable struct Posterior{T<:Real} <: AbstractPosterior{T}
     dim::Int
     α::Vector{T} # Σ⁻¹ (y - μ₀)
-    Σ::PDMat{T,Matrix{T}} # Posterior Covariance : K + σ²I
+    Σ::Cholesky{T,Matrix{T}} # Posterior Covariance : K + σ²I
 end
 
 Distributions.mean(p::Posterior) = p.α

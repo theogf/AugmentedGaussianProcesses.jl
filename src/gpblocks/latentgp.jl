@@ -20,9 +20,9 @@ function LatentGP(
         GPPrior(
             deepcopy(kernel),
             deepcopy(mean),
-            PDMat(Matrix{T}(I, dim, dim)),
+            cholesky(Matrix{T}(I, dim, dim)),
         ),
-        Posterior(dim, zeros(T, dim), PDMat(Matrix{T}(I(dim)))),
+        Posterior(dim, zeros(T, dim), cholesky(Matrix{T}(I(dim)))),
         deepcopy(opt),
     )
 end
@@ -52,7 +52,7 @@ function VarLatent(
         GPPrior(
             deepcopy(kernel),
             deepcopy(mean),
-            PDMat(Matrix{T}(I, dim, dim)),
+            cholesky(Matrix{T}(I, dim, dim)),
         ),
         VarPosterior{T}(dim),
         deepcopy(opt),
@@ -63,7 +63,7 @@ end
 
 ## Sparse Variational Gaussian Process
 
-struct SparseVarLatent{
+mutable struct SparseVarLatent{
     T,
     Tpr<:GPPrior,
     Tpo<:VarPosterior{T},
@@ -92,7 +92,7 @@ function SparseVarLatent(
         GPPrior(
             deepcopy(kernel),
             deepcopy(mean),
-            PDMat(Matrix{T}(I(dim))),
+            cholesky(Matrix{T}(I(dim))),
         ),
         VarPosterior{T}(dim),
         deepcopy(Z),
@@ -123,7 +123,7 @@ function SampledLatent(
         GPPrior(
             deepcopy(kernel),
             deepcopy(mean),
-            PDMat(Matrix{T}(I, dim, dim)),
+            cholesky(Matrix{T}(I, dim, dim)),
         ),
         SampledPosterior(dim, zeros(T, dim), Symmetric(Matrix{T}(I(dim)))),
     )
@@ -169,7 +169,7 @@ function OnlineVarLatent(
         GPPrior(
             deepcopy(kernel),
             deepcopy(mean),
-            PDMat(Matrix{T}(I, dim, dim)),
+            cholesky(Matrix{T}(I, dim, dim)),
         ),
         OnlineVarPosterior{T}(dim),
         Z,
@@ -211,7 +211,7 @@ function TVarLatent(
         TPrior(
             deepcopy(kernel),
             deepcopy(mean),
-            PDMat(Matrix{T}(I, dim, dim)),
+            cholesky(Matrix{T}(I, dim, dim)),
             ν,
             rand(T),
             rand(T),
@@ -234,7 +234,7 @@ pr_mean(gp::AbstractLatent, X::AbstractVector) = mean(prior(gp), X)
 setpr_mean!(gp::AbstractLatent, μ₀::PriorMean) = setmean!(prior(gp), μ₀)
 pr_cov(gp::AbstractLatent) = cov(prior(gp))
 pr_cov(gp::TVarLatent) = prior(gp).χ * cov(prior(gp))
-pr_cov!(gp::AbstractLatent, K::PDMat) = gp.prior.K = K
+pr_cov!(gp::AbstractLatent, K::Cholesky) = gp.prior.K = K
 
 posterior(gp::AbstractLatent) = gp.post
 Distributions.dim(gp::AbstractLatent) = dim(posterior(gp))
@@ -263,17 +263,17 @@ var_f(Σ::AbstractMatrix, κ::AbstractMatrix, K̃::AbstractVector) = diag_ABt(κ
 Zview(gp::SparseVarLatent) = gp.Z
 Zview(gp::OnlineVarLatent) = gp.Z
 
-setZ!(gp::AbstractLatent, Z::AbstractVector) = InducingPoints.setZ!(Zview(gp), Z)
+setZ!(gp::AbstractLatent, Z::AbstractInducingPoints) = gp.Z = Z#InducingPoints.setZ!(Zview(gp), Z)
 
 @traitfn compute_K!(
     gp::TGP,
     X::AbstractVector,
     jitt::Real,
 ) where {TGP <: AbstractLatent; IsFull{TGP}} =
-    pr_cov!(gp, PDMat(kernelmatrix(kernel(gp), X) + jitt * I))
+    pr_cov!(gp, cholesky(kernelmatrix(kernel(gp), X) + jitt * I))
 
 @traitfn compute_K!(gp::T, jitt::Real) where {T <: AbstractLatent; !IsFull{T}} =
-    pr_cov!(gp, PDMat(kernelmatrix(kernel(gp), gp.Z) + jitt * I))
+    pr_cov!(gp, cholesky(kernelmatrix(kernel(gp), gp.Z) + jitt * I))
 
 function compute_κ!(gp::SparseVarLatent, X::AbstractVector, jitt::Real)
     gp.Knm .= kernelmatrix(kernel(gp), X, gp.Z)

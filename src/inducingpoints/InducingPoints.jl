@@ -67,7 +67,7 @@ include("greedy.jl")
 include("uniform.jl")
 include("unigrid.jl")
 
-setZ!(Z::OptimIP, Zvec::AbstractVector) = OptimIP(setZ!(Z.Z, Zvec), Z.opt)
+setZ!(Z::OptimIP, Zvec::AbstractVector) = setZ!(Z.Z, Zvec)
 setZ!(Z::OffIP, Zvec::AbstractVector) = Z.Z .= Zvec
 setZ!(Z::AIP, Zvec::AbstractVector) = Z.Z .= Zvec
 setZ!(Z::OnIP, Zvec::AbstractVector) = Z.Z = Zvec
