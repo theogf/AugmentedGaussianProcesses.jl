@@ -48,7 +48,11 @@ end
             update!(opt(f.Z), data(f.Z), Δ)
         end
     else
-        error("Not done yet")
+        θ, re = destructure((μ₀, ks, Zs))
+        Δ = ForwardDiff.gradient(θ) do θ
+            ELBO(m, re(θ)...)
+        end
+        @show Δ
     end
     return nothing
 end
