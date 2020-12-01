@@ -278,13 +278,12 @@ opt(gp::AbstractLatent) = gp.opt
     pr_cov!(gp, cholesky(kernelmatrix(kernel(gp), gp.Z) + jitt * I))
 
 function compute_κ!(gp::SparseVarLatent, X::AbstractVector, jitt::Real)
-    gp.Knm .= kernelmatrix(kernel(gp), X, gp.Z)
-    gp.κ .= gp.Knm / pr_cov(gp)
-    gp.K̃ .=
+    gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
+    gp.κ = copy(gp.Knm / pr_cov(gp))
+    gp.K̃ =
         kerneldiagmatrix(kernel(gp), X) .+ jitt -
         diag_ABt(gp.κ, gp.Knm)
-
-    @assert all(gp.K̃ .> 0) "K̃ has negative values"
+    all(gp.K̃ .> 0) || error("K̃ has negative values")
 end
 
 function compute_κ!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)

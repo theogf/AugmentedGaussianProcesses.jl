@@ -37,15 +37,14 @@ function ELBO(
     kernels,
     Zs,
 ) where {T<:Real}
-    setHPupdated!(inference(model), true) # Allows to update the matrices
     setpr_means!(model, pr_means)
     setkernels!(model, kernels)
     setZs!(model, Zs)
-    computeMatrices!(model)
-    model.f[1].Knm = kernelmatrix(kernel(model[1]), xview(model), model.f[1].Z)
-    model.f[1].κ = copy((model[1].prior.K \ model[1].Knm')')
-    model.f[1].K̃ = kerneldiagmatrix(kernel(model.f[1]), xview(model)) .+ T(jitt) -
-        diag_ABt(model[1].κ, model[1].Knm)
+    computeMatrices!(model, true)
+    # model.f[1].Knm = kernelmatrix(kernel(model[1]), xview(model), model.f[1].Z)
+    # model.f[1].κ = copy((model[1].prior.K \ model[1].Knm')')
+    # model.f[1].K̃ = kerneldiagmatrix(kernel(model.f[1]), xview(model)) .+ T(jitt) -
+        # diag_ABt(model[1].κ, model[1].Knm)
     # compute_κ!.(getf(model), [xview(model)], T(jitt))
     return ELBO(model)
 end

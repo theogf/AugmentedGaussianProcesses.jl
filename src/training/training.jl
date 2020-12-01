@@ -79,7 +79,7 @@ function train!(
     if verbose(model) > 0
         @info "Training ended after $(local_iter - 1) iterations. Total number of iterations $(nIter(model))"
     end
-    computeMatrices!(model) # Compute final version of the matrices for predictions
+    computeMatrices!(model, true) # Compute final version of the matrices for predictions
     post_step!(model)
     set_trained!(model, true)
     return nothing
@@ -143,27 +143,27 @@ function update_parameters!(m::VStP)
     return nothing
 end
 
-function computeMatrices!(m::GP{T}) where {T}
+function computeMatrices!(m::GP{T}, update::Bool=false) where {T}
     compute_K!(getf(m), input(m), T(jitt))
     setHPupdated!(inference(m), false)
     return nothing
 end
 
-@traitfn function computeMatrices!(m::TGP) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
-    if isHPupdated(inference(m))
-        compute_K!.(getf(m), [input(m)], T(jitt))
+@traitfn function computeMatrices!(m::TGP, update::Bool=false) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
+    if isHPupdated(inference(m)) || update
+        compute_K!.(getf(m), Ref(input(m)), T(jitt))
     end
     setHPupdated!(inference(m), false)
     return nothing
 end
 
-@traitfn function computeMatrices!(m::TGP) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
-    if isHPupdated(inference(m))
+@traitfn function computeMatrices!(m::TGP, update::Bool=false) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
+    if isHPupdated(inference(m)) || update
         compute_K!.(getf(m), T(jitt))
     end
     #If change of hyperparameters or if stochatic
-    if isHPupdated(inference(m)) || isStochastic(inference(m))
-        compute_κ!.(getf(m), [xview(m)], T(jitt))
+    if isHPupdated(inference(m)) || isStochastic(inference(m)) || update
+        compute_κ!.(getf(m), Ref(xview(m)), T(jitt))
     end
     setHPupdated!(inference(m), false)
     return nothing
