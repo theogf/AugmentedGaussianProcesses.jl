@@ -4,7 +4,7 @@ include("hmcsampling.jl")
 isStochastic(::SamplingInference) = false
 
 function log_gp_prior(gp::SampledLatent, f::AbstractVector, X::AbstractVector)
-    Distributions.logpdf(MvNormal(pr_mean(gp, X), pr_cov(gp)), f)
+    logpdf(MvNormal(pr_mean(gp, X), pr_cov(gp)), f)
 end
 
 function log_joint_model(model::MCGP{T,L,<:SamplingInference}, x) where {T,L}

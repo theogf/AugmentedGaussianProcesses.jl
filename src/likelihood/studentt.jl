@@ -49,7 +49,7 @@ implemented(
 function init_likelihood(
     likelihood::StudentTLikelihood{T},
     inference::Inference{T},
-    nLatent::Int,
+    ::Int,
     nSamplesUsed::Int,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
@@ -110,14 +110,14 @@ end
 
 @inline ∇E_μ(l::StudentTLikelihood, ::AOptimizer, y::AbstractVector) =
     (l.θ .* y,)
-@inline ∇E_Σ(l::StudentTLikelihood, ::AOptimizer, y::AbstractVector) =
+@inline ∇E_Σ(l::StudentTLikelihood, ::AOptimizer, ::AbstractVector) =
     (0.5 .* l.θ,)
 
 ## ELBO Section ##
 
 function expec_log_likelihood(
     l::StudentTLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,

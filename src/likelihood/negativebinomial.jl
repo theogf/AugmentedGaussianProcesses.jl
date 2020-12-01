@@ -46,11 +46,11 @@ function init_likelihood(
 end
 
 function (l::NegBinomialLikelihood)(y::Real, f::Real)
-    Distributions.pdf(NegativeBinomial(lr, get_p(l, f)), y)
+    pdf(NegativeBinomial(lr, get_p(l, f)), y)
 end
 
 function Distributions.loglikelihood(l::NegBinomialLikelihood, y::Real, f::Real)
-    Distributions.logpdf(NegativeBinomial(lr, get_p(l, f)), y)
+    logpdf(NegativeBinomial(lr, get_p(l, f)), y)
 end
 
 function expec_count(l::NegBinomialLikelihood, f)

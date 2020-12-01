@@ -265,6 +265,8 @@ Zview(gp::OnlineVarLatent) = gp.Z
 
 setZ!(gp::AbstractLatent, Z::AbstractInducingPoints) = gp.Z = Z#InducingPoints.setZ!(Zview(gp), Z)
 
+opt(gp::AbstractLatent) = gp.opt
+
 @traitfn compute_K!(
     gp::TGP,
     X::AbstractVector,

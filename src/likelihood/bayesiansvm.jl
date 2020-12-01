@@ -37,9 +37,9 @@ end
 implemented(::BayesianSVM, ::AnalyticVI) = true
 
 function init_likelihood(
-    likelihood::BayesianSVM{T},
-    inference::Inference{T},
-    nLatent::Int,
+    ::BayesianSVM{T},
+    ::Inference{T},
+    ::Int,
     nSamplesUsed::Int,
 ) where {T}
     BayesianSVM{T}(rand(T, nSamplesUsed), zeros(T, nSamplesUsed))
@@ -65,7 +65,7 @@ end
 
 
 function compute_proba(
-    l::BayesianSVM{T},
+    ::BayesianSVM{T},
     μ::AbstractVector{<:Real},
     σ²::AbstractVector{<:Real},
 ) where {T<:Real}

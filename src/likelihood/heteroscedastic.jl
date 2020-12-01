@@ -40,11 +40,11 @@ end
 implemented(::HeteroscedasticLikelihood, ::AnalyticVI) = true
 
 function (l::HeteroscedasticLikelihood)(y::Real, f::AbstractVector)
-    Distributions.pdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
+    pdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
 end
 
 function Distributions.loglikelihood(l::HeteroscedasticLikelihood, y::Real, f::AbstractVector)
-    Distributions.logpdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
+    logpdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
 end
 
 function Base.show(io::IO, ::HeteroscedasticLikelihood{T}) where {T}

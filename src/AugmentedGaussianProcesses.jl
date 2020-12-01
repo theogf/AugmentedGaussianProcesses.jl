@@ -35,7 +35,11 @@ using MCMCChains
 using StatsBase
 using StatsFuns
 using SpecialFunctions
-using Distributions
+using Distributions: 
+                Distributions, Distribution,
+                cov, mean, var, 
+                pdf, logpdf, loglikelihood,
+                Normal, Poisson, NegativeBinomial, InverseGamma, Laplace, MvNormal
 using FastGaussQuadrature: gausshermite
 using ProgressMeter, SimpleTraits
 #Exported modules

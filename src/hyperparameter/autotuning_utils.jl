@@ -2,39 +2,34 @@
 ### Global constant allowing to chose between forward_diff and zygote_diff for hyperparameter optimization ###
 const ADBACKEND = Ref(:zygote)
 
-const Z_ADBACKEND = Ref(:auto)
-
-const K_ADBACKEND = Ref(:auto)
-
 function setadbackend(ad_backend::Symbol)
     (ad_backend == :forward || ad_backend == :zygote) ||
         error("Wrong backend symbol, options are :forward or :zygote")
     ADBACKEND[] = ad_backend
 end
 
-function setKadbackend(ad_backend::Symbol)
-    (ad_backend == :forward || ad_backend == :zygote || ad_backend == :auto) ||
-        error("Wrong backend symbol, options are :forward, :zygote or :auto")
-    K_ADBACKEND[] = ad_backend
-end
+opt(::AbstractInducingPoints) = nothing
+opt(Z::OptimIP) = Z.opt
+data(Z::OptimIP) = Z.Z
+data(Z::AbstractInducingPoints) = Z
 
-function setZadbackend(ad_backend::Symbol)
-    (ad_backend == :forward || ad_backend == :zygote || ad_backend == :auto) ||
-        error("Wrong backend symbol, options are :forward, :zygote or :auto")
-    Z_ADBACKEND[] = ad_backend
+## Generic fallback when gradient is nothing
+update!(::Any, ::Any, ::Nothing) = nothing
+
+## Generic fallback when optimizer is nothing
+update!(::Nothing, ::Kernel, ::NamedTuple) = nothing
+update!(::Nothing, ::AbstractInducingPoints, ::AbstractArray) = nothing
+
+
+## Updating prior mean parameters ##
+function update!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
+    update!(μ, g, X)
 end
 
 ## Updating kernel parameters ##
-function apply_Δk!(opt, k::Kernel, Δ::IdDict)
-    ps = params(k)
-    for p in ps
-        isnothing(Δ[p]) && continue
-        Δlogp = Optimise.apply!(opt, p, p .* vec(Δ[p]))
-        p .= exp.(log.(p) + Δlogp)
-    end
-end
 
-function apply_Δk!(opt, k::Kernel, Δ::AbstractVector)
+## ForwardDiff.jl approach (with destructure())
+function update!(opt, k::Kernel, Δ::AbstractVector)
     ps = params(k)
     i = 1
     for p in ps
@@ -46,22 +41,20 @@ function apply_Δk!(opt, k::Kernel, Δ::AbstractVector)
     end
 end
 
-
-function apply!(k::Union{Kernel, Transform}, g::NamedTuple, opt)
+## Zygote.jl approach with named tuple
+function update!(opt, k::Union{Kernel, Transform}, g::NamedTuple)
     foreach(pairs(g)) do (fieldname, grad)
-        apply!(getfield(k, fieldname), grad, opt)
+        update!(opt, getfield(k, fieldname), grad)
     end
 end
 
-apply!(::Any, ::Nothing, ::Any) = nothing
-
-apply!(x::AbstractArray, g::AbstractArray, opt) = Optimise.apply!(opt, x, g)
-
-function apply!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
-    update!(μ, g, X)
+function update!(opt, x::AbstractArray, g::AbstractArray)
+    Δ = Optimise.apply!(opt, x, x .* g)
+    @. x = exp(log(x) + Δ) # Always assume that parameters need to be positive
 end
 
-function update!(opt, Z::AbstractInducingPoints, Z_grads)
+## Updating inducing points
+function update!(opt, Z::AbstractInducingPoints, Z_grads::AbstractArray)
     for (z, zgrad) in zip(Z, Z_grads)
         z .+= Optimise.apply!(opt, z, zgrad)
     end

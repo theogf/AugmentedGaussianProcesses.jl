@@ -30,15 +30,41 @@ end
 @traitfn function update_hyperparameters!(
     m::TGP,
 ) where {TGP <: AbstractGP; !IsFull{TGP}}
-    update_hyperparameters!.(
-        m.f,
-        likelihood(m),
-        inference(m),
-        Ref(xview(m)),
-        Ref(yview(m)),
-    )
-    setHPupdated!(inference(m), true)
+    μ₀ = pr_means(m)
+    ks = kernels(m)
+    Zs = Zviews(m)
+    if ADBACKEND[] == :zygote
+        Δμ₀, Δk, ΔZ = Zygote.gradient(μ₀, ks, Zs) do μ₀, ks, Zs
+            ELBO(m, μ₀, ks, Zs)
+        end
+        # Optimize prior mean
+        isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
+        # Optimize kernel parameters
+        for (f, Δ) in zip(m.f, Δk)
+            update!(opt(f), kernel(f), Δ)
+        end
+        # Optimize inducing point locations
+        for (f, Δ) in zip(m.f, ΔZ)
+            update!(opt(f.Z), data(f.Z), Δ)
+        end
+    else
+        error("Not done yet")
+    end
+    return nothing
 end
+
+# @traitfn function update_hyperparameters!(
+#     m::TGP,
+# ) where {TGP <: AbstractGP; !IsFull{TGP}}
+#     update_hyperparameters!.(
+#         m.f,
+#         likelihood(m),
+#         inference(m),
+#         Ref(xview(m)),
+#         Ref(yview(m)),
+#     )
+#     setHPupdated!(inference(m), true)
+# end
 
 ## Update all hyperparameters for the full batch GP models ##
 function update_hyperparameters!(

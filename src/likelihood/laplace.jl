@@ -46,7 +46,7 @@ implemented(
 function init_likelihood(
     likelihood::LaplaceLikelihood{T},
     inference::Inference{T},
-    nLatent::Int,
+    ::Int,
     nSamplesUsed::Int,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
@@ -61,11 +61,11 @@ function init_likelihood(
 end
 
 function (l::LaplaceLikelihood)(y::Real, f::Real)
-    Distributions.pdf(Laplace(f, l.β), y)
+    pdf(Laplace(f, l.β), y)
 end
 
 function Distributions.loglikelihood(l::LaplaceLikelihood, y::Real, f::Real)
-    Distributions.logpdf(Laplace(f, l.β), y)
+    logpdf(Laplace(f, l.β), y)
 end
 
 function Base.show(io::IO, l::LaplaceLikelihood{T}) where {T}

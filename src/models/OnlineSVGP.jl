@@ -106,6 +106,3 @@ InducingPoints.add_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = Inducin
 
 InducingPoints.remove_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z.Z, m, gp)
 InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z, pr_cov(gp), kernel(gp))
-
-opt(Z::OptimIP) = Z.opt
-opt(Z::AbstractInducingPoints) = nothing

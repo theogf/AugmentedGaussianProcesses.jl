@@ -34,11 +34,11 @@ end
 implemented(::GaussianLikelihood, ::Union{<:AnalyticVI,<:Analytic}) = true
 
 function (l::GaussianLikelihood)(y::Real, f::Real)
-    Distributions.pdf(Normal(y, sqrt(noise(l))), f)
+    pdf(Normal(y, sqrt(noise(l))), f)
 end
 
 function Distributions.loglikelihood(l::GaussianLikelihood, y::Real, f::Real)
-    Distributions.logpdf(Normal(y, sqrt(noise(l))), f)
+    logpdf(Normal(y, sqrt(noise(l))), f)
 end
 
 noise(l::GaussianLikelihood) = first(l.σ²)
@@ -92,7 +92,7 @@ end
 @inline ∇E_Σ(
     l::GaussianLikelihood{T},
     ::AOptimizer,
-    y::AbstractVector,
+    ::AbstractVector,
 ) where {T} = (0.5 * l.θ,)
 
 function expec_log_likelihood(
@@ -100,11 +100,11 @@ function expec_log_likelihood(
     ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
-    diag_cov::AbstractVector,
+    diagΣ::AbstractVector,
 )
     return -0.5 * (
         length(y) * (log(twoπ) + log(noise(l))) +
-        (sum(abs2, y - μ) + sum(diag_cov)) / noise(l)
+        (sum(abs2, y - μ) + sum(diagΣ)) / noise(l)
     )
 end
 

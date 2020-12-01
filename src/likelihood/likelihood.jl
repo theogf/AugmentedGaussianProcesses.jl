@@ -34,5 +34,5 @@ Base.length(::Likelihood) = 1
 
 num_latent(::Likelihood) = 1
 
-Base.iterate(l::Likelihood) = (l,nothing)
+Base.iterate(l::Likelihood) = (l, nothing)
 Base.iterate(l::Likelihood, ::Any) = nothing

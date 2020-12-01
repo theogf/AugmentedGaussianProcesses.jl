@@ -35,8 +35,8 @@ implemented(::PoissonLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) = true
 
 function init_likelihood(
     likelihood::PoissonLikelihood{T},
-    inference::Inference{T},
-    nLatent::Integer,
+    ::Inference{T},
+    ::Integer,
     nSamplesUsed::Int,
 ) where {T}
     PoissonLikelihood{T}(
@@ -48,11 +48,11 @@ function init_likelihood(
 end
 
 function (l::PoissonLikelihood)(y::Real, f::Real)
-    Distributions.pdf(Poisson(get_p(l, l.λ, f)), y)
+    pdf(Poisson(get_p(l, l.λ, f)), y)
 end
 
 function Distributions.loglikelihood(l::PoissonLikelihood, y::Real, f::Real)
-    Distributions.logpdf(Poisson(expec_count(l, f)), y)
+    logpdf(Poisson(expec_count(l, f)), y)
 end
 
 function expec_count(l::PoissonLikelihood, f)
@@ -63,8 +63,8 @@ function get_p(::PoissonLikelihood, λ::Real, f)
     λ * logistic.(f)
 end
 
-function Base.show(io::IO, model::PoissonLikelihood{T}) where {T}
-    print(io, "Poisson Likelihood")
+function Base.show(io::IO, l::PoissonLikelihood{T}) where {T}
+    print(io, "Poisson Likelihood (λ = $(l.λ))")
 end
 
 function compute_proba(
@@ -117,7 +117,7 @@ end
 ## ELBO Section ##
 function expec_log_likelihood(
     l::PoissonLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y,
     μ::AbstractVector,
     Σ::AbstractVector,
