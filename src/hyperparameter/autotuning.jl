@@ -6,11 +6,36 @@ function update_hyperparameters!(m::GP)
     update_hyperparameters!(getf(m), xview(m))
 end
 
+# @traitfn function update_hyperparameters!(
+#     m::TGP,
+# ) where {TGP <: AbstractGP; IsFull{TGP}}
+#     update_hyperparameters!.(m.f, [xview(m)])
+#     setHPupdated!(m.inference, true)
+# end
+
 @traitfn function update_hyperparameters!(
     m::TGP,
 ) where {TGP <: AbstractGP; IsFull{TGP}}
-    update_hyperparameters!.(m.f, [xview(m)])
-    setHPupdated!(m.inference, true)
+    μ₀ = pr_means(m)
+    ks = kernels(m)
+    if ADBACKEND[] == :zygote
+        Δμ₀, Δk = Zygote.gradient(μ₀, ks) do μ₀, ks
+            ELBO(m, μ₀, ks)
+        end
+        # Optimize prior mean
+        isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
+        # Optimize kernel parameters
+        for (f, Δ) in zip(m.f, Δk)
+            update!(opt(f), kernel(f), Δ)
+        end
+    else
+        θ, re = destructure((μ₀, ks))
+        Δ = ForwardDiff.gradient(θ) do θ
+            ELBO(m, re(θ)...)
+        end
+        @show Δ
+    end
+    return nothing
 end
 
 # @traitfn function update_hyperparameters!(

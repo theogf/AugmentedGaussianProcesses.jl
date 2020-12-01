@@ -1,4 +1,4 @@
-@traifn function ELBO(
+@traitfn function ELBO(
     model::TGP,
     pr_means,
     kernels,
