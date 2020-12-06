@@ -114,7 +114,7 @@ function classical_gradient!(∇E_μ::AbstractVector{T}, ∇E_Σ::AbstractVector
 end
 
 function classical_gradient!(∇E_μ::AbstractVector{T}, ∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, Z::AbstractVector, gp::SparseVarLatent{T}) where {T <: Real}
-    opt.∇η₂ .= getρ(i) * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ - 0.5 * (inv(pr_cov(gp)).mat - inv(cov(gp)))
+    opt.∇η₂ .= getρ(i) * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ - 0.5 * (inv(pr_cov(gp)) - inv(cov(gp)))
     opt.∇η₁ .= getρ(i) * transpose(gp.κ) * ∇E_μ - pr_cov(gp) \ (mean(gp) - pr_mean(gp, Z))
 end
 

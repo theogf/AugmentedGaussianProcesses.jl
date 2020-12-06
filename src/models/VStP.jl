@@ -132,7 +132,7 @@ function local_prior_updates!(gp::TVarLatent, X)
             prior(gp).ν +
             dim(gp) +
             invquad(pr_cov(gp), mean(gp) - pr_mean(gp, X)) +
-            trace_ABt(inv(pr_cov(gp)).mat, cov(gp))
+            trace_ABt(inv(pr_cov(gp)), cov(gp))
         )
     prior(gp).χ = (prior(gp).ν + dim(gp)) / (prior(gp).ν .+ prior(gp).l²)
 end
