@@ -15,7 +15,10 @@ X = rand(N,D)
         @test repr(μ₀) == "Affine Mean Prior (size(w) = $D, b = $b)"
         @test μ₀(X) == X*w .+ b
         @test_throws AssertionError AffineMean(4)(X)
-        AGP.update!(μ₀,ones(N),X)
-        @test all(μ₀.w .== (w + X'*ones(N)))
-        @test first(μ₀.b) == b + N
+        g = Zygote.gradient(μ₀) do m
+            sum(m(X))
+        end
+        AGP.update!(μ₀, first(g))
+        @test all(μ₀.w .== (w + first(g).w))
+        @test first(μ₀.b) == b + first(g).b
 end

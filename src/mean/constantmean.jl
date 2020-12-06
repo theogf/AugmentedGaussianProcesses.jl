@@ -20,6 +20,6 @@ Base.show(io::IO, μ₀::ConstantMean) =
 (μ::ConstantMean{T})(x::AbstractMatrix) where {T<:Real} =
 fill(first(μ.C), size(x, 1))
 
-function update!(μ::ConstantMean{T}, grad::AbstractVector{T}, ::Any) where {T<:Real}
-    μ.C .+= Optimise.apply!(μ.opt, μ.C, [sum(grad)])
+function update!(μ::ConstantMean{T}, grad) where {T<:Real}
+    μ.C .+= Optimise.apply!(μ.opt, μ.C, grad.C)
 end

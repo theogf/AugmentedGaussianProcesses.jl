@@ -41,9 +41,8 @@ end
 
 function update!(
     μ₀::AffineMean{T},
-    grad::AbstractVector{<:Real},
-    X::AbstractMatrix,
+    grad,
 ) where {T<:Real}
-    μ₀.w .+= Optimise.apply!(μ₀.opt, μ₀.w, X' * grad)
-    μ₀.b .+= Optimise.apply!(μ₀.opt, μ₀.b, [sum(grad)])
+    μ₀.w .+= Optimise.apply!(μ₀.opt, μ₀.w, grad.w)
+    μ₀.b .+= Optimise.apply!(μ₀.opt, μ₀.b, grad.b)
 end

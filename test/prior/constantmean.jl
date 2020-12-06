@@ -14,6 +14,9 @@ X = rand(N, D)
     @test repr(μ₀) == "Constant Mean Prior (c = $c)"
     @test μ₀(X) == c.*ones(N)
     @test μ₀(x) == c
-    AGP.update!(μ₀,[1.0],X)
-    @test μ₀.C[] == (c + 1.0)
+    g = Zygote.gradient(μ₀) do m
+        sum(m(X))
+    end
+    AGP.update!(μ₀, first(g))
+    @test μ₀.C[] == (c + first(g).C[1])
 end
