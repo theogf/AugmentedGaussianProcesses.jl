@@ -250,7 +250,7 @@ end
     global_update!.(model.f)
 end
 
-global_update!(gp::VarLatent, opt::AVIOptimizer, i::AnalyticVI) = global_update!(gp)
+global_update!(gp::VarLatent, ::AVIOptimizer, ::AnalyticVI) = global_update!(gp)
 
 global_update!(model::OnlineSVGP) = global_update!.(model.f)
 global_update!(gp::OnlineVarLatent, opt, i) = global_update!(gp)

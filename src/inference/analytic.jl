@@ -50,7 +50,7 @@ end
 function analytic_updates!(m::GP{T}) where {T}
     f = getf(m)
     l = likelihood(m)
-    f.post.Σ = pr_cov(f) + first(l.σ²) * I
+    f.post.Σ = Matrix(pr_cov(f)) + first(l.σ²) * I
     f.post.α .= cov(f) \ (yview(m) - pr_mean(f, xview(m)))
     if !isnothing(l.opt_noise)
         g = 0.5 * (norm(mean(f), 2) - tr(inv(cov(f))))

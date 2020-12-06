@@ -37,7 +37,7 @@ using StatsFuns
 using SpecialFunctions
 using Distributions: 
                 Distributions, Distribution,
-                cov, mean, var, 
+                dim, cov, mean, var, 
                 pdf, logpdf, loglikelihood,
                 Normal, Poisson, NegativeBinomial, InverseGamma, Laplace, MvNormal
 using FastGaussQuadrature: gausshermite

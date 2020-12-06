@@ -176,7 +176,7 @@ function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T = T(jitt
     gp.post = OnlineVarPosterior{T}(k)
     gp.prior = GPPrior(kernel(gp), pr_mean(gp), cholesky(kernelmatrix(kernel(gp), Zview(gp)) + jitt * I))
 
-    gp.Kab = copy(pr_cov(gp))
+    gp.Kab = Matrix(pr_cov(gp))
     gp.κₐ = Matrix{T}(I(dim(gp)))
     gp.K̃ₐ = zero(gp.Kab)
 

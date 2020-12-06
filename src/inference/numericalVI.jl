@@ -120,7 +120,7 @@ end
 
 function natural_gradient!(gp::AbstractLatent, opt::NVIOptimizer)
     opt.∇η₂ .= 2 * cov(gp) * opt.∇η₂ * cov(gp)
-    opt.∇η₁ .= pr_cov(gp) * opt.∇η₁
+    opt.∇η₁ .= Matrix(pr_cov(gp)) * opt.∇η₁
 end
 
 function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
