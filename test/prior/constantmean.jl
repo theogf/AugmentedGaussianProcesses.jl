@@ -9,7 +9,6 @@ X = rand(N, D)
 @testset "ConstantMean" begin
     c = rand()
     μ₀ = ConstantMean(c, opt = Descent(1.0))
-    # @test μ₀(x) == c
     @test μ₀ isa ConstantMean{Float64, Descent}
     @test repr(μ₀) == "Constant Mean Prior (c = $c)"
     @test μ₀(X) == c.*ones(N)
@@ -18,5 +17,5 @@ X = rand(N, D)
         sum(m(X))
     end
     AGP.update!(μ₀, first(g))
-    @test μ₀.C[] == (c + first(g).C[1])
+    @test μ₀.C[1] == (c + first(g).C[1])
 end

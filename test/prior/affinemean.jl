@@ -20,5 +20,5 @@ X = rand(N,D)
         end
         AGP.update!(μ₀, first(g))
         @test all(μ₀.w .== (w + first(g).w))
-        @test first(μ₀.b) == b + first(g).b
+        @test first(μ₀.b) == b + first(g).b[1]
 end

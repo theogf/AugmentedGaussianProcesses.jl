@@ -22,5 +22,5 @@ function (μ₀::EmpiricalMean{T})(x::AbstractMatrix) where {T<:Real}
 end
 
 function update!(μ₀::EmpiricalMean{T}, grad) where {T<:Real}
-    μ₀.C .+= Optimise.apply!(μ₀.opt, μ₀.C, grad)
+    μ₀.C .+= Optimise.apply!(μ₀.opt, μ₀.C, grad.C)
 end
