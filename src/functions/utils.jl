@@ -104,3 +104,7 @@ function make_grid(range1, range2)
         [j for i in range1, j in range2][:],
     )
 end
+
+Base.:*(x::Real, C::Cholesky) = Cholesky(sqrt(x) * C.factors, C.uplo, C.info)
+
+Base.:*(C::Cholesky, x::AbstractVecOrMat) = C.L * (C.L' * x) 

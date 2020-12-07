@@ -1,6 +1,7 @@
 using AugmentedGaussianProcesses
 using Test
 using LinearAlgebra, Distributions
+using Zygote
 using PDMats
 using MLDataUtils
 using Random: seed!
