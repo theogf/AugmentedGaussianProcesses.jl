@@ -19,6 +19,7 @@ module AugmentedGaussianProcesses
     export predict_f, predict_y, proba_y
     export fstar, ELBO
     export covariance, diag_covariance, prior_mean
+    export @augmodel
 
     #General modules
     using Reexport
@@ -88,6 +89,8 @@ module AugmentedGaussianProcesses
 
     include(joinpath("inference", "inference.jl"))
     include(joinpath("likelihood", "likelihood.jl"))
+
+    include(joinpath("likelihood", "generic_likelihood.jl"))
 
     include(joinpath("functions", "KLdivergences.jl"))
     include(joinpath("data", "utils.jl"))
