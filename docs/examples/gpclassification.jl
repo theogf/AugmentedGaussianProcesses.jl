@@ -9,7 +9,7 @@ using AugmentedGaussianProcesses
 
 # ### Loading the banana dataset from OpenML
 data = HTTP.get("https://www.openml.org/data/get_csv/1586217/phpwRjVjk")
-data = CSV.read(data.body)
+data = CSV.read(data.body, DataFrame)
 data.Class[data.Class .== 2] .= -1
 data = Matrix(data)
 X = data[:, 1:2]
