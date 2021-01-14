@@ -178,40 +178,40 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
             end
 
             function (l::$(lname))(y::Real, f::Real)
-                return C(l) * exp(g(l, y) * f) * φ(l, α(l, y) - β(l, y) * f + γ(l, y) * f^2)
+                return _gen_C(l) * exp(_gen_g(l, y) * f) * _gen_φ(l, _gen_α(l, y) - _gen_β(l, y) * f + _gen_γ(l, y) * f^2)
             end
 
             function Distributions.loglikelihood(l::$(lname), y::Real, f::Real)
-                return log(C(l)) +
-                       g(l, y) * f +
-                       log(φ(l, α(l, y) - β(l, y) * f + γ(l, y) * f^2))
+                return log(_gen_C(l)) +
+                       _gen_g(l, y) * f +
+                       log(_gen_φ(l, _gen_α(l, y) - _gen_β(l, y) * f + _gen_γ(l, y) * f^2))
             end
 
-            function C(l::$(lname){T}) where {T}
-                return C()
+            function _gen_C(l::$(lname){T}) where {T<:Real}
+                return $(C)
             end
 
-            function _gen_g(l::$(lname), y::AbstractVector{T}) where {T}
+            function _gen_g(l::$(lname), y::T) where {T<:Real}
                 return $(g)
             end
 
-            function _gen_α(l::$(lname), y::AbstractVector{T}) where {T}
+            function _gen_α(l::$(lname), y::T) where {T<:Real}
                 return $(α)
             end
 
-            function _gen_β(l::$(lname), y::AbstractVector{T}) where {T}
+            function _gen_β(l::$(lname), y::T) where {T<:Real}
                 return $(β)
             end
 
-            function _gen_γ(l::$(lname), y::AbstractVector{T}) where {T}
+            function _gen_γ(l::$(lname), y::T) where {T<:Real}
                 return $(γ)
             end
 
-            function _gen_φ(l::$(lname), r::T) where {T}
+            function _gen_φ(l::$(lname), r::T) where {T<:Real}
                 return $(φ)
             end
 
-            function _gen_∇φ(l::$(lname), r::T) where {T}
+            function _gen_∇φ(l::$(lname), r::T) where {T<:Real}
                 return $(∇φ)
             end
 
@@ -219,18 +219,17 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
                 return Zygote.gradient(x -> $(∇φ)(x), r)[1]
             end
 
-            function Base.show(io::IO, model::$(lname){T}) where {T}
-                return print(io, "Generated Likelihood (WIP)")
+            function Base.show(io::IO, model::$(lname){T}) where {T<:Real}
+                return print(io, "$(nameof(typeof(model)))")
             end
 
-            function Statistics.var(l::$(lname){T}) where {T}
+            function Statistics.var(l::$(lname){T}) where {T<:Real}
                 @warn "The variance of the likelihood is not implemented : returnin 0.0"
                 return 0.0
             end
 
             function AGP.compute_proba(
                 l::$(lname){T},
-                y::AbstractVector,
                 μ::AbstractVector{T},
                 σ²::AbstractVector{T},
             ) where {T<:Real}
@@ -258,8 +257,8 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
                 μ::AbstractVector,
                 diag_cov::AbstractVector,
             ) where {T}
-                l.c² .= α(l, y) - β(l, y) .* μ + γ(l, y) .* (abs2.(μ) + diag_cov)
-                return l.θ .= -∇φ(l, l.c²) ./ φ(l, l.c²)
+                l.c² .= _gen_α.(l, y) - _gen_β.(l, y) .* μ + _gen_γ.(l, y) .* (abs2.(μ) + diag_cov)
+                return l.θ .= -_gen_∇φ.(l, l.c²) ./ _gen_φ.(l, l.c²)
             end
 
             function pω(::$(lname), f)
@@ -276,7 +275,7 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
                     l,
                     pω.(
                         l,
-                        sqrt.(0.5 * (l, α(l, y) - β(l, y) .* f + γ(l, y) .* (abs2.(f)))),
+                        sqrt.(0.5 * (l, _gen_α.(l, y) - _gen_β.(l, y) .* f + _gen_γ.(l, y) .* (abs2.(f)))),
                     ),
                 )
             end
@@ -287,12 +286,12 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
                 l::$(lname),
                 ::AugmentedGaussianProcesses.AOptimizer,
                 y::AbstractVector,
-            ) where {T} = (g(l, y) + l.θ .* β(l, y),)
+            ) where {T} = (_gen_g.(l, y) + l.θ .* _gen_β.(l, y),)
             @inline AGP.∇E_Σ(
                 l::$(lname),
                 ::AugmentedGaussianProcesses.AOptimizer,
                 y::AbstractVector,
-            ) where {T} = (l.θ .* γ(l, y),)
+            ) where {T} = (l.θ .* _gen_γ.(l, y),)
 
             ### ELBO Section ###
             function AGP.expec_log_likelihood(
@@ -302,18 +301,18 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
                 μ::AbstractVector,
                 diag_cov::AbstractVector,
             ) where {T}
-                tot = length(y) * log(C(l))
-                tot += dot(g(l, y), μ)
+                tot = length(y) * log(_gen_C(l))
+                tot += dot(_gen_g.(l, y), μ)
                 tot +=
                     -(
-                        dot(θ, α(l, y)) - dot(θ, β(l, y) .* μ) +
-                        dot(θ, γ(l, y) .* (abs2.(μ) + diag_cov))
+                        dot(l.θ, _gen_α.(l, y)) - dot(l.θ, _gen_β.(l, y) .* μ) +
+                        dot(l.θ, _gen_γ.(l, y) .* (abs2.(μ) + diag_cov))
                     )
                 return tot
             end
 
-            function AugmentedKL(model::AbstractGP{T,<:$(lname),<:AnalyticVI}) where {T}
-                return -dot(l.c², l.θ) - sum(log, φ.(l, c²))
+            function AGP.AugmentedKL(l::$(lname), ::AbstractVector) where {T}
+                return -dot(l.c², l.θ) - sum(log, _gen_φ.(l, l.c²))
             end
 
             ### Gradient Section ###
