@@ -139,24 +139,29 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
     quote
         begin
             using Statistics
-            # struct $(Symbol(name,"{T<:Real}"))# <: $(ltype)
-            struct $(lname){T<:Real} <: AGP.$(ltype){T}
-                # b::T
-                c²::Vector{T}
-                θ::Vector{T}
+            struct $(lname){T<:Real, A<:AbstractVector{T}} <: AGP.$(ltype){T}
+                c²::A
+                θ::A
                 function $(lname){T}() where {T<:Real}
-                    return new{T}()
+                    return new{T,Vector{T}}()
                 end
                 function $(lname){T}(
-                    c²::AbstractVector{<:AbstractVector{<:Real}},
-                    θ::AbstractVector{<:AbstractVector{<:Real}},
-                ) where {T<:Real}
-                    return new{T}(c², θ)
+                    c²::A,
+                    θ::A,
+                ) where {T<:Real, A<:AbstractVector{T}}
+                    return new{T, A}(c², θ)
                 end
             end
 
             function $(lname)()
                 return $(lname){Float64}()
+            end
+
+            function AGP.implemented(
+                ::$(lname),
+                ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling},
+            )
+                return true
             end
 
             function AGP.init_likelihood(
@@ -215,7 +220,7 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
             end
 
             function Base.show(io::IO, model::$(lname){T}) where {T}
-                return print(io, "$(:($lname))")
+                return print(io, "Generated Likelihood (WIP)")
             end
 
             function Statistics.var(l::$(lname){T}) where {T}
