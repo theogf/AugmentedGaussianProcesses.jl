@@ -1,11 +1,11 @@
 @testset "utils/utils.jl" begin
-    @test AGP.jitt isa Jittering
+    @test AGP.jitt isa AGP.Jittering
     @test Float64(AGP.jitt) ≈ 1e-4
     @test Float32(AGP.jitt) ≈ 1e-3
     @test Float16(AGP.jitt) ≈ 1e-2
 
-    @test δ(0, 1) = 0.0
-    @test δ(1, 1) = 1.0
+    @test AGP.δ(0, 1) == 0.0
+    @test AGP.δ(1, 1) == 1.0
 
     A = rand(2, 2)
     B = rand(2, 2)
@@ -18,14 +18,14 @@
 
     D = A * A' + I
     C = cholesky(D)
-    @test invquad(C, v) ≈ dot(x, D \ x)
+    @test AGP.invquad(C, x) ≈ dot(x, D \ x)
 
     @test AGP.trace_ABt(A, B) ≈ tr(A * B')
     @test AGP.diag_ABt(A, B) ≈ diag(A * B')
-    @test AGP.diagv_B(x, B) ≈ Diagonal(v) * B
+    @test AGP.diagv_B(x, B) ≈ Diagonal(x) * B
     @test AGP.κdiagθκ(A, x) ≈ A' * Diagonal(x) * A
     @test AGP.ρκdiagθκ(2.0, A, x) ≈ 2.0 * A' * Diagonal(x) * A
-    @test AGP.opt_add_diag_mat(x, A) = A + Diagonal(x)
+    @test AGP.opt_add_diag_mat(x, A) == A + Diagonal(x)
     @test AGP.safe_expcosh(2.0, 1.0) ≈ exp(2.0) / cosh(1.0)
     @test AGP.logcosh(2.0) ≈ log(cosh(2.0))
 
@@ -37,19 +37,16 @@
         return Symmetric(S)
     end
 
-    export make_grid
     function make_grid(range1, range2)
         return hcat(
             [i for i in range1, j in range2][:],
             [j for i in range1, j in range2][:],
         )
     end
-
-
     =#
-    @test 2.0 * C ≈ cholesky(2.0 * D)
+    @test (2.0 * C).L ≈ cholesky(2.0 * D).L
     @test C * x ≈ D * x
-    @test C + 2.0 * I ≈ cholesky(D + 2.0 * I)
+    @test (C + 2.0 * I).L ≈ cholesky(D + 2.0 * I).L
 end
 
 

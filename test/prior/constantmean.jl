@@ -11,11 +11,11 @@ X = rand(N, D)
     μ₀ = ConstantMean(c, opt = Descent(1.0))
     @test μ₀ isa ConstantMean{Float64, Descent}
     @test repr(μ₀) == "Constant Mean Prior (c = $c)"
-    @test μ₀(X) == c.*ones(N)
+    @test μ₀(X) == c .* ones(N)
     @test μ₀(x) == c
-    g = Zygote.gradient(μ₀) do m
-        sum(m(X))
+    global g = Zygote.gradient(μ₀) do m
+        norm(m(X))
     end
-    AGP.update!(μ₀, first(g))
-    @test μ₀.C[1] == (c + first(g).C[1])
+    AGP.update!(μ₀, first(g)[])
+    @test μ₀.C[1] == (c + first(g)[].C[1])
 end
