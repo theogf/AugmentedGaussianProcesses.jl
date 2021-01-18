@@ -143,13 +143,13 @@ end
 
 ## ELBO
 
-expec_log_likelihood(l::Likelihood, i::NumericalVI, y, μ::Tuple{<:AbstractVector{T}}, Σ::Tuple{<:AbstractVector{T}}) where {T} = 
-    expec_log_likelihood(l, i, y, first(μ), first(Σ))
+expec_loglikelihood(l::Likelihood, i::NumericalVI, y, μ::Tuple{<:AbstractVector{T}}, Σ::Tuple{<:AbstractVector{T}}) where {T} = 
+    expec_loglikelihood(l, i, y, first(μ), first(Σ))
 
 function ELBO(m::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     tot = zero(T)
     tot +=
-        getρ(m.inference) * expec_log_likelihood(
+        getρ(m.inference) * expec_loglikelihood(
             m.likelihood,
             m.inference,
             yview(m),

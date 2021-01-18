@@ -115,7 +115,7 @@ end
     (0.5 * l.θ,)
 
 ## ELBO Section ##
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::PoissonLikelihood{T},
     ::AnalyticVI,
     y,

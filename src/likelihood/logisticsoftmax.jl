@@ -184,7 +184,7 @@ end
 ) = 0.5 .* l.θ
 
 ## ELBO Section ##
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::LogisticSoftMaxLikelihood{T},
     ::AnalyticVI,
     y,

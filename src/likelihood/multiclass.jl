@@ -82,8 +82,8 @@ end
 Distributions.loglikelihood(l::MultiClassLikelihood, y::AbstractVector, fs) =
          loglikelihood.(l, y, [getindex.(fs, i) for i in 1:length(y)])
 
-function grad_loglike(l::Likelihood, y::AbstractVector, fs)
-    grad_loglike.(l, y, [getindex.(fs, i) for i in 1:length(y)])
+function ∇loglikehood(l::Likelihood, y::AbstractVector, fs)
+    ∇loglikelihood.(l, y, [getindex.(fs, i) for i in 1:length(y)])
 end
 
 

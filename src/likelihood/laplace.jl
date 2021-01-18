@@ -114,7 +114,7 @@ end
 ) where {T} = (0.5 * l.θ,)
 
 ## ELBO ##
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::LaplaceLikelihood{T},
     ::AnalyticVI,
     y::AbstractVector,
@@ -153,16 +153,16 @@ function grad_quad(
     inference::Inference,
 ) where {T<:Real}
     nodes = inference.nodes * sqrt(σ²) .+ μ
-    Edloglike = dot(inference.weights, grad_loglike.(likelihood, y, nodes))
+    Edloglike = dot(inference.weights, ∇loglikehood.(likelihood, y, nodes))
     Ed²loglike = (1 / sqrt(twoπ * σ²)) / (likelihood.β^2)
     return -Edloglike::T, Ed²loglike::T
 end
 
 
-@inline grad_loglike(l::LaplaceLikelihood{T}, y::Real, f::Real) where {T<:Real} =
+@inline ∇loglikehood(l::LaplaceLikelihood{T}, y::Real, f::Real) where {T<:Real} =
     sign(y - f) ./ l.β
 
-@inline hessian_logl(
+@inline hessloglikelihood(
     ::LaplaceLikelihood{T},
     ::Real,
     ::Real,

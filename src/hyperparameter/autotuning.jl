@@ -16,14 +16,19 @@ end
 @traitfn function update_hyperparameters!(
     m::TGP,
 ) where {TGP <: AbstractGP; IsFull{TGP}}
-    μ₀ = pr_means(m)
-    ks = kernels(m)
+    # if !isnothing(opt(f)) # Only proceeds to computations if an optimiser is present
+    μ₀ = pr_means(m) # Get prior means
+    ks = kernels(m) # Get kernels
     if ADBACKEND[] == :zygote
-        Δμ₀, Δk = Zygote.gradient(μ₀, ks) do μ₀, ks
+        Δμ₀, Δk = Zygote.gradient(μ₀, ks) do μ₀, ks # Compute gradients for the whole model
             ELBO(m, μ₀, ks)
         end
         # Optimize prior mean
         isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
+        if isnothing(Δk)
+            @warn "Kernel gradients are equal to zero" maxlog=1
+            return nothing
+        end
         # Optimize kernel parameters
         for (f, Δ) in zip(m.f, Δk)
             update!(opt(f), kernel(f), Δ)
@@ -35,6 +40,7 @@ end
         end
         @show Δ
     end
+    # end
     return nothing
 end
 

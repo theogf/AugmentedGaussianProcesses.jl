@@ -206,7 +206,7 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ)
         @inline AGP.∇E_Σ(l::$(lname),::AugmentedGaussianProcesses.AOptimizer,y::AbstractVector) where {T} = (l.θ .* γ(l, y),)
 
         ### ELBO Section ###
-        function AGP.expec_log_likelihood(l::$(lname),i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
+        function AGP.expec_loglikelihood(l::$(lname),i::AnalyticVI,y::AbstractVector,μ::AbstractVector,diag_cov::AbstractVector) where {T}
             tot = length(y)*log(C(l))
             tot += dot(g(l,y),μ)
             tot += -(dot(θ,α(l,y))

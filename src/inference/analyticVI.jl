@@ -172,13 +172,13 @@ local_updates!(
     diagΣ::Tuple{<:AbstractVector{T}},
 ) where {T} = local_updates!(l, y, first(μ), first(diagΣ))
 
-expec_log_likelihood(
+expec_loglikelihood(
     l::Likelihood,
     i::AnalyticVI,
     y,
     μ::Tuple{<:AbstractVector{T}},
     diagΣ::Tuple{<:AbstractVector{T}},
-) where {T} = expec_log_likelihood(l, i, y, first(μ), first(diagΣ))
+) where {T} = expec_loglikelihood(l, i, y, first(μ), first(diagΣ))
 
 ## Coordinate ascent updates on the natural parameters ##
 function natural_gradient!(
@@ -276,7 +276,7 @@ end
 @traitfn function ELBO(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     tot = zero(T)
     tot +=
-        getρ(inference(model)) * expec_log_likelihood(
+        getρ(inference(model)) * expec_loglikelihood(
             likelihood(model),
             inference(model),
             yview(model),
@@ -292,7 +292,7 @@ end
     tot = zero(T)
     tot += sum(
             getρ(inference(model)) .*
-            expec_log_likelihood.(
+            expec_loglikelihood.(
                 likelihood(model),
                 inference(model), 
                 yview(model),

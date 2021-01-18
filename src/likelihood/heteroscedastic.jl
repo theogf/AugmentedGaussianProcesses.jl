@@ -171,9 +171,9 @@ function proba_y(
     σ²f + expectation.(x -> inv(model.likelihood.λ * logistic(x)), μg, σ²g)
 end
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::HeteroscedasticLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y::AbstractVector,
     μ,
     diag_cov,
