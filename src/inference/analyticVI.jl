@@ -262,9 +262,10 @@ end
 
 function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI)
     if isStochastic(i)
-        Δ = Optimise.apply!(opt.optimiser, nat1(gp), vcat(opt.∇η₁, opt.∇η₂[:]))
-        gp.post.η₁ .+= Δ[1:dim(gp)]
-        gp.post.η₂ .= Symmetric(reshape(Δ[(dim(gp)+1):end], dim(gp), dim(gp)) + nat2(gp))
+        Δ₁ = Optimise.apply!(opt.optimiser, nat1(gp), opt.∇η₁)
+        Δ₂ = Optimise.apply!(opt.optimiser, nat2(gp).data, opt.∇η₂)
+        gp.post.η₁ .+= Δ₁
+        gp.post.η₂ .= Symmetric(Δ₂) + nat2(gp)
     else
         gp.post.η₁ .+= opt.∇η₁
         gp.post.η₂ .= Symmetric(opt.∇η₂ + nat2(gp))
