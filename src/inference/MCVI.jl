@@ -175,7 +175,7 @@ function expec_loglikelihood(
     nSamples = length(MBIndices(i))
     loglike = 0.0
     for j = 1:nSamples
-        samples .=
+        samples =
             raw_samples .* [sqrt(var_f[k][j]) for k = 1:N]' .+ [μ_f[k][j] for k = 1:N]'
         loglike += sum(
             f -> loglikelihood(l, getindex.(y, j), f),

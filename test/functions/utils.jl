@@ -18,7 +18,7 @@
 
     D = A * A' + I
     C = cholesky(D)
-    @test invquad(C, x) ≈ dot(x, D \ x)
+    @test AGP.invquad(C, x) ≈ dot(x, D \ x)
 
     @test AGP.trace_ABt(A, B) ≈ tr(A * B')
     @test AGP.diag_ABt(A, B) ≈ diag(A * B')

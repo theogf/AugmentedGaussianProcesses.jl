@@ -39,7 +39,7 @@ using Distributions:
                 Distributions, Distribution,
                 dim, cov, mean, var, 
                 pdf, logpdf, loglikelihood,
-                Normal, Poisson, NegativeBinomial, InverseGamma, Laplace, MvNormal
+                Normal, Poisson, NegativeBinomial, InverseGamma, Laplace, MvNormal, Gamma
 using FastGaussQuadrature: gausshermite
 using ProgressMeter, SimpleTraits
 #Exported modules
