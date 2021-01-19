@@ -163,7 +163,7 @@ function grad_expectations!(
     end
 end
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::Likelihood,
     i::MCIntegrationVI{T,N},
     y,
@@ -175,7 +175,7 @@ function expec_log_likelihood(
     nSamples = length(MBIndices(i))
     loglike = 0.0
     for j = 1:nSamples
-        samples .=
+        samples =
             raw_samples .* [sqrt(var_f[k][j]) for k = 1:N]' .+ [μ_f[k][j] for k = 1:N]'
         loglike += sum(
             f -> loglikelihood(l, getindex.(y, j), f),

@@ -16,10 +16,9 @@ end
 Base.show(io::IO, μ₀::ConstantMean) =
     print(io, "Constant Mean Prior (c = $(first(μ₀.C)))")
 
-(μ::ConstantMean{T})(x::Real) where {T<:Real} = first(μ.C)
-(μ::ConstantMean{T})(x::AbstractMatrix) where {T<:Real} =
-fill(first(μ.C), size(x, 1))
+(μ::ConstantMean{T})(::Real) where {T<:Real} = first(μ.C)
+(μ::ConstantMean{T})(x::AbstractMatrix) where {T<:Real} = fill(first(μ.C), size(x, 1))
 
-function update!(μ::ConstantMean{T}, grad) where {T<:Real}
-    μ.C .+= Optimise.apply!(μ.opt, μ.C, grad.C)
+function update!(μ::ConstantMean{T}, grad::AbstractVector) where {T<:Real}
+    μ.C .+= Optimise.apply!(μ.opt, μ.C, grad)
 end

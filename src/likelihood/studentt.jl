@@ -65,11 +65,13 @@ function init_likelihood(
 end
 
 function (l::StudentTLikelihood)(y::Real, f::Real)
-    tdistpdf(l.ν, (y - f) / l.σ)
+    gamma(l.α) / (sqrt(l.ν * π) * gamma(l.ν / 2)) * (1 + abs2((y - f) / l.σ))^(-l.α)
+    # tdistpdf(l.ν, (y - f) / l.σ) uses R so not differentiable
 end
 
 function Distributions.loglikelihood(l::StudentTLikelihood, y::Real, f::Real)
-    tdistlogpdf(l.ν, (y - f) / l.σ)
+    log(l(y, f))
+    # tdistlogpdf(l.ν, (y - f) / l.σ) uses R so not differentiable
 end
 
 function Base.show(io::IO, model::StudentTLikelihood{T}) where {T}
@@ -115,7 +117,7 @@ end
 
 ## ELBO Section ##
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::StudentTLikelihood{T},
     ::AnalyticVI,
     y::AbstractVector,
@@ -142,11 +144,11 @@ end
 
 ## PDF and Log PDF Gradients ## (verified gradients)
 
-function grad_loglike(l::StudentTLikelihood{T}, y::Real, f::Real) where {T<:Real}
+function ∇loglikelihood(l::StudentTLikelihood{T}, y::Real, f::Real) where {T<:Real}
     (one(T) + l.ν) * (y - f) / ((f - y)^2 + l.σ^2 * l.ν)
 end
 
-function hessian_loglike(
+function hessloglikelihood(
     l::StudentTLikelihood{T},
     y::Real,
     f::Real,

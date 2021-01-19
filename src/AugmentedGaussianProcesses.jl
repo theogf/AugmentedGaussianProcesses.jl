@@ -5,21 +5,25 @@ General Framework for the data augmented Gaussian Processes
 """
 module AugmentedGaussianProcesses
 
-const AGP = AugmentedGaussianProcesses; export AGP
-export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP,OnlineSVGP
-export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood
-export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood
-export LogisticLikelihood, BayesianSVM
-export SoftMaxLikelihood, LogisticSoftMaxLikelihood
-export PoissonLikelihood, NegBinomialLikelihood
-export Inference, Analytic, AnalyticVI, AnalyticSVI, GibbsSampling, HMCSampling, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI
-export NumericalVI, NumericalSVI
-export PriorMean, ZeroMean, ConstantMean, EmpiricalMean, AffineMean
+const AGP = AugmentedGaussianProcesses
+export AGP
+export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP, OnlineSVGP # All models
+export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood, EventLikelihood # All categories of likelihoods
+export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood # Regression Likelihoods
+export LogisticLikelihood, BayesianSVM # Classification Likelihoods
+export SoftMaxLikelihood, LogisticSoftMaxLikelihood # Multiclass Classification Likelihoods
+export PoissonLikelihood, NegBinomialLikelihood # Event Likelihoods
+export Inference, Analytic, AnalyticVI, AnalyticSVI # Inference objects
+export GibbsSampling, HMCSampling # Sampling inference
+export NumericalVI, NumericalSVI, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI # Numerical inference
+export PriorMean, ZeroMean, ConstantMean, EmpiricalMean, AffineMean # Prior means
 #Useful functions
 export train!, sample
 export predict_f, predict_y, proba_y
-export fstar, ELBO
+export fstar
+export ELBO
 export covariance, diag_covariance, prior_mean
+export @augmodel
 
 #General modules
 using Reexport
@@ -39,7 +43,7 @@ using Distributions:
                 Distributions, Distribution,
                 dim, cov, mean, var, 
                 pdf, logpdf, loglikelihood,
-                Normal, Poisson, NegativeBinomial, InverseGamma, Laplace, MvNormal
+                Normal, Poisson, NegativeBinomial, InverseGamma, Laplace, MvNormal, Gamma
 using FastGaussQuadrature: gausshermite
 using ProgressMeter, SimpleTraits
 #Exported modules
@@ -92,6 +96,7 @@ include(joinpath("models", "multi_output_utils.jl"))
 
 include(joinpath("inference", "inference.jl"))
 include(joinpath("likelihood", "likelihood.jl"))
+include(joinpath("likelihood", "generic_likelihood.jl"))
 
 include(joinpath("functions", "KLdivergences.jl"))
 include(joinpath("functions", "ELBO.jl"))

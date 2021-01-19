@@ -95,7 +95,7 @@ end
     ::AbstractVector,
 ) where {T} = (0.5 * l.θ,)
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::GaussianLikelihood,
     ::AnalyticVI,
     y::AbstractVector,

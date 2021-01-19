@@ -25,7 +25,7 @@
     @test AGP.diagv_B(x, B) ≈ Diagonal(x) * B
     @test AGP.κdiagθκ(A, x) ≈ A' * Diagonal(x) * A
     @test AGP.ρκdiagθκ(2.0, A, x) ≈ 2.0 * A' * Diagonal(x) * A
-    @test AGP.opt_add_diag_mat(x, A) == A + Diagonal(x)
+    @test AGP.opt_add_diag_mat(x, A) ≈ A + Diagonal(x)
     @test AGP.safe_expcosh(2.0, 1.0) ≈ exp(2.0) / cosh(1.0)
     @test AGP.logcosh(2.0) ≈ log(cosh(2.0))
 

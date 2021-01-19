@@ -161,14 +161,14 @@ function tuple_inference(
     )
 end
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::Likelihood,
     i::QuadratureVI,
     y,
     μ::AbstractVector,
     diagΣ::AbstractVector,
 )
-    sum(apply_quad.(y, μ, diagΣ, i, l))
+    mapreduce(apply_quad, :+, y, μ, diagΣ, i, l)
 end
 
 function apply_quad(
@@ -178,8 +178,9 @@ function apply_quad(
     i::QuadratureVI,
     l::Likelihood,
 )
-    x = i.nodes * sqrt(σ²) .+ μ
-    return dot(i.weights, loglikelihood.(l, y, x))
+    xs = i.nodes * sqrt(σ²) .+ μ
+    return dot(i.weights, loglikelihood.(Ref(l), y, xs))
+    # return mapreduce((w, x) -> w * Distributions.loglikelihood(l, y, x), +, i.weights, xs)# loglikelihood.(l, y, x))
 end
 
 function grad_expectations!(
@@ -205,8 +206,8 @@ function grad_quad(
     i::Inference,
 ) where {T<:Real}
     x = i.nodes * sqrt(max(σ², zero(T))) .+ μ
-    Edloglike = dot(i.weights, grad_loglike.(l, y, x))
-    Ed²loglike = dot(i.weights, hessian_loglike.(l, y, x))
+    Edloglike = dot(i.weights, ∇loglikehood.(l, y, x))
+    Ed²loglike = dot(i.weights, hessloglikehood.(l, y, x))
     if i.clipping != 0
         return (
             abs(Edloglike) > i.clipping ? sign(Edloglike) * i.clipping :

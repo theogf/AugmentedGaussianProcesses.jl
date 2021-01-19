@@ -121,7 +121,7 @@ end
 
 ### ELBO Section ###
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::LogisticLikelihood{T},
     ::AnalyticVI,
     y::AbstractVector,
@@ -141,10 +141,10 @@ end
 
 ### Gradient Section ###
 
-@inline grad_loglike(::LogisticLikelihood{T}, y::Real, f::Real) where {T} =
+∇loglikehood(::LogisticLikelihood{T}, y::Real, f::Real) where {T} =
     y * logistic(-y * f)
 
-@inline hessian_loglike(
+hessloglikehood(
     ::LogisticLikelihood{T},
     y::Real,
     f::Real,

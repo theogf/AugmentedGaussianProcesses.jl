@@ -101,7 +101,7 @@ end
 
 ## Lower bounds
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::BayesianSVM{T},
     ::AnalyticVI,
     y::AbstractVector,

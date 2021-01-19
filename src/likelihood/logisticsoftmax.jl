@@ -74,7 +74,7 @@ implemented(
 
 
 function logisticsoftmax(f::AbstractVector{<:Real})
-    return normalize!(logistic.(f), 1)
+    return normalize(logistic.(f), 1)
 end
 
 function logisticsoftmax(f::AbstractVector{<:Real}, i::Integer)
@@ -184,7 +184,7 @@ end
 ) = 0.5 .* l.θ
 
 ## ELBO Section ##
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::LogisticSoftMaxLikelihood{T},
     ::AnalyticVI,
     y,
@@ -194,14 +194,9 @@ function expec_log_likelihood(
     tot = -length(y) * logtwo
     tot += -sum(sum(l.γ .+ y)) * logtwo
     tot +=
-        0.5 * sum(broadcast(
-            (θ, γ, y, μ, Σ) -> dot(μ, (y - γ)) - dot(θ, abs2.(μ)) - dot(θ, Σ),
-            l.θ,
-            l.γ,
-            y,
-            μ,
-            Σ,
-        ))
+        0.5 * sum(zip(l.θ, l.γ, y, μ, Σ)) do (θ, γ, y, μ, Σ) 
+            dot(μ, (y - γ)) - dot(θ, abs2.(μ)) - dot(θ, Σ)
+        end
     return tot
 end
 

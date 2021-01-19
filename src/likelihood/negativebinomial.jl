@@ -132,7 +132,7 @@ function negbin_logconst(y, r::Int)
     logabsbinomial.(y .+ (r - 1), y)
 end
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::NegBinomialLikelihood{T},
     ::AnalyticVI,
     y::AbstractVector,

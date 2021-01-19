@@ -147,7 +147,7 @@ end
 
 ## PDF and Log PDF Gradients ## (verified gradients)
 
-@inline function grad_loglike(
+@inline function ∇loglikehood(
     l::Matern3_2Likelihood,
     y::Real,
     f::Real,
@@ -155,7 +155,7 @@ end
     3.0 * (y - f) / (l.ρ * (abs(f - y) * sqrt(3) + l.ρ))
 end
 
-@inline function hessian_loglike(
+@inline function hessloglikelihood(
     l::Matern3_2Likelihood,
     y::Real,
     f::Real,
