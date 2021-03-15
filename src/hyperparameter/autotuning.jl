@@ -3,7 +3,29 @@ include("zygote_rules.jl")
 include("forwarddiff_rules.jl")
 
 function update_hyperparameters!(m::GP)
-    update_hyperparameters!(getf(m), xview(m))
+    μ₀ = pr_mean(m.f) # Get prior means
+    k = kernel(m.f) # Get kernels
+    if ADBACKEND[] == :Zygote
+        Δμ₀, Δk = Zygote.gradient(μ₀, k) do μ₀, k # Compute gradients for the whole model
+            ELBO(m, μ₀, k)
+        end
+        # Optimize prior mean
+        isnothing(Δμ₀) || update!(μ₀, Δμ₀, xview(m))
+        if isnothing(Δk)
+            @warn "Kernel gradients are equal to zero" maxlog=1
+            return nothing
+        end
+        # Optimize kernel parameters
+        update!(opt(m.f), kernel(m.f), Δk)
+    elseif ADBACKEND[] == :ForwardDiff
+        θ, re = destructure((μ₀, k))
+        Δ = ForwardDiff.gradient(θ) do θ
+            ELBO(m, re(θ)...)
+        end
+        @show Δ
+    end
+    # end
+    return nothing
 end
 
 # @traitfn function update_hyperparameters!(
@@ -19,7 +41,7 @@ end
     # if !isnothing(opt(f)) # Only proceeds to computations if an optimiser is present
     μ₀ = pr_means(m) # Get prior means
     ks = kernels(m) # Get kernels
-    if ADBACKEND[] == :zygote
+    if ADBACKEND[] == :Zygote
         Δμ₀, Δk = Zygote.gradient(μ₀, ks) do μ₀, ks # Compute gradients for the whole model
             ELBO(m, μ₀, ks)
         end
@@ -33,7 +55,7 @@ end
         for (f, Δ) in zip(m.f, Δk)
             update!(opt(f), kernel(f), Δ)
         end
-    else
+    elseif ADBACKEND[] == :ForwardDiff
         θ, re = destructure((μ₀, ks))
         Δ = ForwardDiff.gradient(θ) do θ
             ELBO(m, re(θ)...)
@@ -64,7 +86,7 @@ end
     μ₀ = pr_means(m)
     ks = kernels(m)
     Zs = Zviews(m)
-    if ADBACKEND[] == :zygote
+    if ADBACKEND[] == :Zygote
         Δμ₀, Δk, ΔZ = Zygote.gradient(μ₀, ks, Zs) do μ₀, ks, Zs
             ELBO(m, μ₀, ks, Zs)
         end
@@ -78,7 +100,7 @@ end
         for (f, Δ) in zip(m.f, ΔZ)
             update!(opt(f.Z), data(f.Z), Δ)
         end
-    else
+    elseif ADBACKEND[] == :ForwardDiff
         θ, re = destructure((μ₀, ks, Zs))
         Δ = ForwardDiff.gradient(θ) do θ
             ELBO(m, re(θ)...)

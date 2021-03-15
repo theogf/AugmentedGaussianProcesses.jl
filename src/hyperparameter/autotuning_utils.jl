@@ -3,8 +3,8 @@
 const ADBACKEND = Ref(:zygote)
 
 function setadbackend(ad_backend::Symbol)
-    (ad_backend == :forward || ad_backend == :zygote) ||
-        error("Wrong backend symbol, options are :forward or :zygote")
+    (ad_backend == :ForwardDiff || ad_backend == :Zygote) ||
+        error("Wrong AD Backend symbol, options are :ForwardDiff or :Zygote")
     ADBACKEND[] = ad_backend
 end
 

@@ -143,7 +143,7 @@ function update_parameters!(m::VStP)
     return nothing
 end
 
-function computeMatrices!(m::GP{T}, update::Bool=false) where {T}
+function computeMatrices!(m::GP{T}, ::Bool) where {T}
     compute_K!(getf(m), input(m), T(jitt))
     setHPupdated!(inference(m), false)
     return nothing

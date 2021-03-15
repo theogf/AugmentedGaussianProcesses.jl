@@ -59,8 +59,6 @@ function Random.rand(
     end
 end
 
-# Statistics.mean(model::AbstractGP) = model.μ
-
 pr_covs(model::AbstractGP) = pr_cov.(model.f)
 
 pr_means(model::AbstractGP) = pr_mean.(model.f)

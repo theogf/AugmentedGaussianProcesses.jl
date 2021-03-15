@@ -139,7 +139,7 @@ function expec_loglikelihood(
     μ::AbstractVector,
     diag_cov::AbstractVector,
 ) where {T}
-    tot = sum(negbin_logconst(y, l.r)) - log(2.0) * sum(y .+ l.r)
+    tot = Zygote.@ignore(sum(negbin_logconst(y, l.r))) - log(2.0) * sum(y .+ l.r)
     tot +=
         0.5 * dot(μ, (y .- l.r)) - 0.5 * dot(l.θ, μ) - 0.5 * dot(l.θ, diag_cov)
     return tot

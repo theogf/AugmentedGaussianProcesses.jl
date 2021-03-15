@@ -42,15 +42,15 @@ end
 
 init(Z::OnIP, X::AbstractMatrix, args...; obsdim = 1) = init(Z, vec_of_vecs(X, obsdim = obsdim), args...)
 
-init(Z::OnIP, X::AbstractVector, k::Kernel) = init(Z, X)
+init(Z::OnIP, X::AbstractVector, ::Kernel) = init(Z, X)
 
 update!(Z::OnIP, X::AbstractMatrix, args...; obsdim = 1) = init(Z, vec_of_vecs(X, obsdim = obsdim), args...)
 
 update!(Z::OnIP, X::AbstractVector, args...) = add_point!(Z, X, args...)
 
-add_point!(Z::OnIP, X::AbstractVector, k::Kernel) = add_point!(Z, X)
+add_point!(Z::OnIP, X::AbstractVector, ::Kernel) = add_point!(Z, X)
 
-remove_point!(Z::OnIP, args...) = nothing
+remove_point!(::OnIP, args...) = nothing
 
 
 

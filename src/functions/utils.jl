@@ -109,4 +109,4 @@ Base.:*(x::Real, C::Cholesky) = Cholesky(sqrt(x) * C.factors, C.uplo, C.info)
 
 Base.:*(C::Cholesky, x::AbstractVecOrMat) = C.L * (C.L' * x)
 
-Base.:+(C::Cholesky, x::UniformScaling) = cholesky(Matrix(C) + x)
+Base.:+(C::Cholesky, x::UniformScaling) = cholesky(Symmetric(Array(C) + x))

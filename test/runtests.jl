@@ -20,7 +20,7 @@ include("testingtools.jl")
     @info "Function tests"
     @testset "Functions" begin
         for f in readdir(joinpath(@__DIR__, "functions"))
-            include(joinpath("functions",f))
+            include(joinpath("functions", f))
         end
     end
 
@@ -37,7 +37,7 @@ include("testingtools.jl")
     end
 
     # @info "Likelihood tests with Forward Diff"
-    # AGP.setadbackend(:forward)
+    # AGP.setadbackend(:ForwardDiff)
     # @testset "Likelihoods (ForwardDiff)" begin
     #     for f in readdir(joinpath(@__DIR__, "likelihood"))
     #         include(joinpath("likelihood",f))
@@ -45,24 +45,24 @@ include("testingtools.jl")
     # end
 
     @info "Likelihood tests with Zygote"
-    AGP.setadbackend(:zygote)
+    AGP.setadbackend(:Zygote)
     @testset "Likelihoods (Zygote)" begin
         for f in readdir(joinpath(@__DIR__, "likelihood"))
-            include(joinpath("likelihood",f))
+            include(joinpath("likelihood", f))
         end
     end
 
     @info "Model tests"
     @testset "Models" begin
         for f in readdir(joinpath(@__DIR__, "models"))
-            include(joinpath("models",f))
+            include(joinpath("models", f))
         end
     end
 
     @info "Prior tests"
     @testset "Prior" begin
         for f in readdir(joinpath(@__DIR__, "prior"))
-            include(joinpath("prior",f))
+            include(joinpath("prior", f))
         end
     end
     include("training.jl")

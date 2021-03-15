@@ -64,7 +64,7 @@ yview(i::Analytic) = i.yview
 
 nMinibatch(i::Analytic) = i.nSamples
 
-getρ(i::Analytic{T}) where {T} = one(T)
+getρ(::Analytic{T}) where {T} = one(T)
 
 MBIndices(i::Analytic) = 1:nSamples(i)
 
