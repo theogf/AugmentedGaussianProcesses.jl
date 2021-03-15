@@ -1,7 +1,7 @@
 name = "AugmentedGaussianProcesses"
 uuid = "38eea1fd-7d7d-5162-9d08-f89d0f2e271e"
 authors = ["Theo Galy-Fajou <theo.galyfajou@gmail.com>"]
-version = "0.9.3"
+version = "0.9.4"
 
 [deps]
 AdvancedHMC = "0bf59076-c3b1-5ca4-86bd-e02cd72cde3d"
@@ -44,10 +44,10 @@ MCMCChains = "0.3.15, 2.0, 3.0, 4.0"
 MLDataUtils = "0.5"
 ProgressMeter = "1"
 RecipesBase = "1.0, 1.1"
-Reexport = "0.2"
+Reexport = "0.2, 1"
 SimpleTraits = "0.9"
-SpecialFunctions = "0.9, 0.10, 1.2"
+SpecialFunctions = "0.9, 0.10, 1"
 StatsBase = "0.32, 0.33"
 StatsFuns = "0.8, 0.9"
-Zygote = "0.5"
+Zygote = "0.5, 0.6"
 julia = "1.3"
