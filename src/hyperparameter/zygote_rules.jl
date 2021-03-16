@@ -15,9 +15,9 @@ Zygote.@adjoint function StatsFuns.softmax(x)
     return y, softmax_pullback
 end
 
-Zygote.@adjoint function binomial(n, k)
-  y = binomial(n, k)
-  return y function(Δ) begin
-    (Zygote.NO_FIELDS, )    
-  end
-end
+# Zygote.@adjoint function binomial(n, k)
+#   y = binomial(n, k)
+#   return y, function(Δ) begin
+#     (Zygote.NO_FIELDS, )    
+#   end
+# end
