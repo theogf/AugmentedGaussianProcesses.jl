@@ -231,8 +231,8 @@ end
 function natural_gradient!(
     ∇E_μ::AbstractVector{T},
     ∇E_Σ::AbstractVector{T},
-    ρ::Real,
-    opt::AVIOptimizer,
+    ::Real,
+    ::AVIOptimizer,
     Z::AbstractVector,
     gp::OnlineVarLatent{T},
 ) where {T}

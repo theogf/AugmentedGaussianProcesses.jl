@@ -281,7 +281,7 @@ function compute_κ!(gp::SparseVarLatent, X::AbstractVector, jitt::Real)
     gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
     gp.κ = copy(gp.Knm / pr_cov(gp))
     gp.K̃ =
-        kerneldiagmatrix(kernel(gp), X) .+ jitt -
+        kernelmatrix_diag(kernel(gp), X) .+ jitt -
         diag_ABt(gp.κ, gp.Knm)
     all(gp.K̃ .> 0) || error("K̃ has negative values")
 end
@@ -296,6 +296,6 @@ function compute_κ!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)
     # Covariance with a new batch
     gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
     gp.κ = gp.Knm / pr_cov(gp)
-    gp.K̃ = kerneldiagmatrix(kernel(gp), X) .+ jitt - diag_ABt(gp.κ, gp.Knm)
+    gp.K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(gp.κ, gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

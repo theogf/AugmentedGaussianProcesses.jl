@@ -13,7 +13,7 @@ function ∇L_ρ_forward(f, gp::SparseVarLatent, X::AbstractVector, ∇E_μ, ∇
         k = re(x)
         Kmm = kernelmatrix(k, Zview(gp))
         Knm = kernelmatrix(k, X, Zview(gp))
-        Knn = kerneldiagmatrix(k, X)
+        Knn = kernelmatrix_diag(k, X)
         f(Kmm, Knm, Knn, ∇E_μ, ∇E_Σ, i, opt)
     end
 end
@@ -24,7 +24,7 @@ function ∇L_ρ_forward(f, gp::OnlineVarLatent, X::AbstractVector, ∇E_μ, ∇
         k = re(x)
         Kmm = kernelmatrix(k, Zview(gp))
         Knm = kernelmatrix(k, X, Zview(gp))
-        Knn = kerneldiagmatrix(k, X)
+        Knn = kernelmatrix_diag(k, X)
         Kaa = kernelmatrix(k, gp.Zₐ)
         Kab = kernelmatrix(k, gp.Zₐ, Zview(gp))
         f(Kmm, Knm, Knn, Kab, Kaa, ∇E_μ, ∇E_Σ, i, opt)
