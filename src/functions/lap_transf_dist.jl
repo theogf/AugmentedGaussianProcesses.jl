@@ -1,17 +1,14 @@
-using Random
-
 ###
 # Distribution only based on its laplace transform function `f` and exponential tilting `c²`.
 # The sampling is from Ridout, M. S. (2009). Generating random numbers from a distribution specified by its laplace transform. Statistics and Computing, 19(4):439.
 # And the inverse laplace operation is done via Grassmann, W. K. (Ed.). (2000). Computational Probability. International Series in #Operations Research & Management Science. doi:10.1007/978-1-4757-4828-4
-
 struct LaplaceTransformDistribution{T,TAlg} <: Distributions.ContinuousUnivariateDistribution
     f::Function # Laplace transform of the pdf
     c²::T # Exponential tilting parameter
     alg::TAlg # Algorithm to compute the inverse Laplace transform
     function LaplaceTransformDistribution{T,TAlg}(f::Function,c²::T,alg::TAlg) where {T<:Real,TAlg}
-        @assert _check_f(f) "The function passed is not valid"# Do series of check on f
-        @assert c²>=0 "c² has to a be non-negative real"
+        _check_f(f) || error("The function passed is not valid") # Do a series of checks on f
+        c² >= 0 || error("c² has to a be non-negative real")
         new{T,TAlg}(f,c²,alg)
     end
 end
@@ -21,13 +18,13 @@ LaplaceTransformDistribution(f::Function,c²::T=0.0,alg::TAlg=BromwichInverseLap
 function _check_f(f)
     return true # TODO Add tests for complete monotonicity / PDR
 end
-_gradf(d::LaplaceTransformDistribution,x::Real) = ForwardDiff.gradient(dist.f,[x])[1]
-_gradlogf(d::LaplaceTransformDistribution,x::Real) = ForwardDiff.gradient(log∘dist.f,[x])[1]
-_hessianlogf(d::LaplaceTransformDistribution,x::Real) = ForwardDiff.hessian(log∘dist.f,[x])[1]
+_gradf(d::LaplaceTransformDistribution, x::Real) = first(ForwardDiff.gradient(d.f,[x]))
+_gradlogf(d::LaplaceTransformDistribution, x::Real) = first(ForwardDiff.gradient(log ∘ d.f, [x]))
+_hessianlogf(d::LaplaceTransformDistribution, x::Real) = first(ForwardDiff.hessian(log ∘ d.f, [x]))
 
-Distributions.pdf(dist::LaplaceTransformDistribution,x::Real) = apply_f(dist,x)
-Distributions.mean(dist::LaplaceTransformDistribution) = _gradf(dist,dist.c²)/dist.f(dist.c²)
-Distributions.var(dist::LaplaceTransformDistribution) = _hessianlogf(dist,dist.c²)/dist.f(dist.c²)-mean(dist)^2
+Distributions.pdf(dist::LaplaceTransformDistribution,x::Real) = apply_f(dist, x)
+Distributions.mean(dist::LaplaceTransformDistribution) = _gradf(dist, dist.c²) / dist.f(dist.c²)
+Distributions.var(dist::LaplaceTransformDistribution) = _hessianlogf(dist, dist.c²) / dist.f(dist.c²) - mean(dist)^2
 
 function Random.rand(dist::LaplaceTransformDistribution)
     first(rand(dist,1))

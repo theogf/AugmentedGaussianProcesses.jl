@@ -1,10 +1,3 @@
-"""Module for a Generalized Inverse Gaussian Sampler"""
-module GIGSampler
-
-using Distributions
-using SpecialFunctions
-
-export GeneralizedInverseGaussian
 
 """Sampler object"""
 struct GeneralizedInverseGaussian{T<:Real} <: Distributions.ContinuousUnivariateDistribution
@@ -22,7 +15,7 @@ function GeneralizedInverseGaussian(a::T, b::T, p::T) where T
 end
 
 Distributions.params(d::GeneralizedInverseGaussian) = (d.a, d.b, d.p)
-@inline Distributions.partype(d::GeneralizedInverseGaussian{T}) where T <: Real = T
+@inline Distributions.partype(::GeneralizedInverseGaussian{T}) where T <: Real = T
 
 
 function Distributions.mean(d::GeneralizedInverseGaussian)
@@ -39,7 +32,6 @@ function Distributions.var(d::GeneralizedInverseGaussian)
 end
 
 Distributions.mode(d::GeneralizedInverseGaussian) = ((d.p - 1) + sqrt((d.p - 1)^2 + d.a * d.b)) / d.a
-
 
 function Distributions.pdf(d::GeneralizedInverseGaussian{T}, x::Real) where T <: Real
     if x > 0
@@ -166,5 +158,3 @@ function _rou_shift(λ::Real, β::Real)
         end
     end
 end
-
-end #module GIGSampler

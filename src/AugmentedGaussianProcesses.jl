@@ -32,7 +32,7 @@ using Random
 @reexport using KernelFunctions
 using KernelFunctions: ColVecs, RowVecs
 using Zygote, ForwardDiff
-using ChainRulesCore: ChainRulesCore, NO_FIELDS
+using ChainRulesCore: ChainRulesCore, NO_FIELDS, DoesNotExist
 using Flux: params, destructure
 @reexport using Flux.Optimise
 using AdvancedHMC
@@ -49,15 +49,13 @@ using FastGaussQuadrature: gausshermite
 using ProgressMeter, SimpleTraits
 
 #Useful functions and module
-include(joinpath("functions", "PGSampler.jl"))
-include(joinpath("functions", "GIGSampler.jl"))
+include(joinpath("functions", "ComplementaryDistributions.jl"))
 include(joinpath("functions", "lap_transf_dist.jl"))
 #include("functions/PerturbativeCorrection.jl")
 # include("functions/GPAnalysisTools.jl")
 # include("functions/IO_model.jl")
 #Custom modules
-using .PGSampler
-using .GIGSampler
+using .ComplementaryDistributions
 
 include(joinpath("inducingpoints" , "InducingPoints.jl"))
 @reexport using .InducingPoints
