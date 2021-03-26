@@ -32,6 +32,7 @@ using Random
 @reexport using KernelFunctions
 using KernelFunctions: ColVecs, RowVecs
 using Zygote, ForwardDiff
+using ChainRulesCore: ChainRulesCore, NO_FIELDS
 using Flux: params, destructure
 @reexport using Flux.Optimise
 using AdvancedHMC
@@ -46,9 +47,6 @@ using Distributions:
                 Normal, Poisson, NegativeBinomial, InverseGamma, Laplace, MvNormal, Gamma
 using FastGaussQuadrature: gausshermite
 using ProgressMeter, SimpleTraits
-#Exported modules
-# export KMeansModule
-export KMeansInducingPoints
 
 #Useful functions and module
 include(joinpath("functions", "PGSampler.jl"))

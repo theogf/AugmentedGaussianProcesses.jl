@@ -21,8 +21,3 @@ mutable struct TPrior{T,K<:Kernel,Tmean<:PriorMean} <: AbstractGPPrior{T,K,Tmean
     l²::T # Expectation of ||L^{-1}(f-μ⁰)||₂² (L2 norm)
     χ::T  # Expectation of σ
 end
-
-Zygote.@adjoint function Base.:/(A::AbstractMatrix, B::Cholesky)
-    Ω = A / B
-    return Ω, ΔΩ -> (ΔΩ / B, (uplo=nothing, info=nothing, factors=-Ω' * ΔΩ / B))
-end
