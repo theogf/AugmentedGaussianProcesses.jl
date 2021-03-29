@@ -110,7 +110,7 @@ function sample_local!(
     ::AbstractVector,
     f::AbstractVector,
 )
-    set_ω!(l, rand.(PolyaGamma.(1.0, abs.(f))))
+    set_ω!(l, rand.(PolyaGamma.(1, abs.(f))))
 end
 
 ### Natural Gradient Section ###
