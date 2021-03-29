@@ -82,14 +82,13 @@ end
 function sample_local!(
     model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling},
 ) where {T}
-    pg = PolyaGammaDist()
     model.likelihood.θ .= broadcast(
         (
             y::BitVector,
             γ::AbstractVector{<:Real},
             μ::AbstractVector{<:Real},
             i::Int64,
-        ) -> draw.([pg], 1.0, μ - logsumexp()),
+        ) -> rand.(PolyaGamma.(1.0, μ - logsumexp())),
         model.likelihood.Y,
         model.likelihood.γ,
         model.μ,
