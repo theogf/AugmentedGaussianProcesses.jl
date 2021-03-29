@@ -98,7 +98,7 @@ function sample_local!(
     y::AbstractVector,
     f::AbstractVector,
 )
-    set_ω!(l, rand.(PolyaGamma.(y .- l.r, abs.(f))))
+    set_ω!(l, rand.(PolyaGamma.(y .- Int(l.r), abs.(f))))
 end
 
 ## Global Updates ##

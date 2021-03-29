@@ -103,7 +103,7 @@ function sample_local!(
     f::AbstractVector,
 )
     @. l.γ = rand(Poisson(l.λ * logistic(f))) # Sample n
-    set_ω!(l, rand.(PolyaGamma.(y + l.γ, abs.(f)))) # Sample ω
+    set_ω!(l, rand.(PolyaGamma.(y + Int.(l.γ), abs.(f)))) # Sample ω
 end
 
 ## Global Updates ##

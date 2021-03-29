@@ -4,32 +4,32 @@ using SpecialFunctions
 const __TRUNC = 0.64;
 const __TRUNC_RECIP = 1.0 / __TRUNC;
 """
-    PolyaGamma(b, c)
+    PolyaGamma(b::Int, c::Real)
 
 Create a PolyaGamma sampler with parameters `b` and `c`
 """
-struct PolyaGamma{T} <: Distributions.ContinuousUnivariateDistribution
+struct PolyaGamma{Tc,A} <: Distributions.ContinuousUnivariateDistribution
   # For sum of Gammas.
-  b::Float64
-  c::Float64
+  b::Int
+  c::Tc
   trunc::Int
   nmax::Int
-  bvec::Vector{T}
+  bvec::A
   #Constructor
-  function PolyaGamma{T}(b, c, trunc::Int, nmax::Int) where {T<:Real}
+  function PolyaGamma{T}(b::Int, c::T, trunc::Int, nmax::Int) where {T<:Real}
     if trunc < 1
         @warn "trunc < 1. Setting trunc=1."
         trunc = 1
     end
-    bvec = [(2 * π * (k - 0.5))^2 for k in 1:trunc]
-    return new{T}(b, c, trunc, nmax, T.(bvec))
+    bvec = [convert(T, (twoπ * (k - 0.5))^2) for k in 1:trunc]
+    return new{typeof(c),typeof(bvec)}(b, c, trunc, nmax, bvec)
   end
 end
 
 Statistics.mean(d::PolyaGamma) = d.b / (2 * d.c) * tanh(0.5 * d.c)
 
-function PolyaGamma(b, c; nmax::Int=10, trunc::Int=200)
-	PolyaGamma{Float64}(b, c, trunc, nmax)
+function PolyaGamma(b::Int, c::T; nmax::Int=10, trunc::Int=200) where {T<:Real}
+	PolyaGamma{T}(b, c, trunc, nmax)
 end
 
 
@@ -37,6 +37,14 @@ function Distributions.pdf(d::PolyaGamma, x)
     cosh(d.c / 2)^d.b * 2.0^(d.b - 1) / gamma(d.b) * 
         sum(((-1)^n) * gamma( n + d.b) / gamma(n + 1) * (2 * n + b) / (sqrt(2 * π * x^3)) * 
             exp(-(2 * n + b)^2 / (8 * x) - c^2 / 2 * x) for n in 0:d.nmax)
+end
+
+## Sampling
+function Distributions.rand(rng::AbstractRNG, d::PolyaGamma{T}) where {T<:Real}
+  if iszero(d.b)
+    return zero(T)
+  end
+  return sum(Base.Fix1(draw_like_devroye, rng), d.c * ones(d.b))
 end
 
 ## Utility functions
@@ -104,14 +112,6 @@ end
 # 				  // Sample //
 # ////////////////////////////////////////////////////////////////////////////////
 
-
-# sample from PG(b,c)
-function Distributions.rand(rng::AbstractRNG, d::PolyaGamma{T}) where {T<:Real}
-  if iszero(d.b)
-    return zero(T)
-  end
-  return sum(x->draw_like_devroye(rng, x), d.c * ones(floor(Int, d.b)))
-end # draw
 
 function draw_like_devroye(rng::AbstractRNG, c::Real)
   # Change the parameter.

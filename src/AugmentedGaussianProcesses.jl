@@ -50,7 +50,7 @@ using FastGaussQuadrature: gausshermite
 using ProgressMeter, SimpleTraits
 
 #Include custom module for additional distributions
-include(joinpath("functions", "ComplementaryDistributions.jl"))
+include(joinpath("ComplementaryDistributions", "ComplementaryDistributions.jl"))
 using .ComplementaryDistributions
 
 

@@ -17,7 +17,7 @@ mutable struct LogisticSoftMaxLikelihood{T<:Real, A<:AbstractVector{T}} <: Multi
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     Y::Vector{BitVector} #Mapping from instances to classes (one hot encoding)
-    y_class::Vector{Int64} # GP Index for each sample
+    y_class::Vector{Int} # GP Index for each sample
     c::Vector{A} # Second moment of fₖ
     α::A # First variational parameter of Gamma distribution
     β::A # Second variational parameter of Gamma distribution
@@ -165,7 +165,7 @@ function sample_local!(
         f,
     )
     l.α .= rand.(Gamma.(one(T) .+ (l.γ...), 1.0 ./ l.β))
-    set_ω!(l, broadcast((y, γ, f) -> rand.(PolyaGamma.(y .+ γ, abs.(f))), y, l.γ, f))
+    set_ω!(l, broadcast((y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), y, l.γ, f))
     return nothing
 end
 
