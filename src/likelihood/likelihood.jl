@@ -3,11 +3,11 @@ include("classification.jl")
 include("multiclass.jl")
 include("event.jl")
 # include("generic_likelihood.jl")
-function (l::Likelihood)(y::Real,f::Real)
+function (l::Likelihood)(::Real, ::Real)
     error("pdf not implemented for likelihood $(typeof(l))")
 end
 
-Distributions.loglikelihood(l::Likelihood, y::Real, f) = log(l(y,f))
+Distributions.loglikelihood(l::Likelihood, y::Real, f) = log(l(y, f))
 
 ## Default function for getting gradient ##
 function ∇loglikehood(l::Likelihood, y::Real, f::Real)
@@ -35,4 +35,4 @@ Base.length(::Likelihood) = 1
 num_latent(::Likelihood) = 1
 
 Base.iterate(l::Likelihood) = (l, nothing)
-Base.iterate(l::Likelihood, ::Any) = nothing
+Base.iterate(::Likelihood, ::Any) = nothing

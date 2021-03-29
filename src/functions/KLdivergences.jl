@@ -68,6 +68,7 @@ function PoissonKL(
     ψ::AbstractVector{<:Real},
 )
     sum(λ₀) - sum(λ) + sum(xlogx, λ) - dot(λ, ψ)
+    # sum(λ₀) - sum(λ) + mapreduce(xlogx, +, λ) - dot(λ, ψ)
 end
 
 
