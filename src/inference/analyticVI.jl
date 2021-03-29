@@ -285,7 +285,7 @@ end
             var_f(model),
         )
     tot -= GaussianKL(model)
-    tot -= getρ(inference(model)) * AugmentedKL(likelihood(model), yview(model))
+    tot -= Zygote.@ignore(getρ(inference(model)) * AugmentedKL(likelihood(model), yview(model)))
     tot -= extraKL(model)
 end
 
@@ -302,8 +302,8 @@ end
                 )
             )
     tot -= GaussianKL(model)
-    tot -= sum(
+    tot -= Zygote.@ignore(sum(
                 getρ(inference(model)) .* 
                 AugmentedKL.(likelihood(model), yview(model))
-            )
+            ))
 end

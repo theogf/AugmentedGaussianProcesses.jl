@@ -35,7 +35,7 @@ set_trained!(m::AbstractGP, status::Bool) = m.trained = status
 
 verbose(m::AbstractGP) = m.verbose
 
-post_step!(m::AbstractGP) = nothing
+post_step!(::AbstractGP) = nothing
 
 function Random.rand!(
     model::AbstractGP,

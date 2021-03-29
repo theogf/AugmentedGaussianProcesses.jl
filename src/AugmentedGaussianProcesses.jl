@@ -38,6 +38,7 @@ using Flux: params, destructure
 using AdvancedHMC
 using MCMCChains
 using StatsBase
+@reexport using InducingPoints
 using StatsFuns
 using SpecialFunctions
 using Distributions: 
@@ -48,21 +49,11 @@ using Distributions:
 using FastGaussQuadrature: gausshermite
 using ProgressMeter, SimpleTraits
 
-#Useful functions and module
+#Include custom module for additional distributions
 include(joinpath("functions", "ComplementaryDistributions.jl"))
-include(joinpath("functions", "lap_transf_dist.jl"))
-#include("functions/PerturbativeCorrection.jl")
-# include("functions/GPAnalysisTools.jl")
-# include("functions/IO_model.jl")
-#Custom modules
 using .ComplementaryDistributions
 
-include(joinpath("inducingpoints" , "InducingPoints.jl"))
-@reexport using .InducingPoints
 
-# using .PerturbativeCorrection
-# using .GPAnalysisTools
-# using .IO_model
 
 
 # Main classes

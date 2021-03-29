@@ -98,8 +98,7 @@ function sample_local!(
     y::AbstractVector,
     f::AbstractVector,
 )
-    pg = PolyaGammaDist()
-    set_ω!(l, draw.([pg], y .- l.r, f))
+    set_ω!(l, rand.(PolyaGamma.(y .- l.r, abs.(f))))
 end
 
 ## Global Updates ##

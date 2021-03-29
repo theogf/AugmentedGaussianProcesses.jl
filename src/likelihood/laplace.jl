@@ -122,7 +122,7 @@ function expec_loglikelihood(
     diag_cov::AbstractVector,
 ) where {T}
     tot = -0.5 * length(y) * log(twoπ)
-    tot += 0.5 * sum(log, l.θ)
+    tot += 0.5 * Zygote.@ignore(sum(log, l.θ))
     tot +=
         -0.5 * (
             dot(l.θ, diag_cov) + dot(l.θ, abs2.(μ)) - 2.0 * dot(l.θ, μ .* y) +

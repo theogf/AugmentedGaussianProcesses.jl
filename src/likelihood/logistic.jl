@@ -111,7 +111,7 @@ function sample_local!(
     f::AbstractVector,
 )
     pg = PolyaGammaDist()
-    set_ω!(l, draw.([pg], [1.0], f))
+    set_ω!(rand.(PolyaGamma.(1.0, abs.(f))), l.θ)
 end
 
 ### Natural Gradient Section ###

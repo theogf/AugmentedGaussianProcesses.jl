@@ -2,11 +2,13 @@ function ChainRulesCore.rrule(::typeof(Base.:(/)), A::AbstractVecOrMat, B::Chole
   Y, back = Zygote.pullback((A, U)->(A / U) / U', A, B.U)
   function rdiv_callback(Ȳ)
     A̅, B̅_factor = back(Ȳ)
-    return (A̅, (uplo=DoesNotExist(), info=DoesNotExist(), factors=B̅_factor))
+    return (NO_FIELDS, A̅, (uplo=DoesNotExist(), info=DoesNotExist(), factors=B̅_factor))
   end
   return Y, rdiv_callback
 end
 
+
+# TODO: Remove once https://github.com/FluxML/Zygote.jl/issues/932 is solved
 Zygote.@adjoint function Base.:\(A::Cholesky, B::AbstractVecOrMat)
   Y, back = Zygote.pullback((U, B)->U \ (U' \ B), A.U, B)
   return Y, function(Ȳ)
@@ -19,7 +21,7 @@ Zygote.@adjoint function ChainRulesCore.rrule(::typeof(StatsFuns.softmax), x)
     y = StatsFuns.softmax(x)
     function softmax_pullback(Δ)
       out = Δ .* y
-      return (out .-= y .* sum(out), )
+      return (NO_FIELDS, out .-= y .* sum(out))
     end
     return y, softmax_pullback
 end

@@ -165,8 +165,7 @@ function sample_local!(
         f,
     )
     l.α .= rand.(Gamma.(one(T) .+ (l.γ...), 1.0 ./ l.β))
-    pg = PolyaGammaDist()
-    set_ω!(l, broadcast((y, γ, f) -> draw.(Ref(pg), y .+ γ, f), y, l.γ, f))
+    set_ω!(l, broadcast((y, γ, f) -> rand.(PolyaGamma(y .+ γ, abs(f))), y, l.γ, f))
     return nothing
 end
 

@@ -103,8 +103,7 @@ function sample_local!(
     f::AbstractVector,
 )
     @. l.γ = rand(Poisson(l.λ * logistic(f))) # Sample n
-    pg = PolyaGammaDist()
-    set_ω!(l, draw.([pg], y + l.γ, f)) # Sample ω
+    set_ω!(l, rand.(PolyaGamma.(y + l.γ, abs.(f)))) # Sample ω
 end
 
 ## Global Updates ##
@@ -122,8 +121,8 @@ function expec_loglikelihood(
     μ::AbstractVector,
     Σ::AbstractVector,
 ) where {T}
-    tot = sum(y * log(l.λ)) - sum(logfactorial, y) - logtwo * sum((y + l.γ))
-    tot += 0.5 * (dot(μ, (y - l.γ)) - dot(l.θ, abs2.(μ)) - dot(l.θ, Σ))
+    tot = 0.5 * (dot(μ, (y - l.γ)) - dot(l.θ, abs2.(μ)) - dot(l.θ, Σ))
+    tot += Zygote.@ignore(sum(y * log(l.λ)) - sum(logfactorial, y) - logtwo * sum((y + l.γ)))
     return tot
 end
 
