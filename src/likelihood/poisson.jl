@@ -83,7 +83,7 @@ function compute_proba(
     return pred, sig_pred
 end
 
-## Local Updates ##
+### Local Updates ###
 
 function local_updates!(
     l::PoissonLikelihood{T},
@@ -106,7 +106,7 @@ function sample_local!(
     set_ω!(l, rand.(PolyaGamma.(y + Int.(l.γ), abs.(f)))) # Sample ω
 end
 
-## Global Updates ##
+### Global Updates ###
 
 @inline ∇E_μ(l::PoissonLikelihood, ::AOptimizer, y::AbstractVector) =
     (0.5 * (y - l.γ),)
