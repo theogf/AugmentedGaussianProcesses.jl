@@ -1,5 +1,5 @@
 """
-    NegBinomialLikelihood(r::Real=10)
+    NegBinomialLikelihood(r::Real)
 
 [Negative Binomial likelihood](https://en.wikipedia.org/wiki/Negative_binomial_distribution) with number of failures `r`
 ```math
@@ -25,7 +25,7 @@ struct NegBinomialLikelihood{T<:Real,Tr<:Real,A<:AbstractVector{T}} <: EventLike
     end
 end
 
-function NegBinomialLikelihood(r::Real = 10)
+function NegBinomialLikelihood(r::Real)
     NegBinomialLikelihood{Float64}(r)
 end
 
@@ -98,7 +98,8 @@ function sample_local!(
     y::AbstractVector,
     f::AbstractVector,
 )
-    set_ω!(l, rand.(PolyaGamma.(y .- Int(l.r), abs.(f))))
+
+    set_ω!(l, rand.(PolyaGamma.(y .+ Int(l.r), abs.(f))))
 end
 
 ## Global Updates ##
