@@ -11,7 +11,7 @@ See all functions you need to implement
 
 
 """
-struct TemplateLikelihood{T<:Real,A<:AbstractVector{T}} <: Likelihood{T}
+struct TemplateLikelihood{T<:Real,A<:AbstractVector{T}} <: AbstractLikelihood{T}
     ## Additional parameters can be added
     θ::A
     function TemplateLikelihood{T}() where {T<:Real}

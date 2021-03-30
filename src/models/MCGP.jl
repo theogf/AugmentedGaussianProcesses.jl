@@ -30,8 +30,8 @@ Argument list :
 """
 mutable struct MCGP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference{T},
+    TLikelihood<:AbstractLikelihood{T},
+    TInference<:AbstractInference{T},
     TData<:AbstractDataContainer,
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
@@ -49,8 +49,8 @@ function MCGP(
     X::AbstractArray{<:Real},
     y::AbstractVector,
     kernel::Kernel,
-    likelihood::Union{Likelihood,Distribution},
-    inference::Inference;
+    likelihood::Union{AbstractLikelihood,Distribution},
+    inference::AbstractInference;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
     atfrequency::Integer = 1,
@@ -96,14 +96,14 @@ function MCGP(
     )
 end
 
-function Base.show(io::IO, model::MCGP{T,<:Likelihood,<:Inference}) where {T}
+function Base.show(io::IO, model::MCGP)
     print(
         io,
-        "Monte Carlo Gaussian Process with a $(model.likelihood) sampled via $(model.inference) ",
+        "Monte Carlo Gaussian Process with a $(likelihood(model)) sampled via $(inference(model)) ",
     )
 end
 
 Zviews(model::MCGP) = [input(model)]
-objective(model::MCGP{T}) where {T} = NaN
+objective(::MCGP{T}) where {T} = NaN
 
 @traitimpl IsFull{MCGP}

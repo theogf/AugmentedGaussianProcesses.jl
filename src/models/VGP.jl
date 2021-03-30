@@ -27,8 +27,8 @@ Argument list :
 """
 mutable struct VGP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference{T},
+    TLikelihood<:AbstractLikelihood,
+    TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
@@ -47,14 +47,14 @@ function VGP(
     X::AbstractArray,
     y::AbstractVector,
     kernel::Kernel,
-    likelihood::TLikelihood,
-    inference::TInference;
+    likelihood::AbstractLikelihood,
+    inference::AbstractInference;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
     atfrequency::Integer = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     obsdim::Int = 1,
-) where {TLikelihood<:Likelihood,TInference<:Inference}
+)
 
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
@@ -85,7 +85,7 @@ function VGP(
     yview = view_y(likelihood, data, 1:nSamples(data))
     inference =
         tuple_inference(inference, nLatent, nFeatures, nSamples(data), nSamples(data), xview, yview)
-    return VGP{T,TLikelihood,typeof(inference),typeof(data),nLatent}(
+    return VGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
         data,
         fill(nFeatures, nLatent),
         latentf,
@@ -97,10 +97,10 @@ function VGP(
     )
 end
 
-function Base.show(io::IO, model::VGP{T,<:Likelihood,<:Inference}) where {T}
+function Base.show(io::IO, model::VGP)
     print(
         io,
-        "Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ",
+        "Variational Gaussian Process with a $(likelihood(model)) infered by $(inference(model)) ",
     )
 end
 

@@ -34,7 +34,7 @@ implemented(::NegBinomialLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) =
 
 function init_likelihood(
     likelihood::NegBinomialLikelihood{T},
-    ::Inference{T},
+    ::AbstractInference{T},
     ::Int,
     nSamplesUsed::Int,
 ) where {T}

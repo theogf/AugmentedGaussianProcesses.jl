@@ -29,8 +29,8 @@ Argument list :
 """
 mutable struct VStP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference{T},
+    TLikelihood<:AbstractLikelihood,
+    TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
@@ -48,16 +48,15 @@ function VStP(
     X::AbstractArray{<:Real},
     y::AbstractVector,
     kernel::Kernel,
-    likelihood::TLikelihood,
-    inference::Inference,
+    likelihood::AbstractLikelihood,
+    inference::AbstractInference,
     ν::Real;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     obsdim::Int = 1,
-) where {TLikelihood<:Likelihood}
-
+)
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
 
@@ -102,7 +101,7 @@ function VStP(
         xview,
         yview,
     )
-    VStP{T,TLikelihood,typeof(inference),typeof(data),nLatent}(
+    VStP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
         data,
         latentf,
         likelihood,

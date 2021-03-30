@@ -97,7 +97,7 @@ end
 
 function init_likelihood(
     l::LogisticSoftMaxLikelihood{T},
-    inference::Inference{T},
+    inference::AbstractInference{T},
     nLatent::Integer,
     nSamplesUsed::Integer,
 ) where {T}
@@ -241,8 +241,8 @@ function grad_samples(
             abs2.(g_μ)
     end
     for k = 1:nLatent(model)
-        model.inference.vi_opt[k].ν[index] = -grad_μ[k] / nSamples
-        model.inference.vi_opt[k].λ[index] = grad_Σ[k] / nSamples
+        get_opt(inference(model), k).ν[index] = -grad_μ[k] / nSamples
+        get_opt(inference(model), k).λ[index] = grad_Σ[k] / nSamples
     end
 end
 

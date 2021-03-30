@@ -47,8 +47,8 @@ implemented(
 
 function init_likelihood(
     likelihood::Matern3_2Likelihood{T},
-    inference::Inference{T},
-    nLatent::Int,
+    inference::AbstractInference{T},
+    ::Int,
     nSamplesUsed::Int,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
@@ -134,12 +134,12 @@ function expecLogLikelihood(
 end
 
 function InverseGammaKL(l::Matern3_2Likelihood{T}) where {T}
-    α_p = model.likelihood.ν / 2
-    β_p = α_p * model.likelihood.σ^2
+    α_p = l.ν / 2
+    β_p = α_p * l.σ^2
     model.inference.ρ * sum(broadcast(
         InverseGammaKL,
-        model.likelihood.α,
-        model.likelihood.β,
+        l.α,
+        l.β,
         α_p,
         β_p,
     ))

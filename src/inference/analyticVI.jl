@@ -138,8 +138,8 @@ end
     natural_gradient!.(
         ∇E_μ(m),
         ∇E_Σ(m),
-        getρ(m.inference),
-        m.inference.vi_opt,
+        getρ(inference(m)),
+        get_opt(inference(m)),
         Zviews(m),
         m.f,
     )
@@ -156,8 +156,8 @@ end
     natural_gradient!.(
         ∇E_μ(m),
         ∇E_Σ(m),
-        getρ(m.inference),
-        m.inference.vi_opt,
+        getρ(inference(m)),
+        get_opt(inference(m)),
         Zviews(m),
         m.f,
     ) # Compute the natural gradients of u given the weighted sum of the gradient of f
@@ -166,14 +166,14 @@ end
 
 ## Wrappers for tuple of 1 element
 local_updates!(
-    l::Likelihood,
+    l::AbstractLikelihood,
     y,
     μ::Tuple{<:AbstractVector{T}},
     diagΣ::Tuple{<:AbstractVector{T}},
 ) where {T} = local_updates!(l, y, first(μ), first(diagΣ))
 
 expec_loglikelihood(
-    l::Likelihood,
+    l::AbstractLikelihood,
     i::AnalyticVI,
     y,
     μ::Tuple{<:AbstractVector{T}},
@@ -257,7 +257,7 @@ global_update!(gp::OnlineVarLatent, opt, i) = global_update!(gp)
 
 #Update of the natural parameters and conversion from natural to standard distribution parameters
 @traitfn function global_update!(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsFull{TGP}}
-    global_update!.(model.f, model.inference.vi_opt, model.inference)
+    global_update!.(model.f, inference(model).vi_opt, inference(model))
 end
 
 function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI)

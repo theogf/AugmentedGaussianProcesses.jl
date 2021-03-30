@@ -93,8 +93,8 @@ function Base.show(io::IO, inference::NumericalVI{T}) where T
     print(io, "$(isStochastic(inference) ? "Stochastic numerical" : "Numerical") Inference by $(isa(inference, MCIntegrationVI) ? "Monte Carlo Integration" : "Quadrature")")
 end
 
-∇E_μ(::Likelihood,i::NVIOptimizer,::AbstractVector) = (-i.ν,)
-∇E_Σ(::Likelihood,i::NVIOptimizer,::AbstractVector) = (0.5 .* i.λ,)
+∇E_μ(::AbstractLikelihood, i::NVIOptimizer, ::AbstractVector) = (-i.ν,)
+∇E_Σ(::AbstractLikelihood, i::NVIOptimizer, ::AbstractVector) = (0.5 .* i.λ,)
 
 function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     grad_expectations!(model)
@@ -143,7 +143,7 @@ end
 
 ## ELBO
 
-expec_loglikelihood(l::Likelihood, i::NumericalVI, y, μ::Tuple{<:AbstractVector{T}}, Σ::Tuple{<:AbstractVector{T}}) where {T} = 
+expec_loglikelihood(l::AbstractLikelihood, i::NumericalVI, y, μ::Tuple{<:AbstractVector{T}}, Σ::Tuple{<:AbstractVector{T}}) where {T} = 
     expec_loglikelihood(l, i, y, first(μ), first(Σ))
 
 function ELBO(m::AbstractGP{T,L,<:NumericalVI}) where {T,L}

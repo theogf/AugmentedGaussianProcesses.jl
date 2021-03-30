@@ -29,8 +29,8 @@ Argument list :
 """
 mutable struct SVGP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference,
+    TLikelihood<:AbstractLikelihood,
+    TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
@@ -48,8 +48,8 @@ function SVGP(
     X::AbstractArray{<:Real},
     y::AbstractVector,
     kernel::Kernel,
-    likelihood::Likelihood,
-    inference::Inference,
+    likelihood::AbstractLikelihood,
+    inference::AbstractInference,
     nInducingPoints::Int;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
@@ -77,8 +77,8 @@ function SVGP(
     X::AbstractArray{<:Real},
     y::AbstractVector,
     kernel::Kernel,
-    likelihood::TLikelihood,
-    inference::Inference,
+    likelihood::AbstractLikelihood,
+    inference::AbstractInference,
     nInducingPoints::AbstractInducingPoints;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
@@ -86,8 +86,7 @@ function SVGP(
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     Zoptimiser = false,
     obsdim::Int = 1,
-) where {TLikelihood<:Likelihood}
-
+)
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
 
@@ -128,7 +127,7 @@ function SVGP(
     inference =
         tuple_inference(inference, nLatent, nFeatures, nSamples(data), S, xview, yview)
 
-    model = SVGP{T,TLikelihood,typeof(inference),typeof(data),nLatent}(
+    model = SVGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
         data,
         fill(nFeatures, nLatent), # WARNING workaround
         latentf,
@@ -144,10 +143,10 @@ function SVGP(
     return model
 end
 
-function Base.show(io::IO, model::SVGP{T,<:Likelihood,<:Inference}) where {T}
+function Base.show(io::IO, model::SVGP)
     print(
         io,
-        "Sparse Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ",
+        "Sparse Variational Gaussian Process with a $(likelihood(model)) infered by $(inference(model)) ",
     )
 end
 

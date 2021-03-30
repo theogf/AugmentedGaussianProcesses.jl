@@ -30,8 +30,8 @@ Argument list :
 """
 mutable struct MOSVGP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference,
+    TLikelihood<:AbstractLikelihood,
+    TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
     Q,
@@ -55,8 +55,8 @@ function MOSVGP(
     X::Union{AbstractMatrix,AbstractVector{<:AbstractVector}},
     y::AbstractVector{<:AbstractVector},
     kernel::Union{Kernel,AbstractVector{<:Kernel}},
-    likelihood::Union{TLikelihood,AbstractVector{<:TLikelihood}},
-    inference::Inference,
+    likelihood::Union{AbstractLikelihood,AbstractVector{<:AbstractLikelihood}},
+    inference::AbstractInference,
     nLatent::Int,
     nInducingPoints::Union{
         Int,
@@ -71,14 +71,14 @@ function MOSVGP(
     Aoptimiser = ADAM(0.01),
     Zoptimiser = false,
     ArrayType::UnionAll = Vector,
-) where {TLikelihood<:Likelihood}
+)
 
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
 
     X, T = wrap_X(X)
 
-    likelihoods = if likelihood isa Likelihood
+    likelihoods = if likelihood isa AbstractLikelihood
         likelihoods = [deepcopy(likelihood) for _ = 1:nTask]
     else
         likelihood
@@ -172,7 +172,7 @@ function MOSVGP(
         yview
     )
 
-    return MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
+    return MOSVGP{T,eltype(likelihoods),typeof(inference),nTask,nLatent}(
         X,
         corrected_y,
         nSamples,
@@ -191,21 +191,17 @@ function MOSVGP(
         atfrequency,
         false,
     )
-    # if isa(inference.optimizer,ALRSVI)
-    # init!(model.inference,model)
-    # end
-    # return model
 end
 
-function Base.show(io::IO, model::MOSVGP{T,<:Likelihood,<:Inference}) where {T}
+function Base.show(io::IO, model::MOSVGP)
     print(
         io,
-        "Multioutput Sparse Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ",
+        "Multioutput Sparse Variational Gaussian Process with the likelihoods $(likelihood(model)) infered by $(inference(model)) ",
     )
 end
 
 @traitimpl IsMultiOutput{MOSVGP}
 
-nOutput(m::MOSVGP{<:Real,<:Likelihood,<:Inference,N,Q}) where {N, Q} = Q
+nOutput(::MOSVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N, Q} = Q
 Zviews(m::MOSVGP) = Zview.(m.f)
 objective(m::MOSVGP) = ELBO(m)

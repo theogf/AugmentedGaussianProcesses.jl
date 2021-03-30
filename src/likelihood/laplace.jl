@@ -45,7 +45,7 @@ implemented(
 
 function init_likelihood(
     likelihood::LaplaceLikelihood{T},
-    inference::Inference{T},
+    inference::AbstractInference{T},
     ::Int,
     nSamplesUsed::Int,
 ) where {T}
@@ -150,7 +150,7 @@ function grad_quad(
     y::Real,
     μ::Real,
     σ²::Real,
-    inference::Inference,
+    inference::AbstractInference,
 ) where {T<:Real}
     nodes = inference.nodes * sqrt(σ²) .+ μ
     Edloglike = dot(inference.weights, ∇loglikehood.(likelihood, y, nodes))

@@ -48,7 +48,7 @@ implemented(
 
 function init_likelihood(
     likelihood::StudentTLikelihood{T},
-    inference::Inference{T},
+    inference::AbstractInference{T},
     ::Int,
     nSamplesUsed::Int,
 ) where {T}

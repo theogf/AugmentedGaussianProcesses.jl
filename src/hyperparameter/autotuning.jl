@@ -148,7 +148,7 @@ function update_hyperparameters!(
     X::AbstractVector,
     ∇E_μ::AbstractVector,
     ∇E_Σ::AbstractVector,
-    i::Inference,
+    i::AbstractInference,
     vi_opt::InferenceOptimizer,
 )
     Δμ₀, Δk = if !isnothing(gp.opt)
@@ -181,8 +181,8 @@ end
 
 function update_hyperparameters!(
     gp::AbstractLatent,
-    l::Likelihood,
-    i::Inference,
+    l::AbstractLikelihood,
+    i::AbstractInference,
     X::AbstractVector,
     Y::AbstractVector,
 )

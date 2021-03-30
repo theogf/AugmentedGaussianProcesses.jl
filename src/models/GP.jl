@@ -30,8 +30,8 @@ Argument list :
 """
 mutable struct GP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference{T},
+    TLikelihood<:GaussianLikelihood{T},
+    TInference<:Analytic{T},
     TData<:DataContainer,
 } <: AbstractGP{T,TLikelihood,TInference,1}
     data::TData
@@ -93,7 +93,7 @@ end
 function Base.show(io::IO, model::GP)
     print(
         io,
-        "Gaussian Process with a $(model.likelihood) infered by $(model.inference) ",
+        "Gaussian Process with a $(likelihood(model)) infered by $(inference(model)) ",
     )
 end
 

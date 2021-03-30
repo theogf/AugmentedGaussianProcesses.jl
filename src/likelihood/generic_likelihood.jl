@@ -166,7 +166,7 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
 
             function AGP.init_likelihood(
                 likelihood::$(lname){T},
-                inference::Inference{T},
+                inference::AbstractInference{T},
                 nLatent::Int,
                 nSamplesUsed::Int,
             ) where {T}

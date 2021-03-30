@@ -1,6 +1,6 @@
 ## Solve the classical GP Regression ##
 mutable struct Analytic{T<:Real,Tx<:AbstractVector,Ty<:AbstractVector} <:
-               Inference{T}
+               AbstractInference{T}
     ϵ::T #Convergence criteria
     nIter::Integer #Number of steps performed
     nSamples::Int
@@ -33,7 +33,7 @@ function Analytic(; ϵ::T = 1e-5) where {T<:Real}
 end
 
 
-function Base.show(io::IO, inference::Analytic{T}) where {T}
+function Base.show(io::IO, ::Analytic)
     print(io, "Analytic Inference")
 end
 

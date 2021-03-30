@@ -1,4 +1,4 @@
-abstract type MultiClassLikelihood{T<:Real} <: Likelihood{T} end
+abstract type MultiClassLikelihood{T<:Real} <: AbstractLikelihood{T} end
 
 num_latent(l::MultiClassLikelihood) = num_class(l)
 
@@ -82,7 +82,7 @@ end
 Distributions.loglikelihood(l::MultiClassLikelihood, y::AbstractVector, fs) =
          loglikelihood.(l, y, [getindex.(fs, i) for i in 1:length(y)])
 
-function ∇loglikehood(l::Likelihood, y::AbstractVector, fs)
+function ∇loglikehood(l::MultiClassLikelihood, y::AbstractVector, fs)
     ∇loglikelihood.(l, y, [getindex.(fs, i) for i in 1:length(y)])
 end
 

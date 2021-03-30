@@ -1,4 +1,4 @@
-abstract type AbstractGP{T<:Real,L<:Likelihood{T},I<:Inference{T},N} end
+abstract type AbstractGP{T<:Real,L<:AbstractLikelihood{T},I<:AbstractInference{T},N} end
 
 @traitdef IsFull{X}
 @traitdef IsMultiOutput{X}
@@ -8,7 +8,7 @@ Base.eltype(::AbstractGP{T}) where {T} = T
 data(m::AbstractGP) = m.data
 likelihood(m::AbstractGP) = m.likelihood
 inference(m::AbstractGP) = m.inference
-nLatent(::AbstractGP{<:Real,<:Likelihood,<:Inference, N}) where {N} = N
+nLatent(::AbstractGP{<:Real,<:AbstractLikelihood,<:AbstractInference, N}) where {N} = N
 nOutput(m::AbstractGP) = 1
 @traitfn nFeatures(m::TGP) where {TGP <: AbstractGP; !IsSparse{TGP}} =
     nSamples(m)

@@ -159,10 +159,10 @@ function sample_parameters(
     end
 end
 
-sample_local!(l::Likelihood, y, f::Tuple{<:AbstractVector{T}}) where {T} =
+sample_local!(l::AbstractLikelihood, y, f::Tuple{<:AbstractVector{T}}) where {T} =
     sample_local!(l, y, first(f))
-set_ω!(l::Likelihood, ω) = l.θ .= ω
-get_ω(l::Likelihood) = l.θ
+set_ω!(l::AbstractLikelihood, ω) = l.θ .= ω
+get_ω(l::AbstractLikelihood) = l.θ
 
 function sample_global!(
     ∇E_μ::AbstractVector,

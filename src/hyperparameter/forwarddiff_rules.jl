@@ -38,7 +38,7 @@ function Z_gradient_forward(
     X,
     ∇E_μ::AbstractVector{T},
     ∇E_Σ::AbstractVector{T},
-    i::Inference,
+    i::AbstractInference,
     opt::InferenceOptimizer,
 ) where {T<:Real}
     gradient_inducing_points = similar(gp.Z.Z)
@@ -59,7 +59,7 @@ function Z_gradient_forward(
     X,
     ∇E_μ::AbstractVector{T},
     ∇E_Σ::AbstractVector{T},
-    i::Inference,
+    i::AbstractInference,
     opt::InferenceOptimizer,
 ) where {T<:Real}
     Z_gradient = similar(gp.Z.Z)

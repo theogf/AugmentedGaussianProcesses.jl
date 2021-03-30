@@ -164,7 +164,7 @@ function grad_expectations!(
 end
 
 function expec_loglikelihood(
-    l::Likelihood,
+    l::AbstractLikelihood,
     i::MCIntegrationVI{T,N},
     y,
     μ_f,

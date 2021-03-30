@@ -8,12 +8,12 @@ module AugmentedGaussianProcesses
 const AGP = AugmentedGaussianProcesses
 export AGP
 export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP, OnlineSVGP # All models
-export Likelihood,  RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood, EventLikelihood # All categories of likelihoods
+export AbstractLikelihood, RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood, EventLikelihood # All categories of likelihoods
 export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood # Regression Likelihoods
 export LogisticLikelihood, BayesianSVM # Classification Likelihoods
 export SoftMaxLikelihood, LogisticSoftMaxLikelihood # Multiclass Classification Likelihoods
 export PoissonLikelihood, NegBinomialLikelihood # Event Likelihoods
-export Inference, Analytic, AnalyticVI, AnalyticSVI # Inference objects
+export AbstractInference, Analytic, AnalyticVI, AnalyticSVI # Inference objects
 export GibbsSampling, HMCSampling # Sampling inference
 export NumericalVI, NumericalSVI, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI # Numerical inference
 export PriorMean, ZeroMean, ConstantMean, EmpiricalMean, AffineMean # Prior means
@@ -53,14 +53,11 @@ using ProgressMeter, SimpleTraits
 include(joinpath("ComplementaryDistributions", "ComplementaryDistributions.jl"))
 using .ComplementaryDistributions
 
-
-
-
 # Main classes
-abstract type Inference{T<:Real} end
-abstract type VariationalInference{T} <: Inference{T} end
-abstract type SamplingInference{T} <: Inference{T} end
-abstract type Likelihood{T<:Real} end
+abstract type AbstractInference{T<:Real} end
+abstract type VariationalInference{T} <: AbstractInference{T} end
+abstract type SamplingInference{T} <: AbstractInference{T} end
+abstract type AbstractLikelihood{T<:Real} end
 abstract type AbstractLatent{T<:Real,Tpr,Tpo} end
 
 include(joinpath("mean", "priormean.jl"))

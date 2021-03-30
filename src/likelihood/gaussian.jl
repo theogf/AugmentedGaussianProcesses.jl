@@ -57,7 +57,7 @@ end
 
 function init_likelihood(
     likelihood::GaussianLikelihood{T},
-    ::Inference,
+    ::AbstractInference,
     ::Int,
     nSamplesUsed::Int,
 ) where {T}

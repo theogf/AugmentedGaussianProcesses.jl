@@ -38,7 +38,7 @@ implemented(::BayesianSVM, ::AnalyticVI) = true
 
 function init_likelihood(
     ::BayesianSVM{T},
-    ::Inference{T},
+    ::AbstractInference{T},
     ::Int,
     nSamplesUsed::Int,
 ) where {T}

@@ -16,7 +16,7 @@ MOVGP(
     variance::Real = 1.0,
     Aoptimiser = ADAM(0.01),
     ArrayType::UnionAll = Vector,
-) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
+) where {T<:Real,TLikelihood<:AbstractLikelihood,TInference<:AbstractInference}
 ```
 
 Argument list :
@@ -37,8 +37,8 @@ Argument list :
 """
 mutable struct MOVGP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference,
+    TLikelihood<:AbstractLikelihood,
+    TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
     Q,
@@ -61,8 +61,8 @@ function MOVGP(
     X::Union{AbstractVector,AbstractVector{<:AbstractArray}},
     y::AbstractVector{<:AbstractArray},
     kernel::Union{Kernel,AbstractVector{<:Kernel}},
-    likelihood::Union{TLikelihood,AbstractVector{<:TLikelihood}},
-    inference::Inference,
+    likelihood::Union{AbstractLikelihood,AbstractVector{<:AbstractLikelihood}},
+    inference::AbstractInference,
     nLatent::Int;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
@@ -71,15 +71,14 @@ function MOVGP(
     variance::Real = 1.0,
     Aoptimiser = ADAM(0.01),
     ArrayType::UnionAll = Vector,
-) where {TLikelihood<:Likelihood}
-
+)
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
 
     X, T = wrap_X(X)
     n_task = length(y)
 
-    likelihoods = if likelihood isa Likelihood
+    likelihoods = if likelihood isa AbstractLikelihood
         likelihoods = [deepcopy(likelihood) for _ in 1:n_task]
     else
         likelihood
@@ -151,7 +150,7 @@ function MOVGP(
     inference =
         tuple_inference(inference, nLatent, nFeatures, nSamples(data), nSamples(data), xview, yview)
 
-    return MOVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
+    return MOVGP{T,eltype(likelihoods),typeof(inference),nTask,nLatent}(
         data,
         nf_per_task,
         latent_f,
@@ -169,10 +168,10 @@ function MOVGP(
     # return model
 end
 
-function Base.show(io::IO, model::MOVGP{T,<:Likelihood,<:Inference}) where {T}
+function Base.show(io::IO, model::MOVGP)
     print(
         io,
-        "Multioutput Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ",
+        "Multioutput Variational Gaussian Process with the likelihoods $(likelihood(model)) infered by $(inference(model)) ",
     )
 end
 
@@ -180,6 +179,6 @@ end
 @traitimpl IsFull{MOVGP}
 
 
-nOutput(m::MOVGP{<:Real,<:Likelihood,<:Inference,N,Q}) where {N,Q} = Q
+nOutput(::MOVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N,Q} = Q
 Zviews(m::MOVGP) = [input(m)]
 objective(m::MOVGP) = ELBO(m)

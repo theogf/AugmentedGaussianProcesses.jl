@@ -66,7 +66,7 @@ end
 
 function init_likelihood(
     likelihood::HeteroscedasticLikelihood{T},
-    ::Inference{T},
+    ::AbstractInference{T},
     ::Int,
     nMinibatch::Int,
 ) where {T<:Real}

@@ -1,8 +1,8 @@
 """ Class for sparse variational Gaussian Processes """
 mutable struct OnlineSVGP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference{T},
+    TLikelihood<:AbstractLikelihood,
+    TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
@@ -34,8 +34,8 @@ Argument list :
 """
 function OnlineSVGP(
     kernel::Kernel,
-    likelihood::Likelihood,
-    inference::Inference,
+    likelihood::AbstractLikelihood,
+    inference::AbstractInference,
     Z::AbstractInducingPoints = OIPS(0.9);
     verbose::Integer = 0,
     optimiser = ADAM(0.01),
@@ -78,11 +78,11 @@ end
 
 function Base.show(
     io::IO,
-    model::OnlineSVGP{T,<:Likelihood,<:Inference},
+    model::OnlineSVGP,
 ) where {T}
     print(
         io,
-        "Online Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ",
+        "Online Variational Gaussian Process with a $(likelihood(model)) infered by $(inference(model)) ",
     )
 end
 

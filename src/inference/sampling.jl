@@ -28,13 +28,13 @@ function ∇logjoint(
 end
 
 Distributions.loglikelihood(
-    l::Likelihood,
+    l::AbstractLikelihood,
     y::AbstractVector,
     f::Tuple{<:AbstractVector{T}},
 ) where {T<:Real} = sum(logpdf.(l, y, f...))
 
 function ∇loglikehood(
-    l::Likelihood,
+    l::AbstractLikelihood,
     y::AbstractVector,
     f::Tuple{<:AbstractVector{T}},
 ) where {T}

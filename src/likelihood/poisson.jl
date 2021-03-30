@@ -35,7 +35,7 @@ implemented(::PoissonLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) = true
 
 function init_likelihood(
     likelihood::PoissonLikelihood{T},
-    ::Inference{T},
+    ::AbstractInference{T},
     ::Integer,
     nSamplesUsed::Int,
 ) where {T}

@@ -42,8 +42,8 @@ implemented(
 ) = true
 
 function init_likelihood(
-    likelihood::LogisticLikelihood{T},
-    inference::Inference{T},
+    ::LogisticLikelihood{T},
+    inference::AbstractInference{T},
     nLatent::Int,
     nSamplesUsed::Int,
 ) where {T}

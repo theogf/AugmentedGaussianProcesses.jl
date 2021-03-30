@@ -122,7 +122,7 @@ function _predict_f(
 end
 
 function _sample_f(
-    m::MCGP{T,<:Likelihood,<:GibbsSampling},
+    m::MCGP{T,<:AbstractLikelihood,<:GibbsSampling},
     X_test::AbstractVector,
     k_star = kernelmatrix.(
         kernels(m),
@@ -263,7 +263,7 @@ function proba_multi_y(model::AbstractGP, X_test::AbstractVector)
 end
 
 compute_proba(
-    l::Likelihood,
+    l::AbstractLikelihood,
     μ::AbstractVector{<:AbstractVector},
     σ²::AbstractVector{<:AbstractVector},
 ) = compute_proba(l, first(μ), first(σ²))
@@ -310,9 +310,9 @@ end
 # end
 #
 function compute_proba(
-    l::Likelihood{T},
-    ::AbstractVector{T},
-    ::AbstractVector{T},
+    l::AbstractLikelihood,
+    ::AbstractVector,
+    ::AbstractVector,
 ) where {T<:Real}
-    @error "Non implemented for the likelihood $l"
+    error("Non implemented for the likelihood $l")
 end

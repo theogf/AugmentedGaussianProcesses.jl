@@ -162,7 +162,7 @@ function tuple_inference(
 end
 
 function expec_loglikelihood(
-    l::Likelihood,
+    l::AbstractLikelihood,
     i::QuadratureVI,
     y,
     μ::AbstractVector,
@@ -176,7 +176,7 @@ function apply_quad(
     μ::Real,
     σ²::Real,
     i::QuadratureVI,
-    l::Likelihood,
+    l::AbstractLikelihood,
 )
     xs = i.nodes * sqrt(σ²) .+ μ
     return dot(i.weights, loglikelihood.(Ref(l), y, xs))
@@ -187,23 +187,23 @@ function grad_expectations!(
     m::AbstractGP{T,L,<:QuadratureVI},
 ) where {T,L}
     y = yview(m)
-    for (gp, opt) in zip(m.f, get_opt(m.inference))
+    for (gp, opt) in zip(m.f, get_opt(inference(m)))
         μ = mean_f(gp)
         Σ = var_f(gp)
-        for i in 1:nMinibatch(m.inference)
+        for i in 1:nMinibatch(inference(m))
             opt.ν[i], opt.λ[i] =
-                grad_quad(m.likelihood, y[i], μ[i], Σ[i], m.inference)
+                grad_quad(likelihood(m), y[i], μ[i], Σ[i], inference(m))
         end
     end
 end
 
 #Compute the first and second derivative of the log-likelihood using the quadrature nodes
 function grad_quad(
-    l::Likelihood{T},
+    l::AbstractLikelihood{T},
     y::Real,
     μ::Real,
     σ²::Real,
-    i::Inference,
+    i::AbstractInference,
 ) where {T<:Real}
     x = i.nodes * sqrt(max(σ², zero(T))) .+ μ
     Edloglike = dot(i.weights, ∇loglikehood.(l, y, x))
