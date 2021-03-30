@@ -1,29 +1,21 @@
 """
-    VGP(X::AbstractArray{T},y::AbstractVector,
-        kernel::Kernel,
-        likelihood::LikelihoodType,inference::InferenceType;
-        verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Integer=1,
-        mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-        IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
+    VGP(args...; kwargs...)
 
-Argument list :
+Variational Gaussian Process
 
-**Mandatory arguments**
+## Arguments
+- `X::AbstractArray` : Input features, if `X` is a matrix the choice of colwise/rowwise is given by the `obsdim` keyword
+- `y::AbstractVector` : Output labels
+- `kernel::Kernel` : Covariance function, can be any kernel from KernelFunctions.jl
+- `likelihood` : Likelihood of the model. For compatibilities, see [`Likelihood Types`](@ref likelihood_user)
+- `inference` : Inference for the model, see the [`Compatibility Table`](@ref compat_table))
 
- - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
- - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
- - `kernel` : covariance function, a single kernel from the KernelFunctions.jl package
- - `likelihood` : likelihood of the model, currently implemented : Gaussian, Bernoulli (with logistic link), Multiclass (softmax or logistic-softmax) see [`Likelihood Types`](@ref likelihood_user)
- - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the [`Compatibility Table`](@ref compat_table)
-
-**Keyword arguments**
-
- - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
- - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
+## Keyword arguments
+- `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
+- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
+- `atfrequency::Int=1` : Choose how many variational parameters iterations are between hyperparameters optimization
+- `mean=ZeroMean()` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
+- `obsdim::Int=1` : Dimension of the data. 1 : X ∈ DxN, 2: X ∈ NxD
 """
 mutable struct VGP{
     T<:Real,

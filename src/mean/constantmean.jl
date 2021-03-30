@@ -4,7 +4,10 @@ mutable struct ConstantMean{T<:Real,O} <: PriorMean{T}
 end
 
 """
-    ConstantMean(c::Real = 1.0;opt=ADAM(0.01))
+    ConstantMean(c::Real = 1.0; opt=ADAM(0.01))
+
+## Arguments
+- `c::Real` : Constant value
 
 Construct a prior mean with constant `c`
 Optionally set an optimiser `opt` (`ADAM(0.01)` by default)

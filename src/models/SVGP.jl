@@ -1,31 +1,23 @@
 """
-Class for sparse variational Gaussian Processes
+    SVGP(args...; kwargs...)
 
+Sparse Variational Gaussian Process
 
-    SVGP(X::AbstractArray{T1},y::AbstractVector{T2},kernel::Kernel,
-        likelihood::LikelihoodType,inference::InferenceType, nInducingPoints::Int;
-        verbose::Int=0,optimiser=ADAM(0.001),atfrequency::Int=1,
-        mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-        Zoptimiser=false,
-        ArrayType::UnionAll=Vector)
+## Arguments
+- `X::AbstractArray` : Input features, if `X` is a matrix the choice of colwise/rowwise is given by the `obsdim` keyword
+- `y::AbstractVector` : Output labels
+- `kernel::Kernel` : Covariance function, can be any kernel from KernelFunctions.jl
+- `likelihood` : Likelihood of the model. For compatibilities, see [`Likelihood Types`](@ref likelihood_user)
+- `inference` : Inference for the model, see the [`Compatibility Table`](@ref compat_table))
+- `nInducingPoints` : number of inducing points, or `InducingPoints` object
 
-Argument list :
-
-**Mandatory arguments**
- - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
- - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
- - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
- - `likelihood` : likelihood of the model, currently implemented : Gaussian, Student-T, Laplace, Bernoulli (with logistic link), Bayesian SVM, Multiclass (softmax or logistic-softmax) see [`Likelihood`](@ref likelihood_user)
- - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the [`Compatibility table`](@ref compat_table)
- - `nInducingPoints` : number of inducing points
-**Optional arguments**
- - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
+## Keyword arguments
+- `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
 - `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
- - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
-- `Zoptimiser` : Optimiser used for the inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
- - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
+- `atfrequency::Int=1` : Choose how many variational parameters iterations are between hyperparameters optimization
+- `mean=ZeroMean()` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
+- `Zoptimiser` : Optimiser for inducing points locations
+- `obsdim::Int=1` : Dimension of the data. 1 : X ∈ DxN, 2: X ∈ NxD
 """
 mutable struct SVGP{
     T<:Real,
@@ -45,7 +37,7 @@ mutable struct SVGP{
 end
 
 function SVGP(
-    X::AbstractArray{<:Real},
+    X::AbstractArray,
     y::AbstractVector,
     kernel::Kernel,
     likelihood::AbstractLikelihood,
@@ -74,7 +66,7 @@ function SVGP(
 end
 
 function SVGP(
-    X::AbstractArray{<:Real},
+    X::AbstractArray,
     y::AbstractVector,
     kernel::Kernel,
     likelihood::AbstractLikelihood,

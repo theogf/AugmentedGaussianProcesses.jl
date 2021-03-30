@@ -6,6 +6,9 @@ end
 """
     EmpiricalMean(c::AbstractVector{<:Real}=1.0;opt=ADAM(0.01))
 
+## Arguments
+- `c::AbstractVector` : Empirical mean vector
+
 Construct a empirical mean with values `c`
 Optionally give an optimiser `opt` (`ADAM(0.01)` by default)
 """

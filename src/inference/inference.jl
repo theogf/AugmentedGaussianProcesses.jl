@@ -66,6 +66,8 @@ get_opt(i::SamplingInference) = i.opt
 get_opt(i::AbstractInference, n::Int) = get_opt(i)[n]
 opt_type(i::AbstractInference) = first(get_opt(i))
 
+# Initialize the final version of the inference objects
+# using the right parametrization and size
 function tuple_inference(
     i::AbstractInference,
     nLatent::Int,

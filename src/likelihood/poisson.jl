@@ -1,11 +1,16 @@
 """
     Poisson Likelihood(λ=1.0)
 
+## Arguments
+- `λ::Real` : Poisson rate
+
+---
+
 [Poisson Likelihood](https://en.wikipedia.org/wiki/Poisson_distribution) where a Poisson distribution is defined at every point in space (careful, it's different from continous Poisson processes)
 ```math
     p(y|f) = Poisson(y|\\lambda \\sigma(f))
 ```
-Where `σ` is the logistic function
+Where `σ` is the logistic function.
 Augmentation details will be released at some point (open an issue if you want to see them)
 """
 mutable struct PoissonLikelihood{T<:Real,A<:AbstractVector{T}} <:

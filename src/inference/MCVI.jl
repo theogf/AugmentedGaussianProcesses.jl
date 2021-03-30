@@ -1,15 +1,3 @@
-"""
-    MCIntegrationVI(;ϵ::T=1e-5,nMC::Integer=1000,optimiser=Momentum(0.001))
-
-Variational Inference solver by approximating gradients via MC Integration.
-
-**Keyword arguments**
-
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `nMC::Int` : Number of samples per data point for the integral evaluation
-    - `natural::Bool` : Use natural gradients
-    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.01)`
-"""
 mutable struct MCIntegrationVI{T<:Real,N,Tx,Ty} <: NumericalVI{T}
     nMC::Int64 #Number of samples for MC Integrations
     clipping::T
@@ -85,33 +73,52 @@ mutable struct MCIntegrationVI{T<:Real,N,Tx,Ty} <: NumericalVI{T}
     end
 end
 
+"""
+    MCIntegrationVI(;ϵ::T=1e-5, nMC::Integer=1000, clipping::Real=Inf, natural::Bool=true, optimiser=Momentum(0.001))
+
+Variational Inference solver by approximating gradients via MC Integration.
+It means the expectation `E[log p(y|f)]` as well as its gradients is computed
+by sampling from q(f).
+
+## Keyword arguments
+- `ϵ::Real` : convergence criteria, which can be user defined
+- `nMC::Int` : Number of samples per data point for the integral evaluation
+- `clipping::Real` : Limit the gradients values to avoid overshooting
+- `natural::Bool` : Use natural gradients
+- `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.01)`
+"""
+MCIntegrationVI
 
 function MCIntegrationVI(;
-    ϵ::T = 1e-5,
-    nMC::Integer = 1000,
-    optimiser = Momentum(0.01),
-    clipping::Real = 0.0,
-    natural::Bool = true,
+    ϵ::T=1e-5,
+    nMC::Integer=1000,
+    optimiser=Momentum(0.01),
+    clipping::Real=Inf,
+    natural::Bool=true,
 ) where {T<:Real}
     MCIntegrationVI{T}(ϵ, nMC, optimiser, false, clipping, 1, natural)
 end
 
 """
-    MCIntegrationSVI(;ϵ::T=1e-5,nMC::Integer=1000,optimiser=Momentum(0.0001))
+    MCIntegrationSVI(nMinibatch::Int; ϵ::Real=1e-5, nMC::Integer=1000, clipping=Inf, natural=true, optimiser=Momentum(0.0001))
 
-Stochastic Variational Inference solver by approximating gradients via Monte Carlo integration
+Stochastic Variational Inference solver by approximating gradients via Monte Carlo integration when using minibatches
+See [`MCIntegrationVI`](@ref) for more explanations.
 
-**Argument**
+## Argument
 
-    -`nMinibatch::Integer` : Number of samples per mini-batches
+-`nMinibatch::Integer` : Number of samples per mini-batches
 
-**Keyword arguments**
+## Keyword arguments
 
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `nMC::Int` : Number of samples per data point for the integral evaluation
-    - `natural::Bool` : Use natural gradients
-    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum()` (ρ=(τ+iter)^-κ)
+- `ϵ::T` : convergence criteria, which can be user defined
+- `nMC::Int` : Number of samples per data point for the integral evaluation
+- `clipping::Real` : Limit the gradients values to avoid overshooting
+- `natural::Bool` : Use natural gradients
+- `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum()` (ρ=(τ+iter)^-κ)
 """
+MCIntegrationSVI
+
 function MCIntegrationSVI(
     nMinibatch::Integer;
     ϵ::T = 1e-5,

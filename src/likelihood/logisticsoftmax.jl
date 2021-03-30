@@ -1,6 +1,10 @@
 """
-    LogisticSoftMaxLikelihood(num_class)
+    LogisticSoftMaxLikelihood(num_class::Int)
 
+## Arguments
+- `num_class::Int` : Total number of classes
+
+---
 The multiclass likelihood with a logistic-softmax mapping: :
 ```math
 p(y=i|{fₖ}₁ᴷ) = σ(fᵢ)/∑ₖ σ(fₖ)

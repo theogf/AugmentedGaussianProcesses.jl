@@ -16,18 +16,18 @@ isnatural(vi::NumericalVI) = vi.NaturalGradient
 
 General constructor for Variational Inference via numerical approximation.
 
-**Argument**
+## Arguments
+-`integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mc` for MC integration see [MCIntegrationVI](@ref)
 
-    -`integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mc` for MC integration see [MCIntegrationVI](@ref)
-
-**Keyword arguments**
-
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
-    - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `natural::Bool` : Use natural gradients
-    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
+## Keyword arguments
+- `ϵ::T` : convergence criteria, which can be user defined
+- `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
+- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
+- `natural::Bool` : Use natural gradients
+- `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
 """
+NumericalVI
+
 function NumericalVI(
     integration_technique::Symbol=:quad;
     ϵ::T=1e-5,
@@ -50,18 +50,17 @@ end
 
 General constructor for Stochastic Variational Inference via numerical approximation.
 
-**Argument**
+## Arguments
 
-    - `nMinibatch::Integer` : Number of samples per mini-batches
-    - `integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mc` for MC integration see [MCIntegrationVI](@ref)
+- `nMinibatch::Integer` : Number of samples per mini-batches
+- `integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mc` for MC integration see [MCIntegrationVI](@ref)
 
-**Keyword arguments**
-
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
-    - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `natural::Bool` : Use natural gradients
-    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
+## Keyword arguments
+- `ϵ::T` : convergence criteria, which can be user defined
+- `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
+- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
+- `natural::Bool` : Use natural gradients
+- `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
 """
 function NumericalSVI(
     nMinibatch::Integer,
@@ -89,7 +88,7 @@ function NumericalSVI(
 end
 end
 
-function Base.show(io::IO, inference::NumericalVI{T}) where T
+function Base.show(io::IO, inference::NumericalVI)
     print(io, "$(isStochastic(inference) ? "Stochastic numerical" : "Numerical") Inference by $(isa(inference, MCIntegrationVI) ? "Monte Carlo Integration" : "Quadrature")")
 end
 

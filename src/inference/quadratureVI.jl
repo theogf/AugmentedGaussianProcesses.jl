@@ -1,14 +1,14 @@
 """
-    QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser=Momentum(0.0001))
+    QuadratureVI(;ϵ::T=1e-5, nGaussHermite::Integer=20, clipping=Inf, natural::Bool=true, optimiser=Momentum(0.0001))
 
 Variational Inference solver by approximating gradients via numerical integration via Quadrature
 
-**Keyword arguments**
-
-    - `ϵ::T` : convergence criteria
-    - `nGaussHermite::Int` : Number of points for the integral estimation
-    - `natural::Bool` : Use natural gradients
-    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
+## Keyword arguments
+- `ϵ::T` : convergence criteria
+- `nGaussHermite::Int` : Number of points for the integral estimation
+- `clipping::Real` : Limit the gradients values to avoid overshooting
+- `natural::Bool` : Use natural gradients
+- `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
 """
 mutable struct QuadratureVI{T,N,Tx,Ty} <: NumericalVI{T}
     nPoints::Int # Number of points for the quadrature
@@ -104,18 +104,19 @@ end
 
 
 """
-    QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser=Momentum(0.0001))
+    QuadratureSVI(nMinibatch::Int; ϵ::T=1e-5, nGaussHermite::Int=20, clipping=Inf, natural=true, optimiser=Momentum(0.0001))
 
-Stochastic Variational Inference solver by approximating gradients via numerical integration via Quadrature
+Stochastic Variational Inference solver by approximating gradients via numerical integration via Gaussian Quadrature.
+See [`QuadratureVI`](@ref) for a more detailed reference.
 
-    -`nMinibatch::Integer` : Number of samples per mini-batches
+## Arguments 
+-`nMinibatch::Integer` : Number of samples per mini-batches
 
-**Keyword arguments**
-
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `natural::Bool` : Use natural gradients
-    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
+## Keyword arguments
+- `ϵ::T` : convergence criteria, which can be user defined
+- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
+- `natural::Bool` : Use natural gradients
+- `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
 """
 function QuadratureSVI(
     nMinibatch::Integer;
@@ -197,7 +198,7 @@ function grad_expectations!(
     end
 end
 
-#Compute the first and second derivative of the log-likelihood using the quadrature nodes
+# Compute the first and second derivative of the log-likelihood using the quadrature nodes
 function grad_quad(
     l::AbstractLikelihood{T},
     y::Real,

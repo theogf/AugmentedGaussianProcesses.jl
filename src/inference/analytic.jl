@@ -23,20 +23,20 @@ end
 """
     Analytic(;ϵ::T=1e-5)
 
-Analytic inference structure for the classical GP regression
+Analytic inference structure for solving the classical GP regression with Gaussian noise
 
-**Keyword arguments**
-    - `ϵ::T` : convergence criteria, which can be user defined
+## Keyword arguments
+- `ϵ::Real` : convergence criteria (not used at the moment)
 """
+Analytic
+
 function Analytic(; ϵ::T = 1e-5) where {T<:Real}
     Analytic{T}(ϵ)
 end
 
-
 function Base.show(io::IO, ::Analytic)
     print(io, "Analytic Inference")
 end
-
 
 function init_inference(
     i::Analytic{T},

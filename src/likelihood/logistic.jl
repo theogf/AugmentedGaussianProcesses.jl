@@ -1,7 +1,5 @@
 """
-```julia
-LogisticLikelihood()
-```
+    LogisticLikelihood()
 
 Bernoulli likelihood with a logistic link for the Bernoulli likelihood
 ```math

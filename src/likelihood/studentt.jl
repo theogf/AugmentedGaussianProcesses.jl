@@ -1,12 +1,15 @@
 """
-```julia
-StudentTLikelihood(ν::T,σ::Real=one(T))
-```
+    StudentTLikelihood(ν::T, σ::Real=one(T))
+
+## Arguments
+- `ν::Real` : degrees of freedom of the student-T
+- `σ::Real` : standard deviation of the local scale 
+
 [Student-t likelihood](https://en.wikipedia.org/wiki/Student%27s_t-distribution) for regression:
 ```math
     p(y|f,ν,σ) = Γ(0.5(ν+1))/(sqrt(νπ) σ Γ(0.5ν)) * (1+(y-f)^2/(σ^2ν))^(-0.5(ν+1))
 ```
-`ν` is the number of degrees of freedom and `σ` is the variance for local scale of the data.
+`ν` is the number of degrees of freedom and `σ` is the standard deviation for local scale of the data.
 
 ---
 
@@ -25,6 +28,7 @@ mutable struct StudentTLikelihood{T<:Real,A<:AbstractVector{T}} <:
     c::A
     θ::A
     function StudentTLikelihood{T}(ν::T, σ::T = one(T)) where {T<:Real}
+        ν > 0.5 || error("ν should be greater than 0.5")
         new{T,Vector{T}}(ν, (ν + one(T)) / 2.0, σ)
     end
     function StudentTLikelihood{T}(

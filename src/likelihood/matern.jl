@@ -2,15 +2,15 @@ abstract type MaternLikelihood{T<:Real} <: RegressionLikelihood{T} end
 
 
 """
-**Matern 3/2 likelihood**
+    Matern3_2Likelihood(ρ::Real=1.0)
 
-Matern 3/2 likelihood for regression: ````
+## Arguments
+- `ρ::Real` : lengthscale
+
+---
+
+Matern 3/2 likelihood for regression:
 see [wiki page](https://en.wikipedia.org/wiki/Mat%C3%A9rn_covariance_function)
-
-```julia
-Matern3_2Likelihood(ρ::T) #ρ is the lengthscale
-```
-
 ---
 
 For the analytical solution, it is augmented via:

@@ -2,11 +2,11 @@ mutable struct AnalyticVI{T,N,Tx,Ty} <: VariationalInference{T}
     ϵ::T # Convergence criteria
     nIter::Integer # Number of steps performed
     stoch::Bool # Flag for stochastic optimization
-    nSamples::Int
+    nSamples::Int # Total number of samples
     nMinibatch::Int # Size of mini-batches
     ρ::T # Scaling coeff. for stoch. opt.
     HyperParametersUpdated::Bool # Flag for updating kernel matrices
-    vi_opt::NTuple{N,AVIOptimizer}
+    vi_opt::NTuple{N,AVIOptimizer} # Local optimizers for the variational parameters
     MBIndices::Vector{Int} # Indices of the minibatch
     xview::Tx # Subset of the input
     yview::Ty # Subset of the outputs
@@ -46,7 +46,7 @@ mutable struct AnalyticVI{T,N,Tx,Ty} <: VariationalInference{T}
             Stochastic,
             nSamples,
             nMinibatch,
-            T(nSamples / nMinibatch),
+            convert(T, nSamples / nMinibatch),
             true,
             vi_opts,
             1:nMinibatch,
@@ -60,29 +60,31 @@ end
     AnalyticVI(;ϵ::T=1e-5)
 
 Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
-All data is used at each iteration (use AnalyticSVI for Stochastic updates)
+All data is used at each iteration (use [`AnalyticSVI`](@ref) for updates using minibatches)
 
-**Keywords arguments**
-    - `ϵ::T` : convergence criteria
+## Keywords arguments
+- `ϵ::Real` : convergence criteria
 """
 AnalyticVI
 
 """
-    AnalyticSVI(nMinibatch::Integer; ϵ::T=1e-5, optimiser=RobbinsMonro())
+    AnalyticSVI(nMinibatch::Int; ϵ::T=1e-5, optimiser=RobbinsMonro())
 
-Stochastic Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation)
+Stochastic Variational Inference solver for conjugate or conditionally conjugate likelihoods (non-gaussian are made conjugate via augmentation).
+See [`AnalyticVI`](@ref) for reference
 
+## Arguments
 
 - `nMinibatch::Integer` : Number of samples per mini-batches
 
-**Keywords arguments**
+## Keywords arguments
 
-    - `ϵ::T` : convergence criteria
-    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `RobbinsMonro()` (ρ=(τ+iter)^-κ)
+- `ϵ::T` : convergence criteria
+- `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `RobbinsMonro()` (ρ=(τ+iter)^-κ)
 """
 AnalyticSVI
 
-function AnalyticVI(; ϵ::T = 1e-5) where {T<:Real}
+function AnalyticVI(;ϵ::T=1e-5) where {T<:Real}
     AnalyticVI{T}(ϵ, Descent(1.0), 0, false)
 end
 
@@ -94,15 +96,13 @@ function AnalyticSVI(
     AnalyticVI{T}(ϵ, optimiser, nMinibatch, true)
 end
 
-function Base.show(io::IO, inference::AnalyticVI{T}) where {T}
+function Base.show(io::IO, inference::AnalyticVI)
     print(
         io,
         "Analytic$(isStochastic(inference) ? " Stochastic" : "") Variational Inference",
     )
 end
 
-
-## Initialize the final version of the inference object ##
 function tuple_inference(
     i::AnalyticVI{T},
     nLatent::Int,
@@ -126,7 +126,7 @@ function tuple_inference(
 end
 
 
-## Generic method for variational updates using analytical formulas ##
+### Generic method for variational updates using analytical formulas ###
 # Single output version
 @traitfn function variational_updates!(m::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     local_updates!(
@@ -164,7 +164,8 @@ end
     global_update!(m) # Update η₁ and η₂
 end
 
-## Wrappers for tuple of 1 element
+# Wrappers for tuple of 1 element,
+# when multiple f are needed, these methods can be simply overloaded 
 local_updates!(
     l::AbstractLikelihood,
     y,
@@ -180,7 +181,7 @@ expec_loglikelihood(
     diagΣ::Tuple{<:AbstractVector{T}},
 ) where {T} = expec_loglikelihood(l, i, y, first(μ), first(diagΣ))
 
-## Coordinate ascent updates on the natural parameters ##
+# Coordinate ascent updates on the natural parameters ##
 function natural_gradient!(
     ∇E_μ::AbstractVector,
     ∇E_Σ::AbstractVector,
@@ -193,7 +194,7 @@ function natural_gradient!(
     gp.post.η₂ .= - Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(pr_cov(gp)))
 end
 
-#Computation of the natural gradient for the natural parameters
+# Computation of the natural gradient for the natural parameters
 function natural_gradient!(
     ∇E_μ::AbstractVector,
     ∇E_Σ::AbstractVector,
@@ -206,6 +207,7 @@ function natural_gradient!(
     opt.∇η₂ .= ∇η₂(∇E_Σ, ρ, gp.κ, pr_cov(gp), nat2(gp))
 end
 
+# Gradient of on the first natural parameter η₁ = Σ⁻¹μ
 function ∇η₁(
     ∇μ::AbstractVector{T},
     ρ::Real,
@@ -217,6 +219,7 @@ function ∇η₁(
     transpose(κ) * (ρ * ∇μ) + (K \ μ₀) - η₁
 end
 
+# Gradient of on the second natural parameter η₂ = -0.5Σ⁻¹
 function ∇η₂(
     θ::AbstractVector{T},
     ρ::Real,
@@ -227,7 +230,7 @@ function ∇η₂(
     -(ρκdiagθκ(ρ, κ, θ) + 0.5 * inv(K)) - η₂
 end
 
-## Natural gradient for the ONLINE model (OSVGP) ##
+# Natural gradient for the ONLINE model (OSVGP) #
 function natural_gradient!(
     ∇E_μ::AbstractVector{T},
     ∇E_Σ::AbstractVector{T},
@@ -246,6 +249,7 @@ function natural_gradient!(
         )
 end
 
+# Once the natural parameters have been updated we need to convert back to μ and Σ
 @traitfn function global_update!(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsFull{TGP}}
     global_update!.(model.f)
 end
@@ -253,7 +257,7 @@ end
 global_update!(gp::VarLatent, ::AVIOptimizer, ::AnalyticVI) = global_update!(gp)
 
 global_update!(model::OnlineSVGP) = global_update!.(model.f)
-global_update!(gp::OnlineVarLatent, opt, i) = global_update!(gp)
+global_update!(gp::OnlineVarLatent, ::Any, ::Any) = global_update!(gp)
 
 #Update of the natural parameters and conversion from natural to standard distribution parameters
 @traitfn function global_update!(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsFull{TGP}}
@@ -273,7 +277,9 @@ function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI)
     global_update!(gp)
 end
 
-
+# Computation of the ELBO for all model
+# There are 4 parts : the (augmented) log-likelihood, the Gaussian KL divergence
+# the augmented variable KL divergence, some eventual additional part (like in the online case)
 @traitfn function ELBO(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     tot = zero(T)
     tot +=
@@ -289,6 +295,7 @@ end
     tot -= extraKL(model)
 end
 
+# Multi-output version
 @traitfn function ELBO(model::TGP) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     tot = zero(T)
     tot += sum(

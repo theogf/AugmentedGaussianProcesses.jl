@@ -1,7 +1,10 @@
 """
-```julia
-HeteroscedasticLikelihood(λ::T=1.0)
-```
+    HeteroscedasticLikelihood(λ::T=1.0)
+
+## Arguments
+- `λ::Real` : The maximum precision possible (this is optimized during training)
+
+---
 
 Gaussian with heteroscedastic noise given by another gp:
 ```math
@@ -9,7 +12,7 @@ Gaussian with heteroscedastic noise given by another gp:
 ```
 Where `σ` is the logistic function
 
-Augmentation will be described in a future paper
+The augmentation is not trivial and will be described in a future paper
 """
 mutable struct HeteroscedasticLikelihood{T<:Real, A<:AbstractVector{T}} <: RegressionLikelihood{T}
     λ::T

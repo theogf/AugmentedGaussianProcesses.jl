@@ -1,14 +1,14 @@
 """
-    train!(model::AbstractGP; iterations::Integer=100, callback=0, convergence=0)
+    train!(model::AbstractGP; iterations::Integer=100, callback, convergence)
 
 Function to train the given GP `model`.
+## Arguments
+- `model` : AbstractGP model with either an `Analytic`, `AnalyticVI` or `NumericalVI` type of inference
 
-**Keyword Arguments**
-
-there are options to change the number of max iterations,
+## Keyword Arguments
 - `iterations::Int` : Number of iterations (not necessarily epochs!)for training
-- `callback::Function` : Callback function called at every iteration. Should be of type `function(model,iter) ...  end`
-- `convergence::Function` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
+- `callback::Function=nothing` : Callback function called at every iteration. Should be of type `function(model,iter) ...  end`
+- `convergence::Function=nothing` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
 function train!(
     model::AbstractGP{T},

@@ -1,13 +1,16 @@
 """
     NegBinomialLikelihood(r::Real)
 
+## Arguments
+- `r::Real` number of failures until the experiment is stopped
+
+---
 [Negative Binomial likelihood](https://en.wikipedia.org/wiki/Negative_binomial_distribution) with number of failures `r`
 ```math
     p(y|r, f) = binomial(y + r - 1, y) (1 - σ(f))ʳ σ(f)ʸ
     p(y|r, f) = Γ(y + r)/Γ(y + 1)Γ(r) (1 - σ(f))ʳ σ(f)ʸ
 ```
 Where `σ` is the logistic function
-
 """
 struct NegBinomialLikelihood{T<:Real,Tr<:Real,A<:AbstractVector{T}} <: EventLikelihood{T}
     r::Tr

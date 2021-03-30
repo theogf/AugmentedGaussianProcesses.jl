@@ -1,7 +1,5 @@
 """
-```julia
-LaplaceLikelihood(β::T=1.0)  #  Laplace likelihood with scale β
-```
+    LaplaceLikelihood(β::T=1.0)  #  Laplace likelihood with scale β
 
 Laplace likelihood for regression:
 ```math

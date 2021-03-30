@@ -6,10 +6,15 @@ struct AffineMean{T<:Real,V<:AbstractVector{T},O} <: PriorMean{T}
 end
 
 """
-    AffineMean(A::Vector, b::Real; opt = ADAM(0.01))
-    AffineMean(dims::Int, features::Int; opt=ADAM(0.01))
+    AffineMean(w::Vector, b::Real; opt = ADAM(0.01))
+    AffineMean(dims::Int; opt=ADAM(0.01))
 
-Construct an affine operation on `X` : `μ₀(X) = X*w + b` where `w` is a vector and `b` a scalar
+## Arguments
+- `w::Vector` : Weight vector
+- `b::Real` : Bias
+- `dims::Int` : Number of features per vector
+
+Construct an affine operation on `X` : `μ₀(X) = X * w + b` where `w` is a vector and `b` a scalar
 Optionally give an optimiser `opt` (`Adam(α=0.01)` by default)
 """
 function AffineMean(
