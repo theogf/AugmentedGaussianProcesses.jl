@@ -16,28 +16,26 @@ For the analytic version the likelihood, it is augmented via:
 where ``ω ~ PG(ω | 1, 0)``, and `PG` is the Polya-Gamma distribution
 See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383)
 """
-struct LogisticLikelihood{T<:Real, A<:AbstractVector{T}} <: ClassificationLikelihood{T}
+struct LogisticLikelihood{T<:Real,A<:AbstractVector{T}} <: ClassificationLikelihood{T}
     c::A
     θ::A
     function LogisticLikelihood{T}() where {T<:Real}
-        new{T, Vector{T}}()
+        return new{T,Vector{T}}()
     end
-    function LogisticLikelihood{T}(
-        c::A,
-        θ::A,
-    ) where {T<:Real, A<:AbstractVector{T}}
-        new{T, A}(c, θ)
+    function LogisticLikelihood{T}(c::A, θ::A) where {T<:Real,A<:AbstractVector{T}}
+        return new{T,A}(c, θ)
     end
 end
 
 function LogisticLikelihood()
-    LogisticLikelihood{Float64}()
+    return LogisticLikelihood{Float64}()
 end
 
-implemented(
-    ::LogisticLikelihood,
-    ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling},
-) = true
+function implemented(
+    ::LogisticLikelihood, ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}
+)
+    return true
+end
 
 function init_likelihood(
     ::LogisticLikelihood{T},
@@ -46,47 +44,38 @@ function init_likelihood(
     nSamplesUsed::Int,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
-        LogisticLikelihood{T}(
-            abs.(rand(T, nSamplesUsed)),
-            zeros(T, nSamplesUsed),
-        )
+        LogisticLikelihood{T}(abs.(rand(T, nSamplesUsed)), zeros(T, nSamplesUsed))
     else
         LogisticLikelihood{T}()
     end
 end
 
 function (::LogisticLikelihood)(y::Real, f::Real)
-    logistic(y * f)
+    return logistic(y * f)
 end
 
 function Distributions.loglikelihood(::LogisticLikelihood{T}, y::Real, f::Real) where {T}
-    -log(one(T) + exp(-y * f))
+    return -log(one(T) + exp(-y * f))
 end
 
 function Base.show(io::IO, ::LogisticLikelihood)
-    print(io, "Bernoulli Likelihood with Logistic Link")
+    return print(io, "Bernoulli Likelihood with Logistic Link")
+end
+
+function compute_proba(l::LogisticLikelihood{T}, f::Real) where {T<:Real}
+    return l(1, f)
 end
 
 function compute_proba(
-    l::LogisticLikelihood{T},
-    f::Real
-    ) where {T<:Real}
-    l(1, f)
-end
-
-function compute_proba(
-    ::LogisticLikelihood{T},
-    μ::AbstractVector{<:Real},
-    σ²::AbstractVector{<:Real},
+    ::LogisticLikelihood{T}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
 ) where {T<:Real}
     N = length(μ)
     pred = zeros(T, N)
     σ²_pred = zeros(T, N)
-    for i = 1:N
+    for i in 1:N
         x = pred_nodes .* sqrt(max(σ²[i], zero(T))) .+ μ[i]
         pred[i] = dot(pred_weights, logistic.(x))
-        σ²_pred[i] =
-            max(dot(pred_weights, logistic.(x) .^ 2) - pred[i]^2, zero(T))
+        σ²_pred[i] = max(dot(pred_weights, logistic.(x) .^ 2) - pred[i]^2, zero(T))
     end
     return pred, σ²_pred
 end
@@ -94,21 +83,14 @@ end
 ### Local Updates Section ###
 
 function local_updates!(
-    l::LogisticLikelihood{T},
-    ::AbstractVector,
-    μ::AbstractVector,
-    diagΣ::AbstractVector,
+    l::LogisticLikelihood{T}, ::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
 ) where {T}
     @. l.c = sqrt(diagΣ + abs2(μ))
     @. l.θ = 0.5 * tanh(0.5 * l.c) / l.c
 end
 
-function sample_local!(
-    l::LogisticLikelihood,
-    ::AbstractVector,
-    f::AbstractVector,
-)
-    set_ω!(l, rand.(PolyaGamma.(1, abs.(f))))
+function sample_local!(l::LogisticLikelihood, ::AbstractVector, f::AbstractVector)
+    return set_ω!(l, rand.(PolyaGamma.(1, abs.(f))))
 end
 
 ### Natural Gradient Section ###
@@ -133,16 +115,13 @@ end
 AugmentedKL(l::LogisticLikelihood, ::AbstractVector) = PolyaGammaKL(l)
 
 function PolyaGammaKL(l::LogisticLikelihood{T}) where {T}
-    sum(broadcast(PolyaGammaKL, ones(T, length(l.c)), l.c, l.θ))
+    return sum(broadcast(PolyaGammaKL, ones(T, length(l.c)), l.c, l.θ))
 end
 
 ### Gradient Section ###
 
-∇loglikehood(::LogisticLikelihood{T}, y::Real, f::Real) where {T} =
-    y * logistic(-y * f)
+∇loglikehood(::LogisticLikelihood{T}, y::Real, f::Real) where {T} = y * logistic(-y * f)
 
-hessloglikehood(
-    ::LogisticLikelihood{T},
-    y::Real,
-    f::Real,
-) where {T<:Real} = -exp(y * f) / logistic(-y * f)^2
+function hessloglikehood(::LogisticLikelihood{T}, y::Real, f::Real) where {T<:Real}
+    return -exp(y * f) / logistic(-y * f)^2
+end

@@ -16,40 +16,34 @@ p(y|f, ω) = \\frac{1}{\\sqrt(2\\pi\\omega) \\exp(-\\frac{(1+\\omega-yf)^2}{2\\o
 
 where ``ω ∼ 𝟙[0,∞)`` has an improper prior (his posterior is however has a valid distribution, a Generalized Inverse Gaussian). For reference [see this paper](http://ecmlpkdd2017.ijs.si/papers/paperID502.pdf)
 """
-struct BayesianSVM{T<:Real, A<:AbstractVector{T}} <: ClassificationLikelihood{T}
+struct BayesianSVM{T<:Real,A<:AbstractVector{T}} <: ClassificationLikelihood{T}
     ω::A
     θ::A
     function BayesianSVM{T}() where {T<:Real}
-        new{T, Vector{T}}()
+        return new{T,Vector{T}}()
     end
-    function BayesianSVM{T}(
-        ω::A,
-        θ::A,
-    ) where {T<:Real, A<:AbstractVector{T}}
-        new{T, A}(ω, θ)
+    function BayesianSVM{T}(ω::A, θ::A) where {T<:Real,A<:AbstractVector{T}}
+        return new{T,A}(ω, θ)
     end
 end
 
 function BayesianSVM()
-    BayesianSVM{Float64}()
+    return BayesianSVM{Float64}()
 end
 
 implemented(::BayesianSVM, ::AnalyticVI) = true
 
 function init_likelihood(
-    ::BayesianSVM{T},
-    ::AbstractInference{T},
-    ::Int,
-    nSamplesUsed::Int,
+    ::BayesianSVM{T}, ::AbstractInference{T}, ::Int, nSamplesUsed::Int
 ) where {T}
-    BayesianSVM{T}(rand(T, nSamplesUsed), zeros(T, nSamplesUsed))
+    return BayesianSVM{T}(rand(T, nSamplesUsed), zeros(T, nSamplesUsed))
 end
 function (::BayesianSVM)(y::Real, f::Real)
-    svmlikelihood(y * f)
+    return svmlikelihood(y * f)
 end
 
 function Base.show(io::IO, ::BayesianSVM{T}) where {T}
-    print(io, "Bayesian SVM")
+    return print(io, "Bayesian SVM")
 end
 
 """Return likelihood equivalent to SVM hinge loss"""
@@ -63,20 +57,16 @@ function svmpseudolikelihood(f::Real)
     return exp(-2.0 * max.(1.0 - f, 0))
 end
 
-
 function compute_proba(
-    ::BayesianSVM{T},
-    μ::AbstractVector{<:Real},
-    σ²::AbstractVector{<:Real},
+    ::BayesianSVM{T}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
 ) where {T<:Real}
     N = length(μ)
     pred = zeros(T, N)
     sig_pred = zeros(T, N)
-    for i = 1:N
+    for i in 1:N
         x = pred_nodes .* sqrt(max(σ²[i], zero(T))) .+ μ[i]
         pred[i] = dot(pred_weights, svmlikelihood.(x))
-        sig_pred[i] =
-            max(dot(pred_weights, svmlikelihood.(x) .^ 2) - pred[i]^2, zero(T))
+        sig_pred[i] = max(dot(pred_weights, svmlikelihood.(x) .^ 2) - pred[i]^2, zero(T))
     end
     return pred, sig_pred
 end
@@ -84,20 +74,17 @@ end
 ## Updates
 
 function local_updates!(
-    l::BayesianSVM{T},
-    y::AbstractVector,
-    μ::AbstractVector,
-    diagΣ::AbstractVector,
+    l::BayesianSVM{T}, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
 ) where {T}
     @. l.ω = abs2(one(T) - y * μ) + diagΣ
     @. l.θ = inv(sqrt(l.ω))
 end
 
-@inline ∇E_μ(l::BayesianSVM{T}, ::AOptimizer, y::AbstractVector) where {T} =
-    (y .* (l.θ .+ one(T)),)
+@inline function ∇E_μ(l::BayesianSVM{T}, ::AOptimizer, y::AbstractVector) where {T}
+    return (y .* (l.θ .+ one(T)),)
+end
 
-@inline ∇E_Σ(l::BayesianSVM{T}, ::AOptimizer, ::AbstractVector) where {T} =
-    (0.5 .* l.θ,)
+@inline ∇E_Σ(l::BayesianSVM{T}, ::AOptimizer, ::AbstractVector) where {T} = (0.5 .* l.θ,)
 
 ## Lower bounds
 

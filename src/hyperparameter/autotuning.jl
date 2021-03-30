@@ -5,24 +5,26 @@ include("forwarddiff_rules.jl")
 function update_hyperparameters!(m::GP)
     μ₀ = pr_mean(m.f) # Get prior means
     k = kernel(m.f) # Get kernels
-    if ADBACKEND[] == :Zygote
-        Δμ₀, Δk = Zygote.gradient(μ₀, k) do μ₀, k # Compute gradients for the whole model
-            ELBO(m, μ₀, k)
+    if !isnothing(opt(m.f))
+        if ADBACKEND[] == :Zygote
+            Δμ₀, Δk = Zygote.gradient(μ₀, k) do μ₀, k # Compute gradients for the whole model
+                ELBO(m, μ₀, k)
+            end
+            # Optimize prior mean
+            isnothing(Δμ₀) || update!(μ₀, Δμ₀, xview(m))
+            if isnothing(Δk)
+                @warn "Kernel gradients are equal to zero" maxlog = 1
+                return nothing
+            end
+            # Optimize kernel parameters
+            update!(opt(m.f), kernel(m.f), Δk)
+        elseif ADBACKEND[] == :ForwardDiff
+            θ, re = destructure((μ₀, k))
+            Δ = ForwardDiff.gradient(θ) do θ
+                ELBO(m, re(θ)...)
+            end
+            @show Δ
         end
-        # Optimize prior mean
-        isnothing(Δμ₀) || update!(μ₀, Δμ₀, xview(m))
-        if isnothing(Δk)
-            @warn "Kernel gradients are equal to zero" maxlog=1
-            return nothing
-        end
-        # Optimize kernel parameters
-        update!(opt(m.f), kernel(m.f), Δk)
-    elseif ADBACKEND[] == :ForwardDiff
-        θ, re = destructure((μ₀, k))
-        Δ = ForwardDiff.gradient(θ) do θ
-            ELBO(m, re(θ)...)
-        end
-        @show Δ
     end
     # end
     return nothing
@@ -35,99 +37,68 @@ end
 #     setHPupdated!(m.inference, true)
 # end
 
-@traitfn function update_hyperparameters!(
-    m::TGP,
-) where {TGP <: AbstractGP; IsFull{TGP}}
-    # if !isnothing(opt(f)) # Only proceeds to computations if an optimiser is present
-    μ₀ = pr_means(m) # Get prior means
-    ks = kernels(m) # Get kernels
-    if ADBACKEND[] == :Zygote
-        Δμ₀, Δk = Zygote.gradient(μ₀, ks) do μ₀, ks # Compute gradients for the whole model
-            ELBO(m, μ₀, ks)
+@traitfn function update_hyperparameters!(m::TGP) where {TGP <: AbstractGP; IsFull{TGP}}
+    if any((!) ∘ isnothing ∘ opt, m) # Check there is a least one optimiser
+        μ₀ = pr_means(m) # Get prior means
+        ks = kernels(m) # Get kernels
+        if ADBACKEND[] == :Zygote
+            Δμ₀, Δk = Zygote.gradient(μ₀, ks) do μ₀, ks # Compute gradients for the whole model
+                ELBO(m, μ₀, ks)
+            end
+            # Optimize prior mean
+            isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
+            if isnothing(Δk)
+                @warn "Kernel gradients are equal to zero" maxlog = 1
+                return nothing
+            end
+            # Optimize kernel parameters
+            for (f, Δ) in zip(m.f, Δk)
+                update!(opt(f), kernel(f), Δ)
+            end
+        elseif ADBACKEND[] == :ForwardDiff
+            θ, re = destructure((μ₀, ks))
+            Δ = ForwardDiff.gradient(θ) do θ
+                ELBO(m, re(θ)...)
+            end
+            @show Δ
         end
-        # Optimize prior mean
-        isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
-        if isnothing(Δk)
-            @warn "Kernel gradients are equal to zero" maxlog=1
-            return nothing
-        end
-        # Optimize kernel parameters
-        for (f, Δ) in zip(m.f, Δk)
-            update!(opt(f), kernel(f), Δ)
-        end
-    elseif ADBACKEND[] == :ForwardDiff
-        θ, re = destructure((μ₀, ks))
-        Δ = ForwardDiff.gradient(θ) do θ
-            ELBO(m, re(θ)...)
-        end
-        @show Δ
-    end
-    # end
-    return nothing
-end
-
-# @traitfn function update_hyperparameters!(
-#     m::TGP,
-# ) where {TGP <: AbstractGP; !IsFull{TGP}}
-#     update_hyperparameters!.(
-#         m.f,
-#         Ref(xview(m)),
-#         ∇E_μ(m),
-#         ∇E_Σ(m),
-#         inference(m),
-#         inference(m).vi_opt,
-#     )
-#     setHPupdated!(m.inference, true)
-# end
-
-@traitfn function update_hyperparameters!(
-    m::TGP,
-) where {TGP <: AbstractGP; !IsFull{TGP}}
-    μ₀ = pr_means(m)
-    ks = kernels(m)
-    Zs = Zviews(m)
-    if ADBACKEND[] == :Zygote
-        Δμ₀, Δk, ΔZ = Zygote.gradient(μ₀, ks, Zs) do μ₀, ks, Zs
-            ELBO(m, μ₀, ks, Zs)
-        end
-        # Optimize prior mean
-        isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
-        # Optimize kernel parameters
-        for (f, Δ) in zip(m.f, Δk)
-            update!(opt(f), kernel(f), Δ)
-        end
-        # Optimize inducing point locations
-        for (f, Δ) in zip(m.f, ΔZ)
-            update!(opt(f.Z), data(f.Z), Δ)
-        end
-    elseif ADBACKEND[] == :ForwardDiff
-        θ, re = destructure((μ₀, ks, Zs))
-        Δ = ForwardDiff.gradient(θ) do θ
-            ELBO(m, re(θ)...)
-        end
-        @show Δ
     end
     return nothing
 end
 
-# @traitfn function update_hyperparameters!(
-#     m::TGP,
-# ) where {TGP <: AbstractGP; !IsFull{TGP}}
-#     update_hyperparameters!.(
-#         m.f,
-#         likelihood(m),
-#         inference(m),
-#         Ref(xview(m)),
-#         Ref(yview(m)),
-#     )
-#     setHPupdated!(inference(m), true)
-# end
+@traitfn function update_hyperparameters!(m::TGP) where {TGP <: AbstractGP; !IsFull{TGP}}
+    # Check that here is least one optimiser
+    if any((!) ∘ isnothing ∘ opt, m) || any((!) ∘ isnothing ∘ opt ∘ Zview, m)
+        μ₀ = pr_means(m)
+        ks = kernels(m)
+        Zs = Zviews(m)
+        if ADBACKEND[] == :Zygote
+            Δμ₀, Δk, ΔZ = Zygote.gradient(μ₀, ks, Zs) do μ₀, ks, Zs
+                ELBO(m, μ₀, ks, Zs)
+            end
+            # Optimize prior mean
+            isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
+            # Optimize kernel parameters
+            for (f, Δ) in zip(m.f, Δk)
+                update!(opt(f), kernel(f), Δ)
+            end
+            # Optimize inducing point locations
+            for (f, Δ) in zip(m.f, ΔZ)
+                update!(opt(f.Z), data(f.Z), Δ)
+            end
+        elseif ADBACKEND[] == :ForwardDiff
+            θ, re = destructure((μ₀, ks, Zs))
+            Δ = ForwardDiff.gradient(θ) do θ
+                ELBO(m, re(θ)...)
+            end
+            @show Δ
+        end
+    end
+    return nothing
+end
 
 ## Update all hyperparameters for the full batch GP models ##
-function update_hyperparameters!(
-    gp::AbstractLatent,
-    X::AbstractVector,
-)
+function update_hyperparameters!(gp::AbstractLatent, X::AbstractVector)
     if !isnothing(gp.opt)
         f_l, f_μ₀ = hyperparameter_gradient_function(gp, X)
         ad_backend = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
@@ -211,17 +182,12 @@ function update_hyperparameters!(
     end
 end
 
-
 ## Return the derivative of the KL divergence between the posterior and the GP prior ##
 function hyperparameter_KL_gradient(J::AbstractMatrix, A::AbstractMatrix)
     return 0.5 * trace_ABt(J, A)
 end
 
-
-function hyperparameter_gradient_function(
-    gp::LatentGP{T},
-    ::AbstractVector,
-) where {T}
+function hyperparameter_gradient_function(gp::LatentGP{T}, ::AbstractVector) where {T}
     A = (inv(cov(gp)) - mean(gp) * transpose(mean(gp))) # μ = inv(K+σ²)*(y-μ₀)
     return (function (Jnn)
         return -hyperparameter_KL_gradient(Jnn, A)
@@ -232,11 +198,12 @@ end
 
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse model ##
 function hyperparameter_gradient_function(
-    gp::VarLatent{T},
-    X::AbstractVector,
+    gp::VarLatent{T}, X::AbstractVector
 ) where {T<:Real}
     μ₀ = pr_mean(gp, X)
-    A = (I - pr_cov(gp) \ (cov(gp) + (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))) / pr_cov(gp)
+    A =
+        (I - pr_cov(gp) \ (cov(gp) + (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))) /
+        pr_cov(gp)
     return (
         function (Jnn)
             return -hyperparameter_KL_gradient(Jnn, A)
@@ -250,35 +217,20 @@ end
 ## Return functions computing gradients of the ELBO given the kernel hyperparameters for a non-sparse latent GP ##
 function hyperparameter_gradient_function(gp::SparseVarLatent{T}) where {T<:Real}
     μ₀ = pr_mean(gp, gp.Z)
-    A = (I(dim(gp)) - pr_cov(gp) \ (cov(gp) + (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))) / cov(gp)
+    A =
+        (I(dim(gp)) - pr_cov(gp) \ (cov(gp) + (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))) /
+        cov(gp)
     κΣ = gp.κ * cov(gp)
     return (
         function (Jmm, Jnm, Jnn, ∇E_μ, ∇E_Σ, i, opt)
             return (
-                hyperparameter_expec_gradient(
-                    gp,
-                    ∇E_μ,
-                    ∇E_Σ,
-                    i,
-                    opt,
-                    κΣ,
-                    Jmm,
-                    Jnm,
-                    Jnn,
-                ) - hyperparameter_KL_gradient(Jmm, A)
+                hyperparameter_expec_gradient(gp, ∇E_μ, ∇E_Σ, i, opt, κΣ, Jmm, Jnm, Jnn) -
+                hyperparameter_KL_gradient(Jmm, A)
             )
         end,
         function (Jmm, Jnm, ∇E_μ, ∇E_Σ, i, opt)
-            hyperparameter_expec_gradient(
-                gp,
-                ∇E_μ,
-                ∇E_Σ,
-                i,
-                opt,
-                κΣ,
-                Jmm,
-                Jnm,
-                zero(gp.K̃),
+            return hyperparameter_expec_gradient(
+                gp, ∇E_μ, ∇E_Σ, i, opt, κΣ, Jmm, Jnm, zero(gp.K̃)
             ) - hyperparameter_KL_gradient(Jmm, A)
         end,
         function ()
@@ -288,8 +240,7 @@ function hyperparameter_gradient_function(gp::SparseVarLatent{T}) where {T<:Real
 end
 
 function hyperparameter_gradient_function(
-    gp::TVarLatent{T},
-    X::AbstractVector,
+    gp::TVarLatent{T}, X::AbstractVector
 ) where {T<:Real}
     μ₀ = pr_mean(gp, X)
     A =
@@ -307,50 +258,25 @@ function hyperparameter_gradient_function(
     )
 end
 
-
 function hyperparameter_gradient_function(gp::OnlineVarLatent{T}) where {T<:Real}
     μ₀ = pr_mean(gp, gp.Z)
     A =
-        (
-            I(dim(gp)) -
-            pr_cov(gp) \ (cov(gp) + (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))
-        ) / pr_cov(gp)
+        (I(dim(gp)) - pr_cov(gp) \ (cov(gp) + (mean(gp) - μ₀) * transpose(mean(gp) - μ₀))) /
+        pr_cov(gp)
     κΣ = gp.κ * cov(gp)
     κₐΣ = gp.κₐ * cov(gp)
     return (
         function (Jmm, Jnm, Jnn, Jab, Jaa, ∇E_μ, ∇E_Σ, i, opt)
-            ∇E = hyperparameter_expec_gradient(
-                gp,
-                ∇E_μ,
-                ∇E_Σ,
-                i,
-                opt,
-                κΣ,
-                Jmm,
-                Jnm,
-                Jnn,
-            )
+            ∇E = hyperparameter_expec_gradient(gp, ∇E_μ, ∇E_Σ, i, opt, κΣ, Jmm, Jnm, Jnn)
             ∇KLₐ = hyperparameter_online_gradient(gp, κₐΣ, Jmm, Jab, Jaa)
             ∇KL = hyperparameter_KL_gradient(Jmm, A)
             return ∇E + ∇KLₐ - ∇KL
         end, # Function gradient given kernel parameters
         function (Jmm, Jnm, Jab, ∇E_μ, ∇E_Σ, i, opt)
-            hyperparameter_expec_gradient(
-                gp,
-                ∇E_μ,
-                ∇E_Σ,
-                i,
-                opt,
-                κΣ,
-                Jmm,
-                Jnm,
-                zero(gp.K̃),
+            return hyperparameter_expec_gradient(
+                gp, ∇E_μ, ∇E_Σ, i, opt, κΣ, Jmm, Jnm, zero(gp.K̃)
             ) + hyperparameter_online_gradient(
-                gp,
-                κₐΣ,
-                Jmm,
-                Jab,
-                zeros(T, length(gp.Zₐ), length(gp.Zₐ)),
+                gp, κₐΣ, Jmm, Jab, zeros(T, length(gp.Zₐ), length(gp.Zₐ))
             ) - hyperparameter_KL_gradient(Jmm, A)
         end, # Function gradient given inducing points locations
         function ()
@@ -380,7 +306,6 @@ function hyperparameter_expec_gradient(
     return getρ(i) * (dμ + dΣ)
 end
 
-
 ## Gradient with respect to hyperparameters for numerical VI ##
 function hyperparameter_expec_gradient(
     gp::AbstractLatent,
@@ -409,15 +334,17 @@ function hyperparameter_online_gradient(
 )
     ιₐ = (Jab - gp.κₐ * Jmm) / pr_cov(gp)
     trace_term =
-        -0.5 * sum(trace_ABt.(
-            [gp.invDₐ],
-            [
-                Jaa,
-                2 * ιₐ * transpose(κₐΣ),
-                -ιₐ * transpose(gp.Kab),
-                -gp.κₐ * transpose(Jab),
-            ],
-        ))
+        -0.5 * sum(
+            trace_ABt.(
+                [gp.invDₐ],
+                [
+                    Jaa,
+                    2 * ιₐ * transpose(κₐΣ),
+                    -ιₐ * transpose(gp.Kab),
+                    -gp.κₐ * transpose(Jab),
+                ],
+            ),
+        )
     term_1 = dot(gp.prevη₁, ιₐ * mean(gp))
     term_2 = -dot(ιₐ * mean(gp), gp.invDₐ * gp.κₐ * mean(gp))
     return trace_term + term_1 + term_2

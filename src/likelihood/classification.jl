@@ -4,10 +4,7 @@ include("logistic.jl")
 include("bayesiansvm.jl")
 
 """ Return the labels in a vector of vectors for multiple outputs"""
-function treat_labels!(
-    y::AbstractVector{<:Real},
-    likelihood::ClassificationLikelihood,
-)
+function treat_labels!(y::AbstractVector{<:Real}, likelihood::ClassificationLikelihood)
     labels = unique(y)
     @assert length(labels) <= 2 "Labels of y should be binary {-1,1} or {0,1}"
     if sort(Int64.(labels)) == [0; 1]
@@ -20,9 +17,12 @@ function treat_labels!(
 end
 
 function treat_labels!(y::AbstractVector, likelihood::ClassificationLikelihood)
-    error("For classification target(s) should be real valued (Bool, Integer or Float)")
+    return error(
+        "For classification target(s) should be real valued (Bool, Integer or Float)"
+    )
 end
 
 predict_y(l::ClassificationLikelihood, μ::AbstractVector{<:Real}) = sign.(μ)
-predict_y(l::ClassificationLikelihood, μ::AbstractVector{<:AbstractVector}) =
-    sign.(first(μ))
+function predict_y(l::ClassificationLikelihood, μ::AbstractVector{<:AbstractVector})
+    return sign.(first(μ))
+end

@@ -20,19 +20,17 @@ isStochastic(i::AbstractInference) = i.stoch
 ## Multiple accessors
 conv_crit(i::AbstractInference) = i.ϵ
 
-
 ## Conversion from natural to standard distribution parameters ##
 function global_update!(gp::AbstractLatent)
     gp.post.Σ .= -0.5 * inv(nat2(gp))
-    gp.post.μ .= cov(gp) * nat1(gp)
+    return gp.post.μ .= cov(gp) * nat1(gp)
 end
 
 ## For the online case, the size may vary and inplace updates are note valid
 function global_update!(gp::OnlineVarLatent)
     gp.post.Σ = -0.5 * inv(nat2(gp))
-    gp.post.μ = cov(gp) * nat1(gp)
+    return gp.post.μ = cov(gp) * nat1(gp)
 end
-
 
 ## Default function for getting a view on y
 xview(inf::AbstractInference) = inf.xview
@@ -51,11 +49,11 @@ getρ(inf::AbstractInference) = inf.ρ
 setρ!(inf::AbstractInference, ρ) = inf.ρ = ρ
 
 MBIndices(inf::AbstractInference) = inf.MBIndices
-setMBIndices!(inf::AbstractInference, mbindices::AbstractVector) =
-    inf.MBIndices .= mbindices
+function setMBIndices!(inf::AbstractInference, mbindices::AbstractVector)
+    return inf.MBIndices .= mbindices
+end
 
-setHPupdated!(inf::AbstractInference, status::Bool) =
-    inf.HyperParametersUpdated = status
+setHPupdated!(inf::AbstractInference, status::Bool) = inf.HyperParametersUpdated = status
 isHPupdated(inf::AbstractInference) = inf.HyperParametersUpdated
 
 nIter(inf::AbstractInference) = inf.nIter
@@ -75,15 +73,9 @@ function tuple_inference(
     nSamples::Int,
     nMinibatch::Int,
     xview::AbstractVector,
-    yview::AbstractVector
+    yview::AbstractVector,
 )
     return tuple_inference(
-        i,
-        nLatent,
-        fill(nFeatures, nLatent),
-        nSamples,
-        nMinibatch,
-        xview,
-        yview
+        i, nLatent, fill(nFeatures, nLatent), nSamples, nMinibatch, xview, yview
     )
 end

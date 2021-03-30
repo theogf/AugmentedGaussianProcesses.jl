@@ -10,7 +10,7 @@ mutable struct AVIOptimizer{T<:Real,O} <: AOptimizer{T}
     ∇η₁::Vector{T}
     ∇η₂::Matrix{T}
     function AVIOptimizer{T}(n::Int, opt::O) where {T,O}
-        new{T,O}(opt, zeros(T, n), zeros(T, n, n))
+        return new{T,O}(opt, zeros(T, n), zeros(T, n, n))
     end
 end
 
@@ -22,7 +22,7 @@ mutable struct NVIOptimizer{T<:Real,O} <: NOptimizer{T}
     λ::Vector{T} #Derivative  <d²V/dx²>_qm
     L::LowerTriangular{T,Matrix{T}}
     function NVIOptimizer{T}(n::Int, b::Int, opt::O) where {T,O}
-        new{T,O}(
+        return new{T,O}(
             opt,
             zeros(T, n),
             zeros(T, n, n),
@@ -38,5 +38,5 @@ mutable struct SOptimizer{T<:Real,O} <: AOptimizer{T}
 end
 
 function SOptimizer{T}(opt::O) where {T,O}
-    SOptimizer{T,O}(opt)
+    return SOptimizer{T,O}(opt)
 end
