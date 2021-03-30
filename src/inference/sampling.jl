@@ -51,6 +51,6 @@ function logprior(gp::AbstractLatent, f)
 end
 
 function store_variables!(i::SamplingInference{T}, fs) where {T}
-    i.sample_store[(nIter(i)-i.nBurnin)÷i.samplefrequency, :, :] .=
+    i.sample_store[(nIter(i)-i.nBurnin)÷i.thinning, :, :] .=
         hcat(fs...)
 end

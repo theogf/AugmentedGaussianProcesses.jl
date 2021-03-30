@@ -1,16 +1,16 @@
 """
-    HMCSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=10)
+    HMCSampling(;ϵ::T=1e-5,nBurnin::Int=100,thinning::Int=10)
 
 Draw samples from the true posterior via Hamiltonian Monte Carlo.
 
-**Keywords arguments**
-    - `ϵ::T` : convergence criteria
-    - `nBurnin::Int` : Number of samples discarded before starting to save samples
-    - `samplefrequency::Int` : Frequency of sampling
+## Keywords arguments
+- `ϵ::T` : convergence criteria
+- `nBurnin::Int` : Number of samples discarded before starting to save samples
+- `thinning::Int` : Frequency of sampling
 """
 mutable struct HMCSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     nBurnin::Int # Number of burnin samples
-    samplefrequency::Integer # Frequency at which samples are saved
+    thinning::Integer # Frequency at which samples are saved
     ϵ::T #Convergence criteria
     nIter::Int #Number of samples computed
     nSamples::Int # Number of data samples
@@ -21,16 +21,16 @@ mutable struct HMCSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     sample_store::Array{T,3}
     function HMCSampling{T}(
         nBurnin::Int,
-        samplefrequency::Int,
+        thinning::Int,
         ϵ::Real,
     ) where {T}
-        nBurnin >= 0 || error("nBurnin should be a positive integer")
-        samplefrequency >= 0 || error("samplefrequency should be a positive integer")
-        return new{T,1,Vector{T},Vector{T}}(nBurnin, samplefrequency, ϵ)
+        nBurnin >= 0 || error("nBurnin should be positive")
+        thinning >= 0 || error("thinning should be positive")
+        return new{T,1,Vector{T},Vector{T}}(nBurnin, thinning, ϵ)
     end
     function HMCSampling{T}(
         nBurnin::Int,
-        samplefrequency::Int,
+        thinning::Int,
         ϵ::Real,
         nFeatures::Vector{<:Int},
         nSamples::Int,
@@ -41,7 +41,7 @@ mutable struct HMCSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
         opts = ntuple(_ -> SOptimizer{T}(nothing), nLatent)
         new{T,nLatent,Tx,Ty}(
             nBurnin,
-            samplefrequency,
+            thinning,
             ϵ,
             0,
             nSamples,
@@ -60,9 +60,9 @@ nMinibatch(i::HMCSampling) = i.nSamples
 function HMCSampling(;
     ϵ::T = 1e-5,
     nBurnin::Int = 100,
-    samplefrequency::Int = 10,
+    thinning::Int = 10,
 ) where {T<:Real}
-    HMCSampling{Float64}(nBurnin, samplefrequency, ϵ)
+    HMCSampling{Float64}(nBurnin, thinning, ϵ)
 end
 
 function Base.show(io::IO, inference::HMCSampling{T}) where {T<:Real}
@@ -80,7 +80,7 @@ function tuple_inference(
 ) where {T}
     return HMCSampling{T}(
         i.nBurnin,
-        i.samplefrequency,
+        i.thinning,
         i.ϵ,
         nFeatures,
         nSamples,

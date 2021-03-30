@@ -7,7 +7,7 @@ b = 5
 x = rand(N, D)
 y = rand(N)
 @testset "HMC Sampling" begin
-    i = HMCSampling(nBurnin = 0, samplefrequency = 1)
+    i = HMCSampling(nBurnin = 0, thinning = 1)
 
     @test repr(i) == "Hamilton Monte Carlo Sampler"
     i = AGP.tuple_inference(i, L, D, N, b, [], [])
