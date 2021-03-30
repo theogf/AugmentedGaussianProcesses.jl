@@ -1,4 +1,4 @@
-abstract type ClassificationLikelihood{T<:Real} <: Likelihood{T} end
+abstract type ClassificationLikelihood{T<:Real} <: AbstractLikelihood{T} end
 
 include("logistic.jl")
 include("bayesiansvm.jl")

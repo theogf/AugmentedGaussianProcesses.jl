@@ -174,16 +174,16 @@ function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T = T(jitt
     k = length(gp.Z)
     gp.Zₐ = vec(gp.Z)
     gp.post = OnlineVarPosterior{T}(k)
-    gp.prior = GPPrior(kernel(gp), pr_mean(gp), PDMat(kernelmatrix(kernel(gp), Zview(gp)) + jitt * I))
+    gp.prior = GPPrior(kernel(gp), pr_mean(gp), cholesky(kernelmatrix(kernel(gp), Zview(gp)) + jitt * I))
 
-    gp.Kab = copy(pr_cov(gp).mat)
+    gp.Kab = Array(pr_cov(gp))
     gp.κₐ = Matrix{T}(I(dim(gp)))
     gp.K̃ₐ = zero(gp.Kab)
 
     gp.Knm = kernelmatrix(kernel(gp), input(m), gp.Z)
     gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ =
-        kerneldiagmatrix(kernel(gp), input(m)) .+ jitt -
+        kernelmatrix_diag(kernel(gp), input(m)) .+ jitt -
         diag_ABt(gp.κ, gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 
@@ -200,11 +200,11 @@ function compute_old_matrices!(m::OnlineSVGP{T}) where {T}
 end
 
 function compute_old_matrices!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)
-    gp.prior.K = PDMat(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
+    gp.prior.K = cholesky(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
     gp.Knm = kernelmatrix(kernel(gp), X, gp.Zₐ)
     gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ =
-        kerneldiagmatrix(kernel(gp), X) .+ jitt -
+        kernelmatrix_diag(kernel(gp), X) .+ jitt -
         diag_ABt(gp.κ, gp.Knm)
     @assert all(gp.K̃ .> 0) "K̃ has negative values"
 end

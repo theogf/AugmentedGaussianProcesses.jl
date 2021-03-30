@@ -10,7 +10,7 @@ X = rand(N,D)
         μ₀ = ZeroMean()
         @test ZeroMean() isa ZeroMean{Float64}
         @test repr(μ₀) == "Zero Mean Prior"
-        @test isnothing(AGP.update!(μ₀,[x],X))
+        @test isnothing(AGP.update!(μ₀, []))
         @test all(μ₀(X) .== zeros(N))
         @test μ₀(x) == zero(x)
 end

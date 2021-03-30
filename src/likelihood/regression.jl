@@ -1,4 +1,4 @@
-abstract type RegressionLikelihood{T<:Real} <: Likelihood{T} end
+abstract type RegressionLikelihood{T<:Real} <: AbstractLikelihood{T} end
 
 include("gaussian.jl")
 include("studentt.jl")
@@ -15,6 +15,6 @@ function treat_labels!(
     return y, 1, likelihood
 end
 
-predict_y(l::RegressionLikelihood, μ::AbstractVector{<:Real}) = μ
-predict_y(l::RegressionLikelihood, μ::AbstractVector{<:AbstractVector}) =
+predict_y(::RegressionLikelihood, μ::AbstractVector{<:Real}) = μ
+predict_y(::RegressionLikelihood, μ::AbstractVector{<:AbstractVector}) =
     first(μ)

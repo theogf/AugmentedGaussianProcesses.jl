@@ -1,7 +1,6 @@
 """
-```julia
-GaussianLikelihood(σ²::T=1e-3) #σ² is the variance
-```
+    GaussianLikelihood(σ²::T=1e-3) # σ² is the **variance**
+
 Gaussian noise :
 ```math
     p(y|f) = N(y|f,σ²)
@@ -34,11 +33,11 @@ end
 implemented(::GaussianLikelihood, ::Union{<:AnalyticVI,<:Analytic}) = true
 
 function (l::GaussianLikelihood)(y::Real, f::Real)
-    Distributions.pdf(Normal(y, sqrt(noise(l))), f)
+    pdf(Normal(y, sqrt(noise(l))), f)
 end
 
 function Distributions.loglikelihood(l::GaussianLikelihood, y::Real, f::Real)
-    Distributions.logpdf(Normal(y, sqrt(noise(l))), f)
+    logpdf(Normal(y, sqrt(noise(l))), f)
 end
 
 noise(l::GaussianLikelihood) = first(l.σ²)
@@ -57,7 +56,7 @@ end
 
 function init_likelihood(
     likelihood::GaussianLikelihood{T},
-    ::Inference,
+    ::AbstractInference,
     ::Int,
     nSamplesUsed::Int,
 ) where {T}
@@ -92,19 +91,19 @@ end
 @inline ∇E_Σ(
     l::GaussianLikelihood{T},
     ::AOptimizer,
-    y::AbstractVector,
+    ::AbstractVector,
 ) where {T} = (0.5 * l.θ,)
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::GaussianLikelihood,
     ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
-    diag_cov::AbstractVector,
+    diagΣ::AbstractVector,
 )
     return -0.5 * (
         length(y) * (log(twoπ) + log(noise(l))) +
-        (sum(abs2, y - μ) + sum(diag_cov)) / noise(l)
+        (sum(abs2, y - μ) + sum(diagΣ)) / noise(l)
     )
 end
 

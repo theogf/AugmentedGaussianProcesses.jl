@@ -1,7 +1,10 @@
 """
-```julia
-HeteroscedasticLikelihood(λ::T=1.0)
-```
+    HeteroscedasticLikelihood(λ::T=1.0)
+
+## Arguments
+- `λ::Real` : The maximum precision possible (this is optimized during training)
+
+---
 
 Gaussian with heteroscedastic noise given by another gp:
 ```math
@@ -9,7 +12,7 @@ Gaussian with heteroscedastic noise given by another gp:
 ```
 Where `σ` is the logistic function
 
-Augmentation will be described in a future paper
+The augmentation is not trivial and will be described in a future paper
 """
 mutable struct HeteroscedasticLikelihood{T<:Real, A<:AbstractVector{T}} <: RegressionLikelihood{T}
     λ::T
@@ -40,11 +43,11 @@ end
 implemented(::HeteroscedasticLikelihood, ::AnalyticVI) = true
 
 function (l::HeteroscedasticLikelihood)(y::Real, f::AbstractVector)
-    Distributions.pdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
+    pdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
 end
 
 function Distributions.loglikelihood(l::HeteroscedasticLikelihood, y::Real, f::AbstractVector)
-    Distributions.logpdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
+    logpdf(Normal(y, inv(sqrt(l.λ * logistic(f[2])))), f[1])
 end
 
 function Base.show(io::IO, ::HeteroscedasticLikelihood{T}) where {T}
@@ -66,7 +69,7 @@ end
 
 function init_likelihood(
     likelihood::HeteroscedasticLikelihood{T},
-    ::Inference{T},
+    ::AbstractInference{T},
     ::Int,
     nMinibatch::Int,
 ) where {T<:Real}
@@ -171,9 +174,9 @@ function proba_y(
     σ²f + expectation.(x -> inv(model.likelihood.λ * logistic(x)), μg, σ²g)
 end
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::HeteroscedasticLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y::AbstractVector,
     μ,
     diag_cov,

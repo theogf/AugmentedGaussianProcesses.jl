@@ -3,29 +3,125 @@ include("zygote_rules.jl")
 include("forwarddiff_rules.jl")
 
 function update_hyperparameters!(m::GP)
-    update_hyperparameters!(getf(m), xview(m))
+    μ₀ = pr_mean(m.f) # Get prior means
+    k = kernel(m.f) # Get kernels
+    if ADBACKEND[] == :Zygote
+        Δμ₀, Δk = Zygote.gradient(μ₀, k) do μ₀, k # Compute gradients for the whole model
+            ELBO(m, μ₀, k)
+        end
+        # Optimize prior mean
+        isnothing(Δμ₀) || update!(μ₀, Δμ₀, xview(m))
+        if isnothing(Δk)
+            @warn "Kernel gradients are equal to zero" maxlog=1
+            return nothing
+        end
+        # Optimize kernel parameters
+        update!(opt(m.f), kernel(m.f), Δk)
+    elseif ADBACKEND[] == :ForwardDiff
+        θ, re = destructure((μ₀, k))
+        Δ = ForwardDiff.gradient(θ) do θ
+            ELBO(m, re(θ)...)
+        end
+        @show Δ
+    end
+    # end
+    return nothing
 end
+
+# @traitfn function update_hyperparameters!(
+#     m::TGP,
+# ) where {TGP <: AbstractGP; IsFull{TGP}}
+#     update_hyperparameters!.(m.f, [xview(m)])
+#     setHPupdated!(m.inference, true)
+# end
 
 @traitfn function update_hyperparameters!(
     m::TGP,
 ) where {TGP <: AbstractGP; IsFull{TGP}}
-    update_hyperparameters!.(m.f, [xview(m)])
-    setHPupdated!(m.inference, true)
+    # if !isnothing(opt(f)) # Only proceeds to computations if an optimiser is present
+    μ₀ = pr_means(m) # Get prior means
+    ks = kernels(m) # Get kernels
+    if ADBACKEND[] == :Zygote
+        Δμ₀, Δk = Zygote.gradient(μ₀, ks) do μ₀, ks # Compute gradients for the whole model
+            ELBO(m, μ₀, ks)
+        end
+        # Optimize prior mean
+        isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
+        if isnothing(Δk)
+            @warn "Kernel gradients are equal to zero" maxlog=1
+            return nothing
+        end
+        # Optimize kernel parameters
+        for (f, Δ) in zip(m.f, Δk)
+            update!(opt(f), kernel(f), Δ)
+        end
+    elseif ADBACKEND[] == :ForwardDiff
+        θ, re = destructure((μ₀, ks))
+        Δ = ForwardDiff.gradient(θ) do θ
+            ELBO(m, re(θ)...)
+        end
+        @show Δ
+    end
+    # end
+    return nothing
 end
+
+# @traitfn function update_hyperparameters!(
+#     m::TGP,
+# ) where {TGP <: AbstractGP; !IsFull{TGP}}
+#     update_hyperparameters!.(
+#         m.f,
+#         Ref(xview(m)),
+#         ∇E_μ(m),
+#         ∇E_Σ(m),
+#         inference(m),
+#         inference(m).vi_opt,
+#     )
+#     setHPupdated!(m.inference, true)
+# end
 
 @traitfn function update_hyperparameters!(
     m::TGP,
 ) where {TGP <: AbstractGP; !IsFull{TGP}}
-    update_hyperparameters!.(
-        m.f,
-        Ref(xview(m)),
-        ∇E_μ(m),
-        ∇E_Σ(m),
-        inference(m),
-        inference(m).vi_opt,
-    )
-    setHPupdated!(m.inference, true)
+    μ₀ = pr_means(m)
+    ks = kernels(m)
+    Zs = Zviews(m)
+    if ADBACKEND[] == :Zygote
+        Δμ₀, Δk, ΔZ = Zygote.gradient(μ₀, ks, Zs) do μ₀, ks, Zs
+            ELBO(m, μ₀, ks, Zs)
+        end
+        # Optimize prior mean
+        isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
+        # Optimize kernel parameters
+        for (f, Δ) in zip(m.f, Δk)
+            update!(opt(f), kernel(f), Δ)
+        end
+        # Optimize inducing point locations
+        for (f, Δ) in zip(m.f, ΔZ)
+            update!(opt(f.Z), data(f.Z), Δ)
+        end
+    elseif ADBACKEND[] == :ForwardDiff
+        θ, re = destructure((μ₀, ks, Zs))
+        Δ = ForwardDiff.gradient(θ) do θ
+            ELBO(m, re(θ)...)
+        end
+        @show Δ
+    end
+    return nothing
 end
+
+# @traitfn function update_hyperparameters!(
+#     m::TGP,
+# ) where {TGP <: AbstractGP; !IsFull{TGP}}
+#     update_hyperparameters!.(
+#         m.f,
+#         likelihood(m),
+#         inference(m),
+#         Ref(xview(m)),
+#         Ref(yview(m)),
+#     )
+#     setHPupdated!(inference(m), true)
+# end
 
 ## Update all hyperparameters for the full batch GP models ##
 function update_hyperparameters!(
@@ -34,14 +130,12 @@ function update_hyperparameters!(
 )
     if !isnothing(gp.opt)
         f_l, f_μ₀ = hyperparameter_gradient_function(gp, X)
-        ad_use = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
+        ad_backend = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
         Δμ₀ = f_μ₀()
-        Δk = if ad_use == :forward_diff
+        Δk = if ad_backend == :forward
             ∇L_ρ_forward(f_l, gp, X)
-        elseif ad_use == :reverse_diff
-            ∇L_ρ_reverse(f_l, gp, X)
-        else
-            error("Uncompatible ADBackend")
+        elseif ad_backend == :zygote
+            ∇L_ρ_zygote(f_l, gp, X)
         end
         apply_Δk!(gp.opt, kernel(gp), Δk) # Apply gradients to the kernel parameters
         apply_gradients_mean_prior!(pr_mean(gp), Δμ₀, X)
@@ -54,34 +148,66 @@ function update_hyperparameters!(
     X::AbstractVector,
     ∇E_μ::AbstractVector,
     ∇E_Σ::AbstractVector,
-    i::Inference,
+    i::AbstractInference,
     vi_opt::InferenceOptimizer,
 )
     Δμ₀, Δk = if !isnothing(gp.opt)
         f_ρ, f_Z, f_μ₀ = hyperparameter_gradient_function(gp)
-        k_aduse = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
+        ad_backend = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
         Δμ₀ = f_μ₀()
-        Δk = if k_aduse == :forward_diff
+        Δk = if ad_backend == :forward
             ∇L_ρ_forward(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
-        elseif k_aduse == :reverse_diff
-            ∇L_ρ_reverse(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
+        elseif ad_backend == :zygote
+            ∇L_ρ_zygote(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         end
         (Δμ₀, Δk)
     else
         nothing, nothing
     end
     if !isnothing(opt(gp.Z))
-        Z_aduse = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]
-        Z_grads = if Z_aduse == :forward_diff
+        ad_backend = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]
+        Z_grads = if ad_backend == :forward
             Z_gradient_forward(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt) #Compute the gradient given the inducing points location
-        elseif Z_aduse == :reverse_diff
-            Z_gradient_reverse(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt)
+        elseif ad_backend == :zygote
+            Z_gradient_zygote(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         end
         update!(opt(gp.Z), gp.Z.Z, Z_grads) #Apply the gradients on the location
     end
     if !all([isnothing(Δk), isnothing(Δμ₀)])
         apply_Δk!(gp.opt, kernel(gp), Δk) # Apply gradients to the kernel parameters
         apply_gradients_mean_prior!(pr_mean(gp), Δμ₀, X)
+    end
+end
+
+function update_hyperparameters!(
+    gp::AbstractLatent,
+    l::AbstractLikelihood,
+    i::AbstractInference,
+    X::AbstractVector,
+    Y::AbstractVector,
+)
+    Δμ₀, Δk = if !isnothing(gp.opt)
+        ad_backend = K_ADBACKEND[] == :auto ? ADBACKEND[] : K_ADBACKEND[]
+        (Δμ₀, Δk) = if ad_backend == :forward
+            ∇L_ρ_forward(f_ρ, gp, X, ∇E_μ, ∇E_Σ, i, vi_opt)
+        elseif ad_backend == :zygote
+            ∇L_ρ_zygote(gp, l, i, X, Y)
+        end
+    else
+        nothing, nothing
+    end
+    if !isnothing(opt(gp.Z))
+        ad_backend = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]
+        global Z_grads = if ad_backend == :forward
+            Z_gradient_forward(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt) #Compute the gradient given the inducing points location
+        elseif ad_backend == :zygote
+            Z_gradient_zygote(gp, l, i, X, Y)
+        end
+        update!(opt(gp.Z), gp.Z.Z, Z_grads) #Apply the gradients on the location
+    end
+    if !all([isnothing(Δk), isnothing(Δμ₀)])
+        apply!(kernel(gp), Δk, gp.opt) # Apply gradients to the kernel parameters
+        update!(pr_mean(gp), Δμ₀, X)
     end
 end
 
@@ -94,7 +220,7 @@ end
 
 function hyperparameter_gradient_function(
     gp::LatentGP{T},
-    X::AbstractVector,
+    ::AbstractVector,
 ) where {T}
     A = (inv(cov(gp)) - mean(gp) * transpose(mean(gp))) # μ = inv(K+σ²)*(y-μ₀)
     return (function (Jnn)

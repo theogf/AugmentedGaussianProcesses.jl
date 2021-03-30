@@ -1,12 +1,15 @@
 """
-```julia
-StudentTLikelihood(ν::T,σ::Real=one(T))
-```
+    StudentTLikelihood(ν::T, σ::Real=one(T))
+
+## Arguments
+- `ν::Real` : degrees of freedom of the student-T
+- `σ::Real` : standard deviation of the local scale 
+
 [Student-t likelihood](https://en.wikipedia.org/wiki/Student%27s_t-distribution) for regression:
 ```math
     p(y|f,ν,σ) = Γ(0.5(ν+1))/(sqrt(νπ) σ Γ(0.5ν)) * (1+(y-f)^2/(σ^2ν))^(-0.5(ν+1))
 ```
-`ν` is the number of degrees of freedom and `σ` is the variance for local scale of the data.
+`ν` is the number of degrees of freedom and `σ` is the standard deviation for local scale of the data.
 
 ---
 
@@ -25,6 +28,7 @@ mutable struct StudentTLikelihood{T<:Real,A<:AbstractVector{T}} <:
     c::A
     θ::A
     function StudentTLikelihood{T}(ν::T, σ::T = one(T)) where {T<:Real}
+        ν > 0.5 || error("ν should be greater than 0.5")
         new{T,Vector{T}}(ν, (ν + one(T)) / 2.0, σ)
     end
     function StudentTLikelihood{T}(
@@ -48,8 +52,8 @@ implemented(
 
 function init_likelihood(
     likelihood::StudentTLikelihood{T},
-    inference::Inference{T},
-    nLatent::Int,
+    inference::AbstractInference{T},
+    ::Int,
     nSamplesUsed::Int,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
@@ -65,11 +69,13 @@ function init_likelihood(
 end
 
 function (l::StudentTLikelihood)(y::Real, f::Real)
-    tdistpdf(l.ν, (y - f) / l.σ)
+    gamma(l.α) / (sqrt(l.ν * π) * gamma(l.ν / 2)) * (1 + abs2((y - f) / l.σ))^(-l.α)
+    # tdistpdf(l.ν, (y - f) / l.σ) uses R so not differentiable
 end
 
 function Distributions.loglikelihood(l::StudentTLikelihood, y::Real, f::Real)
-    tdistlogpdf(l.ν, (y - f) / l.σ)
+    log(l(y, f))
+    # tdistlogpdf(l.ν, (y - f) / l.σ) uses R so not differentiable
 end
 
 function Base.show(io::IO, model::StudentTLikelihood{T}) where {T}
@@ -110,14 +116,14 @@ end
 
 @inline ∇E_μ(l::StudentTLikelihood, ::AOptimizer, y::AbstractVector) =
     (l.θ .* y,)
-@inline ∇E_Σ(l::StudentTLikelihood, ::AOptimizer, y::AbstractVector) =
+@inline ∇E_Σ(l::StudentTLikelihood, ::AOptimizer, ::AbstractVector) =
     (0.5 .* l.θ,)
 
 ## ELBO Section ##
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::StudentTLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
@@ -142,11 +148,11 @@ end
 
 ## PDF and Log PDF Gradients ## (verified gradients)
 
-function grad_loglike(l::StudentTLikelihood{T}, y::Real, f::Real) where {T<:Real}
+function ∇loglikelihood(l::StudentTLikelihood{T}, y::Real, f::Real) where {T<:Real}
     (one(T) + l.ν) * (y - f) / ((f - y)^2 + l.σ^2 * l.ν)
 end
 
-function hessian_loglike(
+function hessloglikelihood(
     l::StudentTLikelihood{T},
     y::Real,
     f::Real,

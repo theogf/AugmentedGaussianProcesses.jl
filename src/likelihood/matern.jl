@@ -2,15 +2,15 @@ abstract type MaternLikelihood{T<:Real} <: RegressionLikelihood{T} end
 
 
 """
-**Matern 3/2 likelihood**
+    Matern3_2Likelihood(ρ::Real=1.0)
 
-Matern 3/2 likelihood for regression: ````
+## Arguments
+- `ρ::Real` : lengthscale
+
+---
+
+Matern 3/2 likelihood for regression:
 see [wiki page](https://en.wikipedia.org/wiki/Mat%C3%A9rn_covariance_function)
-
-```julia
-Matern3_2Likelihood(ρ::T) #ρ is the lengthscale
-```
-
 ---
 
 For the analytical solution, it is augmented via:
@@ -47,8 +47,8 @@ implemented(
 
 function init_likelihood(
     likelihood::Matern3_2Likelihood{T},
-    inference::Inference{T},
-    nLatent::Int,
+    inference::AbstractInference{T},
+    ::Int,
     nSamplesUsed::Int,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
@@ -134,12 +134,12 @@ function expecLogLikelihood(
 end
 
 function InverseGammaKL(l::Matern3_2Likelihood{T}) where {T}
-    α_p = model.likelihood.ν / 2
-    β_p = α_p * model.likelihood.σ^2
+    α_p = l.ν / 2
+    β_p = α_p * l.σ^2
     model.inference.ρ * sum(broadcast(
         InverseGammaKL,
-        model.likelihood.α,
-        model.likelihood.β,
+        l.α,
+        l.β,
         α_p,
         β_p,
     ))
@@ -147,7 +147,7 @@ end
 
 ## PDF and Log PDF Gradients ## (verified gradients)
 
-@inline function grad_loglike(
+@inline function ∇loglikehood(
     l::Matern3_2Likelihood,
     y::Real,
     f::Real,
@@ -155,7 +155,7 @@ end
     3.0 * (y - f) / (l.ρ * (abs(f - y) * sqrt(3) + l.ρ))
 end
 
-@inline function hessian_loglike(
+@inline function hessloglikelihood(
     l::Matern3_2Likelihood,
     y::Real,
     f::Real,

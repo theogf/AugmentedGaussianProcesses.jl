@@ -1,18 +1,18 @@
 """
-    GibbsSampling(;ϵ::T=1e-5,nBurnin::Int=100,samplefrequency::Int=1)
+    GibbsSampling(;ϵ::T=1e-5, nBurnin::Int=100, thinning::Int=1)
 
 Draw samples from the true posterior via Gibbs Sampling.
 
-**Keywords arguments**
-    - `ϵ::T` : convergence criteria
-    - `nBurnin::Int` : Number of samples discarded before starting to save samples
-    - `samplefrequency::Int` : Frequency of sampling
+## Keywords arguments
+- `ϵ::T` : convergence criteria
+- `nBurnin::Int` : Number of samples discarded before starting to save samples
+- `thinning::Int` : Frequency at which samples are saved 
 """
 mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     nBurnin::Int # Number of burnin samples
-    samplefrequency::Int # Frequency at which samples are saved
-    ϵ::T #Convergence criteria
-    nIter::Integer #Number of samples computed
+    thinning::Int # Frequency at which samples are saved
+    ϵ::T # Convergence criteria
+    nIter::Integer # Number of samples computed
     nSamples::Int # Number of data samples
     HyperParametersUpdated::Bool # Flag for updating kernel matrices
     opt::NTuple{N,SOptimizer}
@@ -21,18 +21,18 @@ mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     sample_store::Array{T,3}
     function GibbsSampling{T}(
         nBurnin::Int,
-        samplefrequency::Int,
+        thinning::Int,
         ϵ::Real,
     ) where {T}
-        @assert nBurnin >= 0 "nBurnin should be a positive integer"
-        @assert samplefrequency >= 0 "samplefrequency should be a positive integer"
-        return new{T,1,Vector{T},Vector{T}}(nBurnin, samplefrequency, ϵ)
+        nBurnin >= 0 || error("nBurnin should be positive")
+        thinning >= 0 || error("thinning should be positive")
+        return new{T,1,Vector{T},Vector{T}}(nBurnin, thinning, ϵ)
     end
     function GibbsSampling{T}(
         nBurnin::Int,
-        samplefrequency::Int,
+        thinning::Int,
         ϵ::Real,
-        nFeatures::Vector{<:Int},
+        ::Vector{<:Int},
         nSamples::Int,
         nLatent::Int,
         xview::Tx,
@@ -41,7 +41,7 @@ mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
         opts = ntuple(_ -> SOptimizer{T}(nothing), nLatent)
         new{T,nLatent,Tx,Ty}(
             nBurnin,
-            samplefrequency,
+            thinning,
             ϵ,
             0,
             nSamples,
@@ -60,12 +60,12 @@ nMinibatch(i::GibbsSampling) = i.nSamples
 function GibbsSampling(;
     ϵ::T = 1e-5,
     nBurnin::Int = 100,
-    samplefrequency::Int = 1,
+    thinning::Int = 1,
 ) where {T<:Real}
-    GibbsSampling{T}(nBurnin, samplefrequency, ϵ)
+    GibbsSampling{T}(nBurnin, thinning, ϵ)
 end
 
-function Base.show(io::IO, inference::GibbsSampling{T}) where {T<:Real}
+function Base.show(io::IO, ::GibbsSampling{T}) where {T<:Real}
     print(io, "Gibbs Sampler")
 end
 
@@ -74,13 +74,13 @@ function tuple_inference(
     nLatent::Int,
     nFeatures::Vector{<:Int},
     nSamples::Int,
-    nMinibatch::Int, #unused
+    ::Int,
     xview,
     yview
 ) where {T}
     return GibbsSampling{T}(
         inf.nBurnin,
-        inf.samplefrequency,
+        inf.thinning,
         inf.ϵ,
         nFeatures,
         nSamples,
@@ -123,13 +123,13 @@ function sample_parameters(
         cat_samples,
     )
     computeMatrices!(m)
-    for i in 1:(m.inference.nBurnin+nSamples*m.inference.samplefrequency)
-        m.inference.nIter += 1
+    for i in 1:(inference(m).nBurnin + nSamples * inference(m).thinning)
+        inference(m).nIter += 1
         sample_local!(likelihood(m), yview(m), means(m))
         sample_global!.(∇E_μ(m), ∇E_Σ(m), Zviews(m), getf(m))
         if nIter(inference(m)) > m.inference.nBurnin &&
-           (nIter(inference(m)) - m.inference.nBurnin) %
-           m.inference.samplefrequency == 0 # Store variables every samplefrequency
+           ((nIter(inference(m)) - m.inference.nBurnin) %
+           (inference(m).thinning) == 0) # Store variables every thinning
             store_variables!(inference(m), means(m))
         end
     end
@@ -159,10 +159,10 @@ function sample_parameters(
     end
 end
 
-sample_local!(l::Likelihood, y, f::Tuple{<:AbstractVector{T}}) where {T} =
+sample_local!(l::AbstractLikelihood, y, f::Tuple{<:AbstractVector{T}}) where {T} =
     sample_local!(l, y, first(f))
-set_ω!(l::Likelihood, ω) = l.θ .= ω
-get_ω(l::Likelihood) = l.θ
+set_ω!(l::AbstractLikelihood, ω) = l.θ .= ω
+get_ω(l::AbstractLikelihood) = l.θ
 
 function sample_global!(
     ∇E_μ::AbstractVector,

@@ -1,7 +1,5 @@
 """
-```julia
-LaplaceLikelihood(β::T=1.0)  #  Laplace likelihood with scale β
-```
+    LaplaceLikelihood(β::T=1.0)  #  Laplace likelihood with scale β
 
 Laplace likelihood for regression:
 ```math
@@ -45,8 +43,8 @@ implemented(
 
 function init_likelihood(
     likelihood::LaplaceLikelihood{T},
-    inference::Inference{T},
-    nLatent::Int,
+    inference::AbstractInference{T},
+    ::Int,
     nSamplesUsed::Int,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
@@ -61,11 +59,11 @@ function init_likelihood(
 end
 
 function (l::LaplaceLikelihood)(y::Real, f::Real)
-    Distributions.pdf(Laplace(f, l.β), y)
+    pdf(Laplace(f, l.β), y)
 end
 
 function Distributions.loglikelihood(l::LaplaceLikelihood, y::Real, f::Real)
-    Distributions.logpdf(Laplace(f, l.β), y)
+    logpdf(Laplace(f, l.β), y)
 end
 
 function Base.show(io::IO, l::LaplaceLikelihood{T}) where {T}
@@ -114,7 +112,7 @@ end
 ) where {T} = (0.5 * l.θ,)
 
 ## ELBO ##
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::LaplaceLikelihood{T},
     ::AnalyticVI,
     y::AbstractVector,
@@ -122,7 +120,7 @@ function expec_log_likelihood(
     diag_cov::AbstractVector,
 ) where {T}
     tot = -0.5 * length(y) * log(twoπ)
-    tot += 0.5 * sum(log, l.θ)
+    tot += 0.5 * Zygote.@ignore(sum(log, l.θ))
     tot +=
         -0.5 * (
             dot(l.θ, diag_cov) + dot(l.θ, abs2.(μ)) - 2.0 * dot(l.θ, μ .* y) +
@@ -150,19 +148,19 @@ function grad_quad(
     y::Real,
     μ::Real,
     σ²::Real,
-    inference::Inference,
+    inference::AbstractInference,
 ) where {T<:Real}
     nodes = inference.nodes * sqrt(σ²) .+ μ
-    Edloglike = dot(inference.weights, grad_loglike.(likelihood, y, nodes))
+    Edloglike = dot(inference.weights, ∇loglikehood.(likelihood, y, nodes))
     Ed²loglike = (1 / sqrt(twoπ * σ²)) / (likelihood.β^2)
     return -Edloglike::T, Ed²loglike::T
 end
 
 
-@inline grad_loglike(l::LaplaceLikelihood{T}, y::Real, f::Real) where {T<:Real} =
+@inline ∇loglikehood(l::LaplaceLikelihood{T}, y::Real, f::Real) where {T<:Real} =
     sign(y - f) ./ l.β
 
-@inline hessian_logl(
+@inline hessloglikelihood(
     ::LaplaceLikelihood{T},
     ::Real,
     ::Real,

@@ -28,7 +28,7 @@ function _predict_f(
         covf = Symmetric(k_starstar - k_star' * (AGP.cov(m.f) \ k_star)) # k** - k* Σ⁻¹ k*
         return μf, covf
     else
-        k_starstar = kerneldiagmatrix(kernel(m.f), X_test) .+ T(jitt)
+        k_starstar = kernelmatrix_diag(kernel(m.f), X_test) .+ T(jitt)
         varf = k_starstar - diag_ABt(k_star / AGP.cov(m.f), k_star)
         return μf, varf
     end
@@ -52,7 +52,7 @@ end
         return μf, Σf
     else
         k_starstar =
-            kerneldiagmatrix.(kernels(m), Ref(X_test)) .+
+            kernelmatrix_diag.(kernels(m), Ref(X_test)) .+
             Ref(T(jitt) * ones(T, size(X_test, 1)))
         σ²f = k_starstar .- diag_ABt.(k_star .* A, k_star)
         return μf, σ²f
@@ -84,7 +84,7 @@ end
         return μf, Σf
     else
         k_starstar =
-            kerneldiagmatrix.(kernels(m), [X_test]) .+
+            kernelmatrix_diag.(kernels(m), [X_test]) .+
             [T(jitt) * ones(T, length(X_test))]
         σ²f = k_starstar .- diag_ABt.(k_star .* A, k_star)
         σ²f = [
@@ -112,7 +112,7 @@ function _predict_f(
         return μf, Σf
     else
         k_starstar =
-            kerneldiagmatrix.(kernels(m), [X_test]) .+
+            kernelmatrix_diag.(kernels(m), [X_test]) .+
             [T(jitt) * ones(T, length(X_test))]
         σ²f =
             k_starstar .- diag_ABt.(k_star ./ pr_covs(m), k_star) .+
@@ -122,7 +122,7 @@ function _predict_f(
 end
 
 function _sample_f(
-    m::MCGP{T,<:Likelihood,<:GibbsSampling},
+    m::MCGP{T,<:AbstractLikelihood,<:GibbsSampling},
     X_test::AbstractVector,
     k_star = kernelmatrix.(
         kernels(m),
@@ -263,7 +263,7 @@ function proba_multi_y(model::AbstractGP, X_test::AbstractVector)
 end
 
 compute_proba(
-    l::Likelihood,
+    l::AbstractLikelihood,
     μ::AbstractVector{<:AbstractVector},
     σ²::AbstractVector{<:AbstractVector},
 ) = compute_proba(l, first(μ), first(σ²))
@@ -310,9 +310,9 @@ end
 # end
 #
 function compute_proba(
-    l::Likelihood{T},
-    μ::AbstractVector{T},
-    σ²::AbstractVector{},
+    l::AbstractLikelihood,
+    ::AbstractVector,
+    ::AbstractVector,
 ) where {T<:Real}
-    @error "Non implemented for the likelihood $l"
+    error("Non implemented for the likelihood $l")
 end

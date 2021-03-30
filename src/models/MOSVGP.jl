@@ -1,37 +1,30 @@
 """
-Class for multi-output sparse variational Gaussian Processes based on the Linear Coregionalization Model (LCM)
+    MOSVGP(args...; kwargs...)
 
-```julia
-MOSVGP(X::AbstractArray{T},y::AbstractVector{AbstractArray{T}},kernel::Kernel,
-    likelihood::AbstractVector{Likelihoods},inference::InferenceType, nInducingPoints::Int;
-    verbose::Int=0,optimiser=ADAM(0.001),atfrequency::Int=1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-    Zoptimiser=false,
-    ArrayType::UnionAll=Vector)
-```
+Multi-Output Sparse Variational Gaussian Process
 
-Argument list :
+## Arguments
+- `X::AbstractArray` : : Input features, if `X` is a matrix the choice of colwise/rowwise is given by the `obsdim` keyword
+- `y::AbstractVector{<:AbstractVector}` : Output labels, each vector corresponds to one output dimension
+- `kernel::Union{Kernel,AbstractVector{<:Kernel}` : covariance function or vector of covariance functions, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
+- `likelihood::Union{AbstractLikelihood,Vector{<:Likelihood}` : Likelihood or vector of likelihoods of the model. For compatibilities, see [`Likelihood Types`](@ref likelihood_user)
+- `inference` : Inference for the model, for compatibilities see the [`Compatibility Table`](@ref compat_table))
+- `nLatent::Int` : Number of latent GPs
+- `nInducingPoints` : number of inducing points, or collection of inducing points locations
 
-**Mandatory arguments**
- - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
- - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
- - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
- - `likelihood` : likelihood of the model, currently implemented : Gaussian, Student-T, Laplace, Bernoulli (with logistic link), Bayesian SVM, Multiclass (softmax or logistic-softmax) see [`Likelihood`](@ref likelihood_user)
- - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the [`Compatibility table`](@ref compat_table)
- - `nInducingPoints` : number of inducing points
-**Optional arguments**
- - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `mean` : `PriorMean` object, check the documentation on it [`MeanPrior`](@ref meanprior)
- - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `Zoptimiser` : Optimiser used for inducing points locations. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
- - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
+## Keyword arguments
+- `verbose::Int` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
+- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
+- `Zoptimiser` : Optimiser used for the inducing points locations
+- `Aoptimiser` : Optimiser used for the mixing parameters.
+- `atfrequency::Int=1` : Choose how many variational parameters iterations are between hyperparameters optimization
+- `mean=ZeroMean()` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
+- `obsdim::Int=1` : Dimension of the data. 1 : X ∈ DxN, 2: X ∈ NxD
 """
 mutable struct MOSVGP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference,
+    TLikelihood<:AbstractLikelihood,
+    TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
     Q,
@@ -52,11 +45,11 @@ end
 
 
 function MOSVGP(
-    X::Union{AbstractMatrix,AbstractVector{<:AbstractVector}},
+    X::AbstractArray,
     y::AbstractVector{<:AbstractVector},
     kernel::Union{Kernel,AbstractVector{<:Kernel}},
-    likelihood::Union{TLikelihood,AbstractVector{<:TLikelihood}},
-    inference::Inference,
+    likelihood::Union{AbstractLikelihood,AbstractVector{<:AbstractLikelihood}},
+    inference::AbstractInference,
     nLatent::Int,
     nInducingPoints::Union{
         Int,
@@ -70,15 +63,15 @@ function MOSVGP(
     optimiser = ADAM(0.01),
     Aoptimiser = ADAM(0.01),
     Zoptimiser = false,
-    ArrayType::UnionAll = Vector,
-) where {TLikelihood<:Likelihood}
+    obsdim::Int = 1,
+)
 
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
 
-    X, T = wrap_X(X)
+    X, T = wrap_X(X, obsdim)
 
-    likelihoods = if likelihood isa Likelihood
+    likelihoods = if likelihood isa AbstractLikelihood
         likelihoods = [deepcopy(likelihood) for _ = 1:nTask]
     else
         likelihood
@@ -172,7 +165,7 @@ function MOSVGP(
         yview
     )
 
-    return MOSVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
+    return MOSVGP{T,eltype(likelihoods),typeof(inference),nTask,nLatent}(
         X,
         corrected_y,
         nSamples,
@@ -191,21 +184,17 @@ function MOSVGP(
         atfrequency,
         false,
     )
-    # if isa(inference.optimizer,ALRSVI)
-    # init!(model.inference,model)
-    # end
-    # return model
 end
 
-function Base.show(io::IO, model::MOSVGP{T,<:Likelihood,<:Inference}) where {T}
+function Base.show(io::IO, model::MOSVGP)
     print(
         io,
-        "Multioutput Sparse Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ",
+        "Multioutput Sparse Variational Gaussian Process with the likelihoods $(likelihood(model)) infered by $(inference(model)) ",
     )
 end
 
 @traitimpl IsMultiOutput{MOSVGP}
 
-nOutput(m::MOSVGP{<:Real,<:Likelihood,<:Inference,N,Q}) where {N, Q} = Q
+nOutput(::MOSVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N, Q} = Q
 Zviews(m::MOSVGP) = Zview.(m.f)
 objective(m::MOSVGP) = ELBO(m)

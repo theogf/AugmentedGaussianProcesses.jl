@@ -4,12 +4,12 @@ include("hmcsampling.jl")
 isStochastic(::SamplingInference) = false
 
 function log_gp_prior(gp::SampledLatent, f::AbstractVector, X::AbstractVector)
-    Distributions.logpdf(MvNormal(pr_mean(gp, X), pr_cov(gp)), f)
+    logpdf(MvNormal(pr_mean(gp, X), pr_cov(gp)), f)
 end
 
-function log_joint_model(model::MCGP{T,L,<:SamplingInference}, x) where {T,L}
+function logjoint(model::MCGP{T,L,<:SamplingInference}, x) where {T,L}
     fs = unsqueeze(model, x)
-    log_likelihood(model.likelihood, yview(model), fs) +
+    loglikelihood(model.likelihood, yview(model), fs) +
     sum(log_gp_prior.(model.f, fs))
 end
 
@@ -18,31 +18,31 @@ function unsqueeze(model::MCGP, f)
     Tuple(f[((i-1)*n+1):(i*n)] for i = 1:model.nLatent)
 end
 
-function grad_log_joint_model(
+function ∇logjoint(
     model::MCGP{T,L,<:SamplingInference},
     x,
 ) where {T,L}
     fs = unsqueeze(model, x)
-    vcat(grad_loglike(likelihood(model), yview(model), fs)...) +
-    vcat(grad_logprior(model.f, fs)...)
+    vcat(∇loglikehood(likelihood(model), yview(model), fs)...) +
+    vcat(∇logprior(model.f, fs)...)
 end
 
 Distributions.loglikelihood(
-    l::Likelihood,
+    l::AbstractLikelihood,
     y::AbstractVector,
     f::Tuple{<:AbstractVector{T}},
 ) where {T<:Real} = sum(logpdf.(l, y, f...))
 
-function grad_loglike(
-    l::Likelihood,
+function ∇loglikehood(
+    l::AbstractLikelihood,
     y::AbstractVector,
     f::Tuple{<:AbstractVector{T}},
 ) where {T}
-    grad_loglike.(l, y, f...)
+    ∇loglikehood.(l, y, f...)
 end
 
 
-function grad_logprior(gp::AbstractLatent, f)
+function ∇logprior(gp::AbstractLatent, f)
     -pr_cov(gp) / f # Remove μ₀ temp
 end
 
@@ -51,6 +51,6 @@ function logprior(gp::AbstractLatent, f)
 end
 
 function store_variables!(i::SamplingInference{T}, fs) where {T}
-    i.sample_store[(nIter(i)-i.nBurnin)÷i.samplefrequency, :, :] .=
+    i.sample_store[(nIter(i)-i.nBurnin)÷i.thinning, :, :] .=
         hcat(fs...)
 end

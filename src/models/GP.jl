@@ -1,45 +1,36 @@
 """
-Class for Gaussian Processes models
+    GP(args...; kwargs...)
 
-```julia
-GP(X::AbstractArray{T}, y::AbstractArray, kernel::Kernel;
-    noise::Real=1e-5, opt_noise::Bool=true, verbose::Int=0,
-    optimiser=ADAM(0.01),atfrequency::Int=1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-    IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
-```
+Gaussian Process
 
-Argument list :
-
-**Mandatory arguments**
+## Arguments
 
  - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
  - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
  - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
 
-**Keyword arguments**
- - `noise` : Initial noise of the model
- - `opt_noise` : Flag for optimizing the noise σ=Σ(y-f)^2/N
- - `mean` : Option for putting a prior mean
- - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
+## Keyword arguments
+- `noise` : Variance of the likelihood
+- `opt_noise` : Flag for optimizing the variance by using the formul σ=Σ(y-f)^2/N
+- `mean` : Option for putting a prior mean
+- `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
 - `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
- - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
- - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
+- `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
+- `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
+- `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
 """
 mutable struct GP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference{T},
+    TLikelihood<:AbstractLikelihood,
+    TInference<:AbstractInference,
     TData<:DataContainer,
 } <: AbstractGP{T,TLikelihood,TInference,1}
     data::TData
     f::LatentGP{T} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
-    verbose::Int64 #Level of printing information
-    atfrequency::Int64
+    verbose::Int #Level of printing information
+    atfrequency::Int
     trained::Bool
 end
 
@@ -93,7 +84,7 @@ end
 function Base.show(io::IO, model::GP)
     print(
         io,
-        "Gaussian Process with a $(model.likelihood) infered by $(model.inference) ",
+        "Gaussian Process with a $(likelihood(model)) infered by $(inference(model)) ",
     )
 end
 

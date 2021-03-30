@@ -1,7 +1,5 @@
 """
-```julia
-LogisticLikelihood()
-```
+    LogisticLikelihood()
 
 Bernoulli likelihood with a logistic link for the Bernoulli likelihood
 ```math
@@ -42,8 +40,8 @@ implemented(
 ) = true
 
 function init_likelihood(
-    likelihood::LogisticLikelihood{T},
-    inference::Inference{T},
+    ::LogisticLikelihood{T},
+    inference::AbstractInference{T},
     nLatent::Int,
     nSamplesUsed::Int,
 ) where {T}
@@ -110,8 +108,7 @@ function sample_local!(
     ::AbstractVector,
     f::AbstractVector,
 )
-    pg = PolyaGammaDist()
-    set_ω!(l, draw.([pg], [1.0], f))
+    set_ω!(l, rand.(PolyaGamma.(1, abs.(f))))
 end
 
 ### Natural Gradient Section ###
@@ -121,7 +118,7 @@ end
 
 ### ELBO Section ###
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::LogisticLikelihood{T},
     ::AnalyticVI,
     y::AbstractVector,
@@ -141,10 +138,10 @@ end
 
 ### Gradient Section ###
 
-@inline grad_loglike(::LogisticLikelihood{T}, y::Real, f::Real) where {T} =
+∇loglikehood(::LogisticLikelihood{T}, y::Real, f::Real) where {T} =
     y * logistic(-y * f)
 
-@inline hessian_loglike(
+hessloglikehood(
     ::LogisticLikelihood{T},
     y::Real,
     f::Real,

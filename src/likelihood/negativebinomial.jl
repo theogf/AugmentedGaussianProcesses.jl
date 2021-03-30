@@ -1,13 +1,16 @@
 """
-    NegBinomialLikelihood(r::Real=10)
+    NegBinomialLikelihood(r::Real)
 
+## Arguments
+- `r::Real` number of failures until the experiment is stopped
+
+---
 [Negative Binomial likelihood](https://en.wikipedia.org/wiki/Negative_binomial_distribution) with number of failures `r`
 ```math
     p(y|r, f) = binomial(y + r - 1, y) (1 - σ(f))ʳ σ(f)ʸ
     p(y|r, f) = Γ(y + r)/Γ(y + 1)Γ(r) (1 - σ(f))ʳ σ(f)ʸ
 ```
 Where `σ` is the logistic function
-
 """
 struct NegBinomialLikelihood{T<:Real,Tr<:Real,A<:AbstractVector{T}} <: EventLikelihood{T}
     r::Tr
@@ -25,7 +28,7 @@ struct NegBinomialLikelihood{T<:Real,Tr<:Real,A<:AbstractVector{T}} <: EventLike
     end
 end
 
-function NegBinomialLikelihood(r::Real = 10)
+function NegBinomialLikelihood(r::Real)
     NegBinomialLikelihood{Float64}(r)
 end
 
@@ -34,7 +37,7 @@ implemented(::NegBinomialLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) =
 
 function init_likelihood(
     likelihood::NegBinomialLikelihood{T},
-    ::Inference{T},
+    ::AbstractInference{T},
     ::Int,
     nSamplesUsed::Int,
 ) where {T}
@@ -46,11 +49,11 @@ function init_likelihood(
 end
 
 function (l::NegBinomialLikelihood)(y::Real, f::Real)
-    Distributions.pdf(NegativeBinomial(lr, get_p(l, f)), y)
+    pdf(NegativeBinomial(lr, get_p(l, f)), y)
 end
 
 function Distributions.loglikelihood(l::NegBinomialLikelihood, y::Real, f::Real)
-    Distributions.logpdf(NegativeBinomial(lr, get_p(l, f)), y)
+    logpdf(NegativeBinomial(lr, get_p(l, f)), y)
 end
 
 function expec_count(l::NegBinomialLikelihood, f)
@@ -98,8 +101,8 @@ function sample_local!(
     y::AbstractVector,
     f::AbstractVector,
 )
-    pg = PolyaGammaDist()
-    set_ω!(l, draw.([pg], y .- l.r, f))
+
+    set_ω!(l, rand.(PolyaGamma.(y .+ Int(l.r), abs.(f))))
 end
 
 ## Global Updates ##
@@ -132,14 +135,14 @@ function negbin_logconst(y, r::Int)
     logabsbinomial.(y .+ (r - 1), y)
 end
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::NegBinomialLikelihood{T},
     ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
 ) where {T}
-    tot = sum(negbin_logconst(y, l.r)) - log(2.0) * sum(y .+ l.r)
+    tot = Zygote.@ignore(sum(negbin_logconst(y, l.r))) - log(2.0) * sum(y .+ l.r)
     tot +=
         0.5 * dot(μ, (y .- l.r)) - 0.5 * dot(l.θ, μ) - 0.5 * dot(l.θ, diag_cov)
     return tot

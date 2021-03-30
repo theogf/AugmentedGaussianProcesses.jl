@@ -1,14 +1,14 @@
 """
-    QuadratureVI(ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser=Momentum(0.0001))
+    QuadratureVI(;ϵ::T=1e-5, nGaussHermite::Integer=20, clipping=Inf, natural::Bool=true, optimiser=Momentum(0.0001))
 
 Variational Inference solver by approximating gradients via numerical integration via Quadrature
 
-**Keyword arguments**
-
-    - `ϵ::T` : convergence criteria
-    - `nGaussHermite::Int` : Number of points for the integral estimation
-    - `natural::Bool` : Use natural gradients
-    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
+## Keyword arguments
+- `ϵ::T` : convergence criteria
+- `nGaussHermite::Int` : Number of points for the integral estimation
+- `clipping::Real` : Limit the gradients values to avoid overshooting
+- `natural::Bool` : Use natural gradients
+- `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
 """
 mutable struct QuadratureVI{T,N,Tx,Ty} <: NumericalVI{T}
     nPoints::Int # Number of points for the quadrature
@@ -104,18 +104,19 @@ end
 
 
 """
-    QuadratureSVI(nMinibatch::Integer;ϵ::T=1e-5,nGaussHermite::Integer=20,optimiser=Momentum(0.0001))
+    QuadratureSVI(nMinibatch::Int; ϵ::T=1e-5, nGaussHermite::Int=20, clipping=Inf, natural=true, optimiser=Momentum(0.0001))
 
-Stochastic Variational Inference solver by approximating gradients via numerical integration via Quadrature
+Stochastic Variational Inference solver by approximating gradients via numerical integration via Gaussian Quadrature.
+See [`QuadratureVI`](@ref) for a more detailed reference.
 
-    -`nMinibatch::Integer` : Number of samples per mini-batches
+## Arguments 
+-`nMinibatch::Integer` : Number of samples per mini-batches
 
-**Keyword arguments**
-
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `natural::Bool` : Use natural gradients
-    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
+## Keyword arguments
+- `ϵ::T` : convergence criteria, which can be user defined
+- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
+- `natural::Bool` : Use natural gradients
+- `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
 """
 function QuadratureSVI(
     nMinibatch::Integer;
@@ -161,14 +162,14 @@ function tuple_inference(
     )
 end
 
-function expec_log_likelihood(
-    l::Likelihood,
+function expec_loglikelihood(
+    l::AbstractLikelihood,
     i::QuadratureVI,
     y,
     μ::AbstractVector,
     diagΣ::AbstractVector,
 )
-    sum(apply_quad.(y, μ, diagΣ, i, l))
+    mapreduce(apply_quad, :+, y, μ, diagΣ, i, l)
 end
 
 function apply_quad(
@@ -176,37 +177,38 @@ function apply_quad(
     μ::Real,
     σ²::Real,
     i::QuadratureVI,
-    l::Likelihood,
+    l::AbstractLikelihood,
 )
-    x = i.nodes * sqrt(σ²) .+ μ
-    return dot(i.weights, loglikelihood.(l, y, x))
+    xs = i.nodes * sqrt(σ²) .+ μ
+    return dot(i.weights, loglikelihood.(Ref(l), y, xs))
+    # return mapreduce((w, x) -> w * Distributions.loglikelihood(l, y, x), +, i.weights, xs)# loglikelihood.(l, y, x))
 end
 
 function grad_expectations!(
     m::AbstractGP{T,L,<:QuadratureVI},
 ) where {T,L}
     y = yview(m)
-    for (gp, opt) in zip(m.f, get_opt(m.inference))
+    for (gp, opt) in zip(m.f, get_opt(inference(m)))
         μ = mean_f(gp)
         Σ = var_f(gp)
-        for i in 1:nMinibatch(m.inference)
+        for i in 1:nMinibatch(inference(m))
             opt.ν[i], opt.λ[i] =
-                grad_quad(m.likelihood, y[i], μ[i], Σ[i], m.inference)
+                grad_quad(likelihood(m), y[i], μ[i], Σ[i], inference(m))
         end
     end
 end
 
-#Compute the first and second derivative of the log-likelihood using the quadrature nodes
+# Compute the first and second derivative of the log-likelihood using the quadrature nodes
 function grad_quad(
-    l::Likelihood{T},
+    l::AbstractLikelihood{T},
     y::Real,
     μ::Real,
     σ²::Real,
-    i::Inference,
+    i::AbstractInference,
 ) where {T<:Real}
     x = i.nodes * sqrt(max(σ², zero(T))) .+ μ
-    Edloglike = dot(i.weights, grad_loglike.(l, y, x))
-    Ed²loglike = dot(i.weights, hessian_loglike.(l, y, x))
+    Edloglike = dot(i.weights, ∇loglikehood.(l, y, x))
+    Ed²loglike = dot(i.weights, hessloglikehood.(l, y, x))
     if i.clipping != 0
         return (
             abs(Edloglike) > i.clipping ? sign(Edloglike) * i.clipping :

@@ -1,8 +1,7 @@
-""" Class for sparse variational Gaussian Processes """
 mutable struct OnlineSVGP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference{T},
+    TLikelihood<:AbstractLikelihood,
+    TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
@@ -16,32 +15,33 @@ mutable struct OnlineSVGP{
 end
 
 """
-    OnlineSVGP(kernel, likelihood, inference, Zalg)
-Create a Online Sparse Variational Gaussian Process model
-Argument list :
+    OnlineSVGP(args...; kwargs...)
 
-**Mandatory arguments**
- - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
- - `likelihood` : likelihood of the model, currently implemented : Gaussian, Bernoulli (with logistic link), Multiclass (softmax or logistic-softmax) see [`Likelihood`](@ref)
- - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see [`Inference`](@ref)
- - `ZAlg` : Algorithm to add automatically inducing points, `CircleKMeans` by default, options are : `OfflineKMeans`, `StreamingKMeans`, `Webscale`
- - `nLatent` : Number of needed latent `f`
-**Optional arguments**
- - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `Autotuning` : Flag for optimizing hyperparameters
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `optimiser` : Flux optimizer
+Online Sparse Variational Gaussian Process
+
+## Arguments 
+- `kernel::Kernel` : Covariance function, can be any kernel from KernelFunctions.jl
+- `likelihood` : Likelihood of the model. For compatibilities, see [`Likelihood Types`](@ref likelihood_user)
+- `inference` : Inference for the model, see the [`Compatibility Table`](@ref compat_table))
+- `Zalg` : Algorithm selecting how inducing points are selected
+
+## Keywords arguments
+- `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
+- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
+- `atfrequency::Int=1` : Choose how many variational parameters iterations are between hyperparameters optimization
+- `mean=ZeroMean()` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
+- `Zoptimiser` : Optimiser for inducing points locations
+- `T::DataType=Float64` : Hint for what the type of the data is going to be.
 """
 function OnlineSVGP(
     kernel::Kernel,
-    likelihood::Likelihood,
-    inference::Inference,
+    likelihood::AbstractLikelihood,
+    inference::AbstractInference,
     Z::AbstractInducingPoints = OIPS(0.9);
     verbose::Integer = 0,
     optimiser = ADAM(0.01),
     atfrequency::Integer = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    IndependentPriors::Bool = true,
     Zoptimiser = nothing,
     T::DataType = Float64,
 )
@@ -78,11 +78,11 @@ end
 
 function Base.show(
     io::IO,
-    model::OnlineSVGP{T,<:Likelihood,<:Inference},
+    model::OnlineSVGP,
 ) where {T}
     print(
         io,
-        "Online Variational Gaussian Process with a $(model.likelihood) infered by $(model.inference) ",
+        "Online Variational Gaussian Process with a $(likelihood(model)) infered by $(inference(model)) ",
     )
 end
 
@@ -106,12 +106,3 @@ InducingPoints.add_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = Inducin
 
 InducingPoints.remove_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z.Z, m, gp)
 InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z, pr_cov(gp), kernel(gp))
-
-opt(Z::OptimIP) = Z.opt
-opt(Z::AbstractInducingPoints) = nothing
-
-function update!(opt, Z::AbstractInducingPoints, Z_grads)
-    for (z, zgrad) in zip(Z, Z_grads)
-        z .+= apply(opt, z, zgrad)
-    end
-end

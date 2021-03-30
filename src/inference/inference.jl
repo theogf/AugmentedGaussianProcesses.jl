@@ -7,18 +7,18 @@ include("optimisers.jl")
 
 export RobbinsMonro, ALRSVI
 
-post_process!(model::AbstractGP) = nothing
+post_process!(::AbstractGP) = nothing
 
 # Utils to iterate over inference objects
-Base.length(::Inference) = 1
+Base.length(::AbstractInference) = 1
 
-Base.iterate(i::Inference) = (i, nothing)
-Base.iterate(i::Inference, ::Any) = nothing
+Base.iterate(i::AbstractInference) = (i, nothing)
+Base.iterate(::AbstractInference, ::Any) = nothing
 
-isStochastic(i::Inference) = i.stoch
+isStochastic(i::AbstractInference) = i.stoch
 
 ## Multiple accessors
-conv_crit(i::Inference) = i.ϵ
+conv_crit(i::AbstractInference) = i.ϵ
 
 
 ## Conversion from natural to standard distribution parameters ##
@@ -35,39 +35,41 @@ end
 
 
 ## Default function for getting a view on y
-xview(inf::Inference) = inf.xview
-setxview!(inf::Inference, xview) = inf.xview = xview
+xview(inf::AbstractInference) = inf.xview
+setxview!(inf::AbstractInference, xview) = inf.xview = xview
 
-setyview!(inf::Inference, yview) = inf.yview = yview
-yview(inf::Inference) = inf.yview
+setyview!(inf::AbstractInference, yview) = inf.yview = yview
+yview(inf::AbstractInference) = inf.yview
 
-nMinibatch(inf::Inference) = inf.nMinibatch
-setnMinibatch!(inf::Inference, n::Int) = inf.nMinibatch = n
+nMinibatch(inf::AbstractInference) = inf.nMinibatch
+setnMinibatch!(inf::AbstractInference, n::Int) = inf.nMinibatch = n
 
-nSamples(i::Inference) = i.nSamples
-setnSamples!(inf::Inference, n::Int) = inf.nSamples = n
+nSamples(i::AbstractInference) = i.nSamples
+setnSamples!(inf::AbstractInference, n::Int) = inf.nSamples = n
 
-getρ(inf::Inference) = inf.ρ
-setρ!(inf::Inference, ρ) = inf.ρ = ρ
+getρ(inf::AbstractInference) = inf.ρ
+setρ!(inf::AbstractInference, ρ) = inf.ρ = ρ
 
-MBIndices(inf::Inference) = inf.MBIndices
-setMBIndices!(inf::Inference, mbindices::AbstractVector) =
+MBIndices(inf::AbstractInference) = inf.MBIndices
+setMBIndices!(inf::AbstractInference, mbindices::AbstractVector) =
     inf.MBIndices .= mbindices
 
-setHPupdated!(inf::Inference, status::Bool) =
+setHPupdated!(inf::AbstractInference, status::Bool) =
     inf.HyperParametersUpdated = status
-isHPupdated(inf::Inference) = inf.HyperParametersUpdated
+isHPupdated(inf::AbstractInference) = inf.HyperParametersUpdated
 
-nIter(inf::Inference) = inf.nIter
+nIter(inf::AbstractInference) = inf.nIter
 
-get_opt(i::Inference) = nothing
+get_opt(::AbstractInference) = nothing
 get_opt(i::VariationalInference) = i.vi_opt
 get_opt(i::SamplingInference) = i.opt
-get_opt(i::Inference, n::Int) = get_opt(i)[n]
-opt_type(i::Inference) = first(get_opt(i))
+get_opt(i::AbstractInference, n::Int) = get_opt(i)[n]
+opt_type(i::AbstractInference) = first(get_opt(i))
 
+# Initialize the final version of the inference objects
+# using the right parametrization and size
 function tuple_inference(
-    i::Inference,
+    i::AbstractInference,
     nLatent::Int,
     nFeatures::Int,
     nSamples::Int,

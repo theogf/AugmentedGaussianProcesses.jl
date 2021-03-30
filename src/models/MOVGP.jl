@@ -1,44 +1,28 @@
 """
-Class for multi-output variational Gaussian Processes based on the Linear Coregionalization Model (LCM)
+    MOVGP(args...; kwargs...)
 
-```julia
-MOVGP(
-    X::Union{AbstractArray{T}, AbstractVector{<:AbstractArray{T}}},
-    y::AbstractVector{<:AbstractArray},
-    kernel::Union{Kernel, AbstractVector{<:Kernel}},
-    likelihood::Union{TLikelihood, AbstractVector{<:TLikelihood}},
-    inference::TInference,
-    nLatent::Int;
-    verbose::Int = 0,
-    optimiser = ADAM(0.01),
-    atfrequency::Int = 1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    variance::Real = 1.0,
-    Aoptimiser = ADAM(0.01),
-    ArrayType::UnionAll = Vector,
-) where {T<:Real,TLikelihood<:Likelihood,TInference<:Inference}
-```
+Multi-Output Variational Gaussian Process
 
-Argument list :
+## Arguments
+- `X::AbstractArray` : : Input features, if `X` is a matrix the choice of colwise/rowwise is given by the `obsdim` keyword
+- `y::AbstractVector{<:AbstractVector}` : Output labels, each vector corresponds to one output dimension
+- `kernel::Union{Kernel,AbstractVector{<:Kernel}` : covariance function or vector of covariance functions, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
+- `likelihood::Union{AbstractLikelihood,Vector{<:Likelihood}` : Likelihood or vector of likelihoods of the model. For compatibilities, see [`Likelihood Types`](@ref likelihood_user)
+- `inference` : Inference for the model, for compatibilities see the [`Compatibility Table`](@ref compat_table))
+- `nLatent::Int` : Number of latent GPs
 
-**Mandatory arguments**
- - `X` : input features, should be a matrix NxD where N is the number of observation and D the number of dimension
- - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
- - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
- - `likelihood` : likelihood of the model, currently implemented : Gaussian, Student-T, Laplace, Bernoulli (with logistic link), Bayesian SVM, Multiclass (softmax or logistic-softmax) see [`Likelihood`](@ref likelihood_user)
- - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the [`Compatibility table`](@ref compat_table)
-**Optional arguments**
- - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
+## Keyword arguments
+- `verbose::Int` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
 - `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
- - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
+- `Aoptimiser` : Optimiser used for the mixing parameters.
+- `atfrequency::Int=1` : Choose how many variational parameters iterations are between hyperparameters optimization
+- `mean=ZeroMean()` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
+- `obsdim::Int=1` : Dimension of the data. 1 : X ∈ DxN, 2: X ∈ NxD
 """
 mutable struct MOVGP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference,
+    TLikelihood<:AbstractLikelihood,
+    TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
     Q,
@@ -61,25 +45,23 @@ function MOVGP(
     X::Union{AbstractVector,AbstractVector{<:AbstractArray}},
     y::AbstractVector{<:AbstractArray},
     kernel::Union{Kernel,AbstractVector{<:Kernel}},
-    likelihood::Union{TLikelihood,AbstractVector{<:TLikelihood}},
-    inference::Inference,
+    likelihood::Union{AbstractLikelihood,AbstractVector{<:AbstractLikelihood}},
+    inference::AbstractInference,
     nLatent::Int;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    variance::Real = 1.0,
     Aoptimiser = ADAM(0.01),
-    ArrayType::UnionAll = Vector,
-) where {TLikelihood<:Likelihood}
-
+    obsdim::Int = 1,
+)
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
 
-    X, T = wrap_X(X)
+    X, T = wrap_X(X, obsdim)
     n_task = length(y)
 
-    likelihoods = if likelihood isa Likelihood
+    likelihoods = if likelihood isa AbstractLikelihood
         likelihoods = [deepcopy(likelihood) for _ in 1:n_task]
     else
         likelihood
@@ -151,7 +133,7 @@ function MOVGP(
     inference =
         tuple_inference(inference, nLatent, nFeatures, nSamples(data), nSamples(data), xview, yview)
 
-    return MOVGP{T,TLikelihood,typeof(inference),nTask,nLatent}(
+    return MOVGP{T,eltype(likelihoods),typeof(inference),nTask,nLatent}(
         data,
         nf_per_task,
         latent_f,
@@ -169,10 +151,10 @@ function MOVGP(
     # return model
 end
 
-function Base.show(io::IO, model::MOVGP{T,<:Likelihood,<:Inference}) where {T}
+function Base.show(io::IO, model::MOVGP)
     print(
         io,
-        "Multioutput Variational Gaussian Process with the likelihoods $(model.likelihood) infered by $(model.inference) ",
+        "Multioutput Variational Gaussian Process with the likelihoods $(likelihood(model)) infered by $(inference(model)) ",
     )
 end
 
@@ -180,6 +162,6 @@ end
 @traitimpl IsFull{MOVGP}
 
 
-nOutput(m::MOVGP{<:Real,<:Likelihood,<:Inference,N,Q}) where {N,Q} = Q
+nOutput(::MOVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N,Q} = Q
 Zviews(m::MOVGP) = [input(m)]
 objective(m::MOVGP) = ELBO(m)

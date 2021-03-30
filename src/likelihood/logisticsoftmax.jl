@@ -1,6 +1,10 @@
 """
-    LogisticSoftMaxLikelihood(num_class)
+    LogisticSoftMaxLikelihood(num_class::Int)
 
+## Arguments
+- `num_class::Int` : Total number of classes
+
+---
 The multiclass likelihood with a logistic-softmax mapping: :
 ```math
 p(y=i|{fₖ}₁ᴷ) = σ(fᵢ)/∑ₖ σ(fₖ)
@@ -17,7 +21,7 @@ mutable struct LogisticSoftMaxLikelihood{T<:Real, A<:AbstractVector{T}} <: Multi
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     Y::Vector{BitVector} #Mapping from instances to classes (one hot encoding)
-    y_class::Vector{Int64} # GP Index for each sample
+    y_class::Vector{Int} # GP Index for each sample
     c::Vector{A} # Second moment of fₖ
     α::A # First variational parameter of Gamma distribution
     β::A # Second variational parameter of Gamma distribution
@@ -74,7 +78,7 @@ implemented(
 
 
 function logisticsoftmax(f::AbstractVector{<:Real})
-    return normalize!(logistic.(f), 1)
+    return normalize(logistic.(f), 1)
 end
 
 function logisticsoftmax(f::AbstractVector{<:Real}, i::Integer)
@@ -97,7 +101,7 @@ end
 
 function init_likelihood(
     l::LogisticSoftMaxLikelihood{T},
-    inference::Inference{T},
+    inference::AbstractInference{T},
     nLatent::Integer,
     nSamplesUsed::Integer,
 ) where {T}
@@ -165,8 +169,7 @@ function sample_local!(
         f,
     )
     l.α .= rand.(Gamma.(one(T) .+ (l.γ...), 1.0 ./ l.β))
-    pg = PolyaGammaDist()
-    set_ω!(l, broadcast((y, γ, f) -> draw.(Ref(pg), y .+ γ, f), y, l.γ, f))
+    set_ω!(l, broadcast((y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), y, l.γ, f))
     return nothing
 end
 
@@ -184,9 +187,9 @@ end
 ) = 0.5 .* l.θ
 
 ## ELBO Section ##
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::LogisticSoftMaxLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y,
     μ,
     Σ,
@@ -194,14 +197,9 @@ function expec_log_likelihood(
     tot = -length(y) * logtwo
     tot += -sum(sum(l.γ .+ y)) * logtwo
     tot +=
-        0.5 * sum(broadcast(
-            (θ, γ, y, μ, Σ) -> dot(μ, (y - γ)) - dot(θ, abs2.(μ)) - dot(θ, Σ),
-            l.θ,
-            l.γ,
-            y,
-            μ,
-            Σ,
-        ))
+        0.5 * sum(zip(l.θ, l.γ, y, μ, Σ)) do (θ, γ, y, μ, Σ) 
+            dot(μ, (y - γ)) - dot(θ, abs2.(μ)) - dot(θ, Σ)
+        end
     return tot
 end
 
@@ -247,8 +245,8 @@ function grad_samples(
             abs2.(g_μ)
     end
     for k = 1:nLatent(model)
-        model.inference.vi_opt[k].ν[index] = -grad_μ[k] / nSamples
-        model.inference.vi_opt[k].λ[index] = grad_Σ[k] / nSamples
+        get_opt(inference(model), k).ν[index] = -grad_μ[k] / nSamples
+        get_opt(inference(model), k).λ[index] = grad_Σ[k] / nSamples
     end
 end
 

@@ -61,7 +61,7 @@ end
 
 function init_likelihood(
     likelihood::SoftMaxLikelihood{T},
-    inference::Inference{T},
+    inference::AbstractInference{T},
     nLatent::Int,
     nSamplesUsed::Int,
 ) where {T}
@@ -82,14 +82,13 @@ end
 function sample_local!(
     model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling},
 ) where {T}
-    pg = PolyaGammaDist()
     model.likelihood.θ .= broadcast(
         (
             y::BitVector,
             γ::AbstractVector{<:Real},
             μ::AbstractVector{<:Real},
             i::Int64,
-        ) -> draw.([pg], 1.0, μ - logsumexp()),
+        ) -> rand.(PolyaGamma.(1.0, μ - logsumexp())),
         model.likelihood.Y,
         model.likelihood.γ,
         model.μ,
@@ -117,8 +116,8 @@ function grad_samples(
         grad_Σ += h - abs2.(g_μ)
     end
     for k = 1:nLatent(model)
-        model.inference.vi_opt[k].ν[index] = -grad_μ[k] / nSamples
-        model.inference.vi_opt[k].λ[index] = grad_Σ[k] / nSamples
+        get_opt(inference(model), k).ν[index] = -grad_μ[k] / nSamples
+        get_opt(inference(model), k).λ[index] = grad_Σ[k] / nSamples
     end
 end
 

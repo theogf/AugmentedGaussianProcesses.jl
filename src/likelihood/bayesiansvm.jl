@@ -37,9 +37,9 @@ end
 implemented(::BayesianSVM, ::AnalyticVI) = true
 
 function init_likelihood(
-    likelihood::BayesianSVM{T},
-    inference::Inference{T},
-    nLatent::Int,
+    ::BayesianSVM{T},
+    ::AbstractInference{T},
+    ::Int,
     nSamplesUsed::Int,
 ) where {T}
     BayesianSVM{T}(rand(T, nSamplesUsed), zeros(T, nSamplesUsed))
@@ -65,7 +65,7 @@ end
 
 
 function compute_proba(
-    l::BayesianSVM{T},
+    ::BayesianSVM{T},
     μ::AbstractVector{<:Real},
     σ²::AbstractVector{<:Real},
 ) where {T<:Real}
@@ -101,7 +101,7 @@ end
 
 ## Lower bounds
 
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::BayesianSVM{T},
     ::AnalyticVI,
     y::AbstractVector,
@@ -114,7 +114,7 @@ function expec_log_likelihood(
     return tot
 end
 
-AugmentedKL(l::BayesianSVM, ::AbstractVector) = GIGEntropy(l)
+AugmentedKL(l::BayesianSVM, ::AbstractVector) = Zygote.@ignore(GIGEntropy(l))
 
 function GIGEntropy(l::BayesianSVM)
     return 0.5 * sum(log.(l.ω)) + sum(log.(2.0 * besselk.(0.5, sqrt.(l.ω)))) -

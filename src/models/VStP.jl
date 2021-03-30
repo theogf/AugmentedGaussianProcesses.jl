@@ -1,36 +1,27 @@
 """
-    VStP(X::AbstractArray{T},y::AbstractArray{T₂,N₂},
-        kernel::Kernel,
-        likelihood::LikelihoodType,inference::InferenceType,ν::T₃;
-        verbose::Int=0,optimiser=ADAM(0.01),atfrequency::Integer=1,
-        mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-        IndependentPriors::Bool=true,ArrayType::UnionAll=Vector)
+    VStP(args...; kwargs...)
 
-Class for variational Student-T Processes models (non-sparse)
-Argument list :
+Variational Student-T Process
 
-**Mandatory arguments**
+## Arguments
+- `X::AbstractArray` : Input features, if `X` is a matrix the choice of colwise/rowwise is given by the `obsdim` keyword
+- `y::AbstractVector` : Output labels
+- `kernel::Kernel` : Covariance function, can be any kernel from KernelFunctions.jl
+- `likelihood` : Likelihood of the model. For compatibilities, see [`Likelihood Types`](@ref likelihood_user)
+- `inference` : Inference for the model, see the [`Compatibility Table`](@ref compat_table))
+- `ν::Real` : Number of degrees of freedom 
 
- - `X` : input features, should be a matrix N×D where N is the number of observation and D the number of dimension
- - `y` : input labels, can be either a vector of labels for multiclass and single output or a matrix for multi-outputs (note that only one likelihood can be applied)
- - `kernel` : covariance function, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
- - `likelihood` : likelihood of the model, currently implemented : Gaussian, Bernoulli (with logistic link), Multiclass (softmax or logistic-softmax) see [`Likelihood Types`](@ref likelihood_user)
- - `inference` : inference for the model, can be analytic, numerical or by sampling, check the model documentation to know what is available for your likelihood see the [`Compatibility Table`](@ref compat_table)
- - `ν` : Number of degrees of freedom
-
-**Keyword arguments**
-
- - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
- - `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
- - `atfrequency` : Choose how many variational parameters iterations are between hyperparameters optimization
- - `mean` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
- - `IndependentPriors` : Flag for setting independent or shared parameters among latent GPs
- - `ArrayType` : Option for using different type of array for storage (allow for GPU usage)
+## Keyword arguments
+- `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
+- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
+- `atfrequency::Int=1` : Choose how many variational parameters iterations are between hyperparameters optimization
+- `mean=ZeroMean()` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
+- `obsdim::Int=1` : Dimension of the data. 1 : X ∈ DxN, 2: X ∈ NxD
 """
 mutable struct VStP{
     T<:Real,
-    TLikelihood<:Likelihood{T},
-    TInference<:Inference{T},
+    TLikelihood<:AbstractLikelihood,
+    TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
@@ -45,19 +36,18 @@ end
 
 
 function VStP(
-    X::AbstractArray{<:Real},
+    X::AbstractArray,
     y::AbstractVector,
     kernel::Kernel,
-    likelihood::TLikelihood,
-    inference::Inference,
+    likelihood::AbstractLikelihood,
+    inference::AbstractInference,
     ν::Real;
     verbose::Int = 0,
     optimiser = ADAM(0.01),
     atfrequency::Int = 1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
     obsdim::Int = 1,
-) where {TLikelihood<:Likelihood}
-
+)
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
 
@@ -102,7 +92,7 @@ function VStP(
         xview,
         yview,
     )
-    VStP{T,TLikelihood,typeof(inference),typeof(data),nLatent}(
+    VStP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
         data,
         latentf,
         likelihood,
@@ -132,7 +122,7 @@ function local_prior_updates!(gp::TVarLatent, X)
             prior(gp).ν +
             dim(gp) +
             invquad(pr_cov(gp), mean(gp) - pr_mean(gp, X)) +
-            trace_ABt(inv(pr_cov(gp)).mat, cov(gp))
+            trace_ABt(inv(pr_cov(gp)), cov(gp))
         )
     prior(gp).χ = (prior(gp).ν + dim(gp)) / (prior(gp).ν .+ prior(gp).l²)
 end

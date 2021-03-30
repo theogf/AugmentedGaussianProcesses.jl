@@ -166,7 +166,7 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
 
             function AGP.init_likelihood(
                 likelihood::$(lname){T},
-                inference::Inference{T},
+                inference::AbstractInference{T},
                 nLatent::Int,
                 nSamplesUsed::Int,
             ) where {T}
@@ -294,7 +294,7 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
             ) where {T} = (l.θ .* _gen_γ.(l, y),)
 
             ### ELBO Section ###
-            function AGP.expec_log_likelihood(
+            function AGP.expec_loglikelihood(
                 l::$(lname),
                 i::AnalyticVI,
                 y::AbstractVector,

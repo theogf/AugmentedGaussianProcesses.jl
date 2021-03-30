@@ -16,18 +16,18 @@ isnatural(vi::NumericalVI) = vi.NaturalGradient
 
 General constructor for Variational Inference via numerical approximation.
 
-**Argument**
+## Arguments
+-`integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mc` for MC integration see [MCIntegrationVI](@ref)
 
-    -`integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mc` for MC integration see [MCIntegrationVI](@ref)
-
-**Keyword arguments**
-
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
-    - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `natural::Bool` : Use natural gradients
-    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
+## Keyword arguments
+- `ϵ::T` : convergence criteria, which can be user defined
+- `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
+- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
+- `natural::Bool` : Use natural gradients
+- `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
 """
+NumericalVI
+
 function NumericalVI(
     integration_technique::Symbol=:quad;
     ϵ::T=1e-5,
@@ -50,18 +50,17 @@ end
 
 General constructor for Stochastic Variational Inference via numerical approximation.
 
-**Argument**
+## Arguments
 
-    - `nMinibatch::Integer` : Number of samples per mini-batches
-    - `integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mc` for MC integration see [MCIntegrationVI](@ref)
+- `nMinibatch::Integer` : Number of samples per mini-batches
+- `integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mc` for MC integration see [MCIntegrationVI](@ref)
 
-**Keyword arguments**
-
-    - `ϵ::T` : convergence criteria, which can be user defined
-    - `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
-    - `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
-    - `natural::Bool` : Use natural gradients
-    - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
+## Keyword arguments
+- `ϵ::T` : convergence criteria, which can be user defined
+- `nMC::Int` : Number of samples per data point for the integral evaluation (for the MCIntegrationVI)
+- `nGaussHermite::Int` : Number of points for the integral estimation (for the QuadratureVI)
+- `natural::Bool` : Use natural gradients
+- `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
 """
 function NumericalSVI(
     nMinibatch::Integer,
@@ -89,12 +88,12 @@ function NumericalSVI(
 end
 end
 
-function Base.show(io::IO, inference::NumericalVI{T}) where T
+function Base.show(io::IO, inference::NumericalVI)
     print(io, "$(isStochastic(inference) ? "Stochastic numerical" : "Numerical") Inference by $(isa(inference, MCIntegrationVI) ? "Monte Carlo Integration" : "Quadrature")")
 end
 
-∇E_μ(::Likelihood,i::NVIOptimizer,::AbstractVector) = (-i.ν,)
-∇E_Σ(::Likelihood,i::NVIOptimizer,::AbstractVector) = (0.5 .* i.λ,)
+∇E_μ(::AbstractLikelihood, i::NVIOptimizer, ::AbstractVector) = (-i.ν,)
+∇E_Σ(::AbstractLikelihood, i::NVIOptimizer, ::AbstractVector) = (0.5 .* i.λ,)
 
 function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     grad_expectations!(model)
@@ -114,7 +113,7 @@ function classical_gradient!(∇E_μ::AbstractVector{T}, ∇E_Σ::AbstractVector
 end
 
 function classical_gradient!(∇E_μ::AbstractVector{T}, ∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, Z::AbstractVector, gp::SparseVarLatent{T}) where {T <: Real}
-    opt.∇η₂ .= getρ(i) * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ - 0.5 * (inv(pr_cov(gp)).mat - inv(cov(gp)))
+    opt.∇η₂ .= getρ(i) * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ - 0.5 * (inv(pr_cov(gp)) - inv(cov(gp)))
     opt.∇η₁ .= getρ(i) * transpose(gp.κ) * ∇E_μ - pr_cov(gp) \ (mean(gp) - pr_mean(gp, Z))
 end
 
@@ -143,13 +142,13 @@ end
 
 ## ELBO
 
-expec_log_likelihood(l::Likelihood, i::NumericalVI, y, μ::Tuple{<:AbstractVector{T}}, Σ::Tuple{<:AbstractVector{T}}) where {T} = 
-    expec_log_likelihood(l, i, y, first(μ), first(Σ))
+expec_loglikelihood(l::AbstractLikelihood, i::NumericalVI, y, μ::Tuple{<:AbstractVector{T}}, Σ::Tuple{<:AbstractVector{T}}) where {T} = 
+    expec_loglikelihood(l, i, y, first(μ), first(Σ))
 
 function ELBO(m::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     tot = zero(T)
     tot +=
-        getρ(m.inference) * expec_log_likelihood(
+        getρ(m.inference) * expec_loglikelihood(
             m.likelihood,
             m.inference,
             yview(m),

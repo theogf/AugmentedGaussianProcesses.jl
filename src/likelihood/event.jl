@@ -1,4 +1,4 @@
-abstract type EventLikelihood{T<:Real} <: Likelihood{T} end
+abstract type EventLikelihood{T<:Real} <: AbstractLikelihood{T} end
 
 include("poisson.jl")
 include("negativebinomial.jl")
@@ -8,6 +8,6 @@ function treat_labels!(y::AbstractVector{<:Int}, likelihood::EventLikelihood)
     return y, 1, likelihood
 end
 
-function treat_labels!(y::AbstractVector{<:Real}, likelihood::EventLikelihood)
+function treat_labels!(::AbstractVector{<:Real}, ::EventLikelihood)
     error("For event count target(s) should be integers")
 end

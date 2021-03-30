@@ -1,11 +1,16 @@
 """
     Poisson Likelihood(λ=1.0)
 
+## Arguments
+- `λ::Real` : Poisson rate
+
+---
+
 [Poisson Likelihood](https://en.wikipedia.org/wiki/Poisson_distribution) where a Poisson distribution is defined at every point in space (careful, it's different from continous Poisson processes)
 ```math
     p(y|f) = Poisson(y|\\lambda \\sigma(f))
 ```
-Where `σ` is the logistic function
+Where `σ` is the logistic function.
 Augmentation details will be released at some point (open an issue if you want to see them)
 """
 mutable struct PoissonLikelihood{T<:Real,A<:AbstractVector{T}} <:
@@ -35,8 +40,8 @@ implemented(::PoissonLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) = true
 
 function init_likelihood(
     likelihood::PoissonLikelihood{T},
-    inference::Inference{T},
-    nLatent::Integer,
+    ::AbstractInference{T},
+    ::Integer,
     nSamplesUsed::Int,
 ) where {T}
     PoissonLikelihood{T}(
@@ -48,11 +53,11 @@ function init_likelihood(
 end
 
 function (l::PoissonLikelihood)(y::Real, f::Real)
-    Distributions.pdf(Poisson(get_p(l, l.λ, f)), y)
+    pdf(Poisson(get_p(l, l.λ, f)), y)
 end
 
 function Distributions.loglikelihood(l::PoissonLikelihood, y::Real, f::Real)
-    Distributions.logpdf(Poisson(expec_count(l, f)), y)
+    logpdf(Poisson(expec_count(l, f)), y)
 end
 
 function expec_count(l::PoissonLikelihood, f)
@@ -63,8 +68,8 @@ function get_p(::PoissonLikelihood, λ::Real, f)
     λ * logistic.(f)
 end
 
-function Base.show(io::IO, model::PoissonLikelihood{T}) where {T}
-    print(io, "Poisson Likelihood")
+function Base.show(io::IO, l::PoissonLikelihood{T}) where {T}
+    print(io, "Poisson Likelihood (λ = $(l.λ))")
 end
 
 function compute_proba(
@@ -83,7 +88,7 @@ function compute_proba(
     return pred, sig_pred
 end
 
-## Local Updates ##
+### Local Updates ###
 
 function local_updates!(
     l::PoissonLikelihood{T},
@@ -103,11 +108,10 @@ function sample_local!(
     f::AbstractVector,
 )
     @. l.γ = rand(Poisson(l.λ * logistic(f))) # Sample n
-    pg = PolyaGammaDist()
-    set_ω!(l, draw.([pg], y + l.γ, f)) # Sample ω
+    set_ω!(l, rand.(PolyaGamma.(y + Int.(l.γ), abs.(f)))) # Sample ω
 end
 
-## Global Updates ##
+### Global Updates ###
 
 @inline ∇E_μ(l::PoissonLikelihood, ::AOptimizer, y::AbstractVector) =
     (0.5 * (y - l.γ),)
@@ -115,15 +119,15 @@ end
     (0.5 * l.θ,)
 
 ## ELBO Section ##
-function expec_log_likelihood(
+function expec_loglikelihood(
     l::PoissonLikelihood{T},
-    i::AnalyticVI,
+    ::AnalyticVI,
     y,
     μ::AbstractVector,
     Σ::AbstractVector,
 ) where {T}
-    tot = sum(y * log(l.λ)) - sum(logfactorial, y) - logtwo * sum((y + l.γ))
-    tot += 0.5 * (dot(μ, (y - l.γ)) - dot(l.θ, abs2.(μ)) - dot(l.θ, Σ))
+    tot = 0.5 * (dot(μ, (y - l.γ)) - dot(l.θ, abs2.(μ)) - dot(l.θ, Σ))
+    tot += Zygote.@ignore(sum(y * log(l.λ)) - sum(logfactorial, y) - logtwo * sum((y + l.γ)))
     return tot
 end
 

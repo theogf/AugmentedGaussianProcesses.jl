@@ -6,6 +6,9 @@ end
 """
     EmpiricalMean(c::AbstractVector{<:Real}=1.0;opt=ADAM(0.01))
 
+## Arguments
+- `c::AbstractVector` : Empirical mean vector
+
 Construct a empirical mean with values `c`
 Optionally give an optimiser `opt` (`ADAM(0.01)` by default)
 """
@@ -21,6 +24,6 @@ function (μ₀::EmpiricalMean{T})(x::AbstractMatrix) where {T<:Real}
     return μ₀.C
 end
 
-function update!(μ₀::EmpiricalMean{T}, grad, X) where {T<:Real}
-    μ₀.C .+= Optimise.apply!(μ₀.opt, μ₀.C, grad)
+function update!(μ₀::EmpiricalMean{T}, grad) where {T<:Real}
+    μ₀.C .+= Optimise.apply!(μ₀.opt, μ₀.C, grad.C)
 end
