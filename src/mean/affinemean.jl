@@ -17,32 +17,34 @@ end
 Construct an affine operation on `X` : `μ₀(X) = X * w + b` where `w` is a vector and `b` a scalar
 Optionally give an optimiser `opt` (`Adam(α=0.01)` by default)
 """
-function AffineMean(w::V,b::T;opt = ADAM(0.01)) where {T<:Real, V<:AbstractVector{T}}
-    AffineMean{T,V,typeof(opt)}(copy(w), [b], length(w), opt)
+function AffineMean(w::V, b::T; opt=ADAM(0.01)) where {T<:Real,V<:AbstractVector{T}}
+    return AffineMean{T,V,typeof(opt)}(copy(w), [b], length(w), opt)
 end
 
-function AffineMean(dims::Int; opt = ADAM(0.01))
-    AffineMean{Float64,Vector{Float64},typeof(opt)}(
-        randn(Float64, dims),
-        [0.0],
-        dims,
-        opt,
+function AffineMean(dims::Int; opt=ADAM(0.01))
+    return AffineMean{Float64,Vector{Float64},typeof(opt)}(
+        randn(Float64, dims), [0.0], dims, opt
     )
 end
 
 function Base.show(io::IO, ::MIME"text/plain", μ₀::AffineMean)
-    print(io, "Affine Mean Prior (size(w) = ", length(μ₀.w), ", b = ", first(μ₀.b), ")")
+    return print(
+        io, "Affine Mean Prior (size(w) = ", length(μ₀.w), ", b = ", first(μ₀.b), ")"
+    )
 end
 
 function (μ₀::AffineMean{T})(x::AbstractMatrix) where {T<:Real}
-    @assert μ₀.nDim == size(x, 2) "Number of dimensions of prior weight W ($(size(μ₀.w))) and X ($(size(x))) do not match"
+    μ₀.nDim == size(x, 2) || error(
+        "Number of dimensions of prior weight W (",
+        size(μ₀.w),
+        ") and X (",
+        size(x),
+        ") do not match",
+    )
     return x * μ₀.w .+ first(μ₀.b)
 end
 
-function update!(
-    μ₀::AffineMean{T},
-    grad,
-) where {T<:Real}
+function update!(μ₀::AffineMean{T}, grad) where {T<:Real}
     μ₀.w .+= Optimise.apply!(μ₀.opt, μ₀.w, grad.w)
-    μ₀.b .+= Optimise.apply!(μ₀.opt, μ₀.b, grad.b)
+    return μ₀.b .+= Optimise.apply!(μ₀.opt, μ₀.b, grad.b)
 end
