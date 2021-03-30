@@ -34,24 +34,21 @@ mutable struct GP{
     trained::Bool
 end
 
-
 function GP(
     X::AbstractArray,
     y::AbstractArray,
     kernel::Kernel;
-    noise::Real = 1e-5,
-    opt_noise = true,
-    verbose::Int = 0,
-    optimiser = ADAM(0.01),
-    atfrequency::Int = 1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    obsdim = 1,
+    noise::Real=1e-5,
+    opt_noise=true,
+    verbose::Int=0,
+    optimiser=ADAM(0.01),
+    atfrequency::Int=1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+    obsdim=1,
 )
-
     X, T = wrap_X(X, obsdim)
-    likelihood = GaussianLikelihood(noise, opt_noise = opt_noise)
+    likelihood = GaussianLikelihood(noise; opt_noise=opt_noise)
     inference = Analytic()
-
 
     y, nLatent, likelihood = check_data!(y, likelihood)
     data = wrap_data(X, y)
@@ -62,29 +59,21 @@ function GP(
 
     latentf = LatentGP(T, nFeatures, kernel, mean, optimiser)
 
-    likelihood =
-        init_likelihood(likelihood, inference, 1, nSamples(data))
+    likelihood = init_likelihood(likelihood, inference, 1, nSamples(data))
 
     xview = view_x(data, :)
     yview = view_y(likelihood, data, 1:nSamples(data))
-    inference = init_inference(
-        inference,
-        nSamples(data),
-        xview,
-        yview,
-    )
+    inference = init_inference(inference, nSamples(data), xview, yview)
 
-    model =
-        GP(data, latentf, likelihood, inference, verbose, atfrequency, false)
+    model = GP(data, latentf, likelihood, inference, verbose, atfrequency, false)
     update_parameters!(model)
     set_trained!(model, true)
     return model
 end
 
 function Base.show(io::IO, model::GP)
-    print(
-        io,
-        "Gaussian Process with a $(likelihood(model)) infered by $(inference(model)) ",
+    return print(
+        io, "Gaussian Process with a $(likelihood(model)) infered by $(inference(model)) "
     )
 end
 
@@ -99,12 +88,13 @@ function post_step!(m::GP)
     f = m.f
     l = likelihood(m)
     f.post.Σ = pr_cov(f) + first(l.σ²) * I
-    f.post.α .= cov(f) \ (yview(m) - pr_mean(f, xview(m)))
+    return f.post.α .= cov(f) \ (yview(m) - pr_mean(f, xview(m)))
 end
 
 objective(m::GP) = log_py(m)
 
 function log_py(m::GP)
     f = m.f
-    return -0.5 * (dot(yview(m), cov(f) \ yview(m)) + logdet(cov(f)) + nFeatures(m) * log(twoπ))
+    return -0.5 *
+           (dot(yview(m), cov(f) \ yview(m)) + logdet(cov(f)) + nFeatures(m) * log(twoπ))
 end

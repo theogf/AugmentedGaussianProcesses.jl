@@ -25,7 +25,7 @@ mutable struct VGP{
     N,
 } <: AbstractGP{T,TLikelihood,TInference,N}
     data::TData # Data container
-     nFeatures::Vector{Int}
+    nFeatures::Vector{Int}
     f::NTuple{N,VarLatent{T}} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
@@ -34,26 +34,29 @@ mutable struct VGP{
     trained::Bool
 end
 
-
 function VGP(
     X::AbstractArray,
     y::AbstractVector,
     kernel::Kernel,
     likelihood::AbstractLikelihood,
     inference::AbstractInference;
-    verbose::Int = 0,
-    optimiser = ADAM(0.01),
-    atfrequency::Integer = 1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    obsdim::Int = 1,
+    verbose::Int=0,
+    optimiser=ADAM(0.01),
+    atfrequency::Integer=1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+    obsdim::Int=1,
 )
-
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
 
-    inference isa VariationalInference || error("The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`")
-    !isa(likelihood, GaussianLikelihood) || error("For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets")
-    implemented(likelihood, inference) ||  error("The $likelihood is not compatible or implemented with the $inference")
+    inference isa VariationalInference || error(
+        "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`",
+    )
+    !isa(likelihood, GaussianLikelihood) || error(
+        "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets",
+    )
+    implemented(likelihood, inference) ||
+        error("The $likelihood is not compatible or implemented with the $inference")
 
     data = wrap_data(X, y)
 
@@ -71,12 +74,12 @@ function VGP(
 
     latentf = ntuple(_ -> VarLatent(T, nFeatures, kernel, mean, optimiser), nLatent)
 
-    likelihood =
-        init_likelihood(likelihood, inference, nLatent, nSamples(data))
+    likelihood = init_likelihood(likelihood, inference, nLatent, nSamples(data))
     xview = view_x(data, :)
     yview = view_y(likelihood, data, 1:nSamples(data))
-    inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples(data), nSamples(data), xview, yview)
+    inference = tuple_inference(
+        inference, nLatent, nFeatures, nSamples(data), nSamples(data), xview, yview
+    )
     return VGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
         data,
         fill(nFeatures, nLatent),
@@ -90,12 +93,11 @@ function VGP(
 end
 
 function Base.show(io::IO, model::VGP)
-    print(
+    return print(
         io,
         "Variational Gaussian Process with a $(likelihood(model)) infered by $(inference(model)) ",
     )
 end
-
 
 Zviews(m::VGP) = [input(m)]
 objective(m::VGP) = ELBO(m::VGP)

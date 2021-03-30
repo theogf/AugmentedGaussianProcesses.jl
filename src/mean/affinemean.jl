@@ -17,11 +17,7 @@ end
 Construct an affine operation on `X` : `μ₀(X) = X * w + b` where `w` is a vector and `b` a scalar
 Optionally give an optimiser `opt` (`Adam(α=0.01)` by default)
 """
-function AffineMean(
-    w::V,
-    b::T;
-    opt = ADAM(0.01),
-) where {T<:Real, V<:AbstractVector{T}}
+function AffineMean(w::V,b::T;opt = ADAM(0.01)) where {T<:Real, V<:AbstractVector{T}}
     AffineMean{T,V,typeof(opt)}(copy(w), [b], length(w), opt)
 end
 
@@ -34,10 +30,9 @@ function AffineMean(dims::Int; opt = ADAM(0.01))
     )
 end
 
-Base.show(io::IO, μ₀::AffineMean) = print(
-    io,
-    "Affine Mean Prior (size(w) = $(length(μ₀.w)), b = $(first(μ₀.b)))",
-)
+function Base.show(io::IO, ::MIME"text/plain", μ₀::AffineMean)
+    print(io, "Affine Mean Prior (size(w) = ", length(μ₀.w), ", b = ", first(μ₀.b), ")")
+end
 
 function (μ₀::AffineMean{T})(x::AbstractMatrix) where {T<:Real}
     @assert μ₀.nDim == size(x, 2) "Number of dimensions of prior weight W ($(size(μ₀.w))) and X ($(size(x))) do not match"
