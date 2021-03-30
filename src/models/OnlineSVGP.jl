@@ -37,17 +37,18 @@ function OnlineSVGP(
     kernel::Kernel,
     likelihood::AbstractLikelihood,
     inference::AbstractInference,
-    Z::AbstractInducingPoints = OIPS(0.9);
-    verbose::Integer = 0,
-    optimiser = ADAM(0.01),
-    atfrequency::Integer = 1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    Zoptimiser = nothing,
-    T::DataType = Float64,
+    Z::AbstractInducingPoints=OIPS(0.9);
+    verbose::Integer=0,
+    optimiser=ADAM(0.01),
+    atfrequency::Integer=1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+    Zoptimiser=nothing,
+    T::DataType=Float64,
 )
     data = OnlineDataContainer()
     inference isa AnalyticVI || error("The inference object should be of type `AnalyticVI`")
-    implemented(likelihood, inference) || error("The $likelihood is not compatible or implemented with the $inference")
+    implemented(likelihood, inference) ||
+        error("The $likelihood is not compatible or implemented with the $inference")
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
@@ -66,21 +67,12 @@ function OnlineSVGP(
     inference = tuple_inference(inference, nLatent, 0, 0, 0, [], [])
     inference.nIter = 1
     return OnlineSVGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
-        data,
-        latentf,
-        likelihood,
-        inference,
-        verbose,
-        atfrequency,
-        false,
+        data, latentf, likelihood, inference, verbose, atfrequency, false
     )
 end
 
-function Base.show(
-    io::IO,
-    model::OnlineSVGP,
-) where {T}
-    print(
+function Base.show(io::IO, model::OnlineSVGP) where {T}
+    return print(
         io,
         "Online Variational Gaussian Process with a $(likelihood(model)) infered by $(inference(model)) ",
     )
@@ -95,14 +87,22 @@ xview(m::OnlineSVGP) = input(m)
 yview(m::OnlineSVGP) = output(m)
 nFeatures(m::OnlineSVGP) = collect(dim.(getf(m)))
 
-
-
 ## Accessors to InducingPoints methods
-InducingPoints.init(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.init(Z.Z, m, gp)
+function InducingPoints.init(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent)
+    return InducingPoints.init(Z.Z, m, gp)
+end
 InducingPoints.init(Z::OIPS, m, gp) = InducingPoints.init(Z, input(m), kernel(gp))
 
-InducingPoints.add_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.add_point!(Z.Z, m, gp)
-InducingPoints.add_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.add_point!(Z, input(m), kernel(gp))
+function InducingPoints.add_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent)
+    return InducingPoints.add_point!(Z.Z, m, gp)
+end
+function InducingPoints.add_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent)
+    return InducingPoints.add_point!(Z, input(m), kernel(gp))
+end
 
-InducingPoints.remove_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z.Z, m, gp)
-InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent) = InducingPoints.remove_point!(Z, pr_cov(gp), kernel(gp))
+function InducingPoints.remove_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent)
+    return InducingPoints.remove_point!(Z.Z, m, gp)
+end
+function InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent)
+    return InducingPoints.remove_point!(Z, pr_cov(gp), kernel(gp))
+end

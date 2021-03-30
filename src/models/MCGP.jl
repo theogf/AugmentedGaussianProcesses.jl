@@ -33,26 +33,31 @@ mutable struct MCGP{
     trained::Bool
 end
 
-
 function MCGP(
     X::AbstractArray,
     y::AbstractVector,
     kernel::Kernel,
     likelihood::Union{AbstractLikelihood,Distribution},
     inference::AbstractInference;
-    verbose::Int = 0,
-    optimiser = ADAM(0.01),
-    atfrequency::Integer = 1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    obsdim::Int = 1,
+    verbose::Int=0,
+    optimiser=ADAM(0.01),
+    atfrequency::Integer=1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+    obsdim::Int=1,
 )
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
 
-    inference isa SamplingInference || error("The inference object should be of type `SamplingInference` : either `GibbsSampling` or `HMCSampling`")
-    !isa(likelihood, GaussianLikelihood) ||  error("For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets")
-    implemented(likelihood, inference) || error("The $likelihood is not compatible or implemented with the $inference")
-    !isa(likelihood, Distribution) || error("Using Distributions.jl distributions is unfortunately not yet implemented")
+    inference isa SamplingInference || error(
+        "The inference object should be of type `SamplingInference` : either `GibbsSampling` or `HMCSampling`",
+    )
+    !isa(likelihood, GaussianLikelihood) || error(
+        "For a Gaussian Likelihood you should directly use the `GP` model or the `SVGP` model for large datasets",
+    )
+    implemented(likelihood, inference) ||
+        error("The $likelihood is not compatible or implemented with the $inference")
+    !isa(likelihood, Distribution) ||
+        error("Using Distributions.jl distributions is unfortunately not yet implemented")
     data = wrap_data(X, y)
     nFeatures = nSamples(data)
 
@@ -68,25 +73,19 @@ function MCGP(
 
     latentf = ntuple(_ -> SampledLatent(T, nFeatures, kernel, mean), nLatent)
 
-    likelihood =
-        init_likelihood(likelihood, inference, nLatent, nSamples(data))
+    likelihood = init_likelihood(likelihood, inference, nLatent, nSamples(data))
     xview = view_x(data, 1:nSamples(data))
     yview = view_y(likelihood, data, 1:nSamples(data))
-    inference =
-        tuple_inference(inference, nLatent, nSamples(data), nSamples(data), nSamples(data), xview, yview)
-    MCGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
-        data,
-        latentf,
-        likelihood,
-        inference,
-        verbose,
-        atfrequency,
-        false,
+    inference = tuple_inference(
+        inference, nLatent, nSamples(data), nSamples(data), nSamples(data), xview, yview
+    )
+    return MCGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
+        data, latentf, likelihood, inference, verbose, atfrequency, false
     )
 end
 
 function Base.show(io::IO, model::MCGP)
-    print(
+    return print(
         io,
         "Monte Carlo Gaussian Process with a $(likelihood(model)) sampled via $(inference(model)) ",
     )

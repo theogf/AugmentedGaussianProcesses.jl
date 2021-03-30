@@ -14,32 +14,31 @@ p(y|f,ω) = N(y|f,ω⁻¹)
 where ``ω ~ Exp(ω | 1/(2 β^2))``, and `Exp` is the [Exponential distribution](https://en.wikipedia.org/wiki/Exponential_distribution)
 We use the variational distribution ``q(ω) = GIG(ω | a,b,p)``
 """
-mutable struct LaplaceLikelihood{T<:Real, A<:AbstractVector{T}} <: RegressionLikelihood{T}
+mutable struct LaplaceLikelihood{T<:Real,A<:AbstractVector{T}} <: RegressionLikelihood{T}
     β::T
     a::T
     p::T
     b::A #Variational parameter b of GIG
     θ::A #Expected value of ω
     function LaplaceLikelihood{T}(β::T) where {T<:Real}
-        new{T, Vector{T}}(β, β^-2, 0.5)
+        return new{T,Vector{T}}(β, β^-2, 0.5)
     end
     function LaplaceLikelihood{T}(
-        β::T,
-        b::A,
-        θ::AbstractVector{T},
-    ) where {T<:Real, A<:AbstractVector{T}}
-        new{T, A}(β, β^(-2), 0.5, b, θ)
+        β::T, b::A, θ::AbstractVector{T}
+    ) where {T<:Real,A<:AbstractVector{T}}
+        return new{T,A}(β, β^(-2), 0.5, b, θ)
     end
 end
 
-function LaplaceLikelihood(β::T = 1.0) where {T<:Real}
-    LaplaceLikelihood{T}(β)
+function LaplaceLikelihood(β::T=1.0) where {T<:Real}
+    return LaplaceLikelihood{T}(β)
 end
 
-implemented(
-    ::LaplaceLikelihood,
-    ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling},
-) = true
+function implemented(
+    ::LaplaceLikelihood, ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}
+)
+    return true
+end
 
 function init_likelihood(
     likelihood::LaplaceLikelihood{T},
@@ -48,32 +47,26 @@ function init_likelihood(
     nSamplesUsed::Int,
 ) where {T}
     if inference isa AnalyticVI || inference isa GibbsSampling
-        LaplaceLikelihood{T}(
-            likelihood.β,
-            rand(T, nSamplesUsed),
-            zeros(T, nSamplesUsed),
-        )
+        LaplaceLikelihood{T}(likelihood.β, rand(T, nSamplesUsed), zeros(T, nSamplesUsed))
     else
         LaplaceLikelihood{T}(likelihood.β)
     end
 end
 
 function (l::LaplaceLikelihood)(y::Real, f::Real)
-    pdf(Laplace(f, l.β), y)
+    return pdf(Laplace(f, l.β), y)
 end
 
 function Distributions.loglikelihood(l::LaplaceLikelihood, y::Real, f::Real)
-    logpdf(Laplace(f, l.β), y)
+    return logpdf(Laplace(f, l.β), y)
 end
 
 function Base.show(io::IO, l::LaplaceLikelihood{T}) where {T}
-    print(io, "Laplace likelihood (β=$(l.β))")
+    return print(io, "Laplace likelihood (β=$(l.β))")
 end
 
 function compute_proba(
-    l::LaplaceLikelihood{T},
-    μ::AbstractVector{<:Real},
-    σ²::AbstractVector{<:Real},
+    l::LaplaceLikelihood{T}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
 ) where {T<:Real}
     return μ, max.(σ², 0.0) .+ 2 * l.β^2
 end
@@ -81,35 +74,24 @@ end
 ## Local Updates ##
 
 function local_updates!(
-    l::LaplaceLikelihood{T},
-    y::AbstractVector,
-    μ::AbstractVector,
-    diagΣ::AbstractVector,
+    l::LaplaceLikelihood{T}, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
 ) where {T}
     @. l.b = diagΣ + abs2(μ - y)
     @. l.θ = sqrt(l.a) / sqrt.(l.b)
 end
 
-function sample_local!(
-    l::LaplaceLikelihood,
-    y::AbstractVector,
-    f::AbstractVector,
-)
+function sample_local!(l::LaplaceLikelihood, y::AbstractVector, f::AbstractVector)
     @. l.b = rand(GeneralizedInverseGaussian(1 / l.β^2, abs2(f - y), 0.5))
     set_ω!(l, inv.(l.b))
     return nothing
 end
 
-@inline ∇E_μ(
-    l::LaplaceLikelihood{T},
-    ::AOptimizer,
-    y::AbstractVector,
-) where {T} = (l.θ .* y,)
-@inline ∇E_Σ(
-    l::LaplaceLikelihood{T},
-    ::AOptimizer,
-    ::AbstractVector,
-) where {T} = (0.5 * l.θ,)
+@inline function ∇E_μ(l::LaplaceLikelihood{T}, ::AOptimizer, y::AbstractVector) where {T}
+    return (l.θ .* y,)
+end
+@inline function ∇E_Σ(l::LaplaceLikelihood{T}, ::AOptimizer, ::AbstractVector) where {T}
+    return (0.5 * l.θ,)
+end
 
 ## ELBO ##
 function expec_loglikelihood(
@@ -129,13 +111,12 @@ function expec_loglikelihood(
     return tot
 end
 
-AugmentedKL(l::LaplaceLikelihood, ::AbstractVector) =
-    GIGEntropy(l) - expecExponentialGIG(l)
+AugmentedKL(l::LaplaceLikelihood, ::AbstractVector) = GIGEntropy(l) - expecExponentialGIG(l)
 
 GIGEntropy(l::LaplaceLikelihood{T}) where {T} = GIGEntropy(l.a, l.b, l.p)
 
 function expecExponentialGIG(l::LaplaceLikelihood{T}) where {T}
-    sum(
+    return sum(
         -log(2 * l.β^2) .-
         0.5 * (l.a .* sqrt.(l.b) + l.b .* sqrt(l.a)) ./ (l.a .* l.b * l.β^2),
     )
@@ -156,12 +137,8 @@ function grad_quad(
     return -Edloglike::T, Ed²loglike::T
 end
 
+@inline function ∇loglikehood(l::LaplaceLikelihood{T}, y::Real, f::Real) where {T<:Real}
+    return sign(y - f) ./ l.β
+end
 
-@inline ∇loglikehood(l::LaplaceLikelihood{T}, y::Real, f::Real) where {T<:Real} =
-    sign(y - f) ./ l.β
-
-@inline hessloglikelihood(
-    ::LaplaceLikelihood{T},
-    ::Real,
-    ::Real,
-) where {T<:Real} = zero(T)
+@inline hessloglikelihood(::LaplaceLikelihood{T}, ::Real, ::Real) where {T<:Real} = zero(T)

@@ -4,26 +4,26 @@ include("multiclass.jl")
 include("event.jl")
 # include("generic_likelihood.jl")
 function (l::AbstractLikelihood)(::Real, ::Real)
-    error("pdf not implemented for likelihood $(typeof(l))")
+    return error("pdf not implemented for likelihood $(typeof(l))")
 end
 
 Distributions.loglikelihood(l::AbstractLikelihood, y::Real, f) = log(l(y, f))
 
 ## Default function for getting gradient ##
 function ∇loglikehood(l::AbstractLikelihood, y::Real, f::Real)
-    first(ForwardDiff.gradient(x->loglikelihood(l, y, x[1]), [f]))
+    return first(ForwardDiff.gradient(x -> loglikelihood(l, y, x[1]), [f]))
 end
 
 function ∇loglikehood(l::AbstractLikelihood, y::Real, f::AbstractVector)
-    ForwardDiff.gradient(x->loglikelihood(l, y, x), f)
+    return ForwardDiff.gradient(x -> loglikelihood(l, y, x), f)
 end
 
 function hessloglikehood(l::AbstractLikelihood, y::Real, f::Real)
-    first(ForwardDiff.hessian(x->loglikelihood(l, y, x[1]), [f]))
+    return first(ForwardDiff.hessian(x -> loglikelihood(l, y, x[1]), [f]))
 end
 
 function hessloglikelihood(l::AbstractLikelihood, y::Real, f::AbstractVector)
-    ForwardDiff.hessian(x->loglikelihood(l, y, x), f)
+    return ForwardDiff.hessian(x -> loglikelihood(l, y, x), f)
 end
 
 implemented(::AbstractLikelihood, ::AbstractInference) = false

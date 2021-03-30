@@ -9,5 +9,5 @@ function treat_labels!(y::AbstractVector{<:Int}, likelihood::EventLikelihood)
 end
 
 function treat_labels!(::AbstractVector{<:Real}, ::EventLikelihood)
-    error("For event count target(s) should be integers")
+    return error("For event count target(s) should be integers")
 end

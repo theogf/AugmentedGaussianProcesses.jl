@@ -50,11 +50,8 @@ mutable struct MCIntegrationVI{T<:Real,N,Tx,Ty} <: NumericalVI{T}
         xview::Tx,
         yview::Ty,
     ) where {T,Tx,Ty}
-        vi_opts = ntuple(
-            i -> NVIOptimizer{T}(nFeatures[i], nMinibatch, optimiser),
-            nLatent,
-        )
-        new{T,nLatent,Tx,Ty}(
+        vi_opts = ntuple(i -> NVIOptimizer{T}(nFeatures[i], nMinibatch, optimiser), nLatent)
+        return new{T,nLatent,Tx,Ty}(
             nMC,
             clipping,
             ϵ,
@@ -96,7 +93,7 @@ function MCIntegrationVI(;
     clipping::Real=Inf,
     natural::Bool=true,
 ) where {T<:Real}
-    MCIntegrationVI{T}(ϵ, nMC, optimiser, false, clipping, 1, natural)
+    return MCIntegrationVI{T}(ϵ, nMC, optimiser, false, clipping, 1, natural)
 end
 
 """
@@ -121,13 +118,13 @@ MCIntegrationSVI
 
 function MCIntegrationSVI(
     nMinibatch::Integer;
-    ϵ::T = 1e-5,
-    nMC::Integer = 200,
-    optimiser = Momentum(0.001),
-    clipping::Real = 0.0,
-    natural::Bool = true,
+    ϵ::T=1e-5,
+    nMC::Integer=200,
+    optimiser=Momentum(0.001),
+    clipping::Real=0.0,
+    natural::Bool=true,
 ) where {T<:Real}
-    MCIntegrationVI{T}(ϵ, nMC, optimiser, true, clipping, nMinibatch, natural)
+    return MCIntegrationVI{T}(ϵ, nMC, optimiser, true, clipping, nMinibatch, natural)
 end
 
 function tuple_inference(
@@ -138,7 +135,7 @@ function tuple_inference(
     nMinibatch::Int,
     xview::Tx,
     yview::Ty,
-) where {T, Tx, Ty}
+) where {T,Tx,Ty}
     return MCIntegrationVI{T}(
         conv_crit(i),
         isStochastic(i),
@@ -155,39 +152,29 @@ function tuple_inference(
     )
 end
 
-function grad_expectations!(
-    m::AbstractGP{T,L,<:MCIntegrationVI{T,N}},
-) where {T,L,N}
+function grad_expectations!(m::AbstractGP{T,L,<:MCIntegrationVI{T,N}}) where {T,L,N}
     raw_samples = randn(T, inference(m).nMC, nLatent(m))
     samples = similar(raw_samples)
     μ = mean_f(m)
     σ² = var_f(m)
     nSamples = length(MBIndices(m))
-    for j = 1:nSamples
-        samples .=
-            raw_samples .* [sqrt(σ²[k][j]) for k = 1:N]' .+ [μ[k][j] for k = 1:N]'
+    for j in 1:nSamples
+        samples .= raw_samples .* [sqrt(σ²[k][j]) for k in 1:N]' .+ [μ[k][j] for k in 1:N]'
         grad_samples(m, samples, j)
     end
 end
 
 function expec_loglikelihood(
-    l::AbstractLikelihood,
-    i::MCIntegrationVI{T,N},
-    y,
-    μ_f,
-    var_f,
+    l::AbstractLikelihood, i::MCIntegrationVI{T,N}, y, μ_f, var_f
 ) where {T,N}
     raw_samples = randn(i.nMC, N)
     samples = similar(raw_samples)
     nSamples = length(MBIndices(i))
     loglike = 0.0
-    for j = 1:nSamples
+    for j in 1:nSamples
         samples =
-            raw_samples .* [sqrt(var_f[k][j]) for k = 1:N]' .+ [μ_f[k][j] for k = 1:N]'
-        loglike += sum(
-            f -> loglikelihood(l, getindex.(y, j), f),
-            eachrow(samples)
-            ) / i.nMC
+            raw_samples .* [sqrt(var_f[k][j]) for k in 1:N]' .+ [μ_f[k][j] for k in 1:N]'
+        loglike += sum(f -> loglikelihood(l, getindex.(y, j), f), eachrow(samples)) / i.nMC
     end
     return loglike
 end

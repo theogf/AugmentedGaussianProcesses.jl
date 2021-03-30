@@ -8,9 +8,9 @@ include("empiricalmean.jl")
 include("affinemean.jl")
 
 function Base.convert(::Type{PriorMean}, x::T) where {T<:Real}
-    ConstantMean(x)
+    return ConstantMean(x)
 end
 
 function Base.convert(::Type{PriorMean}, x::AbstractVector{T}) where {T<:Real}
-    EmpiricalMean(x)
+    return EmpiricalMean(x)
 end

@@ -8,14 +8,16 @@ module AugmentedGaussianProcesses
 const AGP = AugmentedGaussianProcesses
 export AGP
 export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP, OnlineSVGP # All models
-export AbstractLikelihood, RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood, EventLikelihood # All categories of likelihoods
+export AbstractLikelihood,
+    RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood, EventLikelihood # All categories of likelihoods
 export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood # Regression Likelihoods
 export LogisticLikelihood, BayesianSVM # Classification Likelihoods
 export SoftMaxLikelihood, LogisticSoftMaxLikelihood # Multiclass Classification Likelihoods
 export PoissonLikelihood, NegBinomialLikelihood # Event Likelihoods
 export AbstractInference, Analytic, AnalyticVI, AnalyticSVI # Inference objects
 export GibbsSampling, HMCSampling # Sampling inference
-export NumericalVI, NumericalSVI, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI # Numerical inference
+export NumericalVI,
+    NumericalSVI, MCIntegrationVI, MCIntegrationSVI, QuadratureVI, QuadratureSVI # Numerical inference
 export PriorMean, ZeroMean, ConstantMean, EmpiricalMean, AffineMean # Prior means
 #Useful functions
 export train!, sample
@@ -41,11 +43,23 @@ using StatsBase
 @reexport using InducingPoints
 using StatsFuns
 using SpecialFunctions
-using Distributions: 
-                Distributions, Distribution,
-                dim, cov, mean, var, 
-                pdf, logpdf, loglikelihood,
-                Normal, Poisson, NegativeBinomial, InverseGamma, Laplace, MvNormal, Gamma
+using Distributions:
+    Distributions,
+    Distribution,
+    dim,
+    cov,
+    mean,
+    var,
+    pdf,
+    logpdf,
+    loglikelihood,
+    Normal,
+    Poisson,
+    NegativeBinomial,
+    InverseGamma,
+    Laplace,
+    MvNormal,
+    Gamma
 using FastGaussQuadrature: gausshermite
 using ProgressMeter, SimpleTraits
 

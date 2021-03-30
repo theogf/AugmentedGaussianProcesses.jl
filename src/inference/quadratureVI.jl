@@ -29,13 +29,13 @@ mutable struct QuadratureVI{T,N,Tx,Ty} <: NumericalVI{T}
     yview::Ty
 
     function QuadratureVI{T}(
-    ϵ::T,
-    nPoints::Integer,
-    optimiser,
-    Stochastic::Bool,
-    clipping::Real,
-    nMinibatch::Int,
-    natural::Bool,
+        ϵ::T,
+        nPoints::Integer,
+        optimiser,
+        Stochastic::Bool,
+        clipping::Real,
+        nMinibatch::Int,
+        natural::Bool,
     ) where {T}
         return new{T,1,Vector{T},Vector{T}}(
             nPoints,
@@ -66,12 +66,13 @@ mutable struct QuadratureVI{T,N,Tx,Ty} <: NumericalVI{T}
         optimiser,
         natural::Bool,
         xview::Tx,
-        yview::Ty
+        yview::Ty,
     ) where {T,Tx,Ty}
         gh = gausshermite(nPoints)
-        vi_opts =
-            ntuple(i -> NVIOptimizer{T}(nFeatures[i], nMinibatch[i], optimiser), nLatent)
-        new{T,nLatent,Tx,Ty}(
+        vi_opts = ntuple(
+            i -> NVIOptimizer{T}(nFeatures[i], nMinibatch[i], optimiser), nLatent
+        )
+        return new{T,nLatent,Tx,Ty}(
             nPoints,
             gh[1] .* sqrt2,
             gh[2] ./ sqrtπ,
@@ -93,15 +94,14 @@ mutable struct QuadratureVI{T,N,Tx,Ty} <: NumericalVI{T}
 end
 
 function QuadratureVI(;
-    ϵ::T = 1e-5,
-    nGaussHermite::Integer = 100,
-    optimiser = Momentum(1e-5),
-    clipping::Real = 0.0,
-    natural::Bool = true,
+    ϵ::T=1e-5,
+    nGaussHermite::Integer=100,
+    optimiser=Momentum(1e-5),
+    clipping::Real=0.0,
+    natural::Bool=true,
 ) where {T<:Real}
-    QuadratureVI{T}(ϵ, nGaussHermite, optimiser, false, clipping, 1, natural)
+    return QuadratureVI{T}(ϵ, nGaussHermite, optimiser, false, clipping, 1, natural)
 end
-
 
 """
     QuadratureSVI(nMinibatch::Int; ϵ::T=1e-5, nGaussHermite::Int=20, clipping=Inf, natural=true, optimiser=Momentum(0.0001))
@@ -120,31 +120,23 @@ See [`QuadratureVI`](@ref) for a more detailed reference.
 """
 function QuadratureSVI(
     nMinibatch::Integer;
-    ϵ::T = 1e-5,
-    nGaussHermite::Integer = 100,
-    optimiser = Momentum(1e-5),
-    clipping::Real = 0.0,
-    natural = true,
+    ϵ::T=1e-5,
+    nGaussHermite::Integer=100,
+    optimiser=Momentum(1e-5),
+    clipping::Real=0.0,
+    natural=true,
 ) where {T<:Real}
-    QuadratureVI{T}(
-        ϵ,
-        nGaussHermite,
-        optimiser,
-        true,
-        clipping,
-        nMinibatch,
-        natural,
-    )
+    return QuadratureVI{T}(ϵ, nGaussHermite, optimiser, true, clipping, nMinibatch, natural)
 end
 
 function tuple_inference(
     i::QuadratureVI{T},
     nLatent::Int,
-    nFeatures:: Vector{<:Int},
+    nFeatures::Vector{<:Int},
     nSamples::Int,
     nMinibatch::Int,
     xview,
-    yview
+    yview,
 ) where {T}
     return QuadratureVI{T}(
         conv_crit(i),
@@ -163,58 +155,39 @@ function tuple_inference(
 end
 
 function expec_loglikelihood(
-    l::AbstractLikelihood,
-    i::QuadratureVI,
-    y,
-    μ::AbstractVector,
-    diagΣ::AbstractVector,
+    l::AbstractLikelihood, i::QuadratureVI, y, μ::AbstractVector, diagΣ::AbstractVector
 )
-    mapreduce(apply_quad, :+, y, μ, diagΣ, i, l)
+    return mapreduce(apply_quad, :+, y, μ, diagΣ, i, l)
 end
 
-function apply_quad(
-    y::Real,
-    μ::Real,
-    σ²::Real,
-    i::QuadratureVI,
-    l::AbstractLikelihood,
-)
+function apply_quad(y::Real, μ::Real, σ²::Real, i::QuadratureVI, l::AbstractLikelihood)
     xs = i.nodes * sqrt(σ²) .+ μ
     return dot(i.weights, loglikelihood.(Ref(l), y, xs))
     # return mapreduce((w, x) -> w * Distributions.loglikelihood(l, y, x), +, i.weights, xs)# loglikelihood.(l, y, x))
 end
 
-function grad_expectations!(
-    m::AbstractGP{T,L,<:QuadratureVI},
-) where {T,L}
+function grad_expectations!(m::AbstractGP{T,L,<:QuadratureVI}) where {T,L}
     y = yview(m)
     for (gp, opt) in zip(m.f, get_opt(inference(m)))
         μ = mean_f(gp)
         Σ = var_f(gp)
         for i in 1:nMinibatch(inference(m))
-            opt.ν[i], opt.λ[i] =
-                grad_quad(likelihood(m), y[i], μ[i], Σ[i], inference(m))
+            opt.ν[i], opt.λ[i] = grad_quad(likelihood(m), y[i], μ[i], Σ[i], inference(m))
         end
     end
 end
 
 # Compute the first and second derivative of the log-likelihood using the quadrature nodes
 function grad_quad(
-    l::AbstractLikelihood{T},
-    y::Real,
-    μ::Real,
-    σ²::Real,
-    i::AbstractInference,
+    l::AbstractLikelihood{T}, y::Real, μ::Real, σ²::Real, i::AbstractInference
 ) where {T<:Real}
     x = i.nodes * sqrt(max(σ², zero(T))) .+ μ
     Edloglike = dot(i.weights, ∇loglikehood.(l, y, x))
     Ed²loglike = dot(i.weights, hessloglikehood.(l, y, x))
     if i.clipping != 0
         return (
-            abs(Edloglike) > i.clipping ? sign(Edloglike) * i.clipping :
-            -Edloglike::T,
-            abs(Ed²loglike) > i.clipping ? sign(Ed²loglike) * i.clipping :
-            -Ed²loglike::T,
+            abs(Edloglike) > i.clipping ? sign(Edloglike) * i.clipping : -Edloglike::T,
+            abs(Ed²loglike) > i.clipping ? sign(Ed²loglike) * i.clipping : -Ed²loglike::T,
         )
     else
         return -Edloglike::T, Ed²loglike::T

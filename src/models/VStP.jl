@@ -34,7 +34,6 @@ mutable struct VStP{
     trained::Bool
 end
 
-
 function VStP(
     X::AbstractArray,
     y::AbstractVector,
@@ -42,17 +41,20 @@ function VStP(
     likelihood::AbstractLikelihood,
     inference::AbstractInference,
     ν::Real;
-    verbose::Int = 0,
-    optimiser = ADAM(0.01),
-    atfrequency::Int = 1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    obsdim::Int = 1,
+    verbose::Int=0,
+    optimiser=ADAM(0.01),
+    atfrequency::Int=1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+    obsdim::Int=1,
 )
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
 
-    inference isa VariationalInference ||  error("The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`")
-    implemented(likelihood, inference) || error("The $likelihood is not compatible or implemented with the $inference")
+    inference isa VariationalInference || error(
+        "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`",
+    )
+    implemented(likelihood, inference) ||
+        error("The $likelihood is not compatible or implemented with the $inference")
 
     data = wrap_data(X, y)
 
@@ -70,41 +72,21 @@ function VStP(
         mean = EmpiricalMean(mean)
     end
 
-    latentf = ntuple(
-        _ -> TVarLatent(T, ν, nFeatures, kernel, mean, optimiser),
-        nLatent,
-    )
+    latentf = ntuple(_ -> TVarLatent(T, ν, nFeatures, kernel, mean, optimiser), nLatent)
 
-    likelihood = init_likelihood(
-        likelihood,
-        inference,
-        nLatent,
-        nSamples(data),
-    )
+    likelihood = init_likelihood(likelihood, inference, nLatent, nSamples(data))
     xview = view_x(data, 1:nSamples(data))
     yview = view_y(likelihood, data, 1:nSamples(data))
     inference = tuple_inference(
-        inference,
-        nLatent,
-        nSamples(data),
-        nSamples(data),
-        nSamples(data),
-        xview,
-        yview,
+        inference, nLatent, nSamples(data), nSamples(data), nSamples(data), xview, yview
     )
-    VStP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
-        data,
-        latentf,
-        likelihood,
-        inference,
-        verbose,
-        atfrequency,
-        false,
+    return VStP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
+        data, latentf, likelihood, inference, verbose, atfrequency, false
     )
 end
 
 function Base.show(io::IO, model::VStP)
-    print(
+    return print(
         io,
         "Variational Student-T Process with a $(likelihood(model)) infered by $(inference(model)) ",
     )
@@ -124,7 +106,7 @@ function local_prior_updates!(gp::TVarLatent, X)
             invquad(pr_cov(gp), mean(gp) - pr_mean(gp, X)) +
             trace_ABt(inv(pr_cov(gp)), cov(gp))
         )
-    prior(gp).χ = (prior(gp).ν + dim(gp)) / (prior(gp).ν .+ prior(gp).l²)
+    return prior(gp).χ = (prior(gp).ν + dim(gp)) / (prior(gp).ν .+ prior(gp).l²)
 end
 
 Zviews(m::VStP) = [input(m)]

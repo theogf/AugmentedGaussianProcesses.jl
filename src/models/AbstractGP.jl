@@ -8,12 +8,10 @@ Base.eltype(::AbstractGP{T}) where {T} = T
 data(m::AbstractGP) = m.data
 likelihood(m::AbstractGP) = m.likelihood
 inference(m::AbstractGP) = m.inference
-nLatent(::AbstractGP{<:Real,<:AbstractLikelihood,<:AbstractInference, N}) where {N} = N
+nLatent(::AbstractGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N}) where {N} = N
 nOutput(m::AbstractGP) = 1
-@traitfn nFeatures(m::TGP) where {TGP <: AbstractGP; !IsSparse{TGP}} =
-    nSamples(m)
-@traitfn nFeatures(m::TGP) where {TGP <: AbstractGP; IsSparse{TGP}} =
-    m.nFeatures
+@traitfn nFeatures(m::TGP) where {TGP <: AbstractGP; !IsSparse{TGP}} = nSamples(m)
+@traitfn nFeatures(m::TGP) where {TGP <: AbstractGP; IsSparse{TGP}} = m.nFeatures
 nSamples(m::AbstractGP) = nSamples(data(m))
 
 getf(m::AbstractGP) = m.f
@@ -38,20 +36,16 @@ verbose(m::AbstractGP) = m.verbose
 post_step!(::AbstractGP) = nothing
 
 function Random.rand!(
-    model::AbstractGP,
-    A::DenseArray{T},
-    X::AbstractVector,
+    model::AbstractGP, A::DenseArray{T}, X::AbstractVector
 ) where {T<:Real}
-    rand!(MvNormal(predict_f(model, X, cov = true, diag = false)...), A)
+    return rand!(MvNormal(predict_f(model, X; cov=true, diag=false)...), A)
 end
 
-Random.rand(model::AbstractGP, X::AbstractMatrix, n::Int = 1) = rand(model, KernelFunctions.RowVecs(X), n)
+function Random.rand(model::AbstractGP, X::AbstractMatrix, n::Int=1)
+    return rand(model, KernelFunctions.RowVecs(X), n)
+end
 
-function Random.rand(
-    model::AbstractGP{T},
-    X::AbstractVector,
-    n::Int = 1,
-) where {T<:Real}
+function Random.rand(model::AbstractGP{T}, X::AbstractVector, n::Int=1) where {T<:Real}
     if nLatent(model) == 1
         rand!(model, Array{T}(undef, length(X), n), X)
     else
