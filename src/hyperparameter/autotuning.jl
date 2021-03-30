@@ -46,7 +46,7 @@ end
             end
             # Optimize prior mean
             isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
-            if isnothing(Δk)
+            if !isnothing(ks) isnothing(Δk)
                 @warn "Kernel gradients are equal to zero" maxlog = 1
                 return nothing
             end
@@ -77,19 +77,27 @@ end
             # Optimize prior mean
             isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
             # Optimize kernel parameters
-            for (f, Δ) in zip(m.f, Δk)
-                update!(opt(f), kernel(f), Δ)
+            if isnothing(Δk)
+                @warn "Kernel gradients are equal to zero" maxlog = 1
+            else
+                for (f, Δ) in zip(m.f, Δk)
+                    update!(opt(f), kernel(f), Δ)
+                end
             end
+
             # Optimize inducing point locations
-            for (f, Δ) in zip(m.f, ΔZ)
-                update!(opt(f.Z), data(f.Z), Δ)
+            if isnothing(ΔZ)
+                @warn "Inducing point locations gradients are equal to zero" maxlog = 1
+            else
+                for (f, Δ) in zip(m.f, ΔZ)
+                    update!(opt(f.Z), data(f.Z), Δ)
+                end
             end
         elseif ADBACKEND[] == :ForwardDiff
             θ, re = destructure((μ₀, ks, Zs))
             Δ = ForwardDiff.gradient(θ) do θ
                 ELBO(m, re(θ)...)
             end
-            @show Δ
         end
     end
     return nothing
