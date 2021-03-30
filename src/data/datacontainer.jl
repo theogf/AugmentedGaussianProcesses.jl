@@ -54,15 +54,15 @@ end
 nOutput(d::MODataContainer) = d.nOutput
 
 
-function wrap_X(X::AbstractMatrix{T}, obsdim = 1) where {T<:Real}
-    return KernelFunctions.vec_of_vecs(X, obsdim = obsdim), T
+function wrap_X(X::AbstractMatrix{T}, obsdim::Int=1) where {T<:Real}
+    return KernelFunctions.vec_of_vecs(X; obsdim=obsdim), T
 end
 
-function wrap_X(X::AbstractVector{T}, obsdim = 1) where {T<:Real}
+function wrap_X(X::AbstractVector{<:Real}, ::Int)
     return wrap_X(reshape(X, :, 1), 1)
 end
 
-function wrap_X(X::AbstractVector{<:AbstractVector{T}}, obsdim = 1) where {T<:Real}
+function wrap_X(X::AbstractVector{<:AbstractVector{T}}, ::Int) where {T<:Real}
     return X, T
 end
 
