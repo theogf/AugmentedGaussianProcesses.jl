@@ -1,6 +1,6 @@
 
 ### Global constant allowing to chose between forward_diff and zygote_diff for hyperparameter optimization ###
-const ADBACKEND = Ref(:zygote)
+const ADBACKEND = Ref(:Zygote)
 
 function setadbackend(ad_backend::Symbol)
     (ad_backend == :ForwardDiff || ad_backend == :Zygote) ||

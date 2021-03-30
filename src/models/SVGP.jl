@@ -56,12 +56,13 @@ function SVGP(
         kernel,
         likelihood,
         inference,
-        KmeansIP(X, nInducingPoints),
-        verbose = verbose,
-        optimiser = optimiser,
-        atfrequency = atfrequency,
-        mean = mean,
-        obsdim = obsdim
+        KmeansIP(X, nInducingPoints);
+        verbose,
+        optimiser,
+        atfrequency,
+        mean,
+        Zoptimiser,
+        obsdim,
     )
 end
 

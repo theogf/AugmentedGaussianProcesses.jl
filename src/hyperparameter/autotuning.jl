@@ -23,7 +23,6 @@ function update_hyperparameters!(m::GP)
             Δ = ForwardDiff.gradient(θ) do θ
                 ELBO(m, re(θ)...)
             end
-            @show Δ
         end
     end
     # end
@@ -38,7 +37,7 @@ end
 # end
 
 @traitfn function update_hyperparameters!(m::TGP) where {TGP <: AbstractGP; IsFull{TGP}}
-    if any((!) ∘ isnothing ∘ opt, m) # Check there is a least one optimiser
+    if any((!) ∘ isnothing ∘ opt, m.f) # Check there is a least one optimiser
         μ₀ = pr_means(m) # Get prior means
         ks = kernels(m) # Get kernels
         if ADBACKEND[] == :Zygote
@@ -60,7 +59,6 @@ end
             Δ = ForwardDiff.gradient(θ) do θ
                 ELBO(m, re(θ)...)
             end
-            @show Δ
         end
     end
     return nothing
@@ -68,7 +66,7 @@ end
 
 @traitfn function update_hyperparameters!(m::TGP) where {TGP <: AbstractGP; !IsFull{TGP}}
     # Check that here is least one optimiser
-    if any((!) ∘ isnothing ∘ opt, m) || any((!) ∘ isnothing ∘ opt ∘ Zview, m)
+    if any((!) ∘ isnothing ∘ opt, m.f) || any((!) ∘ isnothing ∘ opt ∘ Zview, m.f)
         μ₀ = pr_means(m)
         ks = kernels(m)
         Zs = Zviews(m)
@@ -76,6 +74,7 @@ end
             Δμ₀, Δk, ΔZ = Zygote.gradient(μ₀, ks, Zs) do μ₀, ks, Zs
                 ELBO(m, μ₀, ks, Zs)
             end
+            @show ΔZ
             # Optimize prior mean
             isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
             # Optimize kernel parameters
