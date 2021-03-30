@@ -9,19 +9,9 @@ struct LatentGP{T,Tpr<:GPPrior,Tpo<:Posterior{T},O} <: AbstractLatent{T,Tpr,Tpo}
     opt::O
 end
 
-function LatentGP(
-    T::DataType,
-    dim::Int,
-    kernel::Kernel,
-    mean::PriorMean,
-    opt,
-)
-    LatentGP(
-        GPPrior(
-            deepcopy(kernel),
-            deepcopy(mean),
-            cholesky(Matrix{T}(I, dim, dim)),
-        ),
+function LatentGP(T::DataType, dim::Int, kernel::Kernel, mean::PriorMean, opt)
+    return LatentGP(
+        GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I, dim, dim))),
         Posterior(dim, zeros(T, dim), cholesky(Matrix{T}(I(dim)))),
         deepcopy(opt),
     )
@@ -41,19 +31,9 @@ mutable struct VarLatent{T,Tpr<:GPPrior,Tpo<:VarPosterior{T},O} <:
     opt::O
 end
 
-function VarLatent(
-    T::DataType,
-    dim::Int,
-    kernel::Kernel,
-    mean::PriorMean,
-    opt,
-)
-    VarLatent(
-        GPPrior(
-            deepcopy(kernel),
-            deepcopy(mean),
-            cholesky(Matrix{T}(I, dim, dim)),
-        ),
+function VarLatent(T::DataType, dim::Int, kernel::Kernel, mean::PriorMean, opt)
+    return VarLatent(
+        GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I, dim, dim))),
         VarPosterior{T}(dim),
         deepcopy(opt),
     )
@@ -64,11 +44,7 @@ end
 ## Sparse Variational Gaussian Process
 
 mutable struct SparseVarLatent{
-    T,
-    Tpr<:GPPrior,
-    Tpo<:VarPosterior{T},
-    TZ<:AbstractInducingPoints,
-    O,
+    T,Tpr<:GPPrior,Tpo<:VarPosterior{T},TZ<:AbstractInducingPoints,O
 } <: AbstractVarLatent{T,Tpr,Tpo}
     prior::Tpr
     post::Tpo
@@ -88,12 +64,8 @@ function SparseVarLatent(
     mean::PriorMean,
     opt,
 )
-    SparseVarLatent(
-        GPPrior(
-            deepcopy(kernel),
-            deepcopy(mean),
-            cholesky(Matrix{T}(I(dim))),
-        ),
+    return SparseVarLatent(
+        GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I(dim)))),
         VarPosterior{T}(dim),
         deepcopy(Z),
         Matrix{T}(undef, S, dim),
@@ -107,24 +79,14 @@ end
 
 ## Monte-Carlo Gaussian Process
 
-struct SampledLatent{T,Tpr<:GPPrior,Tpo<:SampledPosterior{T}} <:
-               AbstractLatent{T,Tpr,Tpo}
+struct SampledLatent{T,Tpr<:GPPrior,Tpo<:SampledPosterior{T}} <: AbstractLatent{T,Tpr,Tpo}
     prior::Tpr
     post::Tpo
 end
 
-function SampledLatent(
-    T::DataType,
-    dim::Int,
-    kernel::Kernel,
-    mean::PriorMean,
-)
-    SampledLatent(
-        GPPrior(
-            deepcopy(kernel),
-            deepcopy(mean),
-            cholesky(Matrix{T}(I, dim, dim)),
-        ),
+function SampledLatent(T::DataType, dim::Int, kernel::Kernel, mean::PriorMean)
+    return SampledLatent(
+        GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I, dim, dim))),
         SampledPosterior(dim, zeros(T, dim), Symmetric(Matrix{T}(I(dim)))),
     )
 end
@@ -133,12 +95,8 @@ end
 
 ## Online Sparse Variational Process
 
-mutable struct OnlineVarLatent{
-    T,
-    Tpr<:GPPrior,
-    Tpo<:AbstractVarPosterior{T},
-    O,
-} <: AbstractVarLatent{T,Tpo,Tpr}
+mutable struct OnlineVarLatent{T,Tpr<:GPPrior,Tpo<:AbstractVarPosterior{T},O} <:
+               AbstractVarLatent{T,Tpo,Tpr}
     prior::Tpr
     post::Tpo
     Z::InducingPoints.AIP
@@ -165,12 +123,8 @@ function OnlineVarLatent(
     mean::PriorMean,
     opt,
 )
-    OnlineVarLatent(
-        GPPrior(
-            deepcopy(kernel),
-            deepcopy(mean),
-            cholesky(Matrix{T}(I, dim, dim)),
-        ),
+    return OnlineVarLatent(
+        GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I, dim, dim))),
         OnlineVarPosterior{T}(dim),
         Z,
         Matrix{T}(undef, nSamplesUsed, dim),
@@ -199,15 +153,8 @@ mutable struct TVarLatent{T<:Real,Tpr<:TPrior,Tpo<:VarPosterior{T},O} <:
     opt::O
 end
 
-function TVarLatent(
-    T::DataType,
-    ν::Real,
-    dim::Int,
-    kernel::Kernel,
-    mean::PriorMean,
-    opt,
-)
-    TVarLatent(
+function TVarLatent(T::DataType, ν::Real, dim::Int, kernel::Kernel, mean::PriorMean, opt)
+    return TVarLatent(
         TPrior(
             deepcopy(kernel),
             deepcopy(mean),
@@ -224,7 +171,6 @@ end
 @traitimpl IsFull{TVarLatent}
 
 ### Functions
-
 
 prior(gp::AbstractLatent) = gp.prior
 kernel(gp::AbstractLatent) = kernel(prior(gp))
@@ -267,23 +213,21 @@ setZ!(gp::AbstractLatent, Z::AbstractInducingPoints) = gp.Z = Z#InducingPoints.s
 
 opt(gp::AbstractLatent) = gp.opt
 
-@traitfn compute_K!(
-    gp::TGP,
-    X::AbstractVector,
-    jitt::Real,
-) where {TGP <: AbstractLatent; IsFull{TGP}} =
-    pr_cov!(gp, cholesky(kernelmatrix(kernel(gp), X) + jitt * I))
+@traitfn function compute_K!(
+    gp::TGP, X::AbstractVector, jitt::Real
+) where {TGP <: AbstractLatent; IsFull{TGP}}
+    return pr_cov!(gp, cholesky(kernelmatrix(kernel(gp), X) + jitt * I))
+end
 
-@traitfn compute_K!(gp::T, jitt::Real) where {T <: AbstractLatent; !IsFull{T}} =
-    pr_cov!(gp, cholesky(kernelmatrix(kernel(gp), gp.Z) + jitt * I))
+@traitfn function compute_K!(gp::T, jitt::Real) where {T<:AbstractLatent; !IsFull{T}}
+    return pr_cov!(gp, cholesky(kernelmatrix(kernel(gp), gp.Z) + jitt * I))
+end
 
 function compute_κ!(gp::SparseVarLatent, X::AbstractVector, jitt::Real)
     gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
     gp.κ = copy(gp.Knm / pr_cov(gp))
-    gp.K̃ =
-        kernelmatrix_diag(kernel(gp), X) .+ jitt -
-        diag_ABt(gp.κ, gp.Knm)
-    all(gp.K̃ .> 0) || error("K̃ has negative values")
+    gp.K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(gp.κ, gp.Knm)
+    return all(gp.K̃ .> 0) || error("K̃ has negative values")
 end
 
 function compute_κ!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)

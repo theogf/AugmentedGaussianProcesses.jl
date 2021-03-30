@@ -1,7 +1,6 @@
 """
-```julia
-GaussianLikelihood(σ²::T=1e-3) #σ² is the variance
-```
+    GaussianLikelihood(σ²::T=1e-3) # σ² is the **variance**
+
 Gaussian noise :
 ```math
     p(y|f) = N(y|f,σ²)
