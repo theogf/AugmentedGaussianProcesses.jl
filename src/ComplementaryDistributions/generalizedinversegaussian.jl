@@ -1,51 +1,55 @@
 
 """Sampler object"""
 struct GeneralizedInverseGaussian{T<:Real} <: Distributions.ContinuousUnivariateDistribution
-	a::T
+    a::T
     b::T
     p::T
-    function GeneralizedInverseGaussian{T}(a::T, b::T, p::T) where T
+    function GeneralizedInverseGaussian{T}(a::T, b::T, p::T) where {T}
         Distributions.@check_args(GeneralizedInverseGaussian, a > zero(a) && b > zero(b))
-        new{T}(a, b, p)
+        return new{T}(a, b, p)
     end
 end
 
-function GeneralizedInverseGaussian(a::T, b::T, p::T) where T
-	GeneralizedInverseGaussian{T}(a::T, b::T, p::T)
+function GeneralizedInverseGaussian(a::T, b::T, p::T) where {T}
+    return GeneralizedInverseGaussian{T}(a::T, b::T, p::T)
 end
 
 Distributions.params(d::GeneralizedInverseGaussian) = (d.a, d.b, d.p)
-@inline Distributions.partype(::GeneralizedInverseGaussian{T}) where T <: Real = T
-
+@inline Distributions.partype(::GeneralizedInverseGaussian{T}) where {T<:Real} = T
 
 function Distributions.mean(d::GeneralizedInverseGaussian)
     a, b, p = params(d)
     q = sqrt(a * b)
-    (sqrt(b) * besselk(p + 1, q)) / (sqrt(a) * besselk(p, q))
+    return (sqrt(b) * besselk(p + 1, q)) / (sqrt(a) * besselk(p, q))
 end
 
 function Distributions.var(d::GeneralizedInverseGaussian)
     a, b, p = params(d)
     q = sqrt(a * b)
     r = besselk(p, q)
-    (b / a) * ((besselk(p + 2, q) / r) - (besselk(p + 1, q) / r)^2)
+    return (b / a) * ((besselk(p + 2, q) / r) - (besselk(p + 1, q) / r)^2)
 end
 
-Distributions.mode(d::GeneralizedInverseGaussian) = ((d.p - 1) + sqrt((d.p - 1)^2 + d.a * d.b)) / d.a
+function Distributions.mode(d::GeneralizedInverseGaussian)
+    return ((d.p - 1) + sqrt((d.p - 1)^2 + d.a * d.b)) / d.a
+end
 
-function Distributions.pdf(d::GeneralizedInverseGaussian{T}, x::Real) where T <: Real
+function Distributions.pdf(d::GeneralizedInverseGaussian{T}, x::Real) where {T<:Real}
     if x > 0
         a, b, p = params(d)
-        (((a / b)^(p / 2)) / (2 * besselk(p, sqrt(a * b)))) * (x^(p - 1)) * exp(- (a * x + b / x) / 2)
+        (((a / b)^(p / 2)) / (2 * besselk(p, sqrt(a * b)))) *
+        (x^(p - 1)) *
+        exp(-(a * x + b / x) / 2)
     else
         zero(T)
     end
 end
 
-function Distributions.logpdf(d::GeneralizedInverseGaussian{T}, x::Real) where T <: Real
+function Distributions.logpdf(d::GeneralizedInverseGaussian{T}, x::Real) where {T<:Real}
     if x > 0
         a, b, p = params(d)
-        (p / 2) * (log(a) - log(b)) - log(2 * besselk(p, sqrt(a * b))) + (p - 1) * log(x) - (a * x + b / x) / 2
+        (p / 2) * (log(a) - log(b)) - log(2 * besselk(p, sqrt(a * b))) + (p - 1) * log(x) -
+        (a * x + b / x) / 2
     else
         -T(Inf)
     end
@@ -63,10 +67,10 @@ function Distributions.rand(d::GeneralizedInverseGaussian)
     else
         x = _hormann(λ, β)
     end
-    p >= 0 ? x / α : 1 / (α * x)
+    return p >= 0 ? x / α : 1 / (α * x)
 end
 function _gigqdf(x::Real, λ::Real, β::Real)
-    (x^(λ - 1)) * exp(-β * (x + 1 / x) / 2)
+    return (x^(λ - 1)) * exp(-β * (x + 1 / x) / 2)
 end
 
 function _hormann(λ::Real, β::Real)

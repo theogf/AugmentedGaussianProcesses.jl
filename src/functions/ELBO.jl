@@ -1,8 +1,4 @@
-function ELBO(
-    model::GP{T},
-    pr_mean,
-    kernel,
-) where {T<:Real}
+function ELBO(model::GP, pr_mean, kernel)
     # setprior!(model, pr_means, kernels, Zs)
     setpr_mean!(model.f, pr_mean)
     setkernel!(model.f, kernel)
@@ -10,13 +6,9 @@ function ELBO(
     return log_py(model)
 end
 
-
-
 @traitfn function ELBO(
-    model::TGP,
-    pr_means,
-    kernels,
-) where {T<:Real, TGP<:AbstractGP{T}; IsFull{TGP}}
+    model::TGP, pr_means, kernels
+) where {TGP<:AbstractGP;IsFull{TGP}}
     # setprior!(model, pr_means, kernels, Zs)
     setpr_means!(model, pr_means)
     setkernels!(model, kernels)
@@ -25,11 +17,8 @@ end
 end
 
 @traitfn function ELBO(
-    model::TGP,
-    pr_means,
-    kernels,
-    Zs,
-) where {T<:Real, TGP<:AbstractGP{T}; !IsFull{TGP}}
+    model::TGP, pr_means, kernels, Zs
+) where {TGP<:AbstractGP;!IsFull{TGP}}
     # setprior!(model, pr_means, kernels, Zs)
     setpr_means!(model, pr_means)
     setkernels!(model, kernels)
