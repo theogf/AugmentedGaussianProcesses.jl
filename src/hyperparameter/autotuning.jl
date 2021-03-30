@@ -74,7 +74,6 @@ end
             Δμ₀, Δk, ΔZ = Zygote.gradient(μ₀, ks, Zs) do μ₀, ks, Zs
                 ELBO(m, μ₀, ks, Zs)
             end
-            @show ΔZ
             # Optimize prior mean
             isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
             # Optimize kernel parameters
