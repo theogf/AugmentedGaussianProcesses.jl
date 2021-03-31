@@ -1,52 +1,30 @@
 using Documenter, Literate
 using AugmentedGaussianProcesses
 
-# Create the notebooks
+# Create the notebooks and examples markdown using Literate
 
-# Regression
-Literate.markdown(joinpath(@__DIR__, "examples", "gpregression.jl"),
-                    joinpath(@__DIR__, "src", "examples");
-                    documenter = true,
-                )
-Literate.notebook(joinpath(@__DIR__, "examples", "gpregression.jl"),
-                    joinpath(@__DIR__, "notebooks")
-                )
+EXAMPLES = joinpath(@__DIR__, "examples")
+MD_OUTPUT = joinpath(@__DIR__, "src", "examples")
+NB_OUTPUT = joinpath(@__DIR__, "src", "examples", "notebooks")
 
-# Classification
-Literate.markdown(joinpath(@__DIR__, "examples", "gpclassification.jl"),
-                    joinpath(@__DIR__, "src", "examples");
-                    documenter = true,
-                ) 
-Literate.notebook(joinpath(@__DIR__, "examples", "gpclassification.jl"),
-                joinpath(@__DIR__, "src", "examples")
-            ) 
+ispath(MD_OUTPUT) && rm(MD_OUTPUT; recursive=true)
+ispath(NB_OUTPUT) && rm(NB_OUTPUT; recursive=true)
 
-# Multi-Class Classification
-Literate.markdown(joinpath(@__DIR__, "examples", "multiclassgp.jl"),
-                    joinpath(@__DIR__, "src", "examples");
-                    documenter = true,
-                ) 
-Literate.notebook(joinpath(@__DIR__, "examples", "multiclassgp.jl"),
-                joinpath(@__DIR__, "src", "examples")
-            ) 
+# add links to binder and nbviewer below the first heading of level 1
+function preprocess(content)
+    sub = s"""
+\0
+#
+# [![](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/examples/notebooks/@__NAME__.ipynb)
+"""
+    return replace(content, r"^# # .*$"m => sub; count=1)
+end
 
-# Online GP
-Literate.markdown(joinpath(@__DIR__, "examples", "onlinegp.jl"),
-                    joinpath(@__DIR__, "src", "examples");
-                    documenter = true,
-                ) 
-Literate.notebook(joinpath(@__DIR__, "examples", "onlinegp.jl"),
-                joinpath(@__DIR__, "src", "examples")
-            ) 
-
-# Events GP
-Literate.markdown(joinpath(@__DIR__, "examples", "gpevents.jl"),
-                    joinpath(@__DIR__, "src", "examples");
-                    documenter = true,
-                ) 
-Literate.notebook(joinpath(@__DIR__, "examples", "gpevents.jl"),
-                joinpath(@__DIR__, "src", "examples")
-            )
+for file in readdir(EXAMPLES; join=true)
+    endswith(file, ".jl") || continue
+    Literate.markdown(file, MD_OUTPUT; documenter=true, preprocess=preprocess)
+    Literate.notebook(file, NB_OUTPUT; documenter=true)
+end
 
 # Make the docs
 
@@ -58,19 +36,13 @@ makedocs(modules = [AugmentedGaussianProcesses],
          sitename= "AugmentedGaussianProcesses",
          authors = "Théo Galy-Fajou",
          pages = [
-         "Home"=>"index.md",
-         "Background"=>"background.md",
-         "User Guide"=>"userguide.md",
-         "Kernels"=>"kernel.md",
-         "Examples"=>[
-             "GP Regression" => "examples/gpregression.md",
-             "GP Classification" => "examples/gpclassification.md",
-             "Multi-Class GP" => "examples/multiclassgp.md",
-             "Online GP" => "examples/onlinegp.md",
-             "GP with event data" => "examples/gpevents.md",
-            ],
-         "Julia GP Packages"=>"comparison.md",
-         "API"=>"api.md"
+         "Home" => "index.md",
+         "Background" => "background.md",
+         "User Guide" => "userguide.md",
+         "Kernels" => "kernel.md",
+         "Examples" => joinpath.("examples", filter(x -> endswith(x, ".md"), readdir(OUTPUT))),
+         "Julia GP Packages" => "comparison.md",
+         "API" => "api.md"
          ]
          )
 

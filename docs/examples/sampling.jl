@@ -9,7 +9,7 @@ using LinearAlgebra
 
 # ### Loading the banana dataset from OpenML
 kernel = SqExponentialKernel()
-x = range(0, 10, length=200)
+x = range(0, 10, length=50)
 K = kernelmatrix(kernel, x)
 f = rand(MvNormal(K + 1e-8I)) # Sample a random GP
 y = rand.(Bernoulli.(AGP.logistic.(f)))
@@ -50,65 +50,15 @@ mmcmc = MCGP(x, y,
 m = mmcmc
 @time samples = sample(mmcmc, 1000)
 
-## 
-function compute_grid(model, n_grid=50)
-    mins = [-3.25,-2.85]
-    maxs = [3.65,3.4]
-    x_lin = range(mins[1], maxs[1], length=n_grid)
-    y_lin = range(mins[2], maxs[2], length=n_grid)
-    x_grid = Iterators.product(x_lin, y_lin)
-    y_grid, _ =  proba_y(model,vec(collect.(x_grid)))
-    return y_grid, x_lin, y_lin
-end
+# ### We can now visualize the results of both models
 
-function plot_model(model, X, Y, title = nothing; size = (300, 500))
-    n_grid = 50
-    y_pred, x_lin, y_lin = compute_grid(model, n_grid)
-    title = if isnothing(title)
-        (model isa SVGP ? "M = $(AGP.dim(model[1]))" : "full")
-    else
-        title
-    end
-    p = plot_data(X, Y; size=size)
-    Plots.contour!(p,
-                x_lin, y_lin,
-                reshape(y_pred, n_grid, n_grid)',
-                cbar=false, levels=[0.5],
-                fill=false, color=:black,
-                linewidth=2.0,
-                title=title
-                )
-    if model isa SVGP
-        Plots.scatter!(p, 
-                    eachrow(hcat(AGP.Zview(model[1])...))...,
-                    msize=2.0, color="black",
-                    lab="")
-    end
-    return p
-end;
-
-# ### Now run the prediction for every model and visualize the differences
-Plots.plot(plot_model.(models, Ref(X), Ref(Y))...,
-            layout=(1, length(models)),
-            size=(1000, 200)
-            )
-
-# ## Bayesian SVM vs Logistic
-# ### We now create a model with the Bayesian SVM likelihood
-
-mbsvm = VGP(X, Y,
-            kernel,
-            BayesianSVM(),
-            AnalyticVI(),
-            optimiser = false
-            )
-@time train!(mbsvm, 5)
-# ### And compare it with the Logistic likelihood
-Plots.plot(plot_model.(
-                [models[end], mbsvm], 
-                Ref(X), 
-                Ref(Y), 
-                ["Logistic", "BSVM"];
-                size = (500, 500)
-                )...,
-            layout=(1, 2))
+# ### We first plot the latent function f (truth, the VI estimate, the samples)
+p1 = plot(x, f, label="true f")
+plot!(x, samples, label="", color=:black, alpha=0.02, lab="")
+plot!(x, mean(mfull[1]), ribbon=sqrt.(var(mfull[1])), label="VI")
+# ### And we can also plot the predictions vs the data
+p2 = plot_data(x, y; size=(600,400))
+μ_vi, σ_vi = proba_y(mfull, x)
+plot!(x, μ_vi; ribbon=σ_vi, label="VI")
+μ_mcmc, σ_mcmc = proba_y(mmcmc, x)
+plot!(x, μ_mcmc; ribbon=σ_mcmc, label="MCMC")

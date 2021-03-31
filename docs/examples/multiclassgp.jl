@@ -1,4 +1,9 @@
-# ## Data generation
+# # Gaussian Process Multi-Class Classification
+# 
+# ## Preliminary steps
+#
+# ### Loading necessary packages
+# ## Data generation and setting up packages
 using Plots
 using Distributions
 using AugmentedGaussianProcesses

@@ -1,8 +1,5 @@
-# # Gaussian Process Regression
+# # Gaussian Process Regression (for large data)
 # 
-#md # [![](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/examples/gpregression.ipynb)
-#md # [![](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/examples/gpregression.ipynb)
-
 # ### Loading necessary packages
 using AugmentedGaussianProcesses
 const AGP = AugmentedGaussianProcesses

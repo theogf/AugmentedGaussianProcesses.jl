@@ -91,75 +91,6 @@ function tuple_inference(
     )
 end
 
-function init_sampler!(
-    inference::GibbsSampling{T},
-    nLatent::Int,
-    nFeatures::Integer,
-    nSamples::Integer,
-    cat_samples::Bool,
-) where {T<:Real}
-    if inference.nIter == 0 || !cat_samples
-        inference.sample_store = zeros(T, nSamples, nFeatures, nLatent)
-    else
-        inference.sample_store = cat(
-            inference.sample_store,
-            zeros(T, nSamples, nFeatures, nLatent),
-            dims = 1,
-        )
-    end
-    return inference
-end
-
-function sample_parameters(
-    m::MCGP{T,L,<:GibbsSampling},
-    nSamples::Int,
-    callback::Union{Nothing,Function},
-    cat_samples::Bool,
-) where {T,L}
-    init_sampler!(
-        inference(m),
-        nLatent(m),
-        nFeatures(m),
-        nSamples,
-        cat_samples,
-    )
-    computeMatrices!(m)
-    for i in 1:(inference(m).nBurnin + nSamples * inference(m).thinning)
-        inference(m).nIter += 1
-        sample_local!(likelihood(m), yview(m), means(m))
-        sample_global!.(∇E_μ(m), ∇E_Σ(m), Zviews(m), getf(m))
-        if nIter(inference(m)) > m.inference.nBurnin &&
-           ((nIter(inference(m)) - m.inference.nBurnin) %
-           (inference(m).thinning) == 0) # Store variables every thinning
-            store_variables!(inference(m), means(m))
-        end
-    end
-    symbols = ["f_" * string(i) for i = 1:nFeatures(m)]
-    if nLatent(m) == 1
-        return Chains(
-            reshape(
-                m.inference.sample_store[:, :, 1],
-                :,
-                nFeatures(m),
-                1,
-            ),
-            symbols,
-        )
-    else
-        return [
-            Chains(
-                reshape(
-                    m.inference.sample_store[:, :, i],
-                    :,
-                    nFeatures(m),
-                    1,
-                ),
-                symbols,
-            ) for i = 1:nLatent(m)
-        ]
-    end
-end
-
 sample_local!(l::AbstractLikelihood, y, f::Tuple{<:AbstractVector{T}}) where {T} =
     sample_local!(l, y, first(f))
 set_ω!(l::AbstractLikelihood, ω) = l.θ .= ω
@@ -173,17 +104,5 @@ function sample_global!(
 ) where {T}
     gp.post.Σ .= inv(Symmetric(2.0 * Diagonal(∇E_Σ) + inv(pr_cov(gp))))
     rand!(MvNormal(cov(gp) * (∇E_μ + pr_cov(gp) \ pr_mean(gp, X)), cov(gp)), gp.post.f)
-    return gp.post.f
-end
-
-function post_process!(
-    m::MCGP{T}
-) where {T}
-    # for k in 1:model.nLatent
-    #     model.μ[k] =
-    #         vec(mean(hcat(model.inference.sample_store[k]...), dims = 2))
-    #     model.Σ[k] =
-    #         Symmetric(cov(hcat(model.inference.sample_store[k]...), dims = 2))
-    # end
-    nothing
+    return deepcopy(posterior(gp).f)
 end
