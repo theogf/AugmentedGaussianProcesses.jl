@@ -18,7 +18,7 @@ mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     opt::NTuple{N,SOptimizer}
     xview::Tx
     yview::Ty
-    sample_store::Array{T,3}
+    sample_store::Vector{Vector{Vector{T}}}
     function GibbsSampling{T}(
         nBurnin::Int,
         thinning::Int,
@@ -49,6 +49,7 @@ mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
             opts,
             xview,
             yview,
+            [],
         )
     end
 end
@@ -172,7 +173,7 @@ function sample_global!(
 ) where {T}
     gp.post.Σ .= inv(Symmetric(2.0 * Diagonal(∇E_Σ) + inv(pr_cov(gp))))
     rand!(MvNormal(cov(gp) * (∇E_μ + pr_cov(gp) \ pr_mean(gp, X)), cov(gp)), gp.post.f)
-    return nothing
+    return gp.post.f
 end
 
 function post_process!(

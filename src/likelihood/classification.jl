@@ -23,6 +23,6 @@ function treat_labels!(y::AbstractVector, likelihood::ClassificationLikelihood)
     error("For classification target(s) should be real valued (Bool, Integer or Float)")
 end
 
-predict_y(l::ClassificationLikelihood, μ::AbstractVector{<:Real}) = sign.(μ)
-predict_y(l::ClassificationLikelihood, μ::AbstractVector{<:AbstractVector}) =
-    sign.(first(μ))
+predict_y(::ClassificationLikelihood, μ::AbstractVector{<:Real}) = μ .> 0
+predict_y(::ClassificationLikelihood, μ::AbstractVector{<:AbstractVector}) =
+    first(μ) .> 0

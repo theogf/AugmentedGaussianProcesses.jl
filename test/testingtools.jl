@@ -450,9 +450,9 @@ function tests_likelihood(
                     @test AGP.output(model) isa AbstractVector
                     @test AGP.input(model) isa AbstractVector
                     @test AGP.nLatent(model) == nLatent
-                    samples = AGP.sample(model, 100)
+                    samples = sample(model, 100)
                     @test_broken samples2 =
-                        AGP.sample(model, 100, cat_samples = true)
+                        sample(model, 100, cat_samples = true)
                 else
                     @test_throws ErrorException MCGP(
                         X,
@@ -471,9 +471,9 @@ function tests_likelihood(
                     @test AGP.output(model) isa AbstractVector
                     @test AGP.input(model) isa AbstractVector
                     @test AGP.nLatent(model) == nLatent
-                    samples = AGP.sample(model, 20)
+                    samples = sample(model, 20)
                     @test_broken samples2 =
-                        AGP.sample(model, 20, cat_samples = true)
+                        sample(model, 20, cat_samples = true)
                 else
                     @test_throws ErrorException MCGP(X, y, k, l, HMCSampling())
                 end

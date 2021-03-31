@@ -1,20 +1,54 @@
-function StatsBase.sample(model::MCGP{T}, nSamples::Int=1000; callback::Union{Nothing,Function}=nothing,cat_samples::Bool=false) where {T}
-    if verbose(model) > 0
-      @info "Starting sampling $model with $(model.nSamples) samples with $(size(model.X,2)) features and $(nLatent(model)) latent GP" * (model.nLatent > 1 ? "s" : "")
+struct GPModel{TGP} <: AbstractMCMC.AbstractModel
+    gp::TGP
+end
+
+struct GPSampler{TS} <: AbstractMCMC.AbstractSampler
+    sampler::TS
+end
+
+function StatsBase.sample(model::MCGP, nSamples::Int; kwargs...)
+    return sample(Random.GLOBAL_RNG, model, nSamples; kwargs...)
+end
+function StatsBase.sample(rng::Random.AbstractRNG, model::MCGP, nSamples::Int; kwargs...)
+    sampler = inference(model)
+    kwargs = Dict(kwargs...)
+    get!(kwargs, :thinning, sampler.thinning)
+    get!(kwargs, :discard_initial, sampler.nBurnin)
+    get!(kwargs, :progressname, "Sampling with $sampler")
+    return sample(
+        rng,
+        GPModel(model),
+        GPSampler(sampler),
+        nSamples;
+        kwargs...,
+    )
+end
+function AbstractMCMC.step(
+    rng, model::GPModel, sampler::GPSampler{<:GibbsSampling}; kwargs...
+)
+    computeMatrices!(model.gp)
+    sample_local!(likelihood(model.gp), yview(model.gp), means(model.gp))
+    f = sample_global!.(∇E_μ(model.gp), ∇E_Σ(model.gp), Zviews(model.gp), getf(model.gp))
+    sampler.sampler.nIter += 1
+    return f, nothing
+end
+
+function AbstractMCMC.step(
+    rng, model::GPModel, sampler::GPSampler{<:GibbsSampling}, state; kwargs...
+)
+    sample_local!(likelihood(model.gp), yview(model.gp), means(model.gp))
+    f = sample_global!.(∇E_μ(model.gp), ∇E_Σ(model.gp), Zviews(model.gp), getf(model.gp))
+    sampler.sampler.nIter += 1
+    return f, nothing
+end
+
+function AbstractMCMC.bundle_samples(samples, model::GPModel, sampler::GPSampler, state, chain_type::Type; kwargs...)
+    kwargs = Dict(kwargs...)
+    resume = get!(kwargs, :cat, true)
+    if !resume || isempty(sampler.sampler.sample_store) # check if either one should restart sampling or if no samples was ever taken
+        sampler.sampler.sample_store = samples
+    else
+        sampler.sampler.sample_store = vcat(sampler.sampler.sample_store, samples)
     end
-    nSamples > 0 || error("Number of samples should be positive")
-    return sample_parameters(model, nSamples, callback, cat_samples)
-end
-
-StatsBase.sample(model::MCGP, nSamples::Int; kwargs...) = sample(Random.GLOBAL_RNG, model, nSamples; kwargs...)
-StatsBase.sample(rng::Random.AbstractRNG, model::MCGP, nSamples::Int; kwargs...) = sample(rng, model, inference(model), nSamples; kwargs...)
-
-function AbstractMCMC.step(rng, model, sampler; kwargs...)
-    sample_local!(likelihood(m), yview(m), means(m))
-    f = sample_global!.(∇E_μ(m), ∇E_Σ(m), Zviews(m), getf(m))
-end
-
-function AbstractMCMC.step(rng, model, sampler, state; kwargs...)
-    sample_local!(likelihood(m), yview(m), means(m))
-    f = sample_global!.(∇E_μ(m), ∇E_Σ(m), Zviews(m), getf(m))
+    return samples
 end

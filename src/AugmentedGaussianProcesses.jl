@@ -27,27 +27,31 @@ export @augmodel
 
 #General modules
 using Reexport
-using LinearAlgebra
-using Random
 @reexport using KernelFunctions
-using KernelFunctions: ColVecs, RowVecs
-using Zygote, ForwardDiff
-using ChainRulesCore: ChainRulesCore, NO_FIELDS, DoesNotExist
-using Flux: params, destructure
 @reexport using Flux.Optimise
-using AdvancedHMC
-using MCMCChains
-using StatsBase
 @reexport using InducingPoints
-using StatsFuns
-using SpecialFunctions
+
+using AbstractMCMC
+using AdvancedHMC
+using ChainRulesCore: ChainRulesCore, NO_FIELDS, DoesNotExist
 using Distributions: 
                 Distributions, Distribution,
                 dim, cov, mean, var, 
                 pdf, logpdf, loglikelihood,
-                Normal, Poisson, NegativeBinomial, InverseGamma, Laplace, MvNormal, Gamma
+                Normal, Poisson, NegativeBinomial,
+                InverseGamma, Laplace, MvNormal, Gamma
 using FastGaussQuadrature: gausshermite
-using ProgressMeter, SimpleTraits
+using Flux: params, destructure
+using ForwardDiff
+using KernelFunctions: ColVecs, RowVecs
+using LinearAlgebra
+using ProgressMeter
+using Random
+using StatsBase
+using SimpleTraits
+using StatsFuns
+using SpecialFunctions
+using Zygote
 
 #Include custom module for additional distributions
 include(joinpath("ComplementaryDistributions", "ComplementaryDistributions.jl"))
@@ -89,6 +93,7 @@ include(joinpath("functions", "plotting.jl"))
 
 # Training and prediction functions
 include(joinpath("training", "training.jl"))
+include(joinpath("training", "sampling.jl"))
 include(joinpath("training", "onlinetraining.jl"))
 include(joinpath("hyperparameter", "autotuning.jl"))
 include(joinpath("training", "predictions.jl"))
