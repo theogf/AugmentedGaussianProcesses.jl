@@ -4,7 +4,7 @@ by making a numerical approximation (quadrature or MC integration)
 of the expected log-likelihood ad its gradients
 Gradients are computed as in "The Variational Gaussian Approximation
 Revisited" by Opper and Archambeau 2009 =#
-abstract type NumericalVI{T <: Real} <: VariationalInference{T} end
+abstract type NumericalVI{T<:Real} <: VariationalInference{T} end
 
 include("quadratureVI.jl")
 include("MCVI.jl")
@@ -35,13 +35,17 @@ function NumericalVI(
     nGaussHermite::Integer=20,
     optimiser=Momentum(1e-3),
     natural::Bool=true,
-) where {T <: Real}
+) where {T<:Real}
     if integration_technique == :quad
         QuadratureVI{T}(ϵ, nGaussHermite, optimiser, false, 0.0, 0, natural)
     elseif integration_technique == :mc
         MCIntegrationVI{T}(ϵ, nMC, optimiser, false, 0.0, 0, natural)
     else
-        throw(ErrorException("Only possible integration techniques are quadrature : :quad or mcmc integration :mcmc"))
+        throw(
+            ErrorException(
+                "Only possible integration techniques are quadrature : :quad or mcmc integration :mcmc",
+            ),
+        )
     end
 end
 
@@ -70,26 +74,25 @@ function NumericalSVI(
     nGaussHermite::Integer=20,
     optimiser=Momentum(1e-3),
     natural::Bool=true,
-) where {T <: Real}
+) where {T<:Real}
     if integration_technique == :quad
-        QuadratureVI{T}(
-            ϵ,
-            nGaussHermite,
-            optimiser,
-            true,
-            0.0,
-            nMinibatch,
-            natural,
-        )
+        QuadratureVI{T}(ϵ, nGaussHermite, optimiser, true, 0.0, nMinibatch, natural)
     elseif integration_technique == :mc
         MCIntegrationVI{T}(ϵ, nMC, optimiser, true, 0.0, nMinibatch, natural)
     else
-        throw(ErrorException("Only possible integration techniques are quadrature : :quad or mcmc integration :mc"))
-end
+        throw(
+            ErrorException(
+                "Only possible integration techniques are quadrature : :quad or mcmc integration :mc",
+            ),
+        )
+    end
 end
 
 function Base.show(io::IO, inference::NumericalVI)
-    print(io, "$(isStochastic(inference) ? "Stochastic numerical" : "Numerical") Inference by $(isa(inference, MCIntegrationVI) ? "Monte Carlo Integration" : "Quadrature")")
+    return print(
+        io,
+        "$(isStochastic(inference) ? "Stochastic numerical" : "Numerical") Inference by $(isa(inference, MCIntegrationVI) ? "Monte Carlo Integration" : "Quadrature")",
+    )
 end
 
 ∇E_μ(::AbstractLikelihood, i::NVIOptimizer, ::AbstractVector) = (-i.ν,)
@@ -97,29 +100,50 @@ end
 
 function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     grad_expectations!(model)
-    classical_gradient!.(∇E_μ(likelihood(model), model.inference.vi_opt[1], []),
+    classical_gradient!.(
+        ∇E_μ(likelihood(model), model.inference.vi_opt[1], []),
         ∇E_Σ(likelihood(model), model.inference.vi_opt[1], []),
-        model.inference, model.inference.vi_opt,
-        Zviews(model), model.f)
+        model.inference,
+        model.inference.vi_opt,
+        Zviews(model),
+        model.f,
+    )
     if isnatural(model.inference)
         natural_gradient!.(model.f, model.inference.vi_opt)
     end
-    global_update!(model)
+    return global_update!(model)
 end
 
-function classical_gradient!(∇E_μ::AbstractVector{T}, ∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, X::AbstractVector, gp::VarLatent{T}) where {T <: Real}
+function classical_gradient!(
+    ∇E_μ::AbstractVector{T},
+    ∇E_Σ::AbstractVector{T},
+    i::NumericalVI,
+    opt::NVIOptimizer,
+    X::AbstractVector,
+    gp::VarLatent{T},
+) where {T<:Real}
     opt.∇η₂ .= Diagonal(∇E_Σ) - 0.5 * (inv(pr_cov(gp)) - inv(cov(gp)))
-    opt.∇η₁ .= ∇E_μ - pr_cov(gp) \ (mean(gp) - pr_mean(gp, X))
+    return opt.∇η₁ .= ∇E_μ - pr_cov(gp) \ (mean(gp) - pr_mean(gp, X))
 end
 
-function classical_gradient!(∇E_μ::AbstractVector{T}, ∇E_Σ::AbstractVector{T}, i::NumericalVI, opt::NVIOptimizer, Z::AbstractVector, gp::SparseVarLatent{T}) where {T <: Real}
-    opt.∇η₂ .= getρ(i) * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ - 0.5 * (inv(pr_cov(gp)) - inv(cov(gp)))
-    opt.∇η₁ .= getρ(i) * transpose(gp.κ) * ∇E_μ - pr_cov(gp) \ (mean(gp) - pr_mean(gp, Z))
+function classical_gradient!(
+    ∇E_μ::AbstractVector{T},
+    ∇E_Σ::AbstractVector{T},
+    i::NumericalVI,
+    opt::NVIOptimizer,
+    Z::AbstractVector,
+    gp::SparseVarLatent{T},
+) where {T<:Real}
+    opt.∇η₂ .=
+        getρ(i) * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ -
+        0.5 * (inv(pr_cov(gp)) - inv(cov(gp)))
+    return opt.∇η₁ .=
+        getρ(i) * transpose(gp.κ) * ∇E_μ - pr_cov(gp) \ (mean(gp) - pr_mean(gp, Z))
 end
 
 function natural_gradient!(gp::AbstractLatent, opt::NVIOptimizer)
     opt.∇η₂ .= 2 * cov(gp) * opt.∇η₂ * cov(gp)
-    opt.∇η₁ .= pr_cov(gp) * opt.∇η₁
+    return opt.∇η₁ .= pr_cov(gp) * opt.∇η₁
 end
 
 function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
@@ -142,19 +166,21 @@ end
 
 ## ELBO
 
-expec_loglikelihood(l::AbstractLikelihood, i::NumericalVI, y, μ::Tuple{<:AbstractVector{T}}, Σ::Tuple{<:AbstractVector{T}}) where {T} = 
-    expec_loglikelihood(l, i, y, first(μ), first(Σ))
+function expec_loglikelihood(
+    l::AbstractLikelihood,
+    i::NumericalVI,
+    y,
+    μ::Tuple{<:AbstractVector{T}},
+    Σ::Tuple{<:AbstractVector{T}},
+) where {T}
+    return expec_loglikelihood(l, i, y, first(μ), first(Σ))
+end
 
 function ELBO(m::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     tot = zero(T)
     tot +=
-        getρ(m.inference) * expec_loglikelihood(
-            m.likelihood,
-            m.inference,
-            yview(m),
-            mean_f(m),
-            var_f(m),
-        )
+        getρ(m.inference) *
+        expec_loglikelihood(m.likelihood, m.inference, yview(m), mean_f(m), var_f(m))
     tot -= GaussianKL(m)
-    tot -= extraKL(m)
+    return tot -= extraKL(m)
 end

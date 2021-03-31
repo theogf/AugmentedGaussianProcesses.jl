@@ -42,8 +42,6 @@ mutable struct MOSVGP{
     trained::Bool
 end
 
-
-
 function MOSVGP(
     X::AbstractArray,
     y::AbstractVector{<:AbstractVector},
@@ -52,40 +50,37 @@ function MOSVGP(
     inference::AbstractInference,
     nLatent::Int,
     nInducingPoints::Union{
-        Int,
-        AbstractInducingPoints,
-        AbstractVector{<:AbstractInducingPoints},
+        Int,AbstractInducingPoints,AbstractVector{<:AbstractInducingPoints}
     };
-    verbose::Int = 0,
-    atfrequency::Int = 1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    variance::Real = 1.0,
-    optimiser = ADAM(0.01),
-    Aoptimiser = ADAM(0.01),
-    Zoptimiser = false,
-    obsdim::Int = 1,
+    verbose::Int=0,
+    atfrequency::Int=1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+    variance::Real=1.0,
+    optimiser=ADAM(0.01),
+    Aoptimiser=ADAM(0.01),
+    Zoptimiser=false,
+    obsdim::Int=1,
 )
-
     @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
 
     X, T = wrap_X(X, obsdim)
 
     likelihoods = if likelihood isa AbstractLikelihood
-        likelihoods = [deepcopy(likelihood) for _ = 1:nTask]
+        likelihoods = [deepcopy(likelihood) for _ in 1:nTask]
     else
         likelihood
     end
 
     nf_per_task = zeros(Int64, nTask)
     corrected_y = Vector(undef, nTask)
-    for i = 1:nTask
-        corrected_y[i], nf_per_task[i], likelihoods[i] =
-            check_data!(y[i], likelihoods[i])
+    for i in 1:nTask
+        corrected_y[i], nf_per_task[i], likelihoods[i] = check_data!(y[i], likelihoods[i])
     end
 
     inference isa AnalyticVI || error("The inference object should be of type `AnalyticVI`")
-    all(implemented.(likelihood, Ref(inference))) || error("The $likelihood is not compatible or implemented with the $inference")
+    all(implemented.(likelihood, Ref(inference))) ||
+        error("The $likelihood is not compatible or implemented with the $inference")
 
     data = wrap_data(X, corrected_y)
 
@@ -106,13 +101,14 @@ function MOSVGP(
     kernel = if kernel isa Kernel
         [kernel]
     else
-        length(kernel) == nLatent || error("Number of kernels should be equal to the number of tasks")
+        length(kernel) == nLatent ||
+            error("Number of kernels should be equal to the number of tasks")
         kernel
     end
     nKernel = length(kernel)
 
     nInducingPoints = if nInducingPoints isa AbstractInducingPoints
-        [deepcopy(nInducingPoints) for _ = 1:nLatent]
+        [deepcopy(nInducingPoints) for _ in 1:nLatent]
     else
         nInducingPoints
     end
@@ -122,7 +118,9 @@ function MOSVGP(
 
     _nMinibatch = nSamples(data)
     if isStochastic(inference)
-        0 < nMinibatch(inference) < nSamples || error("The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object")
+        0 < nMinibatch(inference) < nSamples || error(
+            "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object",
+        )
         _nMinibatch = nMinibatch(inference)
     end
 
@@ -130,8 +128,8 @@ function MOSVGP(
         i -> _SVGP{T}(
             nFeatures[i],
             _nMinibatch,
-            Z[mod(i, nLatent)+1],
-            kernel[mod(i, nKernel)+1],
+            Z[mod(i, nLatent) + 1],
+            kernel[mod(i, nKernel) + 1],
             mean,
             optimiser,
         ),
@@ -139,30 +137,16 @@ function MOSVGP(
     )
 
     A = [
-        [
-            randn(T, nLatent) |> x -> x / sqrt(sum(abs2, x))
-            for i = 1:nf_per_task[j]
-        ] for j = 1:nTask
+        [x -> x / sqrt(sum(abs2, x))(randn(T, nLatent)) for i in 1:nf_per_task[j]] for
+        j in 1:nTask
     ]
 
     likelihoods .=
-        init_likelihood.(
-            likelihoods,
-            inference,
-            nf_per_task,
-            _nMinibatch,
-            nFeatures,
-        )
-    xview = view_x(data, collect(range(1, _nMinibatch, step = 1)))
+        init_likelihood.(likelihoods, inference, nf_per_task, _nMinibatch, nFeatures)
+    xview = view_x(data, collect(range(1, _nMinibatch; step=1)))
     yview = view_y(likelihood, data, 1:nSamples(data))
     inference = tuple_inference(
-        inference,
-        nLatent,
-        nFeatures,
-        nSamples(data),
-        _nMinibatch,
-        xview,
-        yview
+        inference, nLatent, nFeatures, nSamples(data), _nMinibatch, xview, yview
     )
 
     return MOSVGP{T,eltype(likelihoods),typeof(inference),nTask,nLatent}(
@@ -187,7 +171,7 @@ function MOSVGP(
 end
 
 function Base.show(io::IO, model::MOSVGP)
-    print(
+    return print(
         io,
         "Multioutput Sparse Variational Gaussian Process with the likelihoods $(likelihood(model)) infered by $(inference(model)) ",
     )
@@ -195,6 +179,6 @@ end
 
 @traitimpl IsMultiOutput{MOSVGP}
 
-nOutput(::MOSVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N, Q} = Q
+nOutput(::MOSVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N,Q} = Q
 Zviews(m::MOSVGP) = Zview.(m.f)
 objective(m::MOSVGP) = ELBO(m)

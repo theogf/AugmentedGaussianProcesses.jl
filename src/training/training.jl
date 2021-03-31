@@ -12,19 +12,20 @@ Function to train the given GP `model`.
 """
 function train!(
     model::AbstractGP{T},
-    iterations::Int = 100;
-    callback::Union{Nothing,Function} = nothing,
-    convergence::Union{Nothing,Function} = nothing,
+    iterations::Int=100;
+    callback::Union{Nothing,Function}=nothing,
+    convergence::Union{Nothing,Function}=nothing,
 ) where {T}
     if model.verbose > 0
-        @info "Starting training $model with $(nSamples(model)) samples, $(nFeatures(model)) features and $(nLatent(model)) latent GP" * (nLatent(model) > 1 ? "s" : "")
+        @info "Starting training $model with $(nSamples(model)) samples, $(nFeatures(model)) features and $(nLatent(model)) latent GP" *
+              (nLatent(model) > 1 ? "s" : "")
     end
 
     iterations > 0 || error("Number of iterations should be positive")
     # model.evol_conv = [] #Array to check on the evolution of convergence
     local_iter = 1
     conv = Inf
-    p = Progress(iterations, dt = 0.2, desc = "Training Progress: ")
+    p = Progress(iterations; dt=0.2, desc="Training Progress: ")
     prev_elbo = -Inf
     while true #loop until one condition is matched
         try #Allow for keyboard interruption without losing the model
@@ -34,31 +35,27 @@ function train!(
                 callback(model, nIter(model)) #Use a callback method if set by user
             end
             if (nIter(model) % model.atfrequency == 0) &&
-                (nIter(model) >= 3) && (local_iter != iterations)
+               (nIter(model) >= 3) &&
+               (local_iter != iterations)
                 update_hyperparameters!(model) #Update the hyperparameters
             end
             # Print out informations about the convergence
             if verbose(model) > 2 || (verbose(model) > 1 && local_iter % 10 == 0)
                 if inference(model) isa GibbsSampling
-                    next!(p; showvalues = [(:samples, local_iter)])
+                    next!(p; showvalues=[(:samples, local_iter)])
                 else
-                    if (verbose(model) ==  2 && local_iter % 10 == 0)
+                    if (verbose(model) == 2 && local_iter % 10 == 0)
                         elbo = objective(model)
                         prev_elbo = elbo
                         ProgressMeter.update!(p, local_iter - 1)
                         ProgressMeter.next!(
-                            p;
-                            showvalues = [(:iter, local_iter), (:ELBO, elbo)],
+                            p; showvalues=[(:iter, local_iter), (:ELBO, elbo)]
                         )
                     elseif verbose(model) > 2
                         elbo = objective(model)
                         prev_elbo = elbo
                         ProgressMeter.next!(
-                            p;
-                            showvalues = [
-                                (:iter, local_iter),
-                                (:ELBO, prev_elbo),
-                            ],
+                            p; showvalues=[(:iter, local_iter), (:ELBO, prev_elbo)]
                         )
                     end
                 end
@@ -100,7 +97,10 @@ end
 ## Update all variational parameters of the sparse variational GP Model ##
 function update_parameters!(m::SVGP)
     if isStochastic(inference(m))
-        setMBIndices!(inference(m), StatsBase.sample(1:nSamples(m), nMinibatch(inference(m)), replace = false))
+        setMBIndices!(
+            inference(m),
+            StatsBase.sample(1:nSamples(m), nMinibatch(inference(m)); replace=false),
+        )
         setxview!(inference(m), view_x(data(m), MBIndices(inference(m))))
         setyview!(inference(m), view_y(likelihood(m), data(m), MBIndices(inference(m))))
     end
@@ -118,7 +118,10 @@ end
 
 function update_parameters!(m::MOSVGP)
     if isStochastic(m.inference)
-        setMBIndices!(inference(m), StatsBase.sample(1:nSamples(m), nMinibatch(inference(m)), replace = false))
+        setMBIndices!(
+            inference(m),
+            StatsBase.sample(1:nSamples(m), nMinibatch(inference(m)); replace=false),
+        )
         setxview!(inference(m), view_x(data(m), MBIndices(inference(m))))
         setyview!(m.inference, view_y(likelihood(m), data(m), MBIndices(m.inference)))
     end
@@ -141,7 +144,9 @@ function computeMatrices!(m::GP{T}, ::Bool) where {T}
     return nothing
 end
 
-@traitfn function computeMatrices!(m::TGP, update::Bool=false) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
+@traitfn function computeMatrices!(
+    m::TGP, update::Bool=false
+) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
     if isHPupdated(inference(m)) || update
         compute_K!.(getf(m), Ref(input(m)), T(jitt))
     end
@@ -149,7 +154,9 @@ end
     return nothing
 end
 
-@traitfn function computeMatrices!(m::TGP, update::Bool=false) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
+@traitfn function computeMatrices!(
+    m::TGP, update::Bool=false
+) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
     if isHPupdated(inference(m)) || update
         compute_K!.(getf(m), T(jitt))
     end

@@ -43,25 +43,26 @@ function SVGP(
     likelihood::AbstractLikelihood,
     inference::AbstractInference,
     nInducingPoints::Int;
-    verbose::Int = 0,
-    optimiser = ADAM(0.01),
-    atfrequency::Int = 1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    Zoptimiser = false,
-    obsdim::Int = 1
+    verbose::Int=0,
+    optimiser=ADAM(0.01),
+    atfrequency::Int=1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+    Zoptimiser=false,
+    obsdim::Int=1,
 )
-    SVGP(
+    return SVGP(
         X,
         y,
         kernel,
         likelihood,
         inference,
-        KmeansIP(X, nInducingPoints),
-        verbose = verbose,
-        optimiser = optimiser,
-        atfrequency = atfrequency,
-        mean = mean,
-        obsdim = obsdim
+        KmeansIP(X, nInducingPoints);
+        verbose,
+        optimiser,
+        atfrequency,
+        mean,
+        Zoptimiser,
+        obsdim,
     )
 end
 
@@ -72,18 +73,21 @@ function SVGP(
     likelihood::AbstractLikelihood,
     inference::AbstractInference,
     nInducingPoints::AbstractInducingPoints;
-    verbose::Int = 0,
-    optimiser = ADAM(0.01),
-    atfrequency::Int = 1,
-    mean::Union{<:Real,AbstractVector{<:Real},PriorMean} = ZeroMean(),
-    Zoptimiser = false,
-    obsdim::Int = 1,
+    verbose::Int=0,
+    optimiser=ADAM(0.01),
+    atfrequency::Int=1,
+    mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
+    Zoptimiser=false,
+    obsdim::Int=1,
 )
     X, T = wrap_X(X, obsdim)
     y, nLatent, likelihood = check_data!(y, likelihood)
 
-    inference isa VariationalInference  || error("The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`")
-    implemented(likelihood, inference) || error("The $likelihood is not compatible or implemented with the $inference")
+    inference isa VariationalInference || error(
+        "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`",
+    )
+    implemented(likelihood, inference) ||
+        error("The $likelihood is not compatible or implemented with the $inference")
 
     data = wrap_data(X, y)
     if isa(optimiser, Bool)
@@ -108,16 +112,15 @@ function SVGP(
     end
 
     latentf = ntuple(
-        _ -> SparseVarLatent(T, nFeatures, S, Z, kernel, mean, optimiser),
-        nLatent,
+        _ -> SparseVarLatent(T, nFeatures, S, Z, kernel, mean, optimiser), nLatent
     )
 
-    likelihood =
-        init_likelihood(likelihood, inference, nLatent, S)
+    likelihood = init_likelihood(likelihood, inference, nLatent, S)
     xview = view_x(data, collect(1:S))
     yview = view_y(likelihood, data, collect(1:S))
-    inference =
-        tuple_inference(inference, nLatent, nFeatures, nSamples(data), S, xview, yview)
+    inference = tuple_inference(
+        inference, nLatent, nFeatures, nSamples(data), S, xview, yview
+    )
 
     model = SVGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
         data,
@@ -136,7 +139,7 @@ function SVGP(
 end
 
 function Base.show(io::IO, model::SVGP)
-    print(
+    return print(
         io,
         "Sparse Variational Gaussian Process with a $(likelihood(model)) infered by $(inference(model)) ",
     )

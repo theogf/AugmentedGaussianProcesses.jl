@@ -11,10 +11,7 @@ mutable struct Analytic{T<:Real,Tx<:AbstractVector,Ty<:AbstractVector} <:
         return new{T,Vector{T},Vector{T}}(ϵ)
     end
     function Analytic{T}(
-        ϵ::T,
-        nSamples::Integer,
-        xview::Tx,
-        yview::Ty,
+        ϵ::T, nSamples::Integer, xview::Tx, yview::Ty
     ) where {T,Tx<:AbstractVector,Ty<:AbstractVector}
         return new{T,Tx,Ty}(ϵ, 0, nSamples, true, xview, yview)
     end
@@ -30,20 +27,17 @@ Analytic inference structure for solving the classical GP regression with Gaussi
 """
 Analytic
 
-function Analytic(; ϵ::T = 1e-5) where {T<:Real}
-    Analytic{T}(ϵ)
+function Analytic(; ϵ::T=1e-5) where {T<:Real}
+    return Analytic{T}(ϵ)
 end
 
 function Base.show(io::IO, ::Analytic)
-    print(io, "Analytic Inference")
+    return print(io, "Analytic Inference")
 end
 
 function init_inference(
-    i::Analytic{T},
-    nSamples::Integer,
-    xview::TX,
-    yview::TY,
-) where {T<:Real, TX, TY}
+    i::Analytic{T}, nSamples::Integer, xview::TX, yview::TY
+) where {T<:Real,TX,TY}
     return Analytic{T}(conv_crit(i), nSamples, xview, yview)
 end
 

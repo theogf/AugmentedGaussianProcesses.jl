@@ -48,9 +48,9 @@ makedocs(modules = [AugmentedGaussianProcesses],
 
 # Deploy the docs
 
-deploydocs(
-    deps = Deps.pip("mkdocs", "python-markdown-math"),
-    repo = "github.com/theogf/AugmentedGaussianProcesses.jl.git",
-    target = "build",
-    push_preview = true,
+deploydocs(;
+    deps=Deps.pip("mkdocs", "python-markdown-math"),
+    repo="github.com/theogf/AugmentedGaussianProcesses.jl.git",
+    target="build",
+    push_preview=true,
 )

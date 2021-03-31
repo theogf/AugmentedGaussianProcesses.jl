@@ -6,10 +6,10 @@ struct ZeroMean{T<:Real} <: PriorMean{T} end
 Construct a mean prior set to `0` and which cannot be updated.
 """
 function ZeroMean()
-    ZeroMean{Float64}()
+    return ZeroMean{Float64}()
 end
 
-Base.show(io::IO, μ₀::ZeroMean) = print(io, "Zero Mean Prior")
+Base.show(io::IO, ::MIME"text/plain", ::ZeroMean) = print(io, "Zero Mean Prior")
 
 update!(::ZeroMean{T}, ::Any) where {T<:Real} = nothing
 

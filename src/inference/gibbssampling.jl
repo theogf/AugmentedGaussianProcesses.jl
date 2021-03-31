@@ -36,7 +36,7 @@ mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
         nSamples::Int,
         nLatent::Int,
         xview::Tx,
-        yview::Ty
+        yview::Ty,
     ) where {T,Tx,Ty}
         opts = ntuple(_ -> SOptimizer{T}(nothing), nLatent)
         new{T,nLatent,Tx,Ty}(
@@ -58,16 +58,12 @@ isStochastic(::GibbsSampling) = false
 getρ(::GibbsSampling{T}) where {T} = one(T)
 nMinibatch(i::GibbsSampling) = i.nSamples
 
-function GibbsSampling(;
-    ϵ::T = 1e-5,
-    nBurnin::Int = 100,
-    thinning::Int = 1,
-) where {T<:Real}
-    GibbsSampling{T}(nBurnin, thinning, ϵ)
+function GibbsSampling(; ϵ::T=1e-5, nBurnin::Int=100, thinning::Int=1) where {T<:Real}
+    return GibbsSampling{T}(nBurnin, thinning, ϵ)
 end
 
 function Base.show(io::IO, ::GibbsSampling{T}) where {T<:Real}
-    print(io, "Gibbs Sampler")
+    return print(io, "Gibbs Sampler")
 end
 
 function tuple_inference(
@@ -77,17 +73,10 @@ function tuple_inference(
     nSamples::Int,
     ::Int,
     xview,
-    yview
+    yview,
 ) where {T}
     return GibbsSampling{T}(
-        inf.nBurnin,
-        inf.thinning,
-        inf.ϵ,
-        nFeatures,
-        nSamples,
-        nLatent,
-        xview,
-        yview,
+        inf.nBurnin, inf.thinning, inf.ϵ, nFeatures, nSamples, nLatent, xview, yview
     )
 end
 
@@ -97,10 +86,7 @@ set_ω!(l::AbstractLikelihood, ω) = l.θ .= ω
 get_ω(l::AbstractLikelihood) = l.θ
 
 function sample_global!(
-    ∇E_μ::AbstractVector,
-    ∇E_Σ::AbstractVector,
-    X::AbstractVector,
-    gp::SampledLatent{T},
+    ∇E_μ::AbstractVector, ∇E_Σ::AbstractVector, X::AbstractVector, gp::SampledLatent{T}
 ) where {T}
     gp.post.Σ .= inv(Symmetric(2.0 * Diagonal(∇E_Σ) + inv(pr_cov(gp))))
     rand!(MvNormal(cov(gp) * (∇E_μ + pr_cov(gp) \ pr_mean(gp, X)), cov(gp)), gp.post.f)

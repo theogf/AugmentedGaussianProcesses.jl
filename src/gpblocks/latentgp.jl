@@ -219,7 +219,7 @@ opt(gp::AbstractLatent) = gp.opt
     return pr_cov!(gp, cholesky(kernelmatrix(kernel(gp), X) + jitt * I))
 end
 
-@traitfn function compute_K!(gp::T, jitt::Real) where {T<:AbstractLatent; !IsFull{T}}
+@traitfn function compute_K!(gp::T, jitt::Real) where {T <: AbstractLatent; !IsFull{T}}
     return pr_cov!(gp, cholesky(kernelmatrix(kernel(gp), gp.Z) + jitt * I))
 end
 

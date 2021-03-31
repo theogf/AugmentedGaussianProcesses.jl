@@ -1,11 +1,11 @@
 
 ### Global constant allowing to chose between forward_diff and zygote_diff for hyperparameter optimization ###
-const ADBACKEND = Ref(:zygote)
+const ADBACKEND = Ref(:Zygote)
 
 function setadbackend(ad_backend::Symbol)
     (ad_backend == :ForwardDiff || ad_backend == :Zygote) ||
         error("Wrong AD Backend symbol, options are :ForwardDiff or :Zygote")
-    ADBACKEND[] = ad_backend
+    return ADBACKEND[] = ad_backend
 end
 
 opt(::AbstractInducingPoints) = nothing
@@ -20,10 +20,9 @@ update!(::Any, ::Any, ::Nothing) = nothing
 update!(::Nothing, ::Kernel, ::NamedTuple) = nothing
 update!(::Nothing, ::AbstractInducingPoints, ::AbstractArray) = nothing
 
-
 ## Updating prior mean parameters ##
 function update!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
-    update!(μ, g, X)
+    return update!(μ, g, X)
 end
 
 ## Updating kernel parameters ##
@@ -34,7 +33,7 @@ function update!(opt, k::Kernel, Δ::AbstractVector)
     i = 1
     for p in ps
         d = length(p)
-        Δp = Δ[i:i + d - 1]
+        Δp = Δ[i:(i + d - 1)]
         Δlogp = Optimise.apply!(opt, p, p .* Δp)
         @. p = exp(log(p) + Δlogp)
         i += d
@@ -42,7 +41,7 @@ function update!(opt, k::Kernel, Δ::AbstractVector)
 end
 
 ## Zygote.jl approach with named tuple
-function update!(opt, k::Union{Kernel, Transform}, g::NamedTuple)
+function update!(opt, k::Union{Kernel,Transform}, g::NamedTuple)
     foreach(pairs(g)) do (fieldname, grad)
         update!(opt, getfield(k, fieldname), grad)
     end
