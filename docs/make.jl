@@ -40,7 +40,7 @@ makedocs(modules = [AugmentedGaussianProcesses],
          "Background" => "background.md",
          "User Guide" => "userguide.md",
          "Kernels" => "kernel.md",
-         "Examples" => joinpath.("examples", filter(x -> endswith(x, ".md"), readdir(OUTPUT))),
+         "Examples" => joinpath.("examples", filter(x -> endswith(x, ".md"), readdir(MD_OUTPUT))),
          "Julia GP Packages" => "comparison.md",
          "API" => "api.md"
          ]
