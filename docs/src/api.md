@@ -22,6 +22,9 @@ VGP
 MCGP
 SVGP
 OnlineSVGP
+MOVGP
+MOSVGP
+VStP
 ```
 
 ## Likelihood Types
@@ -55,6 +58,7 @@ MCIntegrationSVI
 
 ```@docs
 train!
+sample
 predict_f
 predict_y
 proba_y
@@ -66,6 +70,7 @@ proba_y
 ZeroMean
 ConstantMean
 EmpiricalMean
+AffineMean
 ```
 
 ## Index
