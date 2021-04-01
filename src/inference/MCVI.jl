@@ -168,13 +168,15 @@ function expec_loglikelihood(
     l::AbstractLikelihood, i::MCIntegrationVI{T,N}, y, μ_f, var_f
 ) where {T,N}
     raw_samples = randn(i.nMC, N)
-    samples = similar(raw_samples)
+    # samples = similar(raw_samples)
     nSamples = length(MBIndices(i))
     loglike = 0.0
-    for j in 1:nSamples
+    return sum(1:nSamples) do j
         samples =
             raw_samples .* [sqrt(var_f[k][j]) for k in 1:N]' .+ [μ_f[k][j] for k in 1:N]'
-        loglike += sum(f -> loglikelihood(l, getindex.(y, j), f), eachrow(samples)) / i.nMC
-    end
-    return loglike
+        y_j = getindex.(y, j)
+        return sum(eachrow(samples)) do f
+            return loglikelihood(l, y_j, f)
+        end
+    end / i.nMC
 end
