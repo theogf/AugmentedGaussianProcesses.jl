@@ -95,9 +95,7 @@ function _predict_f(
     else
         k_starstar =
             kernelmatrix_diag.(kernels(m), [X_test]) .+ [T(jitt) * ones(T, length(X_test))]
-        σ²f =
-            k_starstar .- diag_ABt.(k_star ./ pr_covs(m), k_star) .+
-            StatsBase.var.(f)
+        σ²f = k_starstar .- diag_ABt.(k_star ./ pr_covs(m), k_star) .+ StatsBase.var.(f)
         return μf, σ²f
     end
 end
@@ -108,18 +106,17 @@ function _sample_f(
     k_star=kernelmatrix.(kernels(m), [X_test], Zviews(m)),
 ) where {T}
     return f = [
-        Ref(k_star[k] / pr_cov(m.f[k])) .* getindex.(inference(m).sample_store, k)
-        for k = 1:nLatent(m)
+        Ref(k_star[k] / pr_cov(m.f[k])) .* getindex.(inference(m).sample_store, k) for
+        k in 1:nLatent(m)
     ]
 end
 
 ## Wrapper for vector input ##
-predict_f(
-    model::AbstractGP,
-    X_test::AbstractVector{<:Real};
-    cov::Bool = false,
-    diag::Bool = true,
-) = predict_f(model, reshape(X_test, :, 1), cov = cov, diag = diag)
+function predict_f(
+    model::AbstractGP, X_test::AbstractVector{<:Real}; cov::Bool=false, diag::Bool=true
+)
+    return predict_f(model, reshape(X_test, :, 1); cov=cov, diag=diag)
+end
 
 function predict_f(
     model::AbstractGP,
@@ -165,18 +162,17 @@ Return
     - the most likely class for multi-class classification
     - the expected number of events for an event likelihood
 """
-@traitfn predict_y(
-    model::TGP,
-    X_test::AbstractVector,
-) where {TGP <: AbstractGP; !IsMultiOutput{TGP}} =
-    predict_y(likelihood(model), first(_predict_f(model, X_test; cov=false)))
+@traitfn function predict_y(
+    model::TGP, X_test::AbstractVector
+) where {TGP <: AbstractGP; !IsMultiOutput{TGP}}
+    return predict_y(likelihood(model), first(_predict_f(model, X_test; cov=false)))
+end
 
-@traitfn predict_y(
-    model::TGP,
-    X_test::AbstractVector,
-) where {TGP <: AbstractGP; IsMultiOutput{TGP}} =
-    predict_y.(likelihood(model), _predict_f(model, X_test; cov=false))
-
+@traitfn function predict_y(
+    model::TGP, X_test::AbstractVector
+) where {TGP <: AbstractGP; IsMultiOutput{TGP}}
+    return predict_y.(likelihood(model), _predict_f(model, X_test; cov=false))
+end
 
 function predict_y(l::MultiClassLikelihood, μs::AbstractVector{<:AbstractVector{<:Real}})
     return [l.class_mapping[argmax([μ[i] for μ in μs])] for i in 1:length(μs[1])]
@@ -195,8 +191,9 @@ function predict_y(l::EventLikelihood, μ::AbstractVector{<:AbstractVector})
 end
 
 ## Wrapper to return proba on vectors ##
-proba_y(model::AbstractGP, X_test::AbstractVector{<:Real}) =
-    proba_y(model, reshape(X_test, :, 1))
+function proba_y(model::AbstractGP, X_test::AbstractVector{<:Real})
+    return proba_y(model, reshape(X_test, :, 1))
+end
 
 function proba_y(model::AbstractGP, X_test::AbstractMatrix; obsdim::Int=1)
     return proba_y(model, KernelFunctions.vec_of_vecs(X_test; obsdim=obsdim))
@@ -252,11 +249,7 @@ function proba_y(model::MCGP, X_test::AbstractMatrix; nSamples::Int=100, obsdim=
     return proba_y(model, KernelFunctions.vec_of_vecs(X_test; obsdim); nSamples)
 end
 
-function proba_y(
-    model::MCGP,
-    X_test::AbstractVector;
-    nSamples::Int = 200,
-)
+function proba_y(model::MCGP, X_test::AbstractVector; nSamples::Int=200)
     nTest = length(X_test)
     f = first(_sample_f(model, X_test))
     return proba, sig_proba = mean_and_var(compute_proba_f.(likelihood(model), f))
@@ -272,7 +265,5 @@ function compute_proba(
     return error("Non implemented for the likelihood $l")
 end
 
-
 for f in [:predict_f, :predict_y, :proba_y]
-
 end

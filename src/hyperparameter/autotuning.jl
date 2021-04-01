@@ -46,7 +46,8 @@ end
             end
             # Optimize prior mean
             isnothing(Δμ₀) || update!.(μ₀, Δμ₀, Ref(xview(m)))
-            if !isnothing(ks) isnothing(Δk)
+            if !isnothing(ks)
+                isnothing(Δk)
                 @warn "Kernel gradients are equal to zero" maxlog = 1
                 return nothing
             end

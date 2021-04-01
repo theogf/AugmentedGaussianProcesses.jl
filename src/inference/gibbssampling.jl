@@ -19,11 +19,7 @@ mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     xview::Tx
     yview::Ty
     sample_store::Vector{Vector{Vector{T}}}
-    function GibbsSampling{T}(
-        nBurnin::Int,
-        thinning::Int,
-        ϵ::Real,
-    ) where {T}
+    function GibbsSampling{T}(nBurnin::Int, thinning::Int, ϵ::Real) where {T}
         nBurnin >= 0 || error("nBurnin should be positive")
         thinning >= 0 || error("thinning should be positive")
         return new{T,1,Vector{T},Vector{T}}(nBurnin, thinning, ϵ)
@@ -39,17 +35,8 @@ mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
         yview::Ty,
     ) where {T,Tx,Ty}
         opts = ntuple(_ -> SOptimizer{T}(nothing), nLatent)
-        new{T,nLatent,Tx,Ty}(
-            nBurnin,
-            thinning,
-            ϵ,
-            0,
-            nSamples,
-            true,
-            opts,
-            xview,
-            yview,
-            [],
+        return new{T,nLatent,Tx,Ty}(
+            nBurnin, thinning, ϵ, 0, nSamples, true, opts, xview, yview, []
         )
     end
 end
@@ -80,8 +67,9 @@ function tuple_inference(
     )
 end
 
-sample_local!(l::AbstractLikelihood, y, f::Tuple{<:AbstractVector{T}}) where {T} =
-    sample_local!(l, y, first(f))
+function sample_local!(l::AbstractLikelihood, y, f::Tuple{<:AbstractVector{T}}) where {T}
+    return sample_local!(l, y, first(f))
+end
 set_ω!(l::AbstractLikelihood, ω) = l.θ .= ω
 get_ω(l::AbstractLikelihood) = l.θ
 
