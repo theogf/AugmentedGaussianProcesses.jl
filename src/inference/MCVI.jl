@@ -158,24 +158,23 @@ function grad_expectations!(m::AbstractGP{T,L,<:MCIntegrationVI{T,N}}) where {T,
     μ = mean_f(m)
     σ² = var_f(m)
     nSamples = length(MBIndices(m))
-    for j in 1:nSamples
-        samples .= raw_samples .* [sqrt(σ²[k][j]) for k in 1:N]' .+ [μ[k][j] for k in 1:N]'
-        grad_samples(m, samples, j)
+    for j in 1:nSamples # Loop over every data point
+        samples .= raw_samples .* sqrt.(getindex.(σ², j))' .+ getindex.(μ, j)'
+        grad_samples(m, samples, j) # Compute the gradient for data point j
     end
 end
 
 function expec_loglikelihood(
     l::AbstractLikelihood, i::MCIntegrationVI{T,N}, y, μ_f, var_f
 ) where {T,N}
-    raw_samples = randn(i.nMC, N)
+    raw_samples = randn(T, inference(m).nMC, nLatent(m)) # dimension nMC x nLatent
     # samples = similar(raw_samples)
     nSamples = length(MBIndices(i))
-    loglike = 0.0
-    return sum(1:nSamples) do j
-        samples =
-            raw_samples .* [sqrt(var_f[k][j]) for k in 1:N]' .+ [μ_f[k][j] for k in 1:N]'
-        y_j = getindex.(y, j)
-        return sum(eachrow(samples)) do f
+    return sum(1:nSamples) do j # Loop over every data point
+        samples = raw_samples .* sqrt.(getindex.(var_f, j))' .+ getindex.(μ_f, j)'
+        # samples is of dimension nMC x nLatent again
+        y_j = getindex.(y, j) # Obtain the label for data point j
+        return sum(eachrow(samples)) do f # We now compute the loglikelihood over every sample
             return loglikelihood(l, y_j, f)
         end
     end / i.nMC

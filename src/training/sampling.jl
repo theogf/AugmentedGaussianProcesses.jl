@@ -11,11 +11,19 @@ function StatsBase.sample(model::MCGP, nSamples::Int; kwargs...)
 end
 function StatsBase.sample(rng::Random.AbstractRNG, model::MCGP, nSamples::Int; kwargs...)
     sampler = inference(model)
-    kwargs = Dict(kwargs...)
-    get!(kwargs, :thinning, sampler.thinning)
-    get!(kwargs, :discard_initial, sampler.nBurnin)
-    get!(kwargs, :progressname, "Sampling with $sampler")
-    return sample(rng, GPModel(model), GPSampler(sampler), nSamples; kwargs...)
+    thinnning = get(kwargs, :thinning, sampler.thinning)
+    discard_initial = get(kwargs, :discard_initial, sampler.nBurnin)
+    progressname = get(kwargs, :progressname, "Sampling with $sampler")
+    return sample(
+        rng,
+        GPModel(model),
+        GPSampler(sampler),
+        nSamples;
+        thinning,
+        discard_inital,
+        progressname,
+        kwargs...,
+    )
 end
 function AbstractMCMC.step(
     rng, model::GPModel, sampler::GPSampler{<:GibbsSampling}; kwargs...
@@ -39,8 +47,7 @@ end
 function AbstractMCMC.bundle_samples(
     samples, model::GPModel, sampler::GPSampler, state, chain_type::Type; kwargs...
 )
-    kwargs = Dict(kwargs...)
-    resume = get!(kwargs, :cat, true)
+    resume = get(kwargs, :cat, true)
     if !resume || isempty(sampler.sampler.sample_store) # check if either one should restart sampling or if no samples was ever taken
         sampler.sampler.sample_store = samples
     else
