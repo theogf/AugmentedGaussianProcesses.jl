@@ -1,3 +1,5 @@
+# # Sampling from a GP
+#
 # ## Preliminary steps
 
 # ### Loading necessary packages

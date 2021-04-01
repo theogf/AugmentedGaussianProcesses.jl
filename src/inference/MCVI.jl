@@ -159,23 +159,52 @@ function grad_expectations!(m::AbstractGP{T,L,<:MCIntegrationVI{T,N}}) where {T,
     σ² = var_f(m)
     nSamples = length(MBIndices(m))
     for j in 1:nSamples # Loop over every data point
-        samples .= raw_samples .* sqrt.(getindex.(σ², j))' .+ getindex.(μ, j)'
+        samples .= raw_samples .* sqrt.([σ²[k][j] for k in 1:nLatent(m)])' .+ [μ[k][j] for k in 1:nLatent(m)]'
         grad_samples(m, samples, j) # Compute the gradient for data point j
     end
 end
 
 function expec_loglikelihood(
-    l::AbstractLikelihood, i::MCIntegrationVI{T,N}, y, μ_f, var_f
-) where {T,N}
-    raw_samples = randn(T, inference(m).nMC, nLatent(m)) # dimension nMC x nLatent
+    l::AbstractLikelihood, i::MCIntegrationVI{T,N}, y, μ, σ²
+) where {T,N} # μ and σ² are tuples of vectors
+    raw_samples = randn(T, i.nMC, N) # dimension nMC x nLatent
     # samples = similar(raw_samples)
     nSamples = length(MBIndices(i))
-    return sum(1:nSamples) do j # Loop over every data point
-        samples = raw_samples .* sqrt.(getindex.(var_f, j))' .+ getindex.(μ_f, j)'
+    tot = 0.0
+    for j in 1:nSamples # Loop over every data point
+        samples = raw_samples .* sqrt.([σ²[k][j] for k in 1:N])' .+ [μ[k][j] for k in 1:N]'
         # samples is of dimension nMC x nLatent again
         y_j = getindex.(y, j) # Obtain the label for data point j
-        return sum(eachrow(samples)) do f # We now compute the loglikelihood over every sample
-            return loglikelihood(l, y_j, f)
+        for f in eachrow(samples)
+            # return sum(eachrow(samples)) do f # We now compute the loglikelihood over every sample
+            tot += loglikelihood(l, y_j, f)
         end
-    end / i.nMC
+    end
+    return tot / i.nMC
 end
+
+# function expec_loglikelihood(
+#     l::AbstractLikelihood, i::MCIntegrationVI{T,N}, y, μ, σ²
+# ) where {T,N}
+#     raw_samples = randn(T, i.nMC, N) # dimension nMC x nLatent
+#     # samples = similar(raw_samples)
+#     nSamples = length(MBIndices(i))
+#     return sum(expec_loglikelihood_datapoint.(l, Ref(raw_samples), Ref(y), Ref(μ), Ref(σ²), 1:nSamples, N)) / i.nMC
+#     # return sum(1:nSamples) do j # Loop over every data point
+#     #     samples = raw_samples .* sqrt.([σ²[k][j] for k in 1:N])' .+ [μ[k][j] for k in 1:N]'
+#     #     # samples is of dimension nMC x nLatent again
+#     #     y_j = getindex.(y, j) # Obtain the label for data point j
+#     #     return sum(eachrow(samples)) do f # We now compute the loglikelihood over every sample
+#     #         return loglikelihood(l, y_j, f)
+#     #     end
+#     # end / i.nMC
+# end
+
+# function expec_loglikelihood_datapoint(l::AbstractLikelihood, raw_samples, y, μ, σ², j, N)
+#     samples = raw_samples .* sqrt.([σ²[k][j] for k in 1:N])' .+ [μ[k][j] for k in 1:N]'
+#     # samples is of dimension nMC x nLatent again
+#     y_j = getindex.(y, j) # Obtain the label for data point j
+#     return sum((f->loglikelihood(l, y_j, f)).(eachrow(samples))) # We now compute the loglikelihood over every sample
+#     # return 
+# # end
+# end

@@ -11,7 +11,7 @@ function StatsBase.sample(model::MCGP, nSamples::Int; kwargs...)
 end
 function StatsBase.sample(rng::Random.AbstractRNG, model::MCGP, nSamples::Int; kwargs...)
     sampler = inference(model)
-    thinnning = get(kwargs, :thinning, sampler.thinning)
+    thinning = get(kwargs, :thinning, sampler.thinning)
     discard_initial = get(kwargs, :discard_initial, sampler.nBurnin)
     progressname = get(kwargs, :progressname, "Sampling with $sampler")
     return sample(
@@ -20,7 +20,7 @@ function StatsBase.sample(rng::Random.AbstractRNG, model::MCGP, nSamples::Int; k
         GPSampler(sampler),
         nSamples;
         thinning,
-        discard_inital,
+        discard_initial,
         progressname,
         kwargs...,
     )

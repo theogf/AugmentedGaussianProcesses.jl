@@ -283,7 +283,8 @@ end
         ),
     )
     tot -= GaussianKL(model)
-    return tot -= Zygote.@ignore(
+    tot -= Zygote.@ignore(
         sum(getρ(inference(model)) .* AugmentedKL.(likelihood(model), yview(model)))
     )
+    return tot
 end
