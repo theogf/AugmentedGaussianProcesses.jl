@@ -3,7 +3,7 @@
     N, d = 20, 2
     k = transform(SqExponentialKernel(), 10.0)
     X, f = generate_f(N, d, k)
-    y = sign.(f)
+    y = f .> 0
     floattypes = [Float64]
     tests_likelihood(
         BayesianSVM(),

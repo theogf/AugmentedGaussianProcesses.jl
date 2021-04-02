@@ -22,7 +22,5 @@ function treat_labels!(y::AbstractVector, likelihood::ClassificationLikelihood)
     )
 end
 
-predict_y(l::ClassificationLikelihood, μ::AbstractVector{<:Real}) = sign.(μ)
-function predict_y(l::ClassificationLikelihood, μ::AbstractVector{<:AbstractVector})
-    return sign.(first(μ))
-end
+predict_y(::ClassificationLikelihood, μ::AbstractVector{<:Real}) = μ .> 0
+predict_y(::ClassificationLikelihood, μ::AbstractVector{<:AbstractVector}) = first(μ) .> 0

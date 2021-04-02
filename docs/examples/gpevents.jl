@@ -1,3 +1,8 @@
+# # Gaussian Process for Event likelihoods
+# 
+# ## Preliminary steps
+#
+# ### Loading necessary packages
 using Plots
 using AugmentedGaussianProcesses
 const AGP = AugmentedGaussianProcesses

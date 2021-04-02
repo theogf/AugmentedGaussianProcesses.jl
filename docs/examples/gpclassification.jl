@@ -1,5 +1,7 @@
+# # Gaussian Process Classification
+# 
 # ## Preliminary steps
-
+#
 # ### Loading necessary packages
 
 using Plots

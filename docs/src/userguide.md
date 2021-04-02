@@ -10,36 +10,47 @@ There are 3 main actions needed to train and use the different models:
 
 ### Possible models
 
-There are currently 3 possible Gaussian Process models:
+There are currently 8 possible Gaussian Process models:
 - [`GP`](@ref) corresponds to the original GP regression model, it is necessarily with a Gaussian likelihood.
 ```julia
-    GP(X_train,y_train,kernel)
+    GP(X_train, y_train, kernel; kwargs...)
 ```
 - [`VGP`](@ref) is a variational GP model: a multivariate Gaussian is approximating the true posterior. There is no inducing points augmentation involved. Therefore it is well suited for small datasets (~10^3 samples)
 ```julia
-    VGP(X_train,y_train,kernel,likelihood,inference)
+    VGP(X_train, y_train, kernel, likelihood, inference; kwargs...)
 ```
 - [`SVGP`](@ref) is a variational GP model augmented with inducing points. The optimization is done on those points, allowing for stochastic updates and large scalability. The counterpart can be a slightly lower accuracy and the need to select the number and the location of the inducing points (however this is a problem currently worked on).
 ```julia
-    SVGP(X_train,y_train,kernel,likelihood,inference,n_inducingpoints)
+    SVGP(X_train, y_train, kernel, likelihood, inference, n_inducingpoints; kwargs...)
 ```
+
+- [`MCGP](@ref) is a GP model where the posterior is represented via a collection of samplers.
+- ```julia
+  - MCGP(X_train, y_train, kernel, likelihood, inference; kwargs...)
+  ```
 
 - [`OnlineSVGP`](@ref) is an online variational GP model. It is based on the streaming method of Bui 17', it supports all likelihoods, even with multiple latents.
 ```julia
-    OnlineSVGP(kernel, likelihood, inference, n_latent, inducing_points)
+    OnlineSVGP(kernel, likelihood, inference, ind_point_algorithm; kwargs...)
 ```
 
-- [`MOVGP`](@ref) is a multi output variational GP model.
+- [`MOVGP`](@ref) is a multi output variational GP model based on the principle `f_output[i] = sum(A[i, j] * f_latent[j] for j in 1:n_latent)`. The number of latent GP is free:
+```julia
+    MOVGP(X_train, ys_train, kernel, likelihood/s, inference, n_latent; kwargs...)
+```
 
-- [`MOSVGP`](@ref) is a multi output sparse variational GP model, based on Moreno-Muñoz 18'.
+- [`MOSVGP`](@ref) is the same thing as `MOVGP` but with inducing pointsa multi output sparse variational GP model, based on Moreno-Muñoz 18'.
+```julia
+    MOVGP(X_train, ys_train, kernel, likelihood/s, inference, n_latent, n_inducing_points; kwargs...)
+```
 
 - [`VStP`](@ref) is a variational Student-T model where the prior is a multivariate Student-T distribution with scale `K`, mean `μ₀` and degrees of freedom `ν`. The inference is done automatically by augmenting the prior as a scale mixture of inverse gamma
 ```julia
-    VStP(X_train,y_train,kernel,likelihood,inference,ν)
+    VStP(X_train, y_train, kernel, likelihood, inference, ν; kwargs...)
 ```
 ### [Likelihood](@id likelihood_user)
 
-`GP` can only have a Gaussian likelihood, `VGP` and `SVGP` have more choices. Here are the ones currently implemented:
+`GP` can only have a Gaussian likelihood, while the other have more choices. Here are the ones currently implemented:
 
 #### Regression
 
@@ -82,7 +93,7 @@ The two next methods rely on numerical approximation of an integral and I theref
 - [`QuadratureVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via quadrature.
 - [`MCIntegrationVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via Monte Carlo Integration
 
-We also use [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl) to provide a HMC algorithm, although generally the Gibbs sampling is preferable when available.
+[WIP] : [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl) will be integrated at some point, although generally the Gibbs sampling is preferable when available.
 
 ### [Compatibility table](@id compat_table)
 
@@ -103,6 +114,16 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 |   |   |   |   |   |
 (dev) means that the feature is possible and may be developped and tested but is not available yet. All contributions or requests are very welcome!
 
+| Model/Inference | AnalyticVI | GibbsSampling | QuadratureVI | MCIntegrationVI |
+| --- | :-: | :-: | :-: | :-: |
+| VGP | ✔ | ✖ | ✔ | ✔ |
+| SVGP | ✔ | ✖ | ✔ | ✔ |
+| MCGP | ✖ | ✔ | ✖ | ✖ |
+| OnlineSVGP | ✔ | ✖ | ✖ | ✖ |
+| MO(S)VGP | ✔ | ✖ | ✔ | ✔ |
+| VStP | ✔ | ✖ | ✔ | ✔ |
+
+Note that for MO(S)VGP you can use a mix of different likelihoods.
 ### Additional Parameters
 
 #### Hyperparameter optimization
@@ -123,12 +144,12 @@ The `mean` keyword allows you to add different types of prior means:
 
 Training is straightforward after initializing the `model` by running :
 ```julia
-train!(model, 100; callback = callbackfunction)
+train!(model;  iterations=100, callback=callbackfunction)
 ```
 Where the `callback` option is for running a function at every iteration. `callbackfunction` should be defined as`
 ```julia
-function callbackfunction(model,iter)
-    "do things here"...
+function callbackfunction(model, iter)
+    # do things here...
 end
 ```
 
@@ -136,9 +157,9 @@ end
 
 Once the model has been trained it is finally possible to compute predictions. There always three possibilities :
 
-- `predict_f(model, X_test, covf=true, fullcov=false)` : Compute the parameters (mean and covariance) of the latent normal distributions of each test points. If `covf=false` return only the mean, if `fullcov=true` return a covariance matrix instead of only the diagonal
-- `predict_y(model,X_test)` : Compute the point estimate of the predictive likelihood for regression or the label of the most likely class for classification.
-- `proba_y(model,X_test)` : Return the mean with the variance of eahc point for regression or the predictive likelihood to obtain the class `y=1` for classification.
+- `predict_f(model, X_test; covf=true, fullcov=false)` : Compute the parameters (mean and covariance) of the latent normal distributions of each test points. If `covf=false` return only the mean, if `fullcov=true` return a covariance matrix instead of only the diagonal
+- `predict_y(model, X_test)` : Compute the point estimate of the predictive likelihood for regression or the label of the most likely class for classification.
+- `proba_y(model, X_test)` : Return the mean with the variance of eahc point for regression or the predictive likelihood to obtain the class `y=1` for classification.
 
 ## Miscellaneous
 

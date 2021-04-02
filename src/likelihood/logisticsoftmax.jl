@@ -192,9 +192,9 @@ end
 function grad_samples(
     model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:NumericalVI},
     samples::AbstractMatrix{T},
-    index::Integer,
+    index::Int,
 ) where {T}
-    class = model.likelihood.y_class[index]::Int64
+    class = model.likelihood.y_class[index]::Int
     grad_μ = zeros(T, nLatent(model))
     grad_Σ = zeros(T, nLatent(model))
     g_μ = similar(grad_μ)

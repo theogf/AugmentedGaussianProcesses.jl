@@ -1,3 +1,6 @@
+# # Online Gaussian Process
+#
+# ### Loading necessary packages
 # ## Preliminary steps
 # ### Load the necessary packages
 using Plots
@@ -39,3 +42,4 @@ for (i, (X_batch, y_batch)) in enumerate(eachbatch((X_train, y_train); obsdim=1,
     frame(anim)
 end
 gif(anim; fps=4)
+# This works just as well with any likelihood! Just try it out!

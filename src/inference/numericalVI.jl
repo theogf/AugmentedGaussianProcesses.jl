@@ -180,7 +180,8 @@ function ELBO(m::AbstractGP{T,L,<:NumericalVI}) where {T,L}
     tot = zero(T)
     tot +=
         getρ(m.inference) *
-        expec_loglikelihood(m.likelihood, m.inference, yview(m), mean_f(m), var_f(m))
+        expec_loglikelihood(likelihood(m), inference(m), yview(m), mean_f(m), var_f(m))
     tot -= GaussianKL(m)
-    return tot -= extraKL(m)
+    tot -= extraKL(m)
+    return tot
 end

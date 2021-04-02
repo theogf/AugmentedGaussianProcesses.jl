@@ -10,6 +10,6 @@
     y = rand([2,3], 10)
     @test_throws AssertionError AGP.treat_labels!(y, l)
     y = randn(10)
-    @test predict_y(l, y) == sign.(y)
-    @test predict_y(l, [y]) == sign.(y)
+    @test predict_y(l, y) == (y .> 0)
+    @test predict_y(l, [y]) == (y .> 0)
 end
