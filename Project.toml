@@ -1,7 +1,7 @@
 name = "AugmentedGaussianProcesses"
 uuid = "38eea1fd-7d7d-5162-9d08-f89d0f2e271e"
 authors = ["Theo Galy-Fajou <theo.galyfajou@gmail.com>"]
-version = "0.10.2"
+version = "0.10.3"
 
 [deps]
 AbstractMCMC = "80f14c24-f653-4e6a-9b94-39d6b0f70001"
@@ -26,7 +26,7 @@ StatsFuns = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
-AbstractMCMC = "2, 3.0"
+AbstractMCMC = "2, 3"
 AdvancedHMC = "0.2.13"
 ChainRulesCore = "0.9"
 Distributions = "0.21.5, 0.22, 0.23, 0.24"
