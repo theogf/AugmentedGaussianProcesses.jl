@@ -9,4 +9,12 @@
     @test d(x[1], y[1]) ≈ l(x[1], y[1])
     md = VGP(x, y, k, d, AnalyticVI())
     ml = VGP(x, y, k, l, AnalyticVI())
+    d = md.likelihood
+    l = ml.likelihood
+    aopt = AGP.AVIOptimizer{Float64}(1, Descent())
+    @test md.likelihood.θ == ml.likelihood.θ
+    @test length(md.likelihood.c²) == length(ml.likelihood.b)
+    @test loglikelihood(d, y[1], x[1]) ≈ loglikelihood(l, y[1], x[1])
+    @test AGP.∇E_μ(d, aopt, y) == AGP.∇E_μ(l, aopt, y)
+    @test AGP.∇E_Σ(d, aopt, y) == AGP.∇E_Σ(l, aopt, y)
 end
