@@ -124,14 +124,15 @@ macro augmodel(
     end
     # Create inner constructor using kwargs only
     if length(args) > 0
-        innerc1 = :( $(name){T}($(kwargs)) where {T<:Real} = $(name){T,Vector{T}}($(vcat(:([]), :([]), args)...)))
+        innerc1 = :( $(name){T}($(kwargs)) where {T<:Real} = new{T,Vector{T}}($(vcat(:([]), :([]), args)...)))
     else
-        innerc1 = :( $(name){T}() where {T<:Real} = $(name){T,Vector{T}}([], []))
+        innerc1 = :( $(name){T}() where {T<:Real} = new{T,Vector{T}}([], []))
     end
     # Create inner constructor with additional parameters
     if length(args) > 0
-        all_args = [:(c²::A), :(θ::A), kwargs.args...]
+        all_args = [kwargs, :(c²::A), :(θ::A)]
         innerc2 = :( $(name){T}($(all_args...)) where {T<:Real,A<:AbstractVector{T}}= new{T,A}(c², θ, $(args...)))
+        # push!(innerc2.args[1].args, kwargs)
     else
         innerc2 = :( $(name){T}(c²::A, θ::A) where {T<:Real,A<:AbstractVector{T}} = new{T,A}(c², θ))
     end
@@ -150,7 +151,7 @@ macro augmodel(
         for arg in args
             push!(l_kwargs.args, Expr(:kw, arg, :(l.$(arg))))
         end
-        l_args = vcat(l_args, l_kwargs.args...)
+        l_args = vcat(l_kwargs, l_args)
         init_like = quote
             function AGP.init_likelihood(
                 l::$(name){T},
