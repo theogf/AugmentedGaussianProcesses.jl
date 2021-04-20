@@ -74,6 +74,12 @@ d = AugLaplace(;β=3.0)
 pdf(Laplace(0.0, 3.0), 2.0) == d(0.0, 2.0)
 ```
 
+There are a few additional functions that you can define to override the existing generic implementations
+```
+
+- `Statistics.var(l::MyLikelihood)` for adding the variance correctly in `Regression` types of likelihood
+- ``
+
 
 """
 macro augmodel(
@@ -85,7 +91,7 @@ macro augmodel(
     β::InputSymbol,
     γ::InputSymbol,
     φ::InputSymbol,
-    ∇φ::InputSymbol,
+    # ∇φ::InputSymbol,
     addargs...,
 )
     ## Check args here
@@ -142,7 +148,7 @@ macro augmodel(
         functions[f] = treat_functions(functions[f], args)
     end
     functions[:φ] = correct_input(functions[:φ], :r)
-    functions[:∇φ] = correct_input(functions[:∇φ], :r)
+    # functions[:∇φ] = correct_input(functions[:∇φ], :r)
 
     if length(args) > 0
         l_args = [:(zeros(T, nSamplesUsed)), :(zeros(T, nSamplesUsed))]
@@ -183,8 +189,6 @@ macro augmodel(
         end
     end
 
-    @show functions
-    @show init_like
     return esc(
         generate_likelihood(
             Symbol(name), Symbol(ltype, "Likelihood"), functions, fielddefs, outerc, innerc1, innerc2, init_like
@@ -249,11 +253,11 @@ function generate_likelihood(lname, ltype, functions, fielddefs, outerc, innerc1
             end
 
             function _gen_∇φ(l::$(lname), r::T) where {T<:Real}
-                return $(functions[:∇φ])
+                return first(Zygote.gradient(Base.Fix1(_gen_φ, l), r))
             end
 
             function _gen_∇²φ(l::$(lname), r::T) where {T}
-                return Zygote.gradient(Base.Fix1(_gen_∇φ, l), r)[1]
+                return first(ForwardDiff.gradient(x->_gen_∇φ(l, first(x)), [r]))
             end
 
             function Base.show(io::IO, model::$(lname))
@@ -295,9 +299,8 @@ function generate_likelihood(lname, ltype, functions, fielddefs, outerc, innerc1
                 return l.θ .= -_gen_∇φ.(l, l.c²) ./ _gen_φ.(l, l.c²)
             end
 
-            function pω(::$(lname), f)
-                #TODO Use the Laplace approx sampler
-                @error "You cannot use Gibbs sampling from your likelihood unless you define pω(likelihood,f)"
+            function pω(l::$(lname), c²)
+               LaplaceTransformDistribution(Base.Fix1(_gen_φ, l), c²)
             end
 
             function AGP.sample_local!(
@@ -305,15 +308,17 @@ function generate_likelihood(lname, ltype, functions, fielddefs, outerc, innerc1
             ) where {T}
                 return set_ω!(
                     l,
-                    pω.(
-                        l,
-                        sqrt.(
-                            0.5 * (
-                                l,
-                                _gen_α.(l, y) - _gen_β.(l, y) .* f +
-                                _gen_γ.(l, y) .* (abs2.(f)),
+                    rand.(
+                        pω.(
+                            l,
+                            sqrt.(
+                                0.5 * (
+                                    l,
+                                    _gen_α.(l, y) - _gen_β.(l, y) .* f +
+                                    _gen_γ.(l, y) .* (abs2.(f)),
+                                ),
                             ),
-                        ),
+                        )
                     ),
                 )
             end

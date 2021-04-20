@@ -81,10 +81,10 @@ struct BromwichInverseLaplace{T}
     b::Vector{T}
     s::Vector{T}
     function BromwichInverseLaplace(A::Int=19, l::Int=1, m::Int=11, n::Int=28)
-        @assert A > 0 "A should be a positive integer"
-        @assert l > 0 "l should be a positive integer"
-        @assert m > 0 "m should be a positive integer"
-        @assert n > 0 "n should be a positive integer"
+        A > 0 || error("A should be a positive integer")
+        l > 0 || error("l should be a positive integer")
+        m > 0 || error("m should be a positive integer")
+        n > 0 || error("n should be a positive integer")
         T = typeof(exp(A / (2 * l)))
         ijπl = 1im .* (1:l) .* π / l
         return new{T}(
