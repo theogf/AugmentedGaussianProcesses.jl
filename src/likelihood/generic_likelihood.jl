@@ -105,7 +105,6 @@ macro augmodel(
         :β=>β,
         :γ=>γ,
         :φ=>φ,
-        :∇φ=>∇φ,
     )
     ## Create the needed fields and co
     fielddefs = quote end
@@ -189,11 +188,10 @@ macro augmodel(
         end
     end
 
-    return esc(
-        generate_likelihood(
+    @show __module__
+    return esc(generate_likelihood(
             Symbol(name), Symbol(ltype, "Likelihood"), functions, fielddefs, outerc, innerc1, innerc2, init_like
-        ),
-    )
+        ))
 end
 function generate_likelihood(lname, ltype, functions, fielddefs, outerc, innerc1, innerc2, init_like)
     quote
@@ -266,7 +264,7 @@ function generate_likelihood(lname, ltype, functions, fielddefs, outerc, innerc1
 
             function Statistics.var(l::$(lname){T}) where {T<:Real}
                 @warn "The variance of the likelihood is not implemented : returnin 0.0"
-                return 0.0
+                return zero(T)
             end
 
             function AGP.compute_proba(
@@ -300,7 +298,7 @@ function generate_likelihood(lname, ltype, functions, fielddefs, outerc, innerc1
             end
 
             function pω(l::$(lname), c²)
-               LaplaceTransformDistribution(Base.Fix1(_gen_φ, l), c²)
+               AGP.LaplaceTransformDistribution(Base.Fix1(_gen_φ, l), c²)
             end
 
             function AGP.sample_local!(
