@@ -9,8 +9,8 @@ using Test, AugmentedGaussianProcesses
     y = rand(10)
     k = SqExponentialKernel()
     @test d(x[1], y[1]) ≈ l(x[1], y[1])
-    md = VGP(x, y, k, d, AnalyticVI())
-    ml = VGP(x, y, k, l, AnalyticVI())
+    md = VGP(x, y, k, d, AnalyticVI(); optimiser=false)
+    ml = VGP(x, y, k, l, AnalyticVI(); optimiser=false)
     d = md.likelihood
     l = ml.likelihood
     aopt = AGP.AVIOptimizer{Float64}(1, Descent())
@@ -21,4 +21,7 @@ using Test, AugmentedGaussianProcesses
     @test AGP.∇E_Σ(d, aopt, y) == AGP.∇E_Σ(l, aopt, y)
     @show mean(pω(d, 0.1))
     @show var(pω(d, 0.1))
+
+    train!(md, 100)
+    train!(ml, 100)
 end

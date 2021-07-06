@@ -77,7 +77,7 @@ pdf(Laplace(0.0, 3.0), 2.0) == d(0.0, 2.0)
 There are a few additional functions that you can define to override the existing generic implementations
 ```
 
-- `Statistics.var(l::MyLikelihood)` for adding the variance correctly in `Regression` types of likelihood
+- `AGP.Statistics.var(l::MyLikelihood)` for adding the variance correctly in `Regression` types of likelihood
 - ``
 
 
@@ -159,7 +159,7 @@ macro augmodel(
         l_args = vcat(l_kwargs, l_args)
         init_like = quote
             function AGP.init_likelihood(
-                l::$(name){T},
+                l::AGP.$(name){T},
                 i::AGP.AbstractInference{T},
                 nLatent::Int,
                 nSamplesUsed::Int,
@@ -174,7 +174,7 @@ macro augmodel(
     else
         init_like = quote
             function AGP.init_likelihood(
-                l::$(name){T},
+                l::AGP.$(name){T},
                 i::AGP.AbstractInference{T},
                 nLatent::Int,
                 nSamplesUsed::Int,
@@ -188,16 +188,13 @@ macro augmodel(
         end
     end
 
-    @show __module__
-    return esc(generate_likelihood(
+    return :(Base.eval(AugmentedGaussianProcesses, $(esc(generate_likelihood(
             Symbol(name), Symbol(ltype, "Likelihood"), functions, fielddefs, outerc, innerc1, innerc2, init_like
-        ))
+        )))))
 end
 function generate_likelihood(lname, ltype, functions, fielddefs, outerc, innerc1, innerc2, init_like)
     quote
         begin
-            using Statistics
-            using Distributions
             struct $(lname){T<:Real,A<:AbstractVector{T}} <: AGP.$(ltype){T}
                 $(fielddefs)
                 $(innerc1)
@@ -207,177 +204,177 @@ function generate_likelihood(lname, ltype, functions, fielddefs, outerc, innerc1
             $(outerc)
 
             function AGP.implemented(
-                ::$(lname), ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}
+                ::AGP.$(lname), ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}
             )
                 return true
             end
 
             $(init_like)
 
-            function (l::$(lname))(y::Real, f::Real)
-                return _gen_C(l) *
-                       exp(_gen_g(l, y) * f) *
-                       _gen_φ(l, _gen_α(l, y) - _gen_β(l, y) * f + _gen_γ(l, y) * f^2)
-            end
+            # function (l::$(lname))(y::Real, f::Real)
+            #     return _gen_C(l) *
+            #            exp(_gen_g(l, y) * f) *
+            #            _gen_φ(l, _gen_α(l, y) - _gen_β(l, y) * f + _gen_γ(l, y) * f^2)
+            # end
 
-            function Distributions.loglikelihood(l::$(lname), y::Real, f::Real)
-                return log(_gen_C(l)) +
-                       _gen_g(l, y) * f +
-                       log(_gen_φ(l, _gen_α(l, y) - _gen_β(l, y) * f + _gen_γ(l, y) * f^2))
-            end
+            # function AGP.loglikelihood(l::$(lname), y::Real, f::Real)
+            #     return log(_gen_C(l)) +
+            #            _gen_g(l, y) * f +
+            #            log(_gen_φ(l, _gen_α(l, y) - _gen_β(l, y) * f + _gen_γ(l, y) * f^2))
+            # end
 
-            function _gen_C(l::$(lname){T}) where {T<:Real}
-                return $(functions[:C])
-            end
+            # function _gen_C(l::$(lname){T}) where {T<:Real}
+            #     return $(functions[:C])
+            # end
 
-            function _gen_g(l::$(lname), y::T) where {T<:Real}
-                return $(functions[:g])
-            end
+            # function _gen_g(l::$(lname), y::T) where {T<:Real}
+            #     return $(functions[:g])
+            # end
 
-            function _gen_α(l::$(lname), y::T) where {T<:Real}
-                return $(functions[:α])
-            end
+            # function _gen_α(l::$(lname), y::T) where {T<:Real}
+            #     return $(functions[:α])
+            # end
 
-            function _gen_β(l::$(lname), y::T) where {T<:Real}
-                return $(functions[:β])
-            end
+            # function _gen_β(l::$(lname), y::T) where {T<:Real}
+            #     return $(functions[:β])
+            # end
 
-            function _gen_γ(l::$(lname), y::T) where {T<:Real}
-                return $(functions[:γ])
-            end
+            # function _gen_γ(l::$(lname), y::T) where {T<:Real}
+            #     return $(functions[:γ])
+            # end
 
-            function _gen_φ(l::$(lname), r::T) where {T<:Real}
-                return $(functions[:φ])
-            end
+            # function _gen_φ(l::$(lname), r::T) where {T<:Real}
+            #     return $(functions[:φ])
+            # end
 
-            function _gen_∇φ(l::$(lname), r::T) where {T<:Real}
-                return first(Zygote.gradient(Base.Fix1(_gen_φ, l), r))
-            end
+            # function _gen_∇φ(l::$(lname), r::T) where {T<:Real}
+            #     return first(AGP.Zygote.gradient(Base.Fix1(_gen_φ, l), r))
+            # end
 
-            function _gen_∇²φ(l::$(lname), r::T) where {T}
-                return first(ForwardDiff.gradient(x->_gen_∇φ(l, first(x)), [r]))
-            end
+            # function _gen_∇²φ(l::$(lname), r::T) where {T}
+            #     return first(AGP.ForwardDiff.gradient(x->_gen_∇φ(l, first(x)), [r]))
+            # end
 
-            function Base.show(io::IO, model::$(lname))
-                return print(io, string($lname), " Likelihood")
-            end
+            # function Base.show(io::IO, model::$(lname))
+            #     return print(io, string($lname), " Likelihood")
+            # end
 
-            function Statistics.var(l::$(lname){T}) where {T<:Real}
-                @warn "The variance of the likelihood is not implemented : returnin 0.0"
-                return zero(T)
-            end
+            # function AGP.var(l::$(lname){T}) where {T<:Real}
+            #     @warn "The variance of the likelihood is not implemented : returnin 0.0"
+            #     return zero(T)
+            # end
 
-            function AGP.compute_proba(
-                l::$(lname){T}, μ::AbstractVector{T}, σ²::AbstractVector{T}
-            ) where {T<:Real}
-                if typeof(l) <: RegressionLikelihood
-                    return μ, max.(σ², zero(T)) .+ var(l)
-                else
-                    N = length(μ)
-                    pred = zeros(T, N)
-                    sig_pred = zeros(T, N)
-                    for i in 1:N
-                        x = AGP.pred_nodes .* sqrt(max(σ²[i], zero(T))) .+ μ[i]
-                        pred[i] = dot(AGP.pred_weights, AGP.pdf.(l, 1, x))
-                        sig_pred[i] =
-                            dot(AGP.pred_weights, AGP.pdf.(l, 1, x) .^ 2) - pred[i]^2
-                    end
-                    return pred, sig_pred
-                end
-            end
+            # function AGP.compute_proba(
+            #     l::$(lname){T}, μ::AbstractVector{T}, σ²::AbstractVector{T}
+            # ) where {T<:Real}
+            #     if typeof(l) <: RegressionLikelihood
+            #         return μ, max.(σ², zero(T)) .+ var(l)
+            #     else
+            #         N = length(μ)
+            #         pred = zeros(T, N)
+            #         sig_pred = zeros(T, N)
+            #         for i in 1:N
+            #             x = AGP.pred_nodes .* sqrt(max(σ²[i], zero(T))) .+ μ[i]
+            #             pred[i] = AGP.dot(AGP.pred_weights, AGP.pdf.(l, 1, x))
+            #             sig_pred[i] =
+            #                 AGP.dot(AGP.pred_weights, AGP.pdf.(l, 1, x) .^ 2) - pred[i]^2
+            #         end
+            #         return pred, sig_pred
+            #     end
+            # end
 
-            ### Local Updates Section ###
+            # ### Local Updates Section ###
 
-            function AGP.local_updates!(
-                l::$(lname), y::AbstractVector, μ::AbstractVector, diag_cov::AbstractVector
-            ) where {T}
-                l.c² .=
-                    _gen_α.(l, y) - _gen_β.(l, y) .* μ +
-                    _gen_γ.(l, y) .* (abs2.(μ) + diag_cov)
-                return l.θ .= -_gen_∇φ.(l, l.c²) ./ _gen_φ.(l, l.c²)
-            end
+            # function AGP.local_updates!(
+            #     l::$(lname), y::AbstractVector, μ::AbstractVector, diag_cov::AbstractVector
+            # ) where {T}
+            #     l.c² .=
+            #         _gen_α.(l, y) - _gen_β.(l, y) .* μ +
+            #         _gen_γ.(l, y) .* (abs2.(μ) + diag_cov)
+            #     return l.θ .= -_gen_∇φ.(l, l.c²) ./ _gen_φ.(l, l.c²)
+            # end
 
-            function pω(l::$(lname), c²)
-               AGP.LaplaceTransformDistribution(Base.Fix1(_gen_φ, l), c²)
-            end
+            # function pω(l::$(lname), c²)
+            #    AGP.LaplaceTransformDistribution(Base.Fix1(_gen_φ, l), c²)
+            # end
 
-            function AGP.sample_local!(
-                l::$(lname), y::AbstractVector, f::AbstractVector
-            ) where {T}
-                return set_ω!(
-                    l,
-                    rand.(
-                        pω.(
-                            l,
-                            sqrt.(
-                                0.5 * (
-                                    l,
-                                    _gen_α.(l, y) - _gen_β.(l, y) .* f +
-                                    _gen_γ.(l, y) .* (abs2.(f)),
-                                ),
-                            ),
-                        )
-                    ),
-                )
-            end
+            # function AGP.sample_local!(
+            #     l::$(lname), y::AbstractVector, f::AbstractVector
+            # ) where {T}
+            #     return set_ω!(
+            #         l,
+            #         rand.(
+            #             pω.(
+            #                 l,
+            #                 sqrt.(
+            #                     0.5 * (
+            #                         l,
+            #                         _gen_α.(l, y) - _gen_β.(l, y) .* f +
+            #                         _gen_γ.(l, y) .* (abs2.(f)),
+            #                     ),
+            #                 ),
+            #             )
+            #         ),
+            #     )
+            # end
 
-            ### Natural Gradient Section ###
+            # ### Natural Gradient Section ###
 
-            @inline function AGP.∇E_μ(
-                l::$(lname), ::AugmentedGaussianProcesses.AOptimizer, y::AbstractVector
-            ) where {T}
-                return (_gen_g.(l, y) + l.θ .* _gen_β.(l, y),)
-            end
-            @inline function AGP.∇E_Σ(
-                l::$(lname), ::AugmentedGaussianProcesses.AOptimizer, y::AbstractVector
-            ) where {T}
-                return (l.θ .* _gen_γ.(l, y),)
-            end
+            # @inline function AGP.∇E_μ(
+            #     l::$(lname), ::AugmentedGaussianProcesses.AOptimizer, y::AbstractVector
+            # ) where {T}
+            #     return (_gen_g.(l, y) + l.θ .* _gen_β.(l, y),)
+            # end
+            # @inline function AGP.∇E_Σ(
+            #     l::$(lname), ::AugmentedGaussianProcesses.AOptimizer, y::AbstractVector
+            # ) where {T}
+            #     return (l.θ .* _gen_γ.(l, y),)
+            # end
 
-            ### ELBO Section ###
-            function AGP.expec_loglikelihood(
-                l::$(lname),
-                i::AnalyticVI,
-                y::AbstractVector,
-                μ::AbstractVector,
-                diag_cov::AbstractVector,
-            ) where {T}
-                tot = length(y) * log(_gen_C(l))
-                tot += dot(_gen_g.(l, y), μ)
-                tot +=
-                    -(
-                        dot(l.θ, _gen_α.(l, y)) - dot(l.θ, _gen_β.(l, y) .* μ) +
-                        dot(l.θ, _gen_γ.(l, y) .* (abs2.(μ) + diag_cov))
-                    )
-                return tot
-            end
+            # ### ELBO Section ###
+            # function AGP.expec_loglikelihood(
+            #     l::$(lname),
+            #     i::AnalyticVI,
+            #     y::AbstractVector,
+            #     μ::AbstractVector,
+            #     diag_cov::AbstractVector,
+            # ) where {T}
+            #     tot = length(y) * log(_gen_C(l))
+            #     tot += dot(_gen_g.(l, y), μ)
+            #     tot +=
+            #         -(
+            #             dot(l.θ, _gen_α.(l, y)) - dot(l.θ, _gen_β.(l, y) .* μ) +
+            #             dot(l.θ, _gen_γ.(l, y) .* (abs2.(μ) + diag_cov))
+            #         )
+            #     return tot
+            # end
 
-            function AGP.AugmentedKL(l::$(lname), ::AbstractVector) where {T}
-                return -dot(l.c², l.θ) - sum(log, _gen_φ.(l, l.c²))
-            end
+            # function AGP.AugmentedKL(l::$(lname), ::AbstractVector) where {T}
+            #     return -dot(l.c², l.θ) - sum(log, _gen_φ.(l, l.c²))
+            # end
 
-            ### Gradient Section ###
+            # ### Gradient Section ###
 
-            @inline function AGP.∇loglikehood(
-                l::$(lname){T}, y::Real, f::Real
-            ) where {T<:Real}
-                h² = _gen_α(l, y) - _gen_β(l, y) * f + _gen_γ(l, y) * f^2
-                return _gen_g(l, y) +
-                       (-_gen_β(l, y) + 2 * _gen_γ(l, y) * f) * _gen_∇φ(l, h²) / _gen_φ(l, h²)
-            end
+            # @inline function AGP.∇loglikehood(
+            #     l::$(lname){T}, y::Real, f::Real
+            # ) where {T<:Real}
+            #     h² = _gen_α(l, y) - _gen_β(l, y) * f + _gen_γ(l, y) * f^2
+            #     return _gen_g(l, y) +
+            #            (-_gen_β(l, y) + 2 * _gen_γ(l, y) * f) * _gen_∇φ(l, h²) / _gen_φ(l, h²)
+            # end
 
-            @inline function AGP.hessloglikehood(
-                l::$(lname){T}, y::Real, f::Real
-            ) where {T<:Real}
-                h² = _gen_α(l, y) - _gen_β(l, y) * f + _gen_γ(l, y) * f^2
-                φ = _gen_φ(l, h²)
-                ∇φ = _gen_∇φ(l, h²)
-                ∇²φ = _gen_∇²φ(l, h²)
-                return (
-                    2 * _gen_γ(l, y) * ∇φ / φ - ((-_gen_β(l, y) + 2 * _gen_γ(l, y) * f) * ∇φ / φ)^2 +
-                    (-_gen_β(l, y) + 2 * _gen_γ(l, y) * f)^2 * ∇²φ / φ
-                )
-            end
+            # @inline function AGP.hessloglikehood(
+            #     l::$(lname){T}, y::Real, f::Real
+            # ) where {T<:Real}
+            #     h² = _gen_α(l, y) - _gen_β(l, y) * f + _gen_γ(l, y) * f^2
+            #     φ = _gen_φ(l, h²)
+            #     ∇φ = _gen_∇φ(l, h²)
+            #     ∇²φ = _gen_∇²φ(l, h²)
+            #     return (
+            #         2 * _gen_γ(l, y) * ∇φ / φ - ((-_gen_β(l, y) + 2 * _gen_γ(l, y) * f) * ∇φ / φ)^2 +
+            #         (-_gen_β(l, y) + 2 * _gen_γ(l, y) * f)^2 * ∇²φ / φ
+            #     )
+            # end
         end
     end
 end
