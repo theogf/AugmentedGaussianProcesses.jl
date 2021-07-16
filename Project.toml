@@ -27,7 +27,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 AbstractMCMC = "2, 3"
-AdvancedHMC = "0.2.13"
+AdvancedHMC = "0.2.13, 0.3"
 ChainRulesCore = "0.9"
 Distributions = "0.21.5, 0.22, 0.23, 0.24, 0.25"
 FastGaussQuadrature = "0.4"
