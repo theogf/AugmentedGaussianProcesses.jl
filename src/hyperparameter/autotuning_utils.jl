@@ -8,17 +8,17 @@ function setadbackend(ad_backend::Symbol)
     return ADBACKEND[] = ad_backend
 end
 
-opt(::AbstractInducingPoints) = nothing
-opt(Z::OptimIP) = Z.opt
-data(Z::OptimIP) = Z.Z
-data(Z::AbstractInducingPoints) = Z
+# opt(::AbstractInducingPoints) = nothing
+# opt(Z::OptimIP) = Z.opt
+# data(Z::OptimIP) = Z.Z
+# data(Z::AbstractInducingPoints) = Z
 
 ## Generic fallback when gradient is nothing
 update!(::Any, ::Any, ::Nothing) = nothing
 
 ## Generic fallback when optimizer is nothing
 update!(::Nothing, ::Kernel, ::NamedTuple) = nothing
-update!(::Nothing, ::AbstractInducingPoints, ::AbstractArray) = nothing
+update!(::Nothing, ::AbstractVector, ::AbstractArray) = nothing
 
 ## Updating prior mean parameters ##
 function update!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
@@ -53,7 +53,7 @@ function update!(opt, x::AbstractArray, g::AbstractArray)
 end
 
 ## Updating inducing points
-function update!(opt, Z::AbstractInducingPoints, Z_grads::AbstractArray)
+function update!(opt, Z::AbstractVector, Z_grads::AbstractArray)
     for (z, zgrad) in zip(Z, Z_grads)
         z .+= Optimise.apply!(opt, z, zgrad)
     end

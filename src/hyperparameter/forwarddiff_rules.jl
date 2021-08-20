@@ -77,7 +77,7 @@ function Z_gradient_forward(
     return Z_gradient
 end
 
-function indpoint_derivative(kernel::Kernel, Z::AbstractInducingPoints)
+function indpoint_derivative(kernel::Kernel, Z::AbstractVector)
     return reshape(
         ForwardDiff.jacobian(x -> kernelmatrix(kernel, x; obsdim=1), Z),
         size(Z, 1),
@@ -87,7 +87,7 @@ function indpoint_derivative(kernel::Kernel, Z::AbstractInducingPoints)
     )
 end
 
-function indpoint_derivative(kernel::Kernel, X, Z::AbstractInducingPoints)
+function indpoint_derivative(kernel::Kernel, X, Z::AbstractVector)
     return reshape(
         ForwardDiff.jacobian(x -> kernelmatrix(kernel, X, x; obsdim=1), Z),
         size(X, 1),
