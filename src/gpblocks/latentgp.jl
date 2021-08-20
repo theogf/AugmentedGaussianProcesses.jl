@@ -44,7 +44,7 @@ end
 ## Sparse Variational Gaussian Process
 
 mutable struct SparseVarLatent{
-    T,Tpr<:GPPrior,Tpo<:VarPosterior{T},TZ<:AbstractInducingPoints,O
+    T,Tpr<:GPPrior,Tpo<:VarPosterior{T},Topt,TZ<:AbstractVector,TZopt
 } <: AbstractVarLatent{T,Tpr,Tpo}
     prior::Tpr
     post::Tpo
@@ -52,22 +52,25 @@ mutable struct SparseVarLatent{
     Knm::Matrix{T}
     κ::Matrix{T}
     K̃::Vector{T}
-    opt::O
+    opt::Topt
+    Zopt::TZopt
 end
 
 function SparseVarLatent(
     T::DataType,
     dim::Int,
     S::Int,
-    Z::AbstractInducingPoints,
+    Z::AbstractVector,
     kernel::Kernel,
     mean::PriorMean,
-    opt,
+    opt=nothing,
+    Zopt=nothing
 )
     return SparseVarLatent(
         GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I(dim)))),
         VarPosterior{T}(dim),
         deepcopy(Z),
+        deepcopy(Zopt),
         Matrix{T}(undef, S, dim),
         Matrix{T}(undef, S, dim),
         Vector{T}(undef, S),
@@ -95,16 +98,19 @@ end
 
 ## Online Sparse Variational Process
 
-mutable struct OnlineVarLatent{T,Tpr<:GPPrior,Tpo<:AbstractVarPosterior{T},O} <:
+mutable struct OnlineVarLatent{T,Tpr<:GPPrior,Tpo<:AbstractVarPosterior{T},Topt,TZ<:AbstractVector,
+    TZalg<:InducingPoints.OnIPSA,TZopt} <:
                AbstractVarLatent{T,Tpo,Tpr}
     prior::Tpr
     post::Tpo
-    Z::InducingPoints.AIP
+    Z::TZ
+    Zalg::TZalg
     Knm::Matrix{T}
     κ::Matrix{T}
     K̃::Vector{T}
     Zupdated::Bool
-    opt::O
+    opt::Topt
+    Zopt::TZopt
     Zₐ::AbstractVector
     Kab::Matrix{T}
     κₐ::Matrix{T}
@@ -118,20 +124,24 @@ function OnlineVarLatent(
     T::DataType,
     dim::Int,
     nSamplesUsed::Int,
-    Z::AbstractInducingPoints,
+    Z::AbstractVector,
+    Zalg::InducingPoints.OnIPSA,
     kernel::Kernel,
     mean::PriorMean,
-    opt,
+    opt=nothing,
+    Zopt=nothing
 )
     return OnlineVarLatent(
         GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I, dim, dim))),
         OnlineVarPosterior{T}(dim),
         Z,
+        Zalg,
         Matrix{T}(undef, nSamplesUsed, dim),
         Matrix{T}(undef, nSamplesUsed, dim),
         Vector{T}(undef, nSamplesUsed),
         false,
         deepcopy(opt),
+        deepcopy(Zopt),
         vec(Z),
         Matrix{T}(I, dim, dim),
         Matrix{T}(I, dim, dim),
@@ -209,7 +219,7 @@ var_f(Σ::AbstractMatrix, κ::AbstractMatrix, K̃::AbstractVector) = diag_ABt(κ
 Zview(gp::SparseVarLatent) = gp.Z
 Zview(gp::OnlineVarLatent) = gp.Z
 
-setZ!(gp::AbstractLatent, Z::AbstractInducingPoints) = gp.Z = Z#InducingPoints.setZ!(Zview(gp), Z)
+setZ!(gp::AbstractLatent, Z::AbstractVector) = gp.Z = Z
 
 opt(gp::AbstractLatent) = gp.opt
 

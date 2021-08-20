@@ -49,9 +49,7 @@ function MOSVGP(
     likelihood::Union{AbstractLikelihood,AbstractVector{<:AbstractLikelihood}},
     inference::AbstractInference,
     nLatent::Int,
-    nInducingPoints::Union{
-        Int,AbstractInducingPoints,AbstractVector{<:AbstractInducingPoints}
-    };
+    nInducingPoints::Union{Int,AbstractVector};
     verbose::Int=0,
     atfrequency::Int=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
@@ -107,12 +105,15 @@ function MOSVGP(
     end
     nKernel = length(kernel)
 
-    nInducingPoints = if nInducingPoints isa AbstractInducingPoints
-        [deepcopy(nInducingPoints) for _ in 1:nLatent]
-    else
+
+    nInducingPoints = if nInducingPoints isa AbstractVector{<:AbstractVector{<:AbstractVector}}
         nInducingPoints
+    elseif nInducingPoints isa AbstractVector{<:AbstractVector}
+        [deepcopy(nInducingPoints) for _ in 1:nLatent]
+    elseif nInducingPoints isa Int
+        Zref = InducingPoints(KMeansAlg(nInducingPoints), X)
+        [deepcopy(Zref) for _ in 1:nLatent]
     end
-    Z = init_Z.(nInducingPoints, Ref(Zoptimiser))
 
     nFeatures = size.(Z, 1)
 
@@ -132,6 +133,7 @@ function MOSVGP(
             kernel[mod(i, nKernel) + 1],
             mean,
             optimiser,
+            Zoptimiser,
         ),
         nLatent,
     )

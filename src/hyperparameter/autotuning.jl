@@ -91,7 +91,7 @@ end
                 @warn "Inducing point locations gradients are equal to zero" maxlog = 1
             else
                 for (f, Δ) in zip(m.f, ΔZ)
-                    update!(opt(f.Z), data(f.Z), Δ)
+                    update!(f.Zopt, f.Z, Δ)
                 end
             end
         elseif ADBACKEND[] == :ForwardDiff

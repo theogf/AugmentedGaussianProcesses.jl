@@ -35,7 +35,7 @@ using Reexport
 
 using AbstractMCMC
 using AdvancedHMC
-using ChainRulesCore: ChainRulesCore, NO_FIELDS, DoesNotExist
+using ChainRulesCore: ChainRulesCore, NoTangent
 using Distributions:
     Distributions,
     Distribution,

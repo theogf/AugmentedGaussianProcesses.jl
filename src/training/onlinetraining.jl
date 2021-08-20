@@ -21,7 +21,7 @@ function train!(
     obsdim::Int=1,
 )
     return train!(
-        m, KernelFunctions.vec_of_vecs(X; obsdim=obsdim), y; iterations=iterations
+        m, KernelFunctions.vec_of_vecs(X; obsdim=obsdim), y; iterations=iterations, callback=callback
     )
 end
 
@@ -33,7 +33,7 @@ function train!(
     callback::Union{Nothing,Function}=nothing,
     conv::Union{Nothing,Function}=nothing,
 )
-    X, T = wrap_X(X)
+    X, _ = wrap_X(X)
     y, _nLatent, m.likelihood = check_data!(y, likelihood(m))
 
     wrap_data!(data(m), X, y)
@@ -121,7 +121,7 @@ end
 
 function updateZ!(m::OnlineSVGP)
     for gp in m.f
-        InducingPoints.add_point!(gp.Z, m, gp)
+        InducingPoints.updateZ!(gp.Z, gp.Zalg, input(m); kernel=kernel(gp))
         gp.post.dim = length(Zview(gp))
     end
     return setHPupdated!(inference(m), true)
@@ -151,7 +151,7 @@ function init_onlinemodel(m::OnlineSVGP{T}) where {T<:Real}
 end
 
 function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T=T(jitt)) where {T}
-    gp.Z = OptimIP(InducingPoints.init(gp.Z, m, gp), opt(gp.Z))
+    gp.Z = InducingPoints.initZ(gp.Zalg, input(m); kernel=kernel(gp))
     k = length(gp.Z)
     gp.Zₐ = vec(gp.Z)
     gp.post = OnlineVarPosterior{T}(k)
