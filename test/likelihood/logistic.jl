@@ -1,6 +1,6 @@
 @testset "logistic" begin
     N, d = 20, 2
-    k = 2 * SqExponentialKernel() ∘ ScaleTransform(10.0)
+    k = 2.0 * SqExponentialKernel() ∘ ScaleTransform(10.0)
     X, f = generate_f(N, d, k)
     y = f .> 0
     floattypes = [Float64]
