@@ -20,7 +20,8 @@ update_Z!(::Any, ::Any, ::Nothing) = nothing
 ## Generic fallback when optimizer is nothing
 update_kernel!(::Nothing, ::Kernel, ::NamedTuple) = nothing
 update_kernel!(::Nothing, ::AbstractVector, ::AbstractArray) = nothing
-update_Z!(::Nothing, ::AbstractVector, ::AbstractArray) = nothing
+update_Z!(::Nothing, ::AbstractVector, ::AbstractVector) = nothing
+update_Z!(::Nothing, ::AbstractVector, ::NamedTuple) = nothing
 
 
 ## Updating prior mean parameters ##
@@ -56,7 +57,11 @@ function update_kernel!(opt, x::AbstractArray, g::AbstractArray)
 end
 
 ## Updating inducing points
-function update_Z!(opt, Z::AbstractVector, Z_grads::NamedTuple)
+function update_Z!(opt, Z::Union{ColVecs,RowVecs}, Z_grads::NamedTuple)
+        Z.X .+= Optimise.apply!(opt, Z.X, Z_grads.X)
+end
+
+function update_Z!(opt, Z::AbstractVector, Z_grads::AbstractVector)
     for (z, zgrad) in zip(Z, Z_grads)
         z .+= Optimise.apply!(opt, z, zgrad)
     end
