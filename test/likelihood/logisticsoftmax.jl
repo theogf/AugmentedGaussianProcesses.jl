@@ -1,7 +1,7 @@
 @testset "logisticsoftmax" begin
     N, d = 100, 1
     K = 3
-    k = transform(SqExponentialKernel(), 10.0)
+    k = SqExponentialKernel() ∘ ScaleTransform(10.0)
     X, f1 = generate_f(N, d, k)
     X, f2 = generate_f(N, d, k; X = X)
     X, f3 = generate_f(N, d, k; X = X)

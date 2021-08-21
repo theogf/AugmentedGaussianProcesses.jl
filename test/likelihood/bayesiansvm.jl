@@ -1,7 +1,7 @@
 @testset "bayesiansvm" begin
     seed!(42)
     N, d = 20, 2
-    k = transform(SqExponentialKernel(), 10.0)
+    k = SqExponentialKernel() ∘ ScaleTransform(10.0)
     X, f = generate_f(N, d, k)
     y = f .> 0
     floattypes = [Float64]

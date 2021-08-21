@@ -70,11 +70,11 @@ function SparseVarLatent(
         GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I(dim)))),
         VarPosterior{T}(dim),
         deepcopy(Z),
-        deepcopy(Zopt),
         Matrix{T}(undef, S, dim),
         Matrix{T}(undef, S, dim),
         Vector{T}(undef, S),
         deepcopy(opt),
+        deepcopy(Zopt),
     )
 end
 
@@ -222,6 +222,9 @@ Zview(gp::OnlineVarLatent) = gp.Z
 setZ!(gp::AbstractLatent, Z::AbstractVector) = gp.Z = Z
 
 opt(gp::AbstractLatent) = gp.opt
+Zopt(::AbstractLatent) = nothing
+Zopt(gp::SparseVarLatent) = gp.Zopt
+Zopt(gp::OnlineVarLatent) = gp.Zopt
 
 @traitfn function compute_K!(
     gp::TGP, X::AbstractVector, jitt::Real

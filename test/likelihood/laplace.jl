@@ -1,7 +1,7 @@
 @testset "laplace" begin
     N, d = 20, 2
     β = 3.0
-    k = transform(SqExponentialKernel(), 10.0)
+    k = SqExponentialKernel() ∘ ScaleTransform(10.0)
     X, f = generate_f(N, d, k)
     y = f + rand(Laplace(β), N)
     floattypes = [Float64]

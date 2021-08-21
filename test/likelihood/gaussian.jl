@@ -13,7 +13,7 @@
         @test AGP.num_latent(l) == 1
     end
     N, d = 20, 2
-    k = transform(SqExponentialKernel(), 10.0)
+    k = SqExponentialKernel() ∘ ScaleTransform(10.0)
     σ = 0.1
     X, f = generate_f(N, d, k)
     y = f + σ * randn(N)

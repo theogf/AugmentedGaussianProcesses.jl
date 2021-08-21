@@ -134,8 +134,8 @@ function save_old_parameters!(m::OnlineSVGP)
 end
 
 function save_old_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP) where {T}
-    gp.Zₐ = deepcopy(gp.Z.Z)
-    InducingPoints.remove_point!(gp.Z, m, gp)
+    gp.Zₐ = deepcopy(gp.Z)
+    InducingPoints.remove_point!(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))
     gp.invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp)))
     gp.prevη₁ = copy(nat1(gp))
     return gp.prev𝓛ₐ =
@@ -184,5 +184,5 @@ function compute_old_matrices!(gp::OnlineVarLatent, X::AbstractVector, jitt::Rea
     gp.Knm = kernelmatrix(kernel(gp), X, gp.Zₐ)
     gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(gp.κ, gp.Knm)
-    @assert all(gp.K̃ .> 0) "K̃ has negative values"
+    all(gp.K̃ .> 0) || error("K̃ has negative values")
 end

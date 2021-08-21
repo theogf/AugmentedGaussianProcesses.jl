@@ -67,7 +67,7 @@ end
 
 @traitfn function update_hyperparameters!(m::TGP) where {TGP <: AbstractGP; !IsFull{TGP}}
     # Check that here is least one optimiser
-    if any((!) ∘ isnothing ∘ opt, m.f) || any((!) ∘ isnothing ∘ opt ∘ Zview, m.f)
+    if any((!) ∘ isnothing ∘ opt, m.f) || any((!) ∘ isnothing ∘ Zopt, m.f)
         μ₀ = pr_means(m)
         ks = kernels(m)
         Zs = Zviews(m)
@@ -82,7 +82,7 @@ end
                 @warn "Kernel gradients are equal to zero" maxlog = 1
             else
                 for (f, Δ) in zip(m.f, Δk)
-                    update!(opt(f), kernel(f), Δ)
+                    update_kernel!(opt(f), kernel(f), Δ)
                 end
             end
 
@@ -91,7 +91,7 @@ end
                 @warn "Inducing point locations gradients are equal to zero" maxlog = 1
             else
                 for (f, Δ) in zip(m.f, ΔZ)
-                    update!(f.Zopt, f.Z, Δ)
+                    update_Z!(Zopt(f), Zview(f), Δ)
                 end
             end
         elseif ADBACKEND[] == :ForwardDiff
@@ -142,14 +142,14 @@ function update_hyperparameters!(
     else
         nothing, nothing
     end
-    if !isnothing(opt(gp.Z))
+    if !isnothing(Zopt(gp))
         ad_backend = Z_ADBACKEND[] == :auto ? ADBACKEND[] : Z_ADBACKEND[]
         Z_grads = if ad_backend == :forward
             Z_gradient_forward(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt) #Compute the gradient given the inducing points location
         elseif ad_backend == :zygote
             Z_gradient_zygote(gp, f_Z, X, ∇E_μ, ∇E_Σ, i, vi_opt)
         end
-        update!(opt(gp.Z), gp.Z.Z, Z_grads) #Apply the gradients on the location
+        update_Z!(opt(gp.Z), gp.Z, Z_grads) #Apply the gradients on the location
     end
     if !all([isnothing(Δk), isnothing(Δμ₀)])
         apply_Δk!(gp.opt, kernel(gp), Δk) # Apply gradients to the kernel parameters

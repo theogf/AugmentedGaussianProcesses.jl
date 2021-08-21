@@ -96,6 +96,12 @@ function SVGP(
 
     nFeatures = length(Z)
 
+    Zoptimiser = if Zoptimiser isa Bool
+        Zoptimiser ? ADAM(0.001) : nothing 
+    else
+        Zoptimiser
+    end
+
     if typeof(mean) <: Real
         mean = ConstantMean(mean)
     elseif typeof(mean) <: AbstractVector{<:Real}
