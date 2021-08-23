@@ -36,7 +36,7 @@ function train!(
     X, _ = wrap_X(X)
     y, _nLatent, m.likelihood = check_data!(y, likelihood(m))
 
-    wrap_data!(data(m), X, y)
+    wrap_data!(data(m), X, y) # Set the data in the model
 
     _nLatent == nLatent(m) || "Data should always contains the same number of outputs"
     iterations > 0 || "Number of iterations should be positive"
@@ -50,22 +50,17 @@ function train!(
             likelihood(m), inference(m), nLatent(m), nSamples(data(m))
         )
     else
-        # setxview!(m.inference, view(X, collect(MBIndices(m), :))
-        # setyview!(
-        # m.inference,
-        # view_y(m.likelihood, y, collect(1:nMinibatch(m.inference))),
-        # )
         save_old_parameters!(m)
         m.likelihood = init_likelihood(likelihood(m), inference(m), nLatent(m), nSamples(m))
         updateZ!(m)
     end
 
     # model.evol_conv = [] #Array to check on the evolution of convergence
-    local_iter::Int64 = 1
+    local_iter = 1
     conv = Inf
 
-    while true #loop until one condition is matched
-        try #Allow for keyboard interruption without losing the model
+    while true # Loop until one condition is matched
+        try # Allow for keyboard interruption without losing the model
             if local_iter == 1
                 compute_old_matrices!(m)
                 local_updates!(likelihood(m), yview(m), mean_f(m), var_f(m))
@@ -73,7 +68,7 @@ function train!(
                 ∇E_Σs = ∇E_Σ(m) # They need to be computed before recomputing the matrices
                 computeMatrices!(m)
                 natural_gradient!.(
-                    ∇E_μs, ∇E_Σs, getρ(m.inference), get_opt(m.inference), Zviews(m), m.f
+                    ∇E_μs, ∇E_Σs, getρ(inference(m)), get_opt(inference(m)), Zviews(m), m.f
                 )
                 global_update!(m)
             else
@@ -81,29 +76,29 @@ function train!(
             end
             set_trained!(m, true)
             if !isnothing(callback)
-                callback(m, nIter(m.inference)) #Use a callback method if given by user
+                callback(m, nIter(m)) #Use a callback method if given by user
             end
-            if (nIter(m.inference) % m.atfrequency == 0) && nIter(m.inference) >= 3
+            if (nIter(m) % m.atfrequency == 0) && nIter(m) >= 3
                 update_hyperparameters!(m) #Update the hyperparameters
             end
-            if m.verbose > 2 || (m.verbose > 1 && local_iter % 10 == 0)
-                print("Iteration : $(nIter(m.inference)) ")
+            if verbose(m) > 2 || (verbose(m) > 1 && local_iter % 10 == 0)
+                print("Iteration : $(nIter(m)), ")
                 print("ELBO is : $(objective(m))")
                 print("\n")
-                println("number of points : $(m.f[1].dim)")
+                println("number of points : $(dim(m[1]))")
             end
             ### Print out informations about the convergence
             local_iter += 1
             m.inference.nIter += 1
-            (local_iter <= iterations) || break #Verify if the number of maximum iterations has been reached
+            (local_iter <= iterations) || break # Verify if the number of maximum iterations has been reached
         # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         catch e
-            # if isa(e,InterruptException)
-            # println("Training interrupted by user at iteration $local_iter");
-            # break;
-            # else
-            rethrow(e)
-            # end
+            if e isa InterruptException
+                @warn "Training interrupted by user at iteration $local_iter"
+                break
+            else
+                rethrow(e)
+            end
         end
     end
     # if model.verbose > 0
@@ -113,7 +108,8 @@ function train!(
     return set_trained!(m, true)
 end
 
-"""Update all variational parameters of the online sparse variational GP Model"""
+# Update all variational parameters of the online sparse 
+# variational GP Model
 function update_parameters!(model::OnlineSVGP)
     computeMatrices!(model) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     return variational_updates!(model)
@@ -124,22 +120,24 @@ function updateZ!(m::OnlineSVGP)
         InducingPoints.updateZ!(gp.Z, gp.Zalg, input(m); kernel=kernel(gp))
         gp.post.dim = length(Zview(gp))
     end
-    return setHPupdated!(inference(m), true)
+    setHPupdated!(inference(m), true)
+    return nothing
 end
 
 function save_old_parameters!(m::OnlineSVGP)
     for gp in m.f
-        save_old_gp!(gp, m)
+        save_old_gp!(gp)
     end
 end
 
-function save_old_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP) where {T}
+function save_old_gp!(gp::OnlineVarLatent{T}) where {T}
     gp.Zₐ = deepcopy(gp.Z)
-    InducingPoints.remove_point!(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))
-    gp.invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp)))
+    # InducingPoints.remove_point!(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))
+    gp.invDₐ = Symmetric(-2 * nat2(gp) - inv(pr_cov(gp))) # Compute Σ⁻¹ₐ - K⁻¹ₐ
     gp.prevη₁ = copy(nat1(gp))
-    return gp.prev𝓛ₐ =
-        -0.5 * logdet(cov(gp)) + 0.5 * logdet(pr_cov(gp)) - 0.5 * dot(mean(gp), nat1(gp))
+    gp.prev𝓛ₐ =
+        (-logdet(cov(gp)) + logdet(pr_cov(gp)) - dot(mean(gp), nat1(gp))) / 2
+    return nothing
 end
 
 function init_onlinemodel(m::OnlineSVGP{T}) where {T<:Real}
@@ -170,7 +168,8 @@ function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T=T(jitt))
 
     gp.invDₐ = Symmetric(Matrix{T}(I(dim(gp))))
     gp.prev𝓛ₐ = zero(T)
-    return gp.prevη₁ = zero(nat1(gp))
+    gp.prevη₁ = zero(nat1(gp))
+    return nothing
 end
 
 function compute_old_matrices!(m::OnlineSVGP{T}) where {T}
@@ -185,4 +184,5 @@ function compute_old_matrices!(gp::OnlineVarLatent, X::AbstractVector, jitt::Rea
     gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(gp.κ, gp.Knm)
     all(gp.K̃ .> 0) || error("K̃ has negative values")
+    return nothing
 end

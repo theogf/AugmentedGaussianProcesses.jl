@@ -46,5 +46,5 @@ end
 
 function update!(μ₀::AffineMean{T}, grad) where {T<:Real}
     μ₀.w .+= Optimise.apply!(μ₀.opt, μ₀.w, grad.w)
-    return μ₀.b .+= Optimise.apply!(μ₀.opt, μ₀.b, grad.b)
+    return μ₀.b .+= Optimise.apply!(μ₀.opt, μ₀.b, Vector(grad.b))
 end

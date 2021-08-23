@@ -29,8 +29,8 @@ end
 ## return the linear sum of the expectation gradient given μ ##
 @traitfn function ∇E_μ(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
     ∇ = [zeros(T, nMinibatch(m.inference)) for i in 1:nLatent(m)]
-    ∇Eμs = ∇E_μ.(m.likelihood, Ref(opt_type(m.inference)), yview(m))
-    ∇EΣs = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), yview(m))
+    ∇Eμs = ∇E_μ.(likelihood(m), Ref(opt_type(m.inference)), yview(m))
+    ∇EΣs = ∇E_Σ.(likelihood(m), Ref(opt_type(m.inference)), yview(m))
     μ_f = mean_f.(m.f)
     for t in 1:(m.nTask)
         for j in 1:m.nf_per_task[t]

@@ -9,9 +9,9 @@
     @test repr("text/plain", μ₀) == "Constant Mean Prior (c = $c)"
     @test μ₀(X) == c .* ones(N)
     @test μ₀(x) == c
-    global g = Zygote.gradient(μ₀) do m
+    g = Zygote.gradient(μ₀) do m
         sum(m(X))
     end
-    AGP.update!(μ₀, first(g)[].C)
+    AGP.update!(μ₀, Vector(first(g)[].C))
     @test μ₀.C[1] == (c + first(g)[].C[1])
 end
