@@ -142,7 +142,7 @@ function OnlineVarLatent(
         false,
         deepcopy(opt),
         deepcopy(Zopt),
-        vec(Z),
+        deepcopy(Z),
         Matrix{T}(I, dim, dim),
         Matrix{T}(I, dim, dim),
         Matrix{T}(I, dim, dim),
@@ -254,5 +254,5 @@ function compute_κ!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)
     gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
     gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(gp.κ, gp.Knm)
-    @assert all(gp.K̃ .> 0) "K̃ has negative values"
+    all(gp.K̃ .> 0) || error("K̃ has negative values")
 end

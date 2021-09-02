@@ -1,14 +1,14 @@
 function ELBO(model::GP, pr_mean, kernel)
     setpr_mean!(model.f, pr_mean)
     setkernel!(model.f, kernel)
-    computeMatrices!(model, true)
+    compute_kernel_matrices!(model, true)
     return log_py(model)
 end
 
 @traitfn function ELBO(model::TGP, pr_means, kernels) where {TGP <: AbstractGP; IsFull{TGP}}
     setpr_means!(model, pr_means)
     setkernels!(model, kernels)
-    computeMatrices!(model, true)
+    compute_kernel_matrices!(model, true)
     return ELBO(model)
 end
 
@@ -18,6 +18,6 @@ end
     setpr_means!(model, pr_means)
     setkernels!(model, kernels)
     setZs!(model, Zs)
-    computeMatrices!(model, true)
+    compute_kernel_matrices!(model, true)
     return ELBO(model)
 end

@@ -171,14 +171,13 @@ function tests_likelihood(
     @testset "OSVGP" begin
         dictosvgp = dict["OSVGP"]
         for floattype in floattypes
-            dictvgp = dict["VGP"]
             @testset "AnalyticVI" begin
                 if dictosvgp["AVI"]
                     model = OnlineSVGP(
                         k,
                         l,
                         AnalyticVI(),
-                        OIPS(),
+                        AGP.InducingPoints.SeqDPP(),
                         optimiser = false,
                         verbose = 0,
                     )
@@ -191,7 +190,7 @@ function tests_likelihood(
                         k,
                         l,
                         AnalyticVI(),
-                        OIPS(),
+                        AGP.InducingPoints.SeqDPP(),
                         optimiser = true,
                         verbose = 0,
                     )
@@ -201,7 +200,7 @@ function tests_likelihood(
                         k,
                         l,
                         AnalyticVI(),
-                        OIPS(),
+                        UniGrid(10),
                         optimiser = false,
                         verbose = 0,
                     )
@@ -213,7 +212,7 @@ function tests_likelihood(
                         k,
                         l,
                         QuadratureVI(),
-                        OIPS(),
+                        UniGrid(10),
                         optimiser = false,
                     )
                     @test eltype(model) == floattype
@@ -225,7 +224,7 @@ function tests_likelihood(
                         k,
                         l,
                         QuadratureVI(),
-                        OIPS(),
+                        UniGrid(10),
                         optimiser = true,
                         verbose = 0,
                     )
@@ -235,7 +234,7 @@ function tests_likelihood(
                         k,
                         l,
                         QuadratureVI(),
-                        OIPS(),
+                        UniGrid(10),
                         optimiser = false,
                         verbose = 0,
                     )
@@ -245,7 +244,7 @@ function tests_likelihood(
                         k,
                         l,
                         MCIntegrationVI(),
-                        OIPS(),
+                        UniGrid(10),
                         optimiser = false,
                     )
                     @test eltype(model) == floattype
@@ -257,7 +256,7 @@ function tests_likelihood(
                         k,
                         l,
                         MCIntegrationVI(),
-                        OIPS(),
+                        UniGrid(10),
                         optimiser = true,
                         verbose = 0,
                     )
@@ -267,7 +266,7 @@ function tests_likelihood(
                         k,
                         l,
                         MCIntegrationVI(),
-                        OIPS(),
+                        UniGrid(10),
                         optimiser = false,
                         verbose = 0,
                     )

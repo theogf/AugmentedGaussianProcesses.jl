@@ -16,8 +16,8 @@ function train!(
     X::AbstractMatrix,
     y::AbstractArray;
     iterations::Int=20,
-    callback::Union{Nothing,Function}=nothing,
-    conv::Union{Nothing,Function}=nothing,
+    callback=nothing,
+    convergence=nothing,
     obsdim::Int=1,
 )
     return train!(
@@ -66,7 +66,7 @@ function train!(
                 local_updates!(likelihood(m), yview(m), mean_f(m), var_f(m))
                 ∇E_μs = ∇E_μ(m)
                 ∇E_Σs = ∇E_Σ(m) # They need to be computed before recomputing the matrices
-                computeMatrices!(m)
+                compute_kernel_matrices!(m)
                 natural_gradient!.(
                     ∇E_μs, ∇E_Σs, getρ(inference(m)), get_opt(inference(m)), Zviews(m), m.f
                 )
@@ -104,14 +104,14 @@ function train!(
     # if model.verbose > 0
     # println("Training ended after $local_iter iterations. Total number of iterations $(model.inference.nIter)")
     # end
-    computeMatrices!(m) #Compute final version of the matrices for prediction
+    compute_kernel_matrices!(m) #Compute final version of the matrices for prediction
     return set_trained!(m, true)
 end
 
 # Update all variational parameters of the online sparse 
 # variational GP Model
 function update_parameters!(model::OnlineSVGP)
-    computeMatrices!(model) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    compute_kernel_matrices!(model) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     return variational_updates!(model)
 end
 
@@ -133,7 +133,7 @@ end
 function save_old_gp!(gp::OnlineVarLatent{T}) where {T}
     gp.Zₐ = deepcopy(gp.Z)
     # InducingPoints.remove_point!(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))
-    gp.invDₐ = Symmetric(-2 * nat2(gp) - inv(pr_cov(gp))) # Compute Σ⁻¹ₐ - K⁻¹ₐ
+    gp.invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp))) # Compute Σ⁻¹ₐ - K⁻¹ₐ
     gp.prevη₁ = copy(nat1(gp))
     gp.prev𝓛ₐ =
         (-logdet(cov(gp)) + logdet(pr_cov(gp)) - dot(mean(gp), nat1(gp))) / 2
