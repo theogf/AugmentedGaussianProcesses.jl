@@ -177,7 +177,7 @@ function tests_likelihood(
                         k,
                         l,
                         AnalyticVI(),
-                        AGP.InducingPoints.SeqDPP(),
+                        AGP.InducingPoints.OIPS(),
                         optimiser = false,
                         verbose = 0,
                     )
@@ -190,7 +190,7 @@ function tests_likelihood(
                         k,
                         l,
                         AnalyticVI(),
-                        AGP.InducingPoints.SeqDPP(),
+                        AGP.InducingPoints.OIPS(),
                         optimiser = true,
                         verbose = 0,
                     )

@@ -112,7 +112,8 @@ end
 # variational GP Model
 function update_parameters!(model::OnlineSVGP)
     compute_kernel_matrices!(model) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    return variational_updates!(model)
+    variational_updates!(model)
+    return nothing
 end
 
 function updateZ!(m::OnlineSVGP)
@@ -132,7 +133,7 @@ end
 
 function save_old_gp!(gp::OnlineVarLatent{T}) where {T}
     gp.Zₐ = deepcopy(gp.Z)
-    # InducingPoints.remove_point!(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))
+    InducingPoints.remove_point!(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))# Matrix(pr_cov(gp)))
     gp.invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp))) # Compute Σ⁻¹ₐ - K⁻¹ₐ
     gp.prevη₁ = copy(nat1(gp))
     gp.prev𝓛ₐ =
@@ -141,35 +142,57 @@ function save_old_gp!(gp::OnlineVarLatent{T}) where {T}
 end
 
 function init_onlinemodel(m::OnlineSVGP{T}) where {T<:Real}
-    for gp in m.f
-        init_online_gp!(gp, m)
+    m.f = ntuple(length(m.f)) do i
+        init_online_gp!(m.f[i], m)
     end
+    # for gp in m.f
+    #     init_online_gp!(gp, m)
+    # end
     setρ!(inference(m), one(T))
     return setHPupdated!(inference(m), false)
 end
 
 function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T=T(jitt)) where {T}
-    gp.Z = InducingPoints.initZ(gp.Zalg, input(m); kernel=kernel(gp))
-    k = length(gp.Z)
-    gp.Zₐ = vec(gp.Z)
-    gp.post = OnlineVarPosterior{T}(k)
-    gp.prior = GPPrior(
-        kernel(gp), pr_mean(gp), cholesky(kernelmatrix(kernel(gp), Zview(gp)) + jitt * I)
+    Z = InducingPoints.initZ(gp.Zalg, input(m); kernel=kernel(gp))
+    k = length(Z)
+    Zₐ = deepcopy(Z)
+    post = OnlineVarPosterior{T}(k)
+    prior = GPPrior(
+        kernel(gp), pr_mean(gp), cholesky(kernelmatrix(kernel(gp), Z) + jitt * I)
     )
 
-    gp.Kab = Array(pr_cov(gp))
-    gp.κₐ = Matrix{T}(I(dim(gp)))
-    gp.K̃ₐ = zero(gp.Kab)
+    Kab = zeros(T, k, k)
+    κₐ = Matrix{T}(I(k))
+    K̃ₐ = zero(Kab)
 
-    gp.Knm = kernelmatrix(kernel(gp), input(m), gp.Z)
-    gp.κ = gp.Knm / pr_cov(gp)
-    gp.K̃ = kernelmatrix_diag(kernel(gp), input(m)) .+ jitt - diag_ABt(gp.κ, gp.Knm)
-    @assert all(gp.K̃ .> 0) "K̃ has negative values"
+    Knm = kernelmatrix(kernel(gp), input(m), Z)
+    κ = Knm / (kernelmatrix(kernel(gp), Z) + jitt * I)
+    K̃ = kernelmatrix_diag(kernel(gp), input(m)) .+ jitt - diag_ABt(κ, Knm)
+    all(K̃ .> 0) || error("K̃ has negative values")
 
-    gp.invDₐ = Symmetric(Matrix{T}(I(dim(gp))))
-    gp.prev𝓛ₐ = zero(T)
-    gp.prevη₁ = zero(nat1(gp))
-    return nothing
+    invDₐ = Symmetric(Matrix{T}(I(k)))
+    prev𝓛ₐ = zero(T)
+    prevη₁ = zeros(T, k)
+    return OnlineVarLatent(
+        prior,
+        post,
+        Z,
+        gp.Zalg,
+        Knm,
+        κ,
+        K̃,
+        gp.Zupdated,
+        gp.opt,
+        gp.Zopt,
+        Zₐ,
+        Kab,
+        κₐ,
+        K̃ₐ,
+        invDₐ,
+        prev𝓛ₐ,
+        prevη₁
+    )
+    # return nothing
 end
 
 function compute_old_matrices!(m::OnlineSVGP{T}) where {T}

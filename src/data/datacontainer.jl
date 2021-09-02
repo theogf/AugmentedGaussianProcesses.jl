@@ -56,8 +56,8 @@ function wrap_X(X::AbstractMatrix{T}, obsdim::Int=1) where {T<:Real}
     return KernelFunctions.vec_of_vecs(X; obsdim=obsdim), T
 end
 
-function wrap_X(X::AbstractVector{<:Real}, ::Int=1)
-    return wrap_X(reshape(X, :, 1), 1)
+function wrap_X(X::AbstractVector{T}, ::Int=1) where {T<:Real}
+    return X, T
 end
 
 function wrap_X(X::AbstractVector{<:AbstractVector{T}}, ::Int=1) where {T<:Real}
