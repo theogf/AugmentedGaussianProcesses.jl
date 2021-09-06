@@ -10,7 +10,7 @@ noise = 1e-1;
 N_test = 1000
 X = sort(rand(N))
 X_test = range(0, 1; length=N_test)
-k = transform(SqExponentialKernel(), 10.0)
+k = SqExponentialKernel() ∘ ScaleTransform(10.0)
 K = kernelmatrix(k, X) + noise * I
 f = rand(MvNormal(K))
 y = sign.(f)
