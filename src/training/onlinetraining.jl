@@ -116,9 +116,9 @@ function update_parameters!(model::OnlineSVGP)
     return nothing
 end
 
-function updateZ!(m::OnlineSVGP)
+function InducingPoints.updateZ!(m::OnlineSVGP)
     for gp in m.f
-        InducingPoints.updateZ!(gp.Z, gp.Zalg, input(m); kernel=kernel(gp))
+        gp.Z = InducingPoints.updateZ(gp.Z, gp.Zalg, input(m); kernel=kernel(gp))
         gp.post.dim = length(Zview(gp))
     end
     setHPupdated!(inference(m), true)
@@ -133,7 +133,7 @@ end
 
 function save_old_gp!(gp::OnlineVarLatent{T}) where {T}
     gp.Zₐ = deepcopy(gp.Z)
-    InducingPoints.remove_point!(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))# Matrix(pr_cov(gp)))
+    gp.Z = InducingPoints.remove_point(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))# Matrix(pr_cov(gp)))
     gp.invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp))) # Compute Σ⁻¹ₐ - K⁻¹ₐ
     gp.prevη₁ = copy(nat1(gp))
     gp.prev𝓛ₐ =
