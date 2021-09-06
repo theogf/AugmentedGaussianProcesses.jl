@@ -16,7 +16,7 @@ X_test = collect(range(minimum(X) - shift; length=N_test, stop=maximum(X) + shif
 β = 5e-1; # Shape for Laplace
 mu0 = 0.3; # Constant for heteroscedastic gp
 ## Kernel
-k = transform(SqExponentialKernel(), 10.0) # Squared exponential kernel
+k = SqExponentialKernel() ∘ ScaleTransform(10.0) # Squared exponential kernel
 K = kernelmatrix(k, X) + 1e-9 * I #Kernel matrix
 f = rand(MvNormal(K)) #Random GP sampled from the prior
 g = rand(MvNormal(mu0 * ones(N), K)) #Random GP sampled from the prior for Heteroscedasticity

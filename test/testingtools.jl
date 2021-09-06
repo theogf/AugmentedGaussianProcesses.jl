@@ -173,7 +173,7 @@ function tests_likelihood(
         for floattype in floattypes
             @testset "AnalyticVI" begin
                 if dictosvgp["AVI"]
-                    model = OnlineSVGP(
+                    global model = OnlineSVGP(
                         k,
                         l,
                         AnalyticVI(),
