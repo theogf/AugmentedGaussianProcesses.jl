@@ -13,8 +13,8 @@ Function to train the given GP `model`.
 function train!(
     model::AbstractGP{T},
     iterations::Int=100;
-    callback::Union{Nothing,Function}=nothing,
-    convergence::Union{Nothing,Function}=nothing,
+    callback=nothing,
+    convergence=nothing,
 ) where {T}
     if model.verbose > 0
         @info "Starting training $model with $(nSamples(model)) samples, $(nFeatures(model)) features and $(nLatent(model)) latent GP" *
@@ -76,20 +76,20 @@ function train!(
     if verbose(model) > 0
         @info "Training ended after $(local_iter - 1) iterations. Total number of iterations $(nIter(model))"
     end
-    computeMatrices!(model, true) # Compute final version of the matrices for predictions
+    compute_kernel_matrices!(model, true) # Compute final version of the matrices for predictions
     post_step!(model)
     set_trained!(model, true)
     return nothing
 end
 
 function update_parameters!(model::GP)
-    computeMatrices!(model) #Recompute the matrices if necessary (when hyperparameters have been updated)
+    compute_kernel_matrices!(model) #Recompute the matrices if necessary (when hyperparameters have been updated)
     analytic_updates!(model)
     return nothing
 end
 
 function update_parameters!(model::VGP)
-    computeMatrices!(model) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    compute_kernel_matrices!(model) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(model)
     return nothing
 end
@@ -104,13 +104,13 @@ function update_parameters!(m::SVGP)
         setxview!(inference(m), view_x(data(m), MBIndices(inference(m))))
         setyview!(inference(m), view_y(likelihood(m), data(m), MBIndices(inference(m))))
     end
-    computeMatrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    compute_kernel_matrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     variational_updates!(m)
     return nothing
 end
 
 function update_parameters!(m::MOVGP)
-    computeMatrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    compute_kernel_matrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     update_A!(m)
     variational_updates!(m)
     return nothing
@@ -125,26 +125,26 @@ function update_parameters!(m::MOSVGP)
         setxview!(inference(m), view_x(data(m), MBIndices(inference(m))))
         setyview!(m.inference, view_y(likelihood(m), data(m), MBIndices(m.inference)))
     end
-    computeMatrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    compute_kernel_matrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     update_A!(m)
     variational_updates!(m)
     return nothing
 end
 
 function update_parameters!(m::VStP)
-    computeMatrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    compute_kernel_matrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     local_prior_updates!(m, input(m))
     variational_updates!(m)
     return nothing
 end
 
-function computeMatrices!(m::GP{T}, ::Bool) where {T}
+function compute_kernel_matrices!(m::GP{T}, ::Bool) where {T}
     compute_K!(getf(m), input(m), T(jitt))
     setHPupdated!(inference(m), false)
     return nothing
 end
 
-@traitfn function computeMatrices!(
+@traitfn function compute_kernel_matrices!(
     m::TGP, update::Bool=false
 ) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
     if isHPupdated(inference(m)) || update
@@ -154,7 +154,7 @@ end
     return nothing
 end
 
-@traitfn function computeMatrices!(
+@traitfn function compute_kernel_matrices!(
     m::TGP, update::Bool=false
 ) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
     if isHPupdated(inference(m)) || update

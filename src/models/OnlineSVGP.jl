@@ -37,7 +37,7 @@ function OnlineSVGP(
     kernel::Kernel,
     likelihood::AbstractLikelihood,
     inference::AbstractInference,
-    Z::AbstractInducingPoints=OIPS(0.9);
+    Zalg::InducingPoints.OnIPSA=OIPS(0.9);
     verbose::Integer=0,
     optimiser=ADAM(0.01),
     atfrequency::Integer=1,
@@ -54,8 +54,6 @@ function OnlineSVGP(
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
 
-    Z = Z isa OptimIP ? Z : init_Z(Z, Zoptimiser)
-
     if typeof(mean) <: Real
         mean = ConstantMean(mean)
     elseif typeof(mean) <: AbstractVector{<:Real}
@@ -63,7 +61,7 @@ function OnlineSVGP(
     end
 
     nLatent = num_latent(likelihood)
-    latentf = ntuple(_ -> OnlineVarLatent(T, 0, 0, Z, kernel, mean, optimiser), nLatent)
+    latentf = ntuple(_ -> OnlineVarLatent(T, 0, 0, [], Zalg, kernel, mean, optimiser, Zoptimiser), nLatent)
     inference = tuple_inference(inference, nLatent, 0, 0, 0, [], [])
     inference.nIter = 1
     return OnlineSVGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
@@ -88,21 +86,21 @@ yview(m::OnlineSVGP) = output(m)
 nFeatures(m::OnlineSVGP) = collect(dim.(getf(m)))
 
 ## Accessors to InducingPoints methods
-function InducingPoints.init(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent)
-    return InducingPoints.init(Z.Z, m, gp)
-end
-InducingPoints.init(Z::OIPS, m, gp) = InducingPoints.init(Z, input(m), kernel(gp))
+# function InducingPoints.init(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent)
+#     return InducingPoints.init(Z.Z, m, gp)
+# end
+# InducingPoints.init(Z::OIPS, m, gp) = InducingPoints.init(Z, input(m), kernel(gp))
 
-function InducingPoints.add_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent)
-    return InducingPoints.add_point!(Z.Z, m, gp)
-end
-function InducingPoints.add_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent)
-    return InducingPoints.add_point!(Z, input(m), kernel(gp))
-end
+# function InducingPoints.add_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent)
+#     return InducingPoints.add_point!(Z.Z, m, gp)
+# end
+# function InducingPoints.add_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent)
+#     return InducingPoints.add_point!(Z, input(m), kernel(gp))
+# end
 
-function InducingPoints.remove_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent)
-    return InducingPoints.remove_point!(Z.Z, m, gp)
-end
-function InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent)
-    return InducingPoints.remove_point!(Z, pr_cov(gp), kernel(gp))
-end
+# function InducingPoints.remove_point!(Z::OptimIP, m::OnlineSVGP, gp::OnlineVarLatent)
+#     return InducingPoints.remove_point!(Z.Z, m, gp)
+# end
+# function InducingPoints.remove_point!(Z::OIPS, m::OnlineSVGP, gp::OnlineVarLatent)
+#     return InducingPoints.remove_point!(Z, pr_cov(gp), kernel(gp))
+# end

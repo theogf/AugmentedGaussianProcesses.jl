@@ -1,7 +1,7 @@
 @testset "negativebinomial" begin
     N, d = 20, 2
     r = 10
-    k = transform(SqExponentialKernel(), 10.0)
+    k = SqExponentialKernel() ∘ ScaleTransform(10.0)
     X, f = generate_f(N, d, k)
     y = rand.(NegativeBinomial.(r, AGP.logistic.(f)))
     floattypes = [Float64]

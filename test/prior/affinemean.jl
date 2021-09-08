@@ -11,7 +11,7 @@
     @test repr("text/plain", μ₀) == "Affine Mean Prior (size(w) = $D, b = $b)"
     @test μ₀(X) == X*w .+ b
     @test_throws ErrorException AffineMean(4)(X)
-    g = Zygote.gradient(μ₀) do m
+   global g = Zygote.gradient(μ₀) do m
         sum(m(X))
     end
     AGP.update!(μ₀, first(g))

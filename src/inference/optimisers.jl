@@ -44,7 +44,7 @@ function init!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
         )
         model.inference.xview = view(model.X, model.inference.MBIndices, :)
         model.inference.yview = view_y(model.likelihood, model.y, model.inference.MBIndices)
-        computeMatrices!(model)
+        compute_kernel_matrices!(model)
         local_updates!(likelihood(model), yview(model), mean_f(model), var_f(model))
         natural_gradient!.(
             ∇E_μ(model.likelihood, model.inference.vi_opt[1], yview(model)),

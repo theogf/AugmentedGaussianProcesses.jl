@@ -1,6 +1,6 @@
 @testset "heteroscedastic" begin
     N, d = 500, 1
-    k = transform(SqExponentialKernel(), 10.0)
+    k = SqExponentialKernel() ∘ ScaleTransform(10.0)
     X, f = generate_f(N, d, k)
     X, g = generate_f(N, d, k; X = X)
     g .-= 3.0

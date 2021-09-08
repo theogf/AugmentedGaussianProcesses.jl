@@ -19,13 +19,13 @@ function check_data!(y::AbstractArray, likelihood::Union{Distribution,AbstractLi
 end
 
 # Transform Z as an OptimIP if it's not the case already
-function init_Z(Z::AbstractInducingPoints, Zoptimiser)
-    if Zoptimiser isa Bool
-        Zoptimiser = Zoptimiser ? ADAM(1e-3) : nothing
-    end
-    if Z isa OptimIP
-        return Z
-    else
-        return OptimIP(Z, Zoptimiser)
-    end
-end
+# function init_Z(Z::AbstractInducingPoints, Zoptimiser)
+#     if Zoptimiser isa Bool
+#         Zoptimiser = Zoptimiser ? ADAM(1e-3) : nothing
+#     end
+#     if Z isa OptimIP
+#         return Z
+#     else
+#         return OptimIP(Z, Zoptimiser)
+#     end
+# end

@@ -8,17 +8,21 @@ function setadbackend(ad_backend::Symbol)
     return ADBACKEND[] = ad_backend
 end
 
-opt(::AbstractInducingPoints) = nothing
-opt(Z::OptimIP) = Z.opt
-data(Z::OptimIP) = Z.Z
-data(Z::AbstractInducingPoints) = Z
+# opt(::AbstractInducingPoints) = nothing
+# opt(Z::OptimIP) = Z.opt
+# data(Z::OptimIP) = Z.Z
+# data(Z::AbstractInducingPoints) = Z
 
 ## Generic fallback when gradient is nothing
-update!(::Any, ::Any, ::Nothing) = nothing
+update_kernel!(::Any, ::Any, ::Nothing) = nothing
+update_Z!(::Any, ::Any, ::Nothing) = nothing
 
 ## Generic fallback when optimizer is nothing
-update!(::Nothing, ::Kernel, ::NamedTuple) = nothing
-update!(::Nothing, ::AbstractInducingPoints, ::AbstractArray) = nothing
+update_kernel!(::Nothing, ::Kernel, ::NamedTuple) = nothing
+update_kernel!(::Nothing, ::AbstractVector, ::AbstractArray) = nothing
+update_Z!(::Nothing, ::AbstractVector, ::AbstractVector) = nothing
+update_Z!(::Nothing, ::AbstractVector, ::NamedTuple) = nothing
+
 
 ## Updating prior mean parameters ##
 function update!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
@@ -41,19 +45,23 @@ function update!(opt, k::Kernel, Δ::AbstractVector)
 end
 
 ## Zygote.jl approach with named tuple
-function update!(opt, k::Union{Kernel,Transform}, g::NamedTuple)
+function update_kernel!(opt, k::Union{Kernel,Transform}, g::NamedTuple)
     foreach(pairs(g)) do (fieldname, grad)
-        update!(opt, getfield(k, fieldname), grad)
+        update_kernel!(opt, getfield(k, fieldname), grad)
     end
 end
 
-function update!(opt, x::AbstractArray, g::AbstractArray)
+function update_kernel!(opt, x::AbstractArray, g::AbstractArray)
     Δ = Optimise.apply!(opt, x, x .* g)
     @. x = exp(log(x) + Δ) # Always assume that parameters need to be positive
 end
 
 ## Updating inducing points
-function update!(opt, Z::AbstractInducingPoints, Z_grads::AbstractArray)
+function update_Z!(opt, Z::Union{ColVecs,RowVecs}, Z_grads::NamedTuple)
+        Z.X .+= Optimise.apply!(opt, Z.X, Z_grads.X)
+end
+
+function update_Z!(opt, Z::AbstractVector, Z_grads::AbstractVector)
     for (z, zgrad) in zip(Z, Z_grads)
         z .+= Optimise.apply!(opt, z, zgrad)
     end

@@ -12,7 +12,7 @@
     @test_throws ErrorException VStP(x, y, k, l, vi, 0.5)
     @test_throws ErrorException VStP(x, y, k, l, QuadratureVI(), 0.5)
     @test_nowarn println(m)
-    AGP.computeMatrices!(m)
+    AGP.compute_kernel_matrices!(m)
     @test_nowarn AGP.local_prior_updates!(m, collect(eachrow(X)))
     @test AGP.objective(m) == ELBO(m)
 

@@ -16,14 +16,14 @@ Y = rand.(NegativeBinomial.(r, AGP.logistic.(sin.(X))))
 scatter(X, Y)
 
 # ## Run GP model with negative binomial likelihood to learn p 
-kernel = transform(SqExponentialKernel(), 1.0)
+kernel = SqExponentialKernel() ∘ ScaleTransform(1.0)
 m_negbinomial = VGP(
     X, Y, kernel, NegBinomialLikelihood(r), AnalyticVI(); optimiser=false, verbose=2
 )
 @time train!(m_negbinomial, 20)
 
 # ## Running the same model but with a Poisson likelihood
-kernel = transform(SqExponentialKernel(), 1.0)
+kernel = SqExponentialKernel() ∘ ScaleTransform(1.0)
 m_poisson = VGP(
     X, Y, kernel, PoissonLikelihood(r), AnalyticVI(); optimiser=false, verbose=2
 )

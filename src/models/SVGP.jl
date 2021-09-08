@@ -9,7 +9,7 @@ Sparse Variational Gaussian Process
 - `kernel::Kernel` : Covariance function, can be any kernel from KernelFunctions.jl
 - `likelihood` : Likelihood of the model. For compatibilities, see [`Likelihood Types`](@ref likelihood_user)
 - `inference` : Inference for the model, see the [`Compatibility Table`](@ref compat_table))
-- `nInducingPoints` : number of inducing points, or `InducingPoints` object
+- `nInducingPoints/Z` : number of inducing points, or `AbstractVector` object
 
 ## Keyword arguments
 - `verbose` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
@@ -56,7 +56,7 @@ function SVGP(
         kernel,
         likelihood,
         inference,
-        KmeansIP(X, nInducingPoints);
+        inducingpoints(KmeansAlg(nInducingPoints), X);
         verbose,
         optimiser,
         atfrequency,
@@ -72,12 +72,12 @@ function SVGP(
     kernel::Kernel,
     likelihood::AbstractLikelihood,
     inference::AbstractInference,
-    nInducingPoints::AbstractInducingPoints;
+    Z::AbstractVector;
     verbose::Int=0,
     optimiser=ADAM(0.01),
     atfrequency::Int=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
-    Zoptimiser=false,
+    Zoptimiser=nothing,
     obsdim::Int=1,
 )
     X, T = wrap_X(X, obsdim)
@@ -94,9 +94,13 @@ function SVGP(
         optimiser = optimiser ? ADAM(0.001) : nothing
     end
 
-    Z = init_Z(nInducingPoints, Zoptimiser)
-
     nFeatures = length(Z)
+
+    Zoptimiser = if Zoptimiser isa Bool
+        Zoptimiser ? ADAM(0.001) : nothing 
+    else
+        Zoptimiser
+    end
 
     if typeof(mean) <: Real
         mean = ConstantMean(mean)
@@ -112,7 +116,7 @@ function SVGP(
     end
 
     latentf = ntuple(
-        _ -> SparseVarLatent(T, nFeatures, S, Z, kernel, mean, optimiser), nLatent
+        _ -> SparseVarLatent(T, nFeatures, S, Z, kernel, mean, optimiser, Zoptimiser), nLatent
     )
 
     likelihood = init_likelihood(likelihood, inference, nLatent, S)

@@ -11,10 +11,9 @@ using MLDataUtils, Distributions
 N = 2000
 σ = 0.1
 X, y = noisy_sin(N, 0, 20; noise=σ)
-X = reshape(X, :, 1) # Put X as a Matrix
-X_train = X[1:2:end, :];
+X_train = X[1:2:end];
 y_train = y[1:2:end]; # We split the data equally
-X_test = X[2:2:end, :];
+X_test = X[2:2:end];
 y_test = y[2:2:end];
 scatter(X_train, y_train)
 
@@ -33,7 +32,7 @@ k = SqExponentialKernel();
 # ### Create an inducing point selection method
 IP_alg = OIPS(0.8);
 # ### Create the model and stream the data
-model = OnlineSVGP(k, GaussianLikelihood(σ), AnalyticVI(), IP_alg)
+model = OnlineSVGP(k, GaussianLikelihood(σ), AnalyticVI(), IP_alg; optimiser=false)
 anim = Animation()
 size_batch = 100
 for (i, (X_batch, y_batch)) in enumerate(eachbatch((X_train, y_train); obsdim=1, size=size_batch))

@@ -1,7 +1,7 @@
 @testset "poisson" begin
     N, d = 20, 2
     λ = 5.0
-    k = transform(SqExponentialKernel(), 10.0)
+    k = SqExponentialKernel() ∘ ScaleTransform(10.0)
     X, f = generate_f(N, d, k)
     y = rand.(Poisson.(λ * AGP.logistic.(f)))
     floattypes = [Float64]

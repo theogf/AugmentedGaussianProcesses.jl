@@ -1,7 +1,7 @@
 @testset "studentt" begin
     N, d = 20, 2
     ν = 3.0
-    k = transform(SqExponentialKernel(), 10.0)
+    k = SqExponentialKernel() ∘ ScaleTransform(10.0)
     X, f = generate_f(N, d, k)
     y = f + rand(TDist(ν), N)
     floattypes = [Float64]

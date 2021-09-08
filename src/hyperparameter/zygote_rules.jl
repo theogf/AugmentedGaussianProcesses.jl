@@ -3,7 +3,7 @@ function ChainRulesCore.rrule(::typeof(Base.:(/)), A::AbstractVecOrMat, B::Chole
     function rdiv_callback(Ȳ)
         A̅, B̅_factor = back(Ȳ)
         return (
-            NO_FIELDS, A̅, (uplo=DoesNotExist(), info=DoesNotExist(), factors=B̅_factor)
+            NoTangent(), A̅, (uplo=NoTangent(), info=NoTangent(), factors=B̅_factor)
         )
     end
     return Y, rdiv_callback
@@ -13,14 +13,7 @@ function ChainRulesCore.rrule(::typeof(StatsFuns.softmax), x)
     y = StatsFuns.softmax(x)
     function softmax_pullback(Δ)
         out = Δ .* y
-        return (NO_FIELDS, out .-= y .* sum(out))
+        return (NoTangent(), out .-= y .* sum(out))
     end
     return y, softmax_pullback
 end
-
-# Zygote.@adjoint function binomial(n, k)
-#   y = binomial(n, k)
-#   return y, function(Δ) begin
-#     (Zygote.NO_FIELDS, )    
-#   end
-# end
