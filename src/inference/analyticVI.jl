@@ -8,8 +8,6 @@ mutable struct AnalyticVI{T,N,Tx,Ty} <: VariationalInference{T}
     HyperParametersUpdated::Bool # Flag for updating kernel matrices
     vi_opt::NTuple{N,AVIOptimizer} # Local optimizers for the variational parameters
     MBIndices::Vector{Int} # Indices of the minibatch
-    xview::Tx # Subset of the input
-    yview::Ty # Subset of the outputs
 
     function AnalyticVI{T}(ϵ::T, optimiser, nMinibatch::Int, Stochastic::Bool) where {T}
         return new{T,1,Vector{T},Vector{T}}(
@@ -112,29 +110,31 @@ end
 
 ### Generic method for variational updates using analytical formulas ###
 # Single output version
-@traitfn function variational_updates!(
-    m::TGP, y, state
+@traitfn function variational_updates(
+    local_vars, m::TGP, kernel_matrices, y
 ) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     local_vars = local_updates!(
-        state.local_vars, likelihood(m), y, mean_f(m, state), var_f(m, state), state
+        local_vars, likelihood(m), y, mean_f(m, kernel_matrices), var_f(m, kernel_matrices),
     )
     natural_gradient!.(
-        ∇E_μ(m, local_vars),
-        ∇E_Σ(m, local_vars),
+        ∇E_μ(m, y, local_vars),
+        ∇E_Σ(m, y, local_vars),
         getρ(inference(m)),
         get_opt(inference(m)),
         Zviews(m),
+        kernel_matrices,
         m.f,
     )
-    return global_update!(m)
+    global_update!(m)
+    return local_vars
 end
 # Multioutput version
-@traitfn function variational_updates!(
-    m::TGP
+@traitfn function variational_updates(
+    local_vars, m::TGP, kernel_matrices, y
 ) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
-    local_updates!.(likelihood(m), yview(m), mean_f(m), var_f(m)) # Compute the local updates given the expectations of f
+    local_vars = local_updates!.(likelihood(m), y, mean_f(m, kernel_matrices), var_f(m, kernel_matrices)) # Compute the local updates given the expectations of f
     natural_gradient!.(
-        ∇E_μ(m), ∇E_Σ(m), getρ(inference(m)), get_opt(inference(m)), Zviews(m), m.f
+        ∇E_μ(m, y, local_vars), ∇E_Σ(m, y, local_vars), getρ(inference(m)), get_opt(inference(m)), Zviews(m), m.f
     ) # Compute the natural gradients of u given the weighted sum of the gradient of f
     return global_update!(m) # Update η₁ and η₂
 end
@@ -142,12 +142,13 @@ end
 # Wrappers for tuple of 1 element,
 # when multiple f are needed, these methods can be simply overloaded 
 function local_updates!(
+    local_vars,
     l::AbstractLikelihood,
     y,
     μ::Tuple{<:AbstractVector{T}},
     diagΣ::Tuple{<:AbstractVector{T}},
 ) where {T}
-    return local_updates!(l, y, first(μ), first(diagΣ))
+    return local_updates!(local_vars, l, y, first(μ), first(diagΣ))
 end
 
 function expec_loglikelihood(
@@ -167,10 +168,11 @@ function natural_gradient!(
     ::Real,
     ::AVIOptimizer,
     X::AbstractVector,
+    kernel_matrices,
     gp::Union{VarLatent{T},TVarLatent{T}},
 ) where {T}
-    gp.post.η₁ .= ∇E_μ .+ pr_cov(gp) \ pr_mean(gp, X)
-    return gp.post.η₂ .= -Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(pr_cov(gp)))
+    gp.post.η₁ .= ∇E_μ .+ kernel_matrices.K \ pr_mean(gp, X)
+    return gp.post.η₂ .= -Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(kernel_matrices.K))
 end
 
 # Computation of the natural gradient for the natural parameters
@@ -180,10 +182,11 @@ function natural_gradient!(
     ρ::Real,
     opt::AVIOptimizer,
     Z::AbstractVector,
+    kernel_matrices,
     gp::SparseVarLatent{T},
 ) where {T}
-    opt.∇η₁ .= ∇η₁(∇E_μ, ρ, gp.κ, pr_cov(gp), pr_mean(gp, Z), nat1(gp))
-    return opt.∇η₂ .= ∇η₂(∇E_Σ, ρ, gp.κ, pr_cov(gp), nat2(gp))
+    opt.∇η₁ .= ∇η₁(∇E_μ, ρ, kernel_matrices.κ, kernel_matrices.K, pr_mean(gp, Z), nat1(gp))
+    return opt.∇η₂ .= ∇η₂(∇E_Σ, ρ, kernel_matrices.κ, kernel_matrices.K, nat2(gp))
 end
 
 # Gradient of on the first natural parameter η₁ = Σ⁻¹μ
@@ -216,15 +219,16 @@ function natural_gradient!(
     ::Real,
     ::AVIOptimizer,
     Z::AbstractVector,
+    kernel_matrices,
     gp::OnlineVarLatent{T},
 ) where {T}
     gp.post.η₁ =
-        pr_cov(gp) \ pr_mean(gp, Z) + transpose(gp.κ) * ∇E_μ + transpose(gp.κₐ) * gp.prevη₁
+        kernel_matrices.K \ pr_mean(gp, Z) + transpose(kernel_matrices.κ) * ∇E_μ + transpose(kernel_matrices.κₐ) * gp.prevη₁
     return gp.post.η₂ =
         -Symmetric(
-            ρκdiagθκ(1.0, gp.κ, ∇E_Σ) +
-            0.5 * transpose(gp.κₐ) * gp.invDₐ * gp.κₐ +
-            0.5 * inv(pr_cov(gp)),
+            ρκdiagθκ(1.0, kernel_matrices.κ, ∇E_Σ) +
+            0.5 * transpose(kernel_matrices.κₐ) * gp.invDₐ * kernel_matrices.κₐ +
+            0.5 * inv(kernel_matrices.K),
         )
 end
 

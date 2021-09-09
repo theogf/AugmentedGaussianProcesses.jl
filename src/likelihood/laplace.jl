@@ -59,15 +59,15 @@ function init_local_vars_state(state, ::LaplaceLikelihood{T}, batchsize::Int)
 end
 
 function local_updates!(
-    state,
+    local_vars,
     l::LaplaceLikelihood{T},
     y::AbstractVector,
     μ::AbstractVector,
     diagΣ::AbstractVector,
 ) where {T}
-    @. state.b = diagΣ + abs2(μ - y)
-    @. state.θ = sqrt(l.a) / sqrt.(l.b)
-    return state
+    @. local_vars.b = diagΣ + abs2(μ - y)
+    @. local_vars.θ = sqrt(l.a) / sqrt.(l.b)
+    return local_vars
 end
 
 function sample_local!(l::LaplaceLikelihood, y::AbstractVector, f::AbstractVector)

@@ -78,18 +78,13 @@ function SVGP(
     atfrequency::Int=1,
     mean::Union{<:Real,AbstractVector{<:Real},PriorMean}=ZeroMean(),
     Zoptimiser=nothing,
-    obsdim::Int=1,
 )
-    X, T = wrap_X(X, obsdim)
-    y, nLatent, likelihood = check_data!(y, likelihood)
-
     inference isa VariationalInference || error(
         "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`",
     )
     implemented(likelihood, inference) ||
         error("The $likelihood is not compatible or implemented with the $inference")
 
-    data = wrap_data(X, y)
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.001) : nothing
     end

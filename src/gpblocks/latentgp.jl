@@ -206,18 +206,18 @@ Distributions.var(gp::AbstractLatent) = var(posterior(gp))
 nat1(gp::AbstractVarLatent) = nat1(posterior(gp))
 nat2(gp::AbstractVarLatent) = nat2(posterior(gp))
 
-mean_f(model::AbstractGP) = mean_f.(model.f)
+mean_f(model::AbstractGP, kernel_matrices) = mean_f.(model.f, kernel_matrices)
 
-@traitfn mean_f(gp::T) where {T <: AbstractLatent; IsFull{T}} = mean_f(mean(gp))
-@traitfn mean_f(gp::T) where {T <: AbstractLatent; !IsFull{T}} = mean_f(mean(gp), gp.κ)
+@traitfn mean_f(gp::T, ::Any) where {T <: AbstractLatent; IsFull{T}} = mean_f(mean(gp))
+@traitfn mean_f(gp::T, kernel_matrices) where {T <: AbstractLatent; !IsFull{T}} = mean_f(mean(gp), kernel_matrices.κ)
 
 mean_f(μ::AbstractVector) = μ
 mean_f(μ::AbstractVector, κ::AbstractMatrix) = κ * μ
 
-var_f(model::AbstractGP) = var_f.(model.f)
+var_f(model::AbstractGP, kernel_matrices) = var_f.(model.f, kernel_matrices)
 
-@traitfn var_f(gp::T) where {T <: AbstractLatent; IsFull{T}} = var_f(cov(gp))
-@traitfn var_f(gp::T) where {T <: AbstractLatent; !IsFull{T}} = var_f(cov(gp), gp.κ, gp.K̃)
+@traitfn var_f(gp::T, ::Any) where {T <: AbstractLatent; IsFull{T}} = var_f(cov(gp))
+@traitfn var_f(gp::T, kernela_matrices) where {T <: AbstractLatent; !IsFull{T}} = var_f(cov(gp), kernel_matrices.κ, kernel_matrices.K̃)
 
 var_f(Σ::AbstractMatrix) = diag(Σ)
 var_f(Σ::AbstractMatrix, κ::AbstractMatrix, K̃::AbstractVector) = diag_ABt(κ * Σ, κ) + K̃
@@ -232,33 +232,35 @@ Zopt(::AbstractLatent) = nothing
 Zopt(gp::SparseVarLatent) = gp.Zopt
 Zopt(gp::OnlineVarLatent) = gp.Zopt
 
-@traitfn function compute_K!(
+@traitfn function compute_K(
     gp::TGP, X::AbstractVector, jitt::Real
 ) where {TGP <: AbstractLatent; IsFull{TGP}}
-    return pr_cov!(gp, cholesky(kernelmatrix(kernel(gp), X) + jitt * I))
+    return cholesky(kernelmatrix(kernel(gp), X) + jitt * I)
 end
 
-@traitfn function compute_K!(gp::T, jitt::Real) where {T <: AbstractLatent; !IsFull{T}}
-    return pr_cov!(gp, cholesky(kernelmatrix(kernel(gp), gp.Z) + jitt * I))
+@traitfn function compute_K(gp::T, jitt::Real) where {T <: AbstractLatent; !IsFull{T}}
+    return cholesky(kernelmatrix(kernel(gp), gp.Z) + jitt * I)
 end
 
-function compute_κ!(gp::SparseVarLatent, X::AbstractVector, jitt::Real)
-    gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
-    gp.κ = copy(gp.Knm / pr_cov(gp))
-    gp.K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(gp.κ, gp.Knm)
-    return all(gp.K̃ .> 0) || error("K̃ has negative values")
+function compute_κ(gp::SparseVarLatent, X::AbstractVector, K, jitt::Real)
+    Knm = kernelmatrix(kernel(gp), X, gp.Z)
+    κ = copy(Knm / K)
+    K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(κ, Knm)
+    all(K̃ .> 0) || error("K̃ has negative values")
+    return (; Knm, κ, K̃)
 end
 
-function compute_κ!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)
+function compute_κ!(gp::OnlineVarLatent, X::AbstractVector, K, jitt::Real)
     # Covariance with the model at t-1
-    gp.Kab = kernelmatrix(kernel(gp), gp.Zₐ, gp.Z)
-    gp.κₐ = gp.Kab / pr_cov(gp)
+    Kab = kernelmatrix(kernel(gp), gp.Zₐ, gp.Z)
+    κₐ = gp.Kab / K
     Kₐ = Symmetric(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
-    gp.K̃ₐ = Kₐ - gp.κₐ * transpose(gp.Kab)
+    K̃ₐ = Kₐ - κₐ * transpose(Kab)
 
     # Covariance with a new batch
-    gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
-    gp.κ = gp.Knm / pr_cov(gp)
-    gp.K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(gp.κ, gp.Knm)
-    return all(gp.K̃ .> 0) || error("K̃ has negative values")
+    Knm = kernelmatrix(kernel(gp), X, gp.Z)
+    κ = gp.Knm / K
+    K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(κ, Knm)
+    all(K̃ .> 0) || error("K̃ has negative values")
+    return (; Kab, κₐ, K̃ₐ, Knm, κ, K̃)
 end
