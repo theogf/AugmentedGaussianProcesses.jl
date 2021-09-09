@@ -4,8 +4,8 @@
     x = rand()
     X = rand(N, D)
     c = rand()
-    μ₀ = ConstantMean(c, opt=Descent(1.0))
-    @test μ₀ isa ConstantMean{Float64, Descent}
+    μ₀ = ConstantMean(c; opt=Descent(1.0))
+    @test μ₀ isa ConstantMean{Float64,Descent}
     @test repr("text/plain", μ₀) == "Constant Mean Prior (c = $c)"
     @test μ₀(X) == c .* ones(N)
     @test μ₀(x) == c

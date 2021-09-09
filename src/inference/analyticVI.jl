@@ -113,11 +113,18 @@ end
 ### Generic method for variational updates using analytical formulas ###
 # Single output version
 @traitfn function variational_updates!(
-    m::TGP
+    m::TGP, y, state
 ) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
-    local_updates!(likelihood(m), yview(m), mean_f(m), var_f(m))
+    local_vars = local_updates!(
+        state.local_vars, likelihood(m), y, mean_f(m, state), var_f(m, state), state
+    )
     natural_gradient!.(
-        ∇E_μ(m), ∇E_Σ(m), getρ(inference(m)), get_opt(inference(m)), Zviews(m), m.f
+        ∇E_μ(m, local_vars),
+        ∇E_Σ(m, local_vars),
+        getρ(inference(m)),
+        get_opt(inference(m)),
+        Zviews(m),
+        m.f,
     )
     return global_update!(m)
 end
@@ -242,8 +249,8 @@ end
 
 function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI)
     if isStochastic(i)
-        Δ₁ = Optimise.apply!(opt.optimiser, nat1(gp), opt.∇η₁)
-        Δ₂ = Optimise.apply!(opt.optimiser, nat2(gp).data, opt.∇η₂)
+        Δ₁ = Optimisers.apply(opt.optimiser, opt.η₁_state, nat1(gp), opt.∇η₁)
+        Δ₂ = Optimisers.apply(opt.optimiser, opt.η₂_state, nat2(gp).data, opt.∇η₂)
         gp.post.η₁ .+= Δ₁
         gp.post.η₂ .= Symmetric(Δ₂) + nat2(gp)
     else

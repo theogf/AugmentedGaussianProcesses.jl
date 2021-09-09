@@ -48,6 +48,3 @@
     @test C * x ≈ D * x
     @test (C + 2.0 * I).L ≈ cholesky(D + 2.0 * I).L
 end
-
-
-

@@ -105,15 +105,15 @@ function MOSVGP(
     end
     nKernel = length(kernel)
 
-
-    nInducingPoints = if nInducingPoints isa AbstractVector{<:AbstractVector{<:AbstractVector}}
-        nInducingPoints
-    elseif nInducingPoints isa AbstractVector{<:AbstractVector}
-        [deepcopy(nInducingPoints) for _ in 1:nLatent]
-    elseif nInducingPoints isa Int
-        Zref = InducingPoints(KMeansAlg(nInducingPoints), X)
-        [deepcopy(Zref) for _ in 1:nLatent]
-    end
+    nInducingPoints =
+        if nInducingPoints isa AbstractVector{<:AbstractVector{<:AbstractVector}}
+            nInducingPoints
+        elseif nInducingPoints isa AbstractVector{<:AbstractVector}
+            [deepcopy(nInducingPoints) for _ in 1:nLatent]
+        elseif nInducingPoints isa Int
+            Zref = InducingPoints(KMeansAlg(nInducingPoints), X)
+            [deepcopy(Zref) for _ in 1:nLatent]
+        end
 
     nFeatures = size.(Z, 1)
 

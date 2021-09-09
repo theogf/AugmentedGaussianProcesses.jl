@@ -32,8 +32,7 @@ function implemented(
     return true
 end
 
-function pdf(l::TemplateLikelihood, y::Real, f::Real) 
-end
+function pdf(l::TemplateLikelihood, y::Real, f::Real) end
 
 function Base.show(io::IO, model::TemplateLikelihood)
     return print(io, "Template Likelihood")
@@ -52,8 +51,7 @@ end
 
 function local_updates!(
     l::TemplateLikelihood{T}, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
-) 
-end
+) end
 
 function sample_local!(
     l::TemplateLikelihood{T}, y::AbstractVector, f::AbstractVector

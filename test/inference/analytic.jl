@@ -6,7 +6,7 @@
     x = [rand(D) for i in 1:D]
     y = rand(N)
     i = Analytic()
-    @test Analytic(ϵ = 0.0001f0) isa Analytic{Float32}
+    @test Analytic(; ϵ=0.0001f0) isa Analytic{Float32}
     @test repr(i) == "Analytic Inference"
     xview = view(x, :)
     yview = view(y, :)

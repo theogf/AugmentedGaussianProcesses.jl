@@ -23,7 +23,6 @@ update_kernel!(::Nothing, ::AbstractVector, ::AbstractArray) = nothing
 update_Z!(::Nothing, ::AbstractVector, ::AbstractVector) = nothing
 update_Z!(::Nothing, ::AbstractVector, ::NamedTuple) = nothing
 
-
 ## Updating prior mean parameters ##
 function update!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
     return update!(μ, g, X)
@@ -58,7 +57,7 @@ end
 
 ## Updating inducing points
 function update_Z!(opt, Z::Union{ColVecs,RowVecs}, Z_grads::NamedTuple)
-        Z.X .+= Optimise.apply!(opt, Z.X, Z_grads.X)
+    return Z.X .+= Optimise.apply!(opt, Z.X, Z_grads.X)
 end
 
 function update_Z!(opt, Z::AbstractVector, Z_grads::AbstractVector)

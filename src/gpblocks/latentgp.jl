@@ -3,7 +3,7 @@ include("prior.jl")
 include("posterior.jl")
 
 ## Exact Gaussian Process
-struct LatentGP{T,Tpr<:GPPrior,Tpo<:Posterior{T},O} <: AbstractLatent{T,Tpr,Tpo}
+struct LatentGP{T,Tpr<:GPPrior,Tpo<:Posterior{T},O,Tstate} <: AbstractLatent{T,Tpr,Tpo}
     prior::Tpr
     post::Tpo
     opt::O
@@ -64,7 +64,7 @@ function SparseVarLatent(
     kernel::Kernel,
     mean::PriorMean,
     opt=nothing,
-    Zopt=nothing
+    Zopt=nothing,
 )
     return SparseVarLatent(
         GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I(dim)))),
@@ -98,9 +98,15 @@ end
 
 ## Online Sparse Variational Process
 
-mutable struct OnlineVarLatent{T,Tpr<:GPPrior,Tpo<:AbstractVarPosterior{T},Topt,TZ<:AbstractVector,
-    TZalg<:InducingPoints.OnIPSA,TZopt} <:
-               AbstractVarLatent{T,Tpo,Tpr}
+mutable struct OnlineVarLatent{
+    T,
+    Tpr<:GPPrior,
+    Tpo<:AbstractVarPosterior{T},
+    Topt,
+    TZ<:AbstractVector,
+    TZalg<:InducingPoints.OnIPSA,
+    TZopt,
+} <: AbstractVarLatent{T,Tpo,Tpr}
     prior::Tpr
     post::Tpo
     Z::TZ
@@ -129,7 +135,7 @@ function OnlineVarLatent(
     kernel::Kernel,
     mean::PriorMean,
     opt=nothing,
-    Zopt=nothing
+    Zopt=nothing,
 )
     return OnlineVarLatent(
         GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I, dim, dim))),
@@ -254,5 +260,5 @@ function compute_κ!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)
     gp.Knm = kernelmatrix(kernel(gp), X, gp.Z)
     gp.κ = gp.Knm / pr_cov(gp)
     gp.K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(gp.κ, gp.Knm)
-    all(gp.K̃ .> 0) || error("K̃ has negative values")
+    return all(gp.K̃ .> 0) || error("K̃ has negative values")
 end

@@ -32,7 +32,7 @@
         @test AGP.nOutput(data) == n_out
         @test AGP.input(data) == X
         @test AGP.output(data) == ys
-        @test_throws ErrorException AGP.wrap_data(X, ysbad)    
+        @test_throws ErrorException AGP.wrap_data(X, ysbad)
     end
 
     @testset "OnlineDataContainer" begin
@@ -52,5 +52,4 @@
         @test AGP.wrap_X(vec(X))[1] isa AbstractVector
         @test AGP.wrap_X(vec(X))[2] == Float64
     end
-
 end

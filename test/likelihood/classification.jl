@@ -7,7 +7,7 @@
     @test AGP.treat_labels!(y, l) == ((y .- 0.5) * 2, 1, l)
     y = randn(10)
     @test_throws AssertionError AGP.treat_labels!(y, l)
-    y = rand([2,3], 10)
+    y = rand([2, 3], 10)
     @test_throws AssertionError AGP.treat_labels!(y, l)
     y = randn(10)
     @test predict_y(l, y) == (y .> 0)

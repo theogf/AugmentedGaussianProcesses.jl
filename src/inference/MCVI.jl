@@ -159,7 +159,8 @@ function grad_expectations!(m::AbstractGP{T,L,<:MCIntegrationVI{T,N}}) where {T,
     σ² = var_f(m)
     nSamples = length(MBIndices(m))
     for j in 1:nSamples # Loop over every data point
-        samples .= raw_samples .* sqrt.([σ²[k][j] for k in 1:nLatent(m)])' .+ [μ[k][j] for k in 1:nLatent(m)]'
+        samples .=
+            raw_samples .* sqrt.([σ²[k][j] for k in 1:nLatent(m)])' .+ [μ[k][j] for k in 1:nLatent(m)]'
         grad_samples(m, samples, j) # Compute the gradient for data point j
     end
 end

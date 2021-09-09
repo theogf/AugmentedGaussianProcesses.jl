@@ -3,10 +3,10 @@
     K = 3
     k = SqExponentialKernel() ∘ ScaleTransform(10.0)
     X, f1 = generate_f(N, d, k)
-    X, f2 = generate_f(N, d, k; X = X)
-    X, f3 = generate_f(N, d, k; X = X)
+    X, f2 = generate_f(N, d, k; X=X)
+    X, f3 = generate_f(N, d, k; X=X)
     f = [f1, f2, f3]
-    y = getindex.(findmax(hcat(f1, f2, f3), dims = 2)[2], 2)[:]
+    y = getindex.(findmax(hcat(f1, f2, f3); dims=2)[2], 2)[:]
 
     floattypes = [Float64]
     tests_likelihood(

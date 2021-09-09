@@ -61,7 +61,10 @@ function OnlineSVGP(
     end
 
     nLatent = num_latent(likelihood)
-    latentf = ntuple(_ -> OnlineVarLatent(T, 0, 0, [], Zalg, kernel, mean, optimiser, Zoptimiser), nLatent)
+    latentf = ntuple(
+        _ -> OnlineVarLatent(T, 0, 0, [], Zalg, kernel, mean, optimiser, Zoptimiser),
+        nLatent,
+    )
     inference = tuple_inference(inference, nLatent, 0, 0, 0, [], [])
     inference.nIter = 1
     return OnlineSVGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(

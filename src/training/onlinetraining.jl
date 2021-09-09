@@ -21,7 +21,11 @@ function train!(
     obsdim::Int=1,
 )
     return train!(
-        m, KernelFunctions.vec_of_vecs(X; obsdim=obsdim), y; iterations=iterations, callback=callback
+        m,
+        KernelFunctions.vec_of_vecs(X; obsdim=obsdim),
+        y;
+        iterations=iterations,
+        callback=callback,
     )
 end
 
@@ -136,8 +140,7 @@ function save_old_gp!(gp::OnlineVarLatent{T}) where {T}
     gp.Z = InducingPoints.remove_point(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))# Matrix(pr_cov(gp)))
     gp.invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp))) # Compute Σ⁻¹ₐ - K⁻¹ₐ
     gp.prevη₁ = copy(nat1(gp))
-    gp.prev𝓛ₐ =
-        (-logdet(cov(gp)) + logdet(pr_cov(gp)) - dot(mean(gp), nat1(gp))) / 2
+    gp.prev𝓛ₐ = (-logdet(cov(gp)) + logdet(pr_cov(gp)) - dot(mean(gp), nat1(gp))) / 2
     return nothing
 end
 
@@ -190,7 +193,7 @@ function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T=T(jitt))
         K̃ₐ,
         invDₐ,
         prev𝓛ₐ,
-        prevη₁
+        prevη₁,
     )
     # return nothing
 end

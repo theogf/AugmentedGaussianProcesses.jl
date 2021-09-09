@@ -97,7 +97,7 @@ function SVGP(
     nFeatures = length(Z)
 
     Zoptimiser = if Zoptimiser isa Bool
-        Zoptimiser ? ADAM(0.001) : nothing 
+        Zoptimiser ? ADAM(0.001) : nothing
     else
         Zoptimiser
     end
@@ -116,7 +116,8 @@ function SVGP(
     end
 
     latentf = ntuple(
-        _ -> SparseVarLatent(T, nFeatures, S, Z, kernel, mean, optimiser, Zoptimiser), nLatent
+        _ -> SparseVarLatent(T, nFeatures, S, Z, kernel, mean, optimiser, Zoptimiser),
+        nLatent,
     )
 
     likelihood = init_likelihood(likelihood, inference, nLatent, S)

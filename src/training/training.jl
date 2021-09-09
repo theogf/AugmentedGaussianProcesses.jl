@@ -12,9 +12,12 @@ Function to train the given GP `model`.
 """
 function train!(
     model::AbstractGP{T},
+    X,
+    y,
     iterations::Int=100;
     callback=nothing,
     convergence=nothing,
+    state=nothing,
 ) where {T}
     if model.verbose > 0
         @info "Starting training $model with $(nSamples(model)) samples, $(nFeatures(model)) features and $(nLatent(model)) latent GP" *
@@ -24,20 +27,21 @@ function train!(
     iterations > 0 || error("Number of iterations should be positive")
     # model.evol_conv = [] #Array to check on the evolution of convergence
     local_iter = 1
+    state = isnothing(state) ? init_state(model) : state
     conv = Inf
     p = Progress(iterations; dt=0.2, desc="Training Progress: ")
     prev_elbo = -Inf
-    while true #loop until one condition is matched
-        try #Allow for keyboard interruption without losing the model
-            update_parameters!(model) #Update all the variational parameters
+    while true # loop until one condition is matched
+        try
+            state = update_parameters!(model, state) #Update all the variational parameters
             set_trained!(model, true)
             if !isnothing(callback)
-                callback(model, nIter(model)) #Use a callback method if set by user
+                callback(model, state, nIter(model)) #Use a callback method if set by user
             end
             if (nIter(model) % model.atfrequency == 0) &&
                (nIter(model) >= 3) &&
                (local_iter != iterations)
-                update_hyperparameters!(model) #Update the hyperparameters
+                state = update_hyperparameters!(model, state) #Update the hyperparameters
             end
             # Print out informations about the convergence
             if verbose(model) > 2 || (verbose(model) > 1 && local_iter % 10 == 0)
@@ -45,14 +49,14 @@ function train!(
                     next!(p; showvalues=[(:samples, local_iter)])
                 else
                     if (verbose(model) == 2 && local_iter % 10 == 0)
-                        elbo = objective(model)
+                        elbo = objective(model, state)
                         prev_elbo = elbo
                         ProgressMeter.update!(p, local_iter - 1)
                         ProgressMeter.next!(
                             p; showvalues=[(:iter, local_iter), (:ELBO, elbo)]
                         )
                     elseif verbose(model) > 2
-                        elbo = objective(model)
+                        elbo = objective(model, state)
                         prev_elbo = elbo
                         ProgressMeter.next!(
                             p; showvalues=[(:iter, local_iter), (:ELBO, prev_elbo)]
@@ -82,20 +86,20 @@ function train!(
     return nothing
 end
 
-function update_parameters!(model::GP)
-    compute_kernel_matrices!(model) #Recompute the matrices if necessary (when hyperparameters have been updated)
-    analytic_updates!(model)
-    return nothing
+function update_parameters!(model::GP, state)
+    state = compute_kernel_matrices!(model, state) #Recompute the matrices if necessary (when hyperparameters have been updated)
+    state = analytic_updates!(model, state)
+    return state
 end
 
-function update_parameters!(model::VGP)
-    compute_kernel_matrices!(model) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    variational_updates!(model)
-    return nothing
+function update_parameters!(model::VGP, state)
+    state = compute_kernel_matrices!(model, state) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = variational_updates!(model, state)
+    return state
 end
 
 ## Update all variational parameters of the sparse variational GP Model ##
-function update_parameters!(m::SVGP)
+function update_parameters!(m::SVGP, state)
     if isStochastic(inference(m))
         setMBIndices!(
             inference(m),
@@ -104,20 +108,20 @@ function update_parameters!(m::SVGP)
         setxview!(inference(m), view_x(data(m), MBIndices(inference(m))))
         setyview!(inference(m), view_y(likelihood(m), data(m), MBIndices(inference(m))))
     end
-    compute_kernel_matrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    variational_updates!(m)
-    return nothing
+    state = compute_kernel_matrices!(m, state) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = variational_updates!(m, state)
+    return state
 end
 
-function update_parameters!(m::MOVGP)
-    compute_kernel_matrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    update_A!(m)
-    variational_updates!(m)
+function update_parameters!(m::MOVGP, state)
+    state = compute_kernel_matrices!(m, state) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = update_A!(m)
+    state = variational_updates!(m, state)
     return nothing
 end
 
 function update_parameters!(m::MOSVGP)
-    if isStochastic(m.inference)
+    if isStochastic(inference(m))
         setMBIndices!(
             inference(m),
             StatsBase.sample(1:nSamples(m), nMinibatch(inference(m)); replace=false),
@@ -125,37 +129,37 @@ function update_parameters!(m::MOSVGP)
         setxview!(inference(m), view_x(data(m), MBIndices(inference(m))))
         setyview!(m.inference, view_y(likelihood(m), data(m), MBIndices(m.inference)))
     end
-    compute_kernel_matrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = compute_kernel_matrices!(m, state) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     update_A!(m)
-    variational_updates!(m)
-    return nothing
+    state = variational_updates!(m, state)
+    return state
 end
 
-function update_parameters!(m::VStP)
-    compute_kernel_matrices!(m) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    local_prior_updates!(m, input(m))
-    variational_updates!(m)
-    return nothing
+function update_parameters!(m::VStP, state)
+    state = compute_kernel_matrices!(m, state) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = local_prior_updates!(m, input(m), state)
+    state = variational_updates!(m, state)
+    return state
 end
 
-function compute_kernel_matrices!(m::GP{T}, ::Bool) where {T}
+function compute_kernel_matrices!(m::GP{T}, state, ::Bool) where {T}
     compute_K!(getf(m), input(m), T(jitt))
     setHPupdated!(inference(m), false)
-    return nothing
+    return state
 end
 
 @traitfn function compute_kernel_matrices!(
-    m::TGP, update::Bool=false
+    m::TGP, state, update::Bool=false
 ) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
     if isHPupdated(inference(m)) || update
         compute_K!.(getf(m), Ref(input(m)), T(jitt))
     end
     setHPupdated!(inference(m), false)
-    return nothing
+    return state
 end
 
 @traitfn function compute_kernel_matrices!(
-    m::TGP, update::Bool=false
+    m::TGP, state, update::Bool=false
 ) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
     if isHPupdated(inference(m)) || update
         compute_K!.(getf(m), T(jitt))
@@ -165,5 +169,5 @@ end
         compute_κ!.(getf(m), Ref(xview(m)), T(jitt))
     end
     setHPupdated!(inference(m), false)
-    return nothing
+    return state
 end

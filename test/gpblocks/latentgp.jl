@@ -5,7 +5,7 @@
     m0 = ZeroMean()
     opt = ADAM()
     X = rand(1, D)
-    K = kernelmatrix(kernel, X, obsdim = 1)
+    K = kernelmatrix(kernel, X; obsdim=1)
     @testset "LatentGP" begin
         m = AGP.LatentGP(T, D, kernel, m0, opt)
         @test m isa AGP.LatentGP

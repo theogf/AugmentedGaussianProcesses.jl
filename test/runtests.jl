@@ -25,8 +25,7 @@ include("testingtools.jl")
     end
 
     @info "Hyperparameter tests"
-    @testset "Hyperparameters" begin
-    end
+    @testset "Hyperparameters" begin end
 
     @info "Inference tests"
     @testset "Inference" begin

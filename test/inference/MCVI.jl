@@ -8,7 +8,7 @@ x = rand(N, D)
 y = rand(N)
 @testset "MCIntegrationVI" begin
     C = 10.0
-    i = AGP.tuple_inference(MCIntegrationVI(clipping = C), 1, D, N, N, [], [])
+    i = AGP.tuple_inference(MCIntegrationVI(; clipping=C), 1, D, N, N, [], [])
     l = GaussianLikelihood()
     # @test AGP.grad_quad(l, 200.0, 0.0, 1.0, i) == (C, -C)
 end

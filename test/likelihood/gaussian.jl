@@ -20,7 +20,7 @@
     floattypes = [Float64]
     @testset "GP" begin
         for floattype in floattypes
-            model = GP(X, y, k; opt_noise = true, verbose = 0)
+            model = GP(X, y, k; opt_noise=true, verbose=0)
             @test eltype(model) == floattype
             @test AGP.likelihood(model) isa GaussianLikelihood
             @test AGP.inference(model) isa Analytic
@@ -36,27 +36,9 @@
         end
     end
     @testset "VGP" begin
-        @test_throws ErrorException VGP(
-            X,
-            y,
-            k,
-            GaussianLikelihood(),
-            AnalyticVI(),
-        )
-        @test_throws ErrorException VGP(
-            X,
-            y,
-            k,
-            GaussianLikelihood(),
-            QuadratureVI(),
-        )
-        @test_throws ErrorException VGP(
-            X,
-            y,
-            k,
-            GaussianLikelihood(),
-            MCIntegrationVI(),
-        )
+        @test_throws ErrorException VGP(X, y, k, GaussianLikelihood(), AnalyticVI())
+        @test_throws ErrorException VGP(X, y, k, GaussianLikelihood(), QuadratureVI())
+        @test_throws ErrorException VGP(X, y, k, GaussianLikelihood(), MCIntegrationVI())
     end
     @testset "SVGP" begin
         for floattype in floattypes
@@ -67,14 +49,14 @@
                     k,
                     GaussianLikelihood(),
                     AnalyticVI(),
-                    10,
-                    optimiser = false,
-                    verbose = 0,
+                    10;
+                    optimiser=false,
+                    verbose=0,
                 )
                 @test eltype(model) == floattype
                 @test AGP.likelihood(model) isa GaussianLikelihood
                 @test AGP.inference(model) isa AnalyticVI
-                @test AGP.getf(model) isa NTuple{1, AGP.SparseVarLatent}
+                @test AGP.getf(model) isa NTuple{1,AGP.SparseVarLatent}
                 @test AGP.output(model) isa AbstractVector
                 @test AGP.input(model) isa AbstractVector
                 @test AGP.nLatent(model) == 1
@@ -83,47 +65,25 @@
                     X,
                     y,
                     k,
-                    GaussianLikelihood(opt_noise = true),
+                    GaussianLikelihood(; opt_noise=true),
                     AnalyticVI(),
-                    10,
-                    optimiser = true,
-                    Zoptimiser = true,
-                    verbose = 0,
+                    10;
+                    optimiser=true,
+                    Zoptimiser=true,
+                    verbose=0,
                 )
                 tests(model, model_opt, X, f, y, "Regression")
             end
             @test_throws ErrorException SVGP(
-                X,
-                y,
-                k,
-                GaussianLikelihood(),
-                QuadratureVI(),
-                20,
+                X, y, k, GaussianLikelihood(), QuadratureVI(), 20
             )
             @test_throws ErrorException SVGP(
-                X,
-                y,
-                k,
-                GaussianLikelihood(),
-                MCIntegrationVI(),
-                20,
+                X, y, k, GaussianLikelihood(), MCIntegrationVI(), 20
             )
         end
     end
     @testset "MCGP" begin
-        @test_throws ErrorException MCGP(
-            X,
-            y,
-            k,
-            GaussianLikelihood(),
-            GibbsSampling(),
-        )
-        @test_throws ErrorException MCGP(
-            X,
-            y,
-            k,
-            GaussianLikelihood(),
-            HMCSampling(),
-        )
+        @test_throws ErrorException MCGP(X, y, k, GaussianLikelihood(), GibbsSampling())
+        @test_throws ErrorException MCGP(X, y, k, GaussianLikelihood(), HMCSampling())
     end
 end

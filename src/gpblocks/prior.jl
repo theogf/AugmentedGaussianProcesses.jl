@@ -1,4 +1,4 @@
-abstract type AbstractGPPrior{T<:Real,K<:Kernel,Tmean<:PriorMean} end
+abstract type AbstractGPPrior{T<:Real,K<:Kernel,Tmean<:PriorMean} <: AbstractGPs.AbstractGP end
 
 kernel(gp::AbstractGPPrior) = gp.kernel
 setkernel!(gp::AbstractGPPrior, k::Kernel) = gp.kernel = k

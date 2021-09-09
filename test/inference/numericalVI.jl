@@ -15,6 +15,5 @@ y = rand(N)
     @test NumericalSVI(b, :mc) isa MCIntegrationVI
     @test_throws ErrorException NumericalSVI(b, :blah)
     @test repr(NumericalVI(:quad)) == "Numerical Inference by Quadrature"
-    @test repr(NumericalVI(:mc)) ==
-          "Numerical Inference by Monte Carlo Integration"
+    @test repr(NumericalVI(:mc)) == "Numerical Inference by Monte Carlo Integration"
 end
