@@ -99,34 +99,34 @@ function train!(
     return nothing
 end
 
-function update_parameters!(model::GP, x, y, state)
-    kernel_matrices = compute_kernel_matrices(kernel_matrices, model, x) # Recompute the matrices if necessary (when hyperparameters have been updated)
-    state = analytic_updates(state, model, kernel_matrices, y)
+function update_parameters!(model::GP, state, x, y)
+    state = compute_kernel_matrices(model, state, x) # Recompute the matrices if necessary (when hyperparameters have been updated)
+    state = analytic_updates(model, state, y)
     return state
 end
 
-function update_parameters!(model::VGP, x, y, state)
-    kernel_matrices = compute_kernel_matrices(state.kernel_matrices, model, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    local_vars = variational_updates!(state.local_vars, model, kernel_matrices, y)
-    return (; kernel_matrices, local_vars)
+function update_parameters!(model::VGP, state, x, y)
+    state = compute_kernel_matrices(model, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = variational_updates(state, model, y)
+    return state
 end
 
 ## Update all variational parameters of the sparse variational GP Model ##
-function update_parameters!(m::SVGP, x, y, state)
-    kernel_matrices = compute_kernel_matrices(state.kernel_matrices, m, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    local_vars = variational_updates!(m, kernel_matrices, y)
+function update_parameters!(model::SVGP, state, x, y)
+    state = compute_kernel_matrices(model, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = variational_updates(model, state, y)
     return state
 end
 
 function update_parameters!(m::MOVGP, x, y, state)
-    kernel_matrices = compute_kernel_matrices(state.kernel_matrices, m, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = compute_kernel_matrices(state, m, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     state = update_A!(m)
     state = variational_updates!(m, state)
     return nothing
 end
 
 function update_parameters!(m::MOSVGP, x, y, state)
-    state = compute_kernel_matrices!(m, state) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = compute_kernel_matrices(state, m, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     update_A!(m)
     state = variational_updates!(m, state)
     return state
@@ -139,46 +139,49 @@ function update_parameters!(m::VStP, state)
     return state
 end
 
-function compute_kernel_matrices(::Any, m::GP{T}, x, ::Bool) where {T}
+function compute_kernel_matrices(m::GP{T}, state, x, ::Bool) where {T}
     kernel_matrices = map(getf(m), Ref(x)) do gp, x
         compute_K(gp, x)
     end
     setHPupdated!(inference(m), false)
-    return kernel_matrices
+    return merge(state, (; kernel_matrices))
 end
 
 @traitfn function compute_kernel_matrices(
-    kernel_matrices, m::TGP, x, update::Bool=false
+    m::TGP, state, x, update::Bool=false
 ) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
-    kernel_matrices = if isHPupdated(inference(m)) || update
-        map(getf(m), Ref(x)) do gp, x
+    if isHPupdated(inference(m)) || update
+        kernel_matrices = map(getf(m), Ref(x)) do gp, x
             (; K=compute_K(gp, x, T(jitt)))
         end
+        setHPupdated!(inference(m), false)
+        return merge(state, (; kernel_matrices))
+    else
+        return state
+    end
+end
+
+@traitfn function compute_kernel_matrices(
+    m::TGP, state, x, update::Bool=false
+) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
+    kernel_matrices = state.kernel_matrices
+    kernel_matrices = if isHPupdated(inference(m)) || update
+        Ks = map(getf(m)) do gp
+            (; K=compute_K(gp, T(jitt)))
+        end
+        merge.(kernel_matrices, Ks)
+    else
+        kernel_matrices
+    end
+    #If change of hyperparameters or if stochatic
+    kernel_matrices = if isHPupdated(inference(m)) || isStochastic(inference(m)) || update
+        κs = map(getf(m), Ref(x), Ks) do gp, x, K
+            compute_κ(gp, K, x, jitt)
+        end
+        merge.(kernel_matrices, κs)
     else
         kernel_matrices
     end
     setHPupdated!(inference(m), false)
-    return kernel_matrices
-end
-
-@traitfn function compute_kernel_matrices(
-    kernel_matrices, m::TGP, x, update::Bool=false
-) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
-    Ks = if isHPupdated(inference(m)) || update
-        map(getf(m)) do gp
-            (; K=compute_K(gp, T(jitt)))
-        end
-    else
-        ((;),)
-    end
-    #If change of hyperparameters or if stochatic
-    κs = if isHPupdated(inference(m)) || isStochastic(inference(m)) || update
-        map(getf(m), Ref(x), Ks) do gp, x, K
-            compute_κ(gp, K, x, jitt)
-        end
-    else
-        ((;),)
-    end
-    setHPupdated!(inference(m), false)
-    return merge.(kernel_matrices, Ks, κs) # update the kernel_matrices state
+    return merge(state, (; kernel_matrices)) # update the kernel_matrices state
 end

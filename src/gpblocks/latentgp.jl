@@ -209,7 +209,9 @@ nat2(gp::AbstractVarLatent) = nat2(posterior(gp))
 mean_f(model::AbstractGP, kernel_matrices) = mean_f.(model.f, kernel_matrices)
 
 @traitfn mean_f(gp::T, ::Any) where {T <: AbstractLatent; IsFull{T}} = mean_f(mean(gp))
-@traitfn mean_f(gp::T, kernel_matrices) where {T <: AbstractLatent; !IsFull{T}} = mean_f(mean(gp), kernel_matrices.κ)
+@traitfn function mean_f(gp::T, kernel_matrices) where {T <: AbstractLatent; !IsFull{T}}
+    return mean_f(mean(gp), kernel_matrices.κ)
+end
 
 mean_f(μ::AbstractVector) = μ
 mean_f(μ::AbstractVector, κ::AbstractMatrix) = κ * μ
@@ -217,7 +219,9 @@ mean_f(μ::AbstractVector, κ::AbstractMatrix) = κ * μ
 var_f(model::AbstractGP, kernel_matrices) = var_f.(model.f, kernel_matrices)
 
 @traitfn var_f(gp::T, ::Any) where {T <: AbstractLatent; IsFull{T}} = var_f(cov(gp))
-@traitfn var_f(gp::T, kernela_matrices) where {T <: AbstractLatent; !IsFull{T}} = var_f(cov(gp), kernel_matrices.κ, kernel_matrices.K̃)
+@traitfn function var_f(gp::T, kernela_matrices) where {T <: AbstractLatent; !IsFull{T}}
+    return var_f(cov(gp), kernel_matrices.κ, kernel_matrices.K̃)
+end
 
 var_f(Σ::AbstractMatrix) = diag(Σ)
 var_f(Σ::AbstractMatrix, κ::AbstractMatrix, K̃::AbstractVector) = diag_ABt(κ * Σ, κ) + K̃

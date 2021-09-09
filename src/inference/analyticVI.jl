@@ -7,7 +7,6 @@ mutable struct AnalyticVI{T,N,Tx,Ty} <: VariationalInference{T}
     ρ::T # Scaling coeff. for stoch. opt.
     HyperParametersUpdated::Bool # Flag for updating kernel matrices
     vi_opt::NTuple{N,AVIOptimizer} # Local optimizers for the variational parameters
-    MBIndices::Vector{Int} # Indices of the minibatch
 
     function AnalyticVI{T}(ϵ::T, optimiser, nMinibatch::Int, Stochastic::Bool) where {T}
         return new{T,1,Vector{T},Vector{T}}(
@@ -111,32 +110,50 @@ end
 ### Generic method for variational updates using analytical formulas ###
 # Single output version
 @traitfn function variational_updates(
-    local_vars, m::TGP, kernel_matrices, y
+    m::TGP, state, y
 ) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
-    local_vars = local_updates!(
-        local_vars, likelihood(m), y, mean_f(m, kernel_matrices), var_f(m, kernel_matrices),
+    state.local_vars = local_updates!(
+        state.local_vars,
+        likelihood(m),
+        y,
+        mean_f(m, state.kernel_matrices),
+        var_f(m, state.kernel_matrices),
     )
     natural_gradient!.(
-        ∇E_μ(m, y, local_vars),
-        ∇E_Σ(m, y, local_vars),
+        ∇E_μ(m, y, state.local_vars),
+        ∇E_Σ(m, y, state.local_vars),
         getρ(inference(m)),
         get_opt(inference(m)),
         Zviews(m),
-        kernel_matrices,
+        state.kernel_matrices,
         m.f,
     )
-    global_update!(m)
-    return local_vars
+    state = global_update!(m, state)
+    return state
 end
 # Multioutput version
 @traitfn function variational_updates(
     local_vars, m::TGP, kernel_matrices, y
 ) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
-    local_vars = local_updates!.(likelihood(m), y, mean_f(m, kernel_matrices), var_f(m, kernel_matrices)) # Compute the local updates given the expectations of f
+    state.local_vars =
+        local_updates!.(
+            state.local_vars,
+            likelihood(m),
+            y,
+            mean_f(m, state.kernel_matrices),
+            var_f(m, state.kernel_matrices),
+        ) # Compute the local updates given the expectations of f
     natural_gradient!.(
-        ∇E_μ(m, y, local_vars), ∇E_Σ(m, y, local_vars), getρ(inference(m)), get_opt(inference(m)), Zviews(m), m.f
+        ∇E_μ(m, y, state.local_vars),
+        ∇E_Σ(m, y, state.local_vars),
+        getρ(inference(m)),
+        get_opt(inference(m)),
+        Zviews(m),
+        state.kernel_matrices,
+        m.f,
     ) # Compute the natural gradients of u given the weighted sum of the gradient of f
-    return global_update!(m) # Update η₁ and η₂
+    state = global_update!(m, state) # Update η₁ and η₂
+    return state
 end
 
 # Wrappers for tuple of 1 element,
@@ -157,8 +174,9 @@ function expec_loglikelihood(
     y,
     μ::Tuple{<:AbstractVector{T}},
     diagΣ::Tuple{<:AbstractVector{T}},
+    state,
 ) where {T}
-    return expec_loglikelihood(l, i, y, first(μ), first(diagΣ))
+    return expec_loglikelihood(l, i, y, first(μ), first(diagΣ), state)
 end
 
 # Coordinate ascent updates on the natural parameters ##
@@ -223,7 +241,9 @@ function natural_gradient!(
     gp::OnlineVarLatent{T},
 ) where {T}
     gp.post.η₁ =
-        kernel_matrices.K \ pr_mean(gp, Z) + transpose(kernel_matrices.κ) * ∇E_μ + transpose(kernel_matrices.κₐ) * gp.prevη₁
+        kernel_matrices.K \ pr_mean(gp, Z) +
+        transpose(kernel_matrices.κ) * ∇E_μ +
+        transpose(kernel_matrices.κₐ) * gp.prevη₁
     return gp.post.η₂ =
         -Symmetric(
             ρκdiagθκ(1.0, kernel_matrices.κ, ∇E_Σ) +
@@ -234,33 +254,45 @@ end
 
 # Once the natural parameters have been updated we need to convert back to μ and Σ
 @traitfn function global_update!(
-    model::TGP
+    model::TGP, state
 ) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsFull{TGP}}
-    return global_update!.(model.f)
+    global_update!.(model.f)
+    return state
 end
 
 global_update!(gp::VarLatent, ::AVIOptimizer, ::AnalyticVI) = global_update!(gp)
 
-global_update!(model::OnlineSVGP) = global_update!.(model.f)
-global_update!(gp::OnlineVarLatent, ::Any, ::Any) = global_update!(gp)
+function global_update!(model::OnlineSVGP, state)
+    global_update!.(model.f)
+    return state
+end
 
 #Update of the natural parameters and conversion from natural to standard distribution parameters
 @traitfn function global_update!(
-    model::TGP
+    model::TGP, vi_opt_state
 ) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsFull{TGP}}
-    return global_update!.(model.f, inference(model).vi_opt, inference(model))
+    return vi_opt_state =
+        global_update!.(model.f, inference(model).vi_opt, inference(model), vi_opt_state)
 end
 
-function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI)
+function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI, vi_opt_state)
     if isStochastic(i)
-        Δ₁ = Optimisers.apply(opt.optimiser, opt.η₁_state, nat1(gp), opt.∇η₁)
-        Δ₂ = Optimisers.apply(opt.optimiser, opt.η₂_state, nat2(gp).data, opt.∇η₂)
+        Δ₁, state_η₁ = Optimisers.apply(opt.optimiser, vi_opt_state.η₁, nat1(gp), opt.∇η₁)
+        Δ₂, state_η₂ = Optimisers.apply(
+            opt.optimiser, vi_opt_state.η₂, nat2(gp).data, opt.∇η₂
+        )
         gp.post.η₁ .+= Δ₁
         gp.post.η₂ .= Symmetric(Δ₂) + nat2(gp)
+        vi_opt_state = (; state_η₁, state_η₂)
     else
         gp.post.η₁ .+= opt.∇η₁
         gp.post.η₂ .= Symmetric(opt.∇η₂ + nat2(gp))
     end
+    global_update!(gp)
+    return vi_opt_state
+end
+
+function global_update!(gp::OnlineVarLatent, ::Any, ::Any)
     return global_update!(gp)
 end
 
@@ -268,14 +300,19 @@ end
 # There are 4 parts : the (augmented) log-likelihood, the Gaussian KL divergence
 # the augmented variable KL divergence, some eventual additional part (like in the online case)
 @traitfn function ELBO(
-    model::TGP
+    model::TGP, y, state
 ) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     tot = zero(T)
     tot +=
         getρ(inference(model)) * expec_loglikelihood(
-            likelihood(model), inference(model), yview(model), mean_f(model), var_f(model)
+            likelihood(model),
+            inference(model),
+            y,
+            mean_f(model, state.kernel_matrices),
+            var_f(model, state.kernel_matrices),
+            state,
         )
-    tot -= GaussianKL(model)
+    tot -= GaussianKL(model, state)
     tot -= Zygote.@ignore(
         getρ(inference(model)) * AugmentedKL(likelihood(model), yview(model))
     )
@@ -284,7 +321,7 @@ end
 
 # Multi-output version
 @traitfn function ELBO(
-    model::TGP
+    model::TGP, state
 ) where {T,L,TGP<:AbstractGP{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     tot = zero(T)
     tot += sum(
