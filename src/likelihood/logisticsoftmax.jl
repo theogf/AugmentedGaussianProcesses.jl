@@ -1,24 +1,25 @@
-"""
+@doc raw"""
     LogisticSoftMaxLikelihood(num_class::Int)
 
 ## Arguments
 - `num_class::Int` : Total number of classes
 
 ---
+
 The multiclass likelihood with a logistic-softmax mapping: :
 ```math
-p(y=i|{fₖ}₁ᴷ) = σ(fᵢ)/∑ₖ σ(fₖ)
+p(y=i|\{fₖ\}_{1}^{K}) = \frac{\sigma(f_i)}{\sum_{k=1}^k \sigma(f_k)}
 ```
-where `σ` is the logistic function.
+where ``\sigma`` is the logistic function.
 This likelihood has the same properties as [softmax](https://en.wikipedia.org/wiki/Softmax_function).
 ---
 
 For the analytical version, the likelihood is augmented multiple times.
-More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670)
+More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670).
 """
 mutable struct LogisticSoftMaxLikelihood{T<:Real,A<:AbstractVector{T}} <:
                MultiClassLikelihood{T}
-    nClasses::Int
+    n_class::Int
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     Y::Vector{BitVector} #Mapping from instances to classes (one hot encoding)
@@ -116,30 +117,31 @@ end
 
 ## Local Updates ##
 function local_updates!(
+    local_vars,
     l::LogisticSoftMaxLikelihood,
     y,
     μ::NTuple{N,<:AbstractVector},
     Σ::NTuple{N,<:AbstractVector},
 ) where {N}
-    @. l.c = broadcast((Σ, μ) -> sqrt.(Σ + abs2.(μ)), Σ, μ)
+    @. local_vars.c = broadcast((Σ, μ) -> sqrt.(Σ + abs2.(μ)), Σ, μ)
     for _ in 1:2
         broadcast!(
             (β, c, μ, ψα) -> 0.5 / β * exp.(ψα) .* safe_expcosh.(-0.5 * μ, 0.5 * c),
-            l.γ,
-            Ref(l.β),
-            l.c,
+            local_vars.γ,
+            Ref(local_vars.β),
+            local_vars.c,
             μ,
             Ref(digamma.(l.α)),
-        )
-        l.α .= 1.0 .+ (l.γ...)
+        ) # Update γ
+        local_vars.α .= 1 .+ (local_vars.γ...)
     end
     broadcast!(
         (y, γ, c) -> 0.5 * (y + γ) ./ c .* tanh.(0.5 .* c),
-        l.θ, # target
+        local_vars.θ, # target
         y, # argument 1
-        l.γ, # argument 2
-        l.c, # argument 3
-    )
+        local_vars.γ, # argument 2
+        local_vars.c, # argument 3
+    ) # update θ
     return nothing
 end
 
@@ -152,39 +154,39 @@ end
 
 ## Global Gradient Section ##
 
-@inline function ∇E_μ(l::LogisticSoftMaxLikelihood, ::AOptimizer, y::AbstractVector)
-    return 0.5 .* (y .- l.γ)
+@inline function ∇E_μ(::LogisticSoftMaxLikelihood, ::AOptimizer, y::AbstractVector, state)
+    return 0.5 .* (y .- state.γ)
 end
-@inline ∇E_Σ(l::LogisticSoftMaxLikelihood, ::AOptimizer, ::AbstractVector) = 0.5 .* l.θ
+@inline ∇E_Σ(::LogisticSoftMaxLikelihood, ::AOptimizer, ::AbstractVector, state) = 0.5 .* state.θ
 
 ## ELBO Section ##
 function expec_loglikelihood(
-    l::LogisticSoftMaxLikelihood{T}, ::AnalyticVI, y, μ, Σ
+    ::LogisticSoftMaxLikelihood{T}, ::AnalyticVI, y, μ, Σ, state
 ) where {T}
     tot = -length(y) * logtwo
-    tot += -sum(sum(l.γ .+ y)) * logtwo
-    tot += 0.5 * sum(zip(l.θ, l.γ, y, μ, Σ)) do (θ, γ, y, μ, Σ)
+    tot += -sum(sum(state.γ .+ y)) * logtwo
+    tot += 0.5 * sum(zip(state.θ, state.γ, y, μ, Σ)) do (θ, γ, y, μ, Σ)
         dot(μ, (y - γ)) - dot(θ, abs2.(μ)) - dot(θ, Σ)
     end
     return tot
 end
 
-function AugmentedKL(l::LogisticSoftMaxLikelihood, y::AbstractVector)
-    return PolyaGammaKL(l, y) + PoissonKL(l) + GammaEntropy(l)
+function AugmentedKL(l::LogisticSoftMaxLikelihood, y::AbstractVector, state)
+    return PolyaGammaKL(l, y, state) + PoissonKL(l, state) + GammaEntropy(l, state)
 end
 
-function PolyaGammaKL(l::LogisticSoftMaxLikelihood, y)
-    return sum(broadcast(PolyaGammaKL, y .+ l.γ, l.c, l.θ))
+function PolyaGammaKL(::LogisticSoftMaxLikelihood, y, state)
+    return sum(broadcast(PolyaGammaKL, y .+ state.γ, state.c, state.θ))
 end
 
-function PoissonKL(l::LogisticSoftMaxLikelihood)
-    return sum(broadcast(PoissonKL, l.γ, Ref(l.α ./ l.β), Ref(digamma.(l.α) .- log.(l.β))))
+function PoissonKL(::LogisticSoftMaxLikelihood, state)
+    return sum(broadcast(PoissonKL, state.γ, Ref(state.α ./ state.β), Ref(digamma.(state.α) .- log.(state.β))))
 end
 
 ##  Compute the equivalent of KL divergence between an improper prior p(λ) (``1_{[0,\\infty]}``) and a variational Gamma distribution ##
-function GammaEntropy(l::LogisticSoftMaxLikelihood)
-    return -sum(l.α) + sum(log, first(l.β)) - sum(x -> first(logabsgamma(x)), l.α) -
-           dot(1.0 .- l.α, digamma.(l.α))
+function GammaEntropy(::LogisticSoftMaxLikelihood, state)
+    return -sum(state.α) + sum(log, first(state.β)) - sum(first ∘ logabsgamma, state.α) -
+           dot(1 .- state.α, digamma.(state.α))
 end
 
 ## Numerical Gradient Section ##

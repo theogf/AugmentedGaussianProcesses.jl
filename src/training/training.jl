@@ -12,20 +12,24 @@ Function to train the given GP `model`.
 """
 function train!(
     model::AbstractGPModel{T},
-    X,
+    X::AbstractArray,
     y,
     iterations::Int=100;
     callback=nothing,
     convergence=nothing,
     state=nothing,
-    obsdim,
+    obsdim=1,
 ) where {T}
     iterations > 0 || error("Number of iterations should be positive")
+    
     X, T = wrap_X(X, obsdim)
     y, n_latent, likelihood = check_data!(y, likelihood)
     data = wrap_data(X, y)
+    isstochastic(model) && 0 < batchsize(inference) < n_sample(data) || error("The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object")
+    
+    
     if verbose(model) > 0
-        @info "Starting training $model with $(n_samples(data)) samples, $(n_features(data)) features and $(n_latent) latent GP" *
+        @info "Starting training $model with $(n_sample(data)) samples, $(n_feature(data)) features and $(n_latent) latent GP" *
               (n_latent(model) > 1 ? "s" : "")
     end
     # model.evol_conv = [] # Array to check on the evolution of convergence
@@ -93,10 +97,17 @@ function train!(
     if verbose(model) > 0
         @info "Training ended after $(local_iter - 1) iterations. Total number of iterations $(nIter(model))"
     end
-    compute_kernel_matrices!(model, true) # Compute final version of the matrices for predictions
+    state = compute_kernel_matrices(model, state, true) # Compute final version of the matrices for predictions
     post_step!(model)
     set_trained!(model, true)
-    return nothing
+    return model, state
+end
+
+@traitfn function train!(model::TGP, iterations; callback=nothing,
+    convergence=nothing,
+    state=nothing,
+    ) where {TGP<:AbstractGPModel;IsFull{TGP}}
+    return train!(model, input(model), output(model), iterations; callback, convergence, state)
 end
 
 function update_parameters!(model::GP, state, x, y)
@@ -119,23 +130,23 @@ function update_parameters!(model::SVGP, state, x, y)
 end
 
 function update_parameters!(m::MOVGP, x, y, state)
-    state = compute_kernel_matrices(state, m, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = compute_kernel_matrices(m, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     state = update_A!(m)
-    state = variational_updates!(m, state)
+    state = variational_updates!(m, state, y)
     return nothing
 end
 
 function update_parameters!(m::MOSVGP, x, y, state)
-    state = compute_kernel_matrices(state, m, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = compute_kernel_matrices(m, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     update_A!(m)
-    state = variational_updates!(m, state)
+    state = variational_updates!(m, state, y)
     return state
 end
 
-function update_parameters!(m::VStP, state)
-    state = compute_kernel_matrices!(m, state) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    state = local_prior_updates!(m, input(m), state)
-    state = variational_updates!(m, state)
+function update_parameters!(m::VStP, x, y, state)
+    state = compute_kernel_matrices!(m, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = local_prior_updates!(m, x, state)
+    state = variational_updates!(m, state, y)
     return state
 end
 

@@ -60,7 +60,7 @@ function VStP(
 
     ν > 1 || error("ν should be bigger than 1")
 
-    nFeatures = nSamples(data)
+    n_feature = n_sample(data)
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
@@ -72,14 +72,8 @@ function VStP(
         mean = EmpiricalMean(mean)
     end
 
-    latentf = ntuple(_ -> TVarLatent(T, ν, nFeatures, kernel, mean, optimiser), nLatent)
+    latentf = ntuple(_ -> TVarLatent(T, ν, n_feature, kernel, mean, optimiser), nLatent)
 
-    likelihood = init_likelihood(likelihood, inference, nLatent, nSamples(data))
-    xview = view_x(data, 1:nSamples(data))
-    yview = view_y(likelihood, data, 1:nSamples(data))
-    inference = tuple_inference(
-        inference, nLatent, nSamples(data), nSamples(data), nSamples(data), xview, yview
-    )
     return VStP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
         data, latentf, likelihood, inference, verbose, atfrequency, false
     )
@@ -92,19 +86,20 @@ function Base.show(io::IO, model::VStP)
     )
 end
 
-function local_prior_updates!(model::VStP, X)
-    for gp in model.f
-        local_prior_updates!(gp, X)
+function local_prior_updates!(model::VStP, X, state)
+    kernel_matrices = state.kernel_matrices 
+    for (gp, k_mat) in zip(model.f, kernel_matrices)
+        local_prior_updates!(gp, X, k_mat.K)
     end
 end
 
-function local_prior_updates!(gp::TVarLatent, X)
+function local_prior_updates!(gp::TVarLatent, X, K)
     prior(gp).l² =
         0.5 * (
             prior(gp).ν +
             dim(gp) +
-            invquad(pr_cov(gp), mean(gp) - pr_mean(gp, X)) +
-            trace_ABt(inv(pr_cov(gp)), cov(gp))
+            invquad(K, mean(gp) - pr_mean(gp, X)) +
+            trace_ABt(inv(K), cov(gp))
         )
     return prior(gp).χ = (prior(gp).ν + dim(gp)) / (prior(gp).ν .+ prior(gp).l²)
 end

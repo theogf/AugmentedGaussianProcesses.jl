@@ -26,7 +26,7 @@ mutable struct GP{
     TData<:DataContainer,
 } <: AbstractGPModel{T,TLikelihood,TInference,1}
     data::TData
-    f::LatentGP{T} # Vector of latent GPs
+    f::LatentGP{T}
     likelihood::TLikelihood
     inference::TInference
     verbose::Int #Level of printing information

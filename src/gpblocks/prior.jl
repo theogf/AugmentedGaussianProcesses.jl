@@ -10,7 +10,6 @@ Distributions.cov(gp::AbstractGPPrior) = gp.K
 mutable struct GPPrior{T,K<:Kernel,Tmean<:PriorMean} <: AbstractGPPrior{T,K,Tmean}
     kernel::K
     μ₀::Tmean
-    K::Cholesky{T,Matrix{T}}
 end
 
 mutable struct TPrior{T,K<:Kernel,Tmean<:PriorMean} <: AbstractGPPrior{T,K,Tmean}

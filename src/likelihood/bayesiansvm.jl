@@ -1,30 +1,22 @@
-"""
+@doc raw"""
     BayesianSVM()
 
 The [Bayesian SVM](https://arxiv.org/abs/1707.05532) is a Bayesian interpretation of the classical SVM.
 ```math
-p(y|f) \\propto \\exp(2 \\max(1-yf, 0))
-````
+p(y|f) \propto \exp(2 \max(1-yf, 0))
+```
 
 ---
 
 For the analytic version of the likelihood, it is augmented via:
 
 ```math
-p(y|f, ω) = \\frac{1}{\\sqrt(2\\pi\\omega) \\exp(-\\frac{(1+\\omega-yf)^2}{2\\omega}))
+p(y|f, ω) = \frac{1}{\sqrt(2\pi\omega) \exp(-\frac{(1+\omega-yf)^2}{2\omega}))
 ```
 
-where ``ω ∼ 𝟙[0,∞)`` has an improper prior (his posterior is however has a valid distribution, a Generalized Inverse Gaussian). For reference [see this paper](http://ecmlpkdd2017.ijs.si/papers/paperID502.pdf)
+where ``ω \sim 1[0,\infty)`` has an improper prior (his posterior is however has a valid distribution, a Generalized Inverse Gaussian). For reference [see this paper](http://ecmlpkdd2017.ijs.si/papers/paperID502.pdf).
 """
-struct BayesianSVM{T<:Real,A<:AbstractVector{T}} <: ClassificationLikelihood{T}
-    ω::A
-    θ::A
-    function BayesianSVM{T}() where {T<:Real}
-        return new{T,Vector{T}}()
-    end
-    function BayesianSVM{T}(ω::A, θ::A) where {T<:Real,A<:AbstractVector{T}}
-        return new{T,A}(ω, θ)
-    end
+struct BayesianSVM{T<:Real} <: ClassificationLikelihood{T}
 end
 
 function BayesianSVM()
@@ -71,39 +63,44 @@ function compute_proba(
     return pred, sig_pred
 end
 
-## Updates
+## Local Updates ##
+function init_local_vars(state, ::BayesianSVM{T}, batchsize::Int)
+    return merge(state, (; local_vars=(; ω=rand(T, batchsize), θ=zeros(T, batchsize))))
+end
 
 function local_updates!(
-    l::BayesianSVM{T}, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
+    local_vars, ::BayesianSVM{T}, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
 ) where {T}
-    @. l.ω = abs2(one(T) - y * μ) + diagΣ
-    @. l.θ = inv(sqrt(l.ω))
+    @. local_vars.ω = abs2(one(T) - y * μ) + diagΣ
+    @. local_vars.θ = inv(sqrt(l.ω))
+    return local_vars
 end
 
-@inline function ∇E_μ(l::BayesianSVM{T}, ::AOptimizer, y::AbstractVector) where {T}
-    return (y .* (l.θ .+ one(T)),)
+@inline function ∇E_μ(::BayesianSVM{T}, ::AOptimizer, y::AbstractVector, state) where {T}
+    return (y .* (state.θ .+ one(T)),)
 end
 
-@inline ∇E_Σ(l::BayesianSVM{T}, ::AOptimizer, ::AbstractVector) where {T} = (0.5 .* l.θ,)
+@inline ∇E_Σ(::BayesianSVM{T}, ::AOptimizer, ::AbstractVector, state) where {T} = (0.5 .* state.θ,)
 
-## Lower bounds
+## ELBO
 
 function expec_loglikelihood(
-    l::BayesianSVM{T},
+    ::BayesianSVM{T},
     ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
+    state,
 ) where {T}
     tot = -(0.5 * length(y) * logtwo)
     tot += dot(μ, y)
-    tot += -0.5 * dot(l.θ, diag_cov) + dot(l.θ, abs2.(one(T) .- y .* μ))
+    tot += -0.5 * dot(state.θ, diag_cov) + dot(state.θ, abs2.(one(T) .- y .* μ))
     return tot
 end
 
-AugmentedKL(l::BayesianSVM, ::AbstractVector) = Zygote.@ignore(GIGEntropy(l))
+AugmentedKL(l::BayesianSVM, ::AbstractVector, state) = Zygote.@ignore(GIGEntropy(l, state))
 
-function GIGEntropy(l::BayesianSVM)
-    return 0.5 * sum(log.(l.ω)) + sum(log.(2.0 * besselk.(0.5, sqrt.(l.ω)))) -
-           0.5 * sum(sqrt.(l.ω))
+function GIGEntropy(::BayesianSVM, state)
+    return 0.5 * sum(log.(state.ω)) + sum(log.(2.0 * besselk.(0.5, sqrt.(state.ω)))) -
+           0.5 * sum(sqrt.(state.ω))
 end

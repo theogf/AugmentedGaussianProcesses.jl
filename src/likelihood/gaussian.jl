@@ -1,11 +1,11 @@
 """
-    GaussianLikelihood(σ²::T=1e-3) # σ² is the **variance**
+    GaussianLikelihood(σ²::T=1e-3) # σ² is the variance of the noise
 
 Gaussian noise :
 ```math
     p(y|f) = N(y|f,σ²)
 ```
-There is no augmentation needed for this likelihood which is already conjugate to a Gaussian prior
+There is no augmentation needed for this likelihood which is already conjugate to a Gaussian prior.
 """
 struct GaussianLikelihood{T<:Real,O,A<:AbstractVector{T}} <: RegressionLikelihood{T}
     σ²::A

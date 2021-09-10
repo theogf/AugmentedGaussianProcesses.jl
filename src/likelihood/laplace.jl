@@ -11,7 +11,7 @@ For the analytical solution, it is augmented via:
 ```math
 p(y|f,ω) = N(y|f,ω⁻¹)
 ```
-where ``ω \sim \text{Exp}(ω | 1/(2 β^2))``, and `\text{Exp}` is the [Exponential distribution](https://en.wikipedia.org/wiki/Exponential_distribution)
+where ``ω \sim \text{Exp}(ω | 1/(2 β^2))``, and ``\text{Exp}`` is the [Exponential distribution](https://en.wikipedia.org/wiki/Exponential_distribution)
 We use the variational distribution ``q(ω) = GIG(ω|a,b,p)``
 """
 struct LaplaceLikelihood{T<:Real} <: RegressionLikelihood{T}

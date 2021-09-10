@@ -9,9 +9,9 @@ struct LatentGP{T,Tpr<:GPPrior,Tpo<:Posterior{T},O,Tstate} <: AbstractLatent{T,T
     opt::O
 end
 
-function LatentGP(T::DataType, dim::Int, kernel::Kernel, mean::PriorMean, opt)
+function LatentGP(T::DataType, kernel::Kernel, mean::PriorMean, opt)
     return LatentGP(
-        GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I, dim, dim))),
+        GPPrior(deepcopy(kernel), deepcopy(mean)),
         Posterior(dim, zeros(T, dim), cholesky(Matrix{T}(I(dim)))),
         deepcopy(opt),
     )
@@ -33,7 +33,7 @@ end
 
 function VarLatent(T::DataType, dim::Int, kernel::Kernel, mean::PriorMean, opt)
     return VarLatent(
-        GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I, dim, dim))),
+        GPPrior(deepcopy(kernel), deepcopy(mean)),
         VarPosterior{T}(dim),
         deepcopy(opt),
     )
@@ -49,30 +49,23 @@ mutable struct SparseVarLatent{
     prior::Tpr
     post::Tpo
     Z::TZ
-    Knm::Matrix{T}
-    κ::Matrix{T}
-    K̃::Vector{T}
     opt::Topt
     Zopt::TZopt
 end
 
 function SparseVarLatent(
     T::DataType,
-    dim::Int,
-    S::Int,
     Z::AbstractVector,
     kernel::Kernel,
     mean::PriorMean,
     opt=nothing,
     Zopt=nothing,
 )
+    dim = length(Z)
     return SparseVarLatent(
-        GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I(dim)))),
+        GPPrior(deepcopy(kernel), deepcopy(mean)),
         VarPosterior{T}(dim),
         deepcopy(Z),
-        Matrix{T}(undef, S, dim),
-        Matrix{T}(undef, S, dim),
-        Vector{T}(undef, S),
         deepcopy(opt),
         deepcopy(Zopt),
     )

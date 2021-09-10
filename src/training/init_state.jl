@@ -1,6 +1,5 @@
 function init_state(model::AbstractGPModel)
-    state = (;)
-    state = init_local_vars(state, model)
+    state = init_local_vars((;), model)
     merge(state, (; local_vars))
     if inference(model) isa VariationalInference
         vi_opt_state = init_vi_opt_state(model)
