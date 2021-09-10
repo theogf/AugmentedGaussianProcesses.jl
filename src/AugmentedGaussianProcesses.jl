@@ -7,7 +7,7 @@ module AugmentedGaussianProcesses
 
 const AGP = AugmentedGaussianProcesses
 export AGP
-export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP, OnlineSVGP # All models
+export AbstractGPModel, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP, OnlineSVGP # All models
 export AbstractLikelihood,
     RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood, EventLikelihood # All categories of likelihoods
 export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood # Regression Likelihoods
@@ -30,7 +30,7 @@ export @augmodel
 #General modules
 using Reexport
 @reexport using KernelFunctions
-@reexport using Flux.Optimise
+@reexport using Optimisers
 @reexport using InducingPoints
 
 using AbstractMCMC
@@ -54,7 +54,6 @@ using Distributions:
     MvNormal,
     Gamma
 using FastGaussQuadrature: gausshermite
-using Flux: params, destructure
 using ForwardDiff
 using KernelFunctions: ColVecs, RowVecs
 using LinearAlgebra

@@ -23,7 +23,7 @@ mutable struct VGP{
     TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
-} <: AbstractGP{T,TLikelihood,TInference,N}
+} <: AbstractGPModel{T,TLikelihood,TInference,N}
     data::TData # Data container
     nFeatures::Vector{Int}
     f::NTuple{N,VarLatent{T}} # Vector of latent GPs

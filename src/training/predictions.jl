@@ -3,7 +3,7 @@
 const pred_nodes, pred_weights = (x -> (x[1] .* sqrt2, x[2] ./ sqrtπ))(gausshermite(100))
 
 """
-    predict_f(m::AbstractGP, X_test, cov::Bool=true, diag::Bool=true)
+    predict_f(m::AbstractGPModel, X_test, cov::Bool=true, diag::Bool=true)
 
 Compute the mean of the predicted latent distribution of `f` on `X_test` for the variational GP `model`
 
@@ -32,7 +32,7 @@ end
 
 @traitfn function _predict_f(
     m::TGP, X_test::AbstractVector; cov::Bool=true, diag::Bool=true
-) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
+) where {T,TGP<:AbstractGPModel{T};!IsMultiOutput{TGP}}
     k_star = kernelmatrix.(kernels(m), [X_test], Zviews(m))
     μf = k_star .* (pr_covs(m) .\ means(m))
     if !cov
@@ -54,7 +54,7 @@ end
 
 @traitfn function _predict_f(
     m::TGP, X_test::AbstractVector; cov::Bool=true, diag::Bool=true
-) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     k_star = kernelmatrix(kernels(m), [X_test], Zviews(m))
     μf = k_star .* (pr_covs(m) .\ means(m))
 
@@ -113,13 +113,13 @@ end
 
 ## Wrapper for vector input ##
 function predict_f(
-    model::AbstractGP, X_test::AbstractVector{<:Real}; cov::Bool=false, diag::Bool=true
+    model::AbstractGPModel, X_test::AbstractVector{<:Real}; cov::Bool=false, diag::Bool=true
 )
     return predict_f(model, reshape(X_test, :, 1); cov=cov, diag=diag)
 end
 
 function predict_f(
-    model::AbstractGP,
+    model::AbstractGPModel,
     X_test::AbstractMatrix;
     cov::Bool=false,
     diag::Bool=true,
@@ -144,17 +144,17 @@ end
 end
 
 ## Wrapper to predict vectors ##
-function predict_y(model::AbstractGP, X_test::AbstractVector{<:Real})
+function predict_y(model::AbstractGPModel, X_test::AbstractVector{<:Real})
     return predict_y(model, reshape(X_test, :, 1))
 end
 
-function predict_y(model::AbstractGP, X_test::AbstractMatrix; obsdim::Int=1)
+function predict_y(model::AbstractGPModel, X_test::AbstractMatrix; obsdim::Int=1)
     return predict_y(model, KernelFunctions.vec_of_vecs(X_test; obsdim=obsdim))
 end
 
 """
-    predict_y(model::AbstractGP, X_test::AbstractVector)
-    predict_y(model::AbstractGP, X_test::AbstractMatrix; obsdim = 1)
+    predict_y(model::AbstractGPModel, X_test::AbstractVector)
+    predict_y(model::AbstractGPModel, X_test::AbstractMatrix; obsdim = 1)
 
 Return
     - the predictive mean of `X_test` for regression
@@ -164,13 +164,13 @@ Return
 """
 @traitfn function predict_y(
     model::TGP, X_test::AbstractVector
-) where {TGP <: AbstractGP; !IsMultiOutput{TGP}}
+) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
     return predict_y(likelihood(model), first(_predict_f(model, X_test; cov=false)))
 end
 
 @traitfn function predict_y(
     model::TGP, X_test::AbstractVector
-) where {TGP <: AbstractGP; IsMultiOutput{TGP}}
+) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
     return predict_y.(likelihood(model), _predict_f(model, X_test; cov=false))
 end
 
@@ -191,17 +191,17 @@ function predict_y(l::EventLikelihood, μ::AbstractVector{<:AbstractVector})
 end
 
 ## Wrapper to return proba on vectors ##
-function proba_y(model::AbstractGP, X_test::AbstractVector{<:Real})
+function proba_y(model::AbstractGPModel, X_test::AbstractVector{<:Real})
     return proba_y(model, reshape(X_test, :, 1))
 end
 
-function proba_y(model::AbstractGP, X_test::AbstractMatrix; obsdim::Int=1)
+function proba_y(model::AbstractGPModel, X_test::AbstractMatrix; obsdim::Int=1)
     return proba_y(model, KernelFunctions.vec_of_vecs(X_test; obsdim=obsdim))
 end
 
 """
-    proba_y(model::AbstractGP, X_test::AbstractVector)
-    proba_y(model::AbstractGP, X_test::AbstractMatrix; obsdim = 1)
+    proba_y(model::AbstractGPModel, X_test::AbstractVector)
+    proba_y(model::AbstractGPModel, X_test::AbstractMatrix; obsdim = 1)
 
 Return the probability distribution p(y_test|model,X_test) :
 
@@ -212,18 +212,18 @@ Return the probability distribution p(y_test|model,X_test) :
 
 @traitfn function proba_y(
     model::TGP, X_test::AbstractVector
-) where {TGP <: AbstractGP; !IsMultiOutput{TGP}}
+) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
     μ_f, Σ_f = _predict_f(model, X_test; cov=true)
     return pred = compute_proba(model.likelihood, μ_f, Σ_f)
 end
 
 @traitfn function proba_y(
     model::TGP, X_test::AbstractVector
-) where {TGP <: AbstractGP; IsMultiOutput{TGP}}
+) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
     return proba_multi_y(model, X_test)
 end
 
-function proba_multi_y(model::AbstractGP, X_test::AbstractVector)
+function proba_multi_y(model::AbstractGPModel, X_test::AbstractVector)
     μ_f, Σ_f = _predict_f(model, X_test; cov=true)
     return preds = compute_proba.(likelihood(model), μ_f, Σ_f)
 end

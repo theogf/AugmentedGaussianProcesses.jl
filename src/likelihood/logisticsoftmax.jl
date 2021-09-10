@@ -190,7 +190,7 @@ end
 ## Numerical Gradient Section ##
 
 function grad_samples(
-    model::AbstractGP{T,<:LogisticSoftMaxLikelihood,<:NumericalVI},
+    model::AbstractGPModel{T,<:LogisticSoftMaxLikelihood,<:NumericalVI},
     samples::AbstractMatrix{T},
     index::Int,
 ) where {T}
@@ -214,7 +214,7 @@ function grad_samples(
 end
 
 function log_like_samples(
-    model::AbstractGP{T,<:LogisticSoftMaxLikelihood},
+    model::AbstractGPModel{T,<:LogisticSoftMaxLikelihood},
     samples::AbstractMatrix,
     index::Integer,
 ) where {T}

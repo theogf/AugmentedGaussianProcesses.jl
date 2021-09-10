@@ -23,7 +23,7 @@ mutable struct MCGP{
     TInference<:AbstractInference{T},
     TData<:AbstractDataContainer,
     N,
-} <: AbstractGP{T,TLikelihood,TInference,N}
+} <: AbstractGPModel{T,TLikelihood,TInference,N}
     data::TData
     f::NTuple{N,SampledLatent{T}} # Vector of latent GPs
     likelihood::TLikelihood

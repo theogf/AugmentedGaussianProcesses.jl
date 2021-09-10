@@ -2,7 +2,7 @@ include("autotuning_utils.jl")
 include("zygote_rules.jl")
 include("forwarddiff_rules.jl")
 
-function update_hyperparameters!(m::GP)
+function update_hyperparameters!(m::GP, state)
     μ₀ = pr_mean(m.f) # Get prior means
     k = kernel(m.f) # Get kernels
     if !isnothing(opt(m.f))
@@ -31,12 +31,12 @@ end
 
 # @traitfn function update_hyperparameters!(
 #     m::TGP,
-# ) where {TGP <: AbstractGP; IsFull{TGP}}
+# ) where {TGP <: AbstractGPModel; IsFull{TGP}}
 #     update_hyperparameters!.(m.f, [xview(m)])
 #     setHPupdated!(m.inference, true)
 # end
 
-@traitfn function update_hyperparameters!(m::TGP) where {TGP <: AbstractGP; IsFull{TGP}}
+@traitfn function update_hyperparameters!(m::TGP, state) where {TGP <: AbstractGPModel; IsFull{TGP}}
     if any((!) ∘ isnothing ∘ opt, m.f) # Check there is a least one optimiser
         μ₀ = pr_means(m) # Get prior means
         ks = kernels(m) # Get kernels
@@ -65,7 +65,7 @@ end
     return nothing
 end
 
-@traitfn function update_hyperparameters!(m::TGP) where {TGP <: AbstractGP; !IsFull{TGP}}
+@traitfn function update_hyperparameters!(m::TGP, state) where {TGP <: AbstractGPModel; !IsFull{TGP}}
     # Check that here is least one optimiser
     if any((!) ∘ isnothing ∘ opt, m.f) || any((!) ∘ isnothing ∘ Zopt, m.f)
         μ₀ = pr_means(m)

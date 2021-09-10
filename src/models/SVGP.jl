@@ -25,7 +25,7 @@ mutable struct SVGP{
     TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
-} <: AbstractGP{T,TLikelihood,TInference,N}
+} <: AbstractGPModel{T,TLikelihood,TInference,N}
     data::TData
     nFeatures::Vector{Int} # Number of features of each latent
     f::NTuple{N,SparseVarLatent{T}}

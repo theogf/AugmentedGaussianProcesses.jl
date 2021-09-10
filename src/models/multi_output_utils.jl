@@ -1,5 +1,5 @@
 ##
-@traitfn function mean_f(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+@traitfn function mean_f(model::TGP) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     μ_q = mean_f.(model.f)
     μ_f = []
     for i in 1:(model.nTask)
@@ -13,7 +13,7 @@
 end
 
 ##
-@traitfn function var_f(model::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+@traitfn function var_f(model::TGP) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     Σ_q = var_f.(model.f)
     Σ_f = []
     for i in 1:(model.nTask)
@@ -27,7 +27,7 @@ end
 end
 
 ## return the linear sum of the expectation gradient given μ ##
-@traitfn function ∇E_μ(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+@traitfn function ∇E_μ(m::TGP) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     ∇ = [zeros(T, nMinibatch(m.inference)) for i in 1:nLatent(m)]
     ∇Eμs = ∇E_μ.(likelihood(m), Ref(opt_type(m.inference)), yview(m))
     ∇EΣs = ∇E_Σ.(likelihood(m), Ref(opt_type(m.inference)), yview(m))
@@ -48,7 +48,7 @@ end
 end
 
 ## return the linear sum of the expectation gradient given diag(Σ) ##
-@traitfn function ∇E_Σ(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+@traitfn function ∇E_Σ(m::TGP) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     ∇ = [zeros(T, nMinibatch(m.inference)) for i in 1:(m.nLatent)]
     ∇Es = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), yview(m))
     for t in 1:(m.nTask)
@@ -62,7 +62,7 @@ end
 end
 
 ##
-@traitfn function update_A!(m::TGP) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+@traitfn function update_A!(m::TGP) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     if !isnothing(m.A_opt)
         μ_f = mean_f.(m.f) # κμ || μ
         Σ_f = var_f.(m.f) #Diag(K̃ + κΣκ) || Diag(Σ)

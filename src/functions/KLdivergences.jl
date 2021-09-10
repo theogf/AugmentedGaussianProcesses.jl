@@ -1,7 +1,7 @@
 """
     KL Divergence between the GP Prior and the variational distribution
 """
-GaussianKL(model::AbstractGP) = mapreduce(GaussianKL, +, model.f, Zviews(model))
+GaussianKL(model::AbstractGPModel) = mapreduce(GaussianKL, +, model.f, Zviews(model))
 
 function GaussianKL(gp::AbstractLatent, X::AbstractVector)
     return GaussianKL(mean(gp), pr_mean(gp, X), cov(gp), pr_cov(gp))
@@ -27,7 +27,7 @@ function GaussianKL(
     return 0.5 * (logdet(K) - logdet(Σ) + tr(K \ Σ) + dot(μ - μ₀, K \ (μ - μ₀)) - length(μ))
 end
 
-extraKL(::AbstractGP{T}) where {T} = zero(T)
+extraKL(::AbstractGPModel{T}) where {T} = zero(T)
 
 """
     extraKL(model::OnlineSVGP)

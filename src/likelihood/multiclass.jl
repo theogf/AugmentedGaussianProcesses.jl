@@ -87,7 +87,7 @@ function compute_proba(
     return NamedTuple{Tuple(Symbol.(l.class_mapping))}(eachcol(pred))
 end
 
-function expec_loglike(model::AbstractGP{T,<:MultiClassLikelihood,<:NumericalVI}) where {T}
+function expec_loglike(model::AbstractGPModel{T,<:MultiClassLikelihood,<:NumericalVI}) where {T}
     return compute_log_expectations(model)
 end
 

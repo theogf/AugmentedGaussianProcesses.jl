@@ -166,7 +166,7 @@ function apply_quad(y::Real, μ::Real, σ²::Real, i::QuadratureVI, l::AbstractL
     # return mapreduce((w, x) -> w * Distributions.loglikelihood(l, y, x), +, i.weights, xs)# loglikelihood.(l, y, x))
 end
 
-function grad_expectations!(m::AbstractGP{T,L,<:QuadratureVI}) where {T,L}
+function grad_expectations!(m::AbstractGPModel{T,L,<:QuadratureVI}) where {T,L}
     y = yview(m)
     for (gp, opt) in zip(m.f, get_opt(inference(m)))
         μ = mean_f(gp)

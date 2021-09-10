@@ -98,7 +98,7 @@ end
 ∇E_μ(::AbstractLikelihood, i::NVIOptimizer, ::AbstractVector) = (-i.ν,)
 ∇E_Σ(::AbstractLikelihood, i::NVIOptimizer, ::AbstractVector) = (0.5 .* i.λ,)
 
-function variational_updates!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
+function variational_updates!(model::AbstractGPModel{T,L,<:NumericalVI}) where {T,L}
     grad_expectations!(model)
     classical_gradient!.(
         ∇E_μ(likelihood(model), model.inference.vi_opt[1], []),
@@ -146,7 +146,7 @@ function natural_gradient!(gp::AbstractLatent, opt::NVIOptimizer)
     return opt.∇η₁ .= pr_cov(gp) * opt.∇η₁
 end
 
-function global_update!(model::AbstractGP{T,L,<:NumericalVI}) where {T,L}
+function global_update!(model::AbstractGPModel{T,L,<:NumericalVI}) where {T,L}
     for (gp, opt) in zip(model.f, model.inference.vi_opt)
         Δ1 = Optimise.apply!(opt.optimiser, mean(gp), opt.∇η₁)
         Δ2 = Optimise.apply!(opt.optimiser, cov(gp).data, opt.∇η₂)
@@ -176,7 +176,7 @@ function expec_loglikelihood(
     return expec_loglikelihood(l, i, y, first(μ), first(Σ))
 end
 
-function ELBO(m::AbstractGP{T,L,<:NumericalVI}) where {T,L}
+function ELBO(m::AbstractGPModel{T,L,<:NumericalVI}) where {T,L}
     tot = zero(T)
     tot +=
         getρ(m.inference) *

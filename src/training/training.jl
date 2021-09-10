@@ -1,9 +1,9 @@
 """
-    train!(model::AbstractGP; iterations::Integer=100, callback, convergence)
+    train!(model::AbstractGPModel; iterations::Integer=100, callback, convergence)
 
 Function to train the given GP `model`.
 ## Arguments
-- `model` : AbstractGP model with either an `Analytic`, `AnalyticVI` or `NumericalVI` type of inference
+- `model` : AbstractGPModel model with either an `Analytic`, `AnalyticVI` or `NumericalVI` type of inference
 
 ## Keyword Arguments
 - `iterations::Int` : Number of iterations (not necessarily epochs!)for training
@@ -11,7 +11,7 @@ Function to train the given GP `model`.
 - `convergence::Function=nothing` : Convergence function to be called every iteration, should return a scalar and take the same arguments as `callback`
 """
 function train!(
-    model::AbstractGP{T},
+    model::AbstractGPModel{T},
     X,
     y,
     iterations::Int=100;
@@ -149,7 +149,7 @@ end
 
 @traitfn function compute_kernel_matrices(
     m::TGP, state, x, update::Bool=false
-) where {T,TGP<:AbstractGP{T};IsFull{TGP}}
+) where {T,TGP<:AbstractGPModel{T};IsFull{TGP}}
     if isHPupdated(inference(m)) || update
         kernel_matrices = map(getf(m), Ref(x)) do gp, x
             (; K=compute_K(gp, x, T(jitt)))
@@ -163,15 +163,14 @@ end
 
 @traitfn function compute_kernel_matrices(
     m::TGP, state, x, update::Bool=false
-) where {T,TGP<:AbstractGP{T};!IsFull{TGP}}
-    kernel_matrices = state.kernel_matrices
+) where {T,TGP<:AbstractGPModel{T};!IsFull{TGP}}
     kernel_matrices = if isHPupdated(inference(m)) || update
         Ks = map(getf(m)) do gp
             (; K=compute_K(gp, T(jitt)))
         end
         merge.(kernel_matrices, Ks)
     else
-        kernel_matrices
+        state.kernel_matrices
     end
     #If change of hyperparameters or if stochatic
     kernel_matrices = if isHPupdated(inference(m)) || isStochastic(inference(m)) || update

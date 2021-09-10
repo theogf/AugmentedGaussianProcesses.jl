@@ -27,7 +27,7 @@ scatter(X, Y; lab="")
 
 Ms = [4, 8, 16, 32, 64];
 # Create an empty array of GPs
-models = Vector{AbstractGP}(undef, length(Ms) + 1);
+models = Vector{AbstractGPModel}(undef, length(Ms) + 1);
 # Chose a kernel
 kernel = SqExponentialKernel();#  + PeriodicKernel()
 # And Run sparse classification with an increasing number of inducing points
@@ -123,7 +123,7 @@ Plots.plot(
 likelihoods = [
     StudentTLikelihood(3.0), LaplaceLikelihood(3.0), HeteroscedasticLikelihood(1.0)
 ]
-ngmodels = Vector{AbstractGP}(undef, length(likelihoods) + 1)
+ngmodels = Vector{AbstractGPModel}(undef, length(likelihoods) + 1)
 for (i, l) in enumerate(likelihoods)
     @info "Training with the $(l)" # We need to use VGP
     m = VGP(

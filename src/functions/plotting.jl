@@ -1,7 +1,7 @@
 # using AbstractPlotting
 using RecipesBase
 
-@recipe function f(gp::AbstractGP, x::AbstractVector; showX=false, nSigma=2.0)
+@recipe function f(gp::AbstractGPModel, x::AbstractVector; showX=false, nSigma=2.0)
     showX isa Bool || error("showX should be a boolean")
     nSigma isa Real || error("nSigma should be a Real")
     X = reshape(x, :, 1)

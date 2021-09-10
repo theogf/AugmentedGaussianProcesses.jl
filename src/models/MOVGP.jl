@@ -26,7 +26,7 @@ mutable struct MOVGP{
     TData<:AbstractDataContainer,
     N,
     Q,
-} <: AbstractGP{T,TLikelihood,TInference,N}
+} <: AbstractGPModel{T,TLikelihood,TInference,N}
     data::TData
     nf_per_task::Vector{Int64}
     f::NTuple{Q,VarLatent{T}}

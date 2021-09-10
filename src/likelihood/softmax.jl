@@ -88,7 +88,7 @@ function sample_local!(model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling}) where 
 end
 
 function grad_samples(
-    model::AbstractGP{T,<:SoftMaxLikelihood}, samples::AbstractMatrix{T}, index::Integer
+    model::AbstractGPModel{T,<:SoftMaxLikelihood}, samples::AbstractMatrix{T}, index::Integer
 ) where {T}
     class = model.likelihood.y_class[index]
     grad_μ = zeros(T, nLatent(model))
@@ -110,7 +110,7 @@ function grad_samples(
 end
 
 function log_like_samples(
-    model::AbstractGP{T,<:SoftMaxLikelihood}, samples::AbstractMatrix, index::Integer
+    model::AbstractGPModel{T,<:SoftMaxLikelihood}, samples::AbstractMatrix, index::Integer
 ) where {T}
     class = model.likelihood.y_class[index]
     nSamples = size(samples, 1)

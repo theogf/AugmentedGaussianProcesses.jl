@@ -4,7 +4,7 @@ mutable struct OnlineSVGP{
     TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
-} <: AbstractGP{T,TLikelihood,TInference,N}
+} <: AbstractGPModel{T,TLikelihood,TInference,N}
     data::TData
     f::NTuple{N,OnlineVarLatent{T}}
     likelihood::TLikelihood

@@ -98,7 +98,7 @@ function local_updates!(
 end
 
 function variational_updates!(
-    m::AbstractGP{T,<:HeteroscedasticLikelihood,<:AnalyticVI}
+    m::AbstractGPModel{T,<:HeteroscedasticLikelihood,<:AnalyticVI}
 ) where {T}
     local_updates!(likelihood(m), yview(m), mean_f(m), var_f(m))
     natural_gradient!(
@@ -143,7 +143,7 @@ end
 end
 
 function proba_y(
-    model::AbstractGP{T,HeteroscedasticLikelihood{T},AnalyticVI{T}},
+    model::AbstractGPModel{T,HeteroscedasticLikelihood{T},AnalyticVI{T}},
     X_test::AbstractMatrix{T},
 ) where {T<:Real}
     (μf, σ²f), (μg, σ²g) = predict_f(model, X_test; cov=true)

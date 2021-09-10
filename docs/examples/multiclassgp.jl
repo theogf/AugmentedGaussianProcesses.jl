@@ -48,7 +48,7 @@ plot([plot_data(generate_mixture_data(σ)..., σ) for σ in σs]...)
 
 # ## Model training
 # ### Run sparse multiclass classification with different level of noise
-models = Vector{AbstractGP}(undef, length(σs))
+models = Vector{AbstractGPModel}(undef, length(σs))
 kernel = SqExponentialKernel()
 num_inducing = 50
 for (i, σ) in enumerate(σs)

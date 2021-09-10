@@ -28,7 +28,7 @@ mutable struct MOSVGP{
     TData<:AbstractDataContainer,
     N,
     Q,
-} <: AbstractGP{T,TLikelihood,TInference,N}
+} <: AbstractGPModel{T,TLikelihood,TInference,N}
     data::TData
     nFeatures::Vector{Int64} # Number of features of the GP (equal to number of points)
     nf_per_task::Vector{Int64}

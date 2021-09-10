@@ -24,7 +24,7 @@ mutable struct GP{
     TLikelihood<:AbstractLikelihood,
     TInference<:AbstractInference,
     TData<:DataContainer,
-} <: AbstractGP{T,TLikelihood,TInference,1}
+} <: AbstractGPModel{T,TLikelihood,TInference,1}
     data::TData
     f::LatentGP{T} # Vector of latent GPs
     likelihood::TLikelihood

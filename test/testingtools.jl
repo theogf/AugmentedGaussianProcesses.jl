@@ -30,7 +30,7 @@ function tests(model1::OnlineSVGP, model2, X, f, y, problem)
     @test all(proba_y(model2, X)[2] .> 0)
 end
 
-function tests(model1::AbstractGP{T,<:BayesianSVM}, model2, X, f, y, problem) where {T}
+function tests(model1::AbstractGPModel{T,<:BayesianSVM}, model2, X, f, y, problem) where {T}
     train!(model1, 1)
     L = AGP.objective(model1)
     train!(model1, 5)
@@ -323,7 +323,7 @@ function tests_likelihood(
 end
 
 function testconv(
-    model::AbstractGP,
+    model::AbstractGPModel,
     problem_type::String,
     X::AbstractArray,
     f::AbstractArray,

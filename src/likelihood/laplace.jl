@@ -1,9 +1,9 @@
-"""
+@doc raw"""
     LaplaceLikelihood(β::T=1.0)  #  Laplace likelihood with scale β
 
 Laplace likelihood for regression:
 ```math
-1/(2β) exp(-|y-f|/β)
+\frac{1}{2\beta} \exp(-\frac{|y-f|}{β})
 ```
 see [wiki page](https://en.wikipedia.org/wiki/Laplace_distribution)
 ---
@@ -11,15 +11,15 @@ For the analytical solution, it is augmented via:
 ```math
 p(y|f,ω) = N(y|f,ω⁻¹)
 ```
-where ``ω ~ Exp(ω | 1/(2 β^2))``, and `Exp` is the [Exponential distribution](https://en.wikipedia.org/wiki/Exponential_distribution)
-We use the variational distribution ``q(ω) = GIG(ω | a,b,p)``
+where ``ω \sim \text{Exp}(ω | 1/(2 β^2))``, and `\text{Exp}` is the [Exponential distribution](https://en.wikipedia.org/wiki/Exponential_distribution)
+We use the variational distribution ``q(ω) = GIG(ω|a,b,p)``
 """
 struct LaplaceLikelihood{T<:Real} <: RegressionLikelihood{T}
     β::T
     a::T
     p::T
     function LaplaceLikelihood{T}(β::T) where {T<:Real}
-        return new{T,Vector{T}}(β, β^-2, 0.5)
+        return new{T}(β, β^-2, 0.5)
     end
 end
 
@@ -54,7 +54,7 @@ end
 ## Local Updates ##
 # b : Variational parameter b of GIG
 # θ : Expected value of ω
-function init_local_vars_state(state, ::LaplaceLikelihood{T}, batchsize::Int)
+function init_local_vars(state, ::LaplaceLikelihood{T}, batchsize::Int)
     return merge(state, (; local_vars=(; b=rand(T, batchsize), θ=zeros(T, batchsize))))
 end
 
@@ -89,7 +89,7 @@ end
 
 ## ELBO ##
 function expec_loglikelihood(
-    l::LaplaceLikelihood{T},
+    ::LaplaceLikelihood{T},
     ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,

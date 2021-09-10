@@ -24,7 +24,7 @@ mutable struct VStP{
     TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
-} <: AbstractGP{T,TLikelihood,TInference,N}
+} <: AbstractGPModel{T,TLikelihood,TInference,N}
     data::TData
     f::NTuple{N,TVarLatent{T}}
     likelihood::TLikelihood

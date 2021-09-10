@@ -206,7 +206,7 @@ Distributions.var(gp::AbstractLatent) = var(posterior(gp))
 nat1(gp::AbstractVarLatent) = nat1(posterior(gp))
 nat2(gp::AbstractVarLatent) = nat2(posterior(gp))
 
-mean_f(model::AbstractGP, kernel_matrices) = mean_f.(model.f, kernel_matrices)
+mean_f(model::AbstractGPModel, kernel_matrices) = mean_f.(model.f, kernel_matrices)
 
 @traitfn mean_f(gp::T, ::Any) where {T <: AbstractLatent; IsFull{T}} = mean_f(mean(gp))
 @traitfn function mean_f(gp::T, kernel_matrices) where {T <: AbstractLatent; !IsFull{T}}
@@ -216,7 +216,7 @@ end
 mean_f(μ::AbstractVector) = μ
 mean_f(μ::AbstractVector, κ::AbstractMatrix) = κ * μ
 
-var_f(model::AbstractGP, kernel_matrices) = var_f.(model.f, kernel_matrices)
+var_f(model::AbstractGPModel, kernel_matrices) = var_f.(model.f, kernel_matrices)
 
 @traitfn var_f(gp::T, ::Any) where {T <: AbstractLatent; IsFull{T}} = var_f(cov(gp))
 @traitfn function var_f(gp::T, kernela_matrices) where {T <: AbstractLatent; !IsFull{T}}

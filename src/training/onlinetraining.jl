@@ -1,6 +1,6 @@
 """
-    train!(model::AbstractGP, X::AbstractMatrix, y::AbstractVector;obsdim = 1, iterations::Int=10,callback=nothing,conv=0)
-    train!(model::AbstractGP, X::AbstractVector, y::AbstractVector;iterations::Int=20,callback=nothing,conv=0)
+    train!(model::AbstractGPModel, X::AbstractMatrix, y::AbstractVector;obsdim = 1, iterations::Int=10,callback=nothing,conv=0)
+    train!(model::AbstractGPModel, X::AbstractVector, y::AbstractVector;iterations::Int=20,callback=nothing,conv=0)
 
 Function to train the given GP `model`.
 

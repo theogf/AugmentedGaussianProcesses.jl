@@ -37,7 +37,7 @@ function ALRSVI(ρ::Real=0.1, τ::Int=100)
     return ALRSVI(ρ, τ, IdDict())
 end
 
-function init!(model::AbstractGP{T,L,<:AnalyticVI}) where {T,L}
+function init!(model::AbstractGPModel{T,L,<:AnalyticVI}) where {T,L}
     for n_s in 1:(model.vi_opt[1].opt.τ)
         model.inference.MBIndices .= StatsBase.sample(
             1:(model.inference.nSamples), model.inference.nMinibatch; replace=false
