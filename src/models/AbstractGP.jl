@@ -19,6 +19,10 @@ Base.getindex(m::AbstractGPModel, i::Int) = getf(m, i)
 
 n_iter(m::AbstractGPModel) = n_iter(inference(m))
 
+is_stochastic(m::AbstractGPModel) = is_stochastic(inference(m))
+
+batchsize(m::AbstractGPModel) = batchsize(inference(m))
+
 is_trained(m::AbstractGPModel) = m.trained
 set_trained!(m::AbstractGPModel, status::Bool) = m.trained = status
 

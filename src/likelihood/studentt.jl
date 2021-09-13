@@ -51,7 +51,7 @@ function Distributions.loglikelihood(l::StudentTLikelihood, y::Real, f::Real)
 end
 
 function Base.show(io::IO, l::StudentTLikelihood{T}) where {T}
-    return print(io, "Student-t likelihood (ν=", l.ν ,", σ=", l.σ, ")")
+    return print(io, "Student-t likelihood (ν=", l.ν, ", σ=", l.σ, ")")
 end
 
 function compute_proba(
@@ -66,7 +66,11 @@ function init_local_vars(state, ::StudentTLikelihood{T}, batchsize::Int) where {
 end
 
 function local_updates!(
-    local_vars, l::StudentTLikelihood{T}, y::AbstractVector, μ::AbstractVector, diag_cov::AbstractVector
+    local_vars,
+    l::StudentTLikelihood{T},
+    y::AbstractVector,
+    μ::AbstractVector,
+    diag_cov::AbstractVector,
 ) where {T}
     @. local_vars.c = 0.5 * (diag_cov + abs2(μ - y) + l.σ^2 * l.ν)
     @. local_vars.θ = l.α / l.c
@@ -84,7 +88,9 @@ end
 ## Global Gradients ##
 
 @inline ∇E_μ(::StudentTLikelihood, ::AOptimizer, y::AbstractVector, state) = (state.θ .* y,)
-@inline ∇E_Σ(::StudentTLikelihood, ::AOptimizer, ::AbstractVector, state) = (0.5 .* state.θ,)
+@inline function ∇E_Σ(::StudentTLikelihood, ::AOptimizer, ::AbstractVector, state)
+    return (0.5 .* state.θ,)
+end
 
 ## ELBO Section ##
 

@@ -72,7 +72,7 @@ function train!(
                 ∇E_Σs = ∇E_Σ(m) # They need to be computed before recomputing the matrices
                 compute_kernel_matrices!(m)
                 natural_gradient!.(
-                    ∇E_μs, ∇E_Σs, getρ(inference(m)), get_opt(inference(m)), Zviews(m), m.f
+                    ∇E_μs, ∇E_Σs, ρ(m), get_opt(inference(m)), Zviews(m), m.f
                 )
                 global_update!(m)
             else

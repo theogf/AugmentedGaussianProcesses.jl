@@ -104,7 +104,7 @@ function variational_updates!(
     natural_gradient!(
         ∇E_μ(likelihood(m), opt_type(inference(m)), yview(m))[2],
         ∇E_Σ(likelihood(m), opt_type(inference(m)), yview(m))[2],
-        getρ(inference(m)),
+        ρ(m),
         opt_type(inference(m)),
         last(Zviews(m)),
         m.f[2],
@@ -114,7 +114,7 @@ function variational_updates!(
     natural_gradient!(
         ∇E_μ(likelihood(m), opt_type(inference(m)), yview(m))[1],
         ∇E_Σ(likelihood(m), opt_type(inference(m)), yview(m))[1],
-        getρ(inference(m)),
+        ρ(m),
         opt_type(inference(m)),
         first(Zviews(m)),
         m.f[1],

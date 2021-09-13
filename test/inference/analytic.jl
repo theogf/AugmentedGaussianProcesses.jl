@@ -16,7 +16,7 @@
     @test AGP.yview(i) == view(y, :)
 
     @test AGP.nMinibatch(i) == N
-    @test AGP.getρ(i) == 1.0
-    @test AGP.isStochastic(i) == false
+    @test AGP.ρ(i) == 1.0
+    @test AGP.is_stochastic(i) == false
     @test AGP.MBIndices(i) == 1:N
 end

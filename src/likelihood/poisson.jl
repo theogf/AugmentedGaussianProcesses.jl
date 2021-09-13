@@ -70,12 +70,20 @@ end
 
 ### Local Updates ###
 function init_local_vars(state, ::PoissonLikelihood{T}, batchsize::Int) where {T}
-    return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize)), γ=rand(T, batchsize)))
+    return merge(
+        state,
+        (;
+            local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize)), γ=rand(T, batchsize)
+        ),
+    )
 end
 
-
 function local_updates!(
-    local_vars, l::PoissonLikelihood{T}, y::AbstractVector, μ::AbstractVector, diag_cov::AbstractVector
+    local_vars,
+    l::PoissonLikelihood{T},
+    y::AbstractVector,
+    μ::AbstractVector,
+    diag_cov::AbstractVector,
 ) where {T}
     @. local_vars.c = sqrt(abs2(μ) + diag_cov)
     @. local_vars.γ = 0.5 * l.λ * safe_expcosh(-0.5 * μ, 0.5 * local_vars.c)
@@ -91,7 +99,9 @@ end
 
 ### Global Updates ###
 
-@inline ∇E_μ(::PoissonLikelihood, ::AOptimizer, y::AbstractVector, state) = (0.5 * (y - state.γ),)
+@inline function ∇E_μ(::PoissonLikelihood, ::AOptimizer, y::AbstractVector, state)
+    return (0.5 * (y - state.γ),)
+end
 @inline ∇E_Σ(::PoissonLikelihood, ::AOptimizer, y::AbstractVector, state) = (0.5 * state.θ,)
 
 ## ELBO Section ##
@@ -105,8 +115,12 @@ function expec_loglikelihood(
     return tot
 end
 
-AugmentedKL(l::PoissonLikelihood, y::AbstractVector, state) = PoissonKL(l, state) + PolyaGammaKL(l, y, state)
+function AugmentedKL(l::PoissonLikelihood, y::AbstractVector, state)
+    return PoissonKL(l, state) + PolyaGammaKL(l, y, state)
+end
 
 PoissonKL(l::PoissonLikelihood, state) = PoissonKL(state.γ, l.λ)
 
-PolyaGammaKL(l::PoissonLikelihood, y::AbstractVector, state) = PolyaGammaKL(y + state.γ, state.c, state.θ)
+function PolyaGammaKL(l::PoissonLikelihood, y::AbstractVector, state)
+    return PolyaGammaKL(y + state.γ, state.c, state.θ)
+end

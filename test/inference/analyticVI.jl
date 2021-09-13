@@ -14,12 +14,12 @@ y = rand(N)
     xview = view(x, 1:N)
     yview = view(y, 1:N)
     i = AGP.tuple_inference(i, L, D, N, N, xview, yview)
-    @test AGP.getρ(i) == 1.0
-    @test AGP.isStochastic(i) == false
+    @test AGP.ρ(i) == 1.0
+    @test AGP.is_stochastic(i) == false
     @test i isa AnalyticVI{Float64,L}
 
     i = AGP.tuple_inference(AnalyticSVI(b), L, D, N, b, xview, yview)
     @test i isa AnalyticVI{Float64,L}
-    @test AGP.getρ(i) == N / b
-    @test AGP.isStochastic(i) == true
+    @test AGP.ρ(i) == N / b
+    @test AGP.is_stochastic(i) == true
 end

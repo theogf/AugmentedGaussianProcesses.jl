@@ -129,31 +129,6 @@ function QuadratureSVI(
     return QuadratureVI{T}(ϵ, nGaussHermite, optimiser, true, clipping, nMinibatch, natural)
 end
 
-function tuple_inference(
-    i::QuadratureVI{T},
-    nLatent::Int,
-    nFeatures::Vector{<:Int},
-    nSamples::Int,
-    nMinibatch::Int,
-    xview,
-    yview,
-) where {T}
-    return QuadratureVI{T}(
-        conv_crit(i),
-        isStochastic(i),
-        i.nPoints,
-        i.clipping,
-        nFeatures,
-        nSamples,
-        nMinibatch,
-        nLatent,
-        i.vi_opt[1].optimiser,
-        i.NaturalGradient,
-        xview,
-        yview,
-    )
-end
-
 function expec_loglikelihood(
     l::AbstractLikelihood, i::QuadratureVI, y, μ::AbstractVector, diagΣ::AbstractVector
 )

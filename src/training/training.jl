@@ -21,15 +21,19 @@ function train!(
     obsdim=1,
 ) where {T}
     iterations > 0 || error("Number of iterations should be positive")
-    
+
     X, Tx = wrap_X(X, obsdim)
     y = check_data!(y, likelihood(model))
     data = wrap_data(X, y)
-    isstochastic(model) && 0 < batchsize(inference) < n_sample(data) || error("The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object")
-    if isstochastic(model)
+    if is_stochastic(model)
+        0 < batchsize(inference(model)) <= n_sample(data) || error(
+            "The size of mini-batch $(batchsize(inference(model))) is incorrect (negative or bigger than number of samples), please set `batchsize` correctly in the inference object",
+        )
         set_ρ!(model, n_sample(data) / batchsize(inference))
+    else
+        set_batchsize!(inference(model), n_sample(data))
     end
-    
+
     if verbose(model) > 0
         @info "Starting training $model with $(n_sample(data)) samples, $(n_feature(data)) features and $(n_latent) latent GP" *
               (n_latent(model) > 1 ? "s" : "")
@@ -42,20 +46,20 @@ function train!(
     prev_elbo = -Inf
     while true # loop until one condition is matched
         try
-            if is_stochastic(inference(m))
+            if is_stochastic(model)
                 minibatch = StatsBase.sample(
-                    1:n_sample(data), batchsize(inference(m)); replace=false
+                    1:n_sample(data), batchsize(model); replace=false
                 )
                 x = view_x(data, minibatch)
                 y = view_y(likelihood(m), data, minibatch)
             else
-                x = view_x(data, 1:n_sample(data))
-                y = view_y(likelihood(m), data, 1:n_sample(data))
+                x = input(data)
+                y = view_y(likelihood(model), data, 1:n_sample(data))
             end
-            state = update_parameters!(model, x, y, state) #Update all the variational parameters
+            state = update_parameters!(model, state, x, y) #Update all the variational parameters
             set_trained!(model, true)
             if !isnothing(callback)
-                callback(model, state, nIter(model)) #Use a callback method if set by user
+                callback(model, state, n_iter(model)) #Use a callback method if set by user
             end
             if (nIter(model) % model.atfrequency == 0) &&
                (nIter(model) >= 3) &&
@@ -105,11 +109,12 @@ function train!(
     return model, state
 end
 
-@traitfn function train!(model::TGP, iterations; callback=nothing,
-    convergence=nothing,
-    state=nothing,
-    ) where {TGP<:AbstractGPModel;IsFull{TGP}}
-    return train!(model, input(model), output(model), iterations; callback, convergence, state)
+@traitfn function train!(
+    model::TGP, iterations; callback=nothing, convergence=nothing, state=nothing
+) where {TGP <: AbstractGPModel; IsFull{TGP}}
+    return train!(
+        model, input(model), output(model), iterations; callback, convergence, state
+    )
 end
 
 function update_parameters!(model::GP, state, x, y)
@@ -131,21 +136,21 @@ function update_parameters!(model::SVGP, state, x, y)
     return state
 end
 
-function update_parameters!(m::MOVGP, x, y, state)
+function update_parameters!(m::MOVGP, state, x, y)
     state = compute_kernel_matrices(m, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     state = update_A!(m)
     state = variational_updates!(m, state, y)
     return nothing
 end
 
-function update_parameters!(m::MOSVGP, x, y, state)
+function update_parameters!(m::MOSVGP, state, x, y)
     state = compute_kernel_matrices(m, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     update_A!(m)
     state = variational_updates!(m, state, y)
     return state
 end
 
-function update_parameters!(m::VStP, x, y, state)
+function update_parameters!(m::VStP, state, x, y)
     state = compute_kernel_matrices!(m, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     state = local_prior_updates!(m, x, state)
     state = variational_updates!(m, state, y)
@@ -153,7 +158,7 @@ function update_parameters!(m::VStP, x, y, state)
 end
 
 function compute_kernel_matrices(m::GP{T}, state, x, ::Bool) where {T}
-    kernel_matrices = map(getf(m), Ref(x)) do gp, x
+    kernel_matrices = map(f.m) do gp
         compute_K(gp, x)
     end
     setHPupdated!(inference(m), false)
@@ -164,7 +169,7 @@ end
     m::TGP, state, x, update::Bool=false
 ) where {T,TGP<:AbstractGPModel{T};IsFull{TGP}}
     if isHPupdated(inference(m)) || update
-        kernel_matrices = map(getf(m), Ref(x)) do gp, x
+        kernel_matrices = map(m.f) do gp
             (; K=compute_K(gp, x, T(jitt)))
         end
         setHPupdated!(inference(m), false)
@@ -178,17 +183,17 @@ end
     m::TGP, state, x, update::Bool=false
 ) where {T,TGP<:AbstractGPModel{T};!IsFull{TGP}}
     kernel_matrices = if isHPupdated(inference(m)) || update
-        Ks = map(getf(m)) do gp
+        Ks = map(m.f) do gp
             (; K=compute_K(gp, T(jitt)))
         end
-        merge.(kernel_matrices, Ks)
     else
         state.kernel_matrices
     end
-    #If change of hyperparameters or if stochatic
-    kernel_matrices = if isHPupdated(inference(m)) || isStochastic(inference(m)) || update
-        κs = map(getf(m), Ref(x), Ks) do gp, x, K
-            compute_κ(gp, K, x, jitt)
+    @show typeof(x)
+    # If change of hyperparameters or if stochatic
+    kernel_matrices = if isHPupdated(inference(m)) || is_stochastic(inference(m)) || update
+        κs = map(m.f, kernel_matrices) do gp, kernel_matrix
+            compute_κ(gp, x, kernel_matrix.K, T(jitt))
         end
         merge.(kernel_matrices, κs)
     else

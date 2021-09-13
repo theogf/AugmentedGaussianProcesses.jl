@@ -58,8 +58,8 @@ yview(i::Analytic) = i.yview
 
 nMinibatch(i::Analytic) = i.nSamples
 
-getρ(::Analytic{T}) where {T} = one(T)
+ρ(::Analytic{T}) where {T} = one(T)
 
 MBIndices(i::Analytic) = 1:nSamples(i)
 
-isStochastic(::Analytic) = false
+is_stochastic(::Analytic) = false

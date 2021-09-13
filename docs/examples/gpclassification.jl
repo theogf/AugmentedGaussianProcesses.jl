@@ -32,7 +32,7 @@ models = Vector{AbstractGPModel}(undef, length(Ms) + 1)
 kernel = SqExponentialKernel() ∘ ScaleTransform(1.0)
 for (i, num_inducing) in enumerate(Ms)
     @info "Training with $(num_inducing) points"
-    m = SVGP(
+    global m = SVGP(
         kernel,
         LogisticLikelihood(),
         AnalyticVI(),

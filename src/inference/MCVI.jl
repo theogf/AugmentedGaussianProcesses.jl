@@ -127,31 +127,6 @@ function MCIntegrationSVI(
     return MCIntegrationVI{T}(ϵ, nMC, optimiser, true, clipping, nMinibatch, natural)
 end
 
-function tuple_inference(
-    i::MCIntegrationVI{T},
-    nLatent::Int,
-    nFeatures::Vector{<:Int},
-    nSamples::Int,
-    nMinibatch::Int,
-    xview::Tx,
-    yview::Ty,
-) where {T,Tx,Ty}
-    return MCIntegrationVI{T}(
-        conv_crit(i),
-        isStochastic(i),
-        i.nMC,
-        i.clipping,
-        nFeatures,
-        nSamples,
-        nMinibatch,
-        nLatent,
-        i.vi_opt[1].optimiser,
-        i.NaturalGradient,
-        xview,
-        yview,
-    )
-end
-
 function grad_expectations!(m::AbstractGPModel{T,L,<:MCIntegrationVI{T,N}}) where {T,L,N}
     raw_samples = randn(T, inference(m).nMC, nLatent(m))
     samples = similar(raw_samples)

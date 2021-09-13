@@ -118,7 +118,7 @@ function MOSVGP(
     nFeatures = size.(Z, 1)
 
     _nMinibatch = nSamples(data)
-    if isStochastic(inference)
+    if is_stochastic(inference)
         0 < nMinibatch(inference) < nSamples || error(
             "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object",
         )

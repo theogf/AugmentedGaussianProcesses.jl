@@ -15,7 +15,7 @@ Base.length(::AbstractInference) = 1
 Base.iterate(i::AbstractInference) = (i, nothing)
 Base.iterate(::AbstractInference, ::Any) = nothing
 
-isStochastic(i::AbstractInference) = i.stoch
+is_stochastic(i::AbstractInference) = i.stoch
 
 ## Multiple accessors
 conv_crit(i::AbstractInference) = i.ϵ
@@ -37,7 +37,7 @@ batchsize(inf::AbstractInference) = inf.batchsize
 set_batchsize!(inf::AbstractInference, n::Int) = inf.batchsize = n
 
 ρ(inf::AbstractInference) = inf.ρ
-ρ(m::AbstractGPModel, ρ) = getρ(inference(m))
+ρ(m::AbstractGPModel) = ρ(inference(m))
 set_ρ!(inf::AbstractInference, ρ) = inf.ρ = ρ
 set_ρ!(m::AbstractGPModel, ρ) = setρ!(inference(m), ρ)
 

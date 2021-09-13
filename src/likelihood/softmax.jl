@@ -88,7 +88,9 @@ function sample_local!(model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling}) where 
 end
 
 function grad_samples(
-    model::AbstractGPModel{T,<:SoftMaxLikelihood}, samples::AbstractMatrix{T}, index::Integer
+    model::AbstractGPModel{T,<:SoftMaxLikelihood},
+    samples::AbstractMatrix{T},
+    index::Integer,
 ) where {T}
     class = model.likelihood.y_class[index]
     grad_μ = zeros(T, nLatent(model))

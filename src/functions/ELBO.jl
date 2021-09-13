@@ -5,7 +5,9 @@ function ELBO(model::GP, pr_mean, kernel)
     return log_py(model)
 end
 
-@traitfn function ELBO(model::TGP, pr_means, kernels) where {TGP <: AbstractGPModel; IsFull{TGP}}
+@traitfn function ELBO(
+    model::TGP, pr_means, kernels
+) where {TGP <: AbstractGPModel; IsFull{TGP}}
     setpr_means!(model, pr_means)
     setkernels!(model, kernels)
     compute_kernel_matrices!(model, true)

@@ -12,6 +12,6 @@ y = rand(N)
     @test repr(i) == "Gibbs Sampler"
     i = AGP.tuple_inference(i, L, D, N, b, [], [])
 
-    @test AGP.getρ(i) == 1
-    @test AGP.isStochastic(i) == false
+    @test AGP.ρ(i) == 1
+    @test AGP.is_stochastic(i) == false
 end

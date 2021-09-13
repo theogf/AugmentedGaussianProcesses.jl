@@ -74,13 +74,7 @@ function VGP(
     latentf = ntuple(_ -> VarLatent(T, n_feature, kernel, mean, optimiser), nLatent)
 
     return VGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
-        data,
-        latentf,
-        likelihood,
-        inference,
-        verbose,
-        atfrequency,
-        false,
+        data, latentf, likelihood, inference, verbose, atfrequency, false
     )
 end
 

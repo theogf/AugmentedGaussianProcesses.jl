@@ -91,7 +91,7 @@ end
 function Base.show(io::IO, inference::NumericalVI)
     return print(
         io,
-        "$(isStochastic(inference) ? "Stochastic numerical" : "Numerical") Inference by $(isa(inference, MCIntegrationVI) ? "Monte Carlo Integration" : "Quadrature")",
+        "$(is_stochastic(inference) ? "Stochastic numerical" : "Numerical") Inference by $(isa(inference, MCIntegrationVI) ? "Monte Carlo Integration" : "Quadrature")",
     )
 end
 
@@ -135,10 +135,10 @@ function classical_gradient!(
     gp::SparseVarLatent{T},
 ) where {T<:Real}
     opt.∇η₂ .=
-        getρ(i) * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ -
+        ρ(i) * transpose(gp.κ) * Diagonal(∇E_Σ) * gp.κ -
         0.5 * (inv(pr_cov(gp)) - inv(cov(gp)))
     return opt.∇η₁ .=
-        getρ(i) * transpose(gp.κ) * ∇E_μ - pr_cov(gp) \ (mean(gp) - pr_mean(gp, Z))
+        (i) * transpose(gp.κ) * ∇E_μ - pr_cov(gp) \ (mean(gp) - pr_mean(gp, Z))
 end
 
 function natural_gradient!(gp::AbstractLatent, opt::NVIOptimizer)
@@ -179,7 +179,7 @@ end
 function ELBO(m::AbstractGPModel{T,L,<:NumericalVI}) where {T,L}
     tot = zero(T)
     tot +=
-        getρ(m.inference) *
+        ρ(m) *
         expec_loglikelihood(likelihood(m), inference(m), yview(m), mean_f(m), var_f(m))
     tot -= GaussianKL(m)
     tot -= extraKL(m)

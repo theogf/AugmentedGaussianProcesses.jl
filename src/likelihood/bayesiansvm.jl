@@ -16,8 +16,7 @@ p(y|f, ω) = \frac{1}{\sqrt(2\pi\omega) \exp(-\frac{(1+\omega-yf)^2}{2\omega}))
 
 where ``ω \sim 1[0,\infty)`` has an improper prior (his posterior is however has a valid distribution, a Generalized Inverse Gaussian). For reference [see this paper](http://ecmlpkdd2017.ijs.si/papers/paperID502.pdf).
 """
-struct BayesianSVM{T<:Real} <: ClassificationLikelihood{T}
-end
+struct BayesianSVM{T<:Real} <: ClassificationLikelihood{T} end
 
 function BayesianSVM()
     return BayesianSVM{Float64}()
@@ -69,7 +68,11 @@ function init_local_vars(state, ::BayesianSVM{T}, batchsize::Int) where {T}
 end
 
 function local_updates!(
-    local_vars, ::BayesianSVM{T}, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
+    local_vars,
+    ::BayesianSVM{T},
+    y::AbstractVector,
+    μ::AbstractVector,
+    diagΣ::AbstractVector,
 ) where {T}
     @. local_vars.ω = abs2(one(T) - y * μ) + diagΣ
     @. local_vars.θ = inv(sqrt(l.ω))
@@ -80,7 +83,9 @@ end
     return (y .* (state.θ .+ one(T)),)
 end
 
-@inline ∇E_Σ(::BayesianSVM{T}, ::AOptimizer, ::AbstractVector, state) where {T} = (0.5 .* state.θ,)
+@inline function ∇E_Σ(::BayesianSVM{T}, ::AOptimizer, ::AbstractVector, state) where {T}
+    return (0.5 .* state.θ,)
+end
 
 ## ELBO
 

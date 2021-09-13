@@ -13,11 +13,8 @@ mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     thinning::Int # Frequency at which samples are saved
     ϵ::T # Convergence criteria
     nIter::Integer # Number of samples computed
-    nSamples::Int # Number of data samples
     HyperParametersUpdated::Bool # Flag for updating kernel matrices
     opt::NTuple{N,SOptimizer}
-    xview::Tx
-    yview::Ty
     sample_store::Vector{Vector{Vector{T}}}
     function GibbsSampling{T}(nBurnin::Int, thinning::Int, ϵ::Real) where {T}
         nBurnin >= 0 || error("nBurnin should be positive")
@@ -41,9 +38,7 @@ mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     end
 end
 
-isStochastic(::GibbsSampling) = false
-getρ(::GibbsSampling{T}) where {T} = one(T)
-nMinibatch(i::GibbsSampling) = i.nSamples
+ρ(::GibbsSampling{T}) where {T} = one(T)
 
 function GibbsSampling(; ϵ::T=1e-5, nBurnin::Int=100, thinning::Int=1) where {T<:Real}
     return GibbsSampling{T}(nBurnin, thinning, ϵ)

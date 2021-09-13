@@ -36,7 +36,9 @@ end
 #     setHPupdated!(m.inference, true)
 # end
 
-@traitfn function update_hyperparameters!(m::TGP, state) where {TGP <: AbstractGPModel; IsFull{TGP}}
+@traitfn function update_hyperparameters!(
+    m::TGP, state
+) where {TGP <: AbstractGPModel; IsFull{TGP}}
     if any((!) ∘ isnothing ∘ opt, m.f) # Check there is a least one optimiser
         μ₀ = pr_means(m) # Get prior means
         ks = kernels(m) # Get kernels
@@ -65,7 +67,9 @@ end
     return nothing
 end
 
-@traitfn function update_hyperparameters!(m::TGP, state) where {TGP <: AbstractGPModel; !IsFull{TGP}}
+@traitfn function update_hyperparameters!(
+    m::TGP, state
+) where {TGP <: AbstractGPModel; !IsFull{TGP}}
     # Check that here is least one optimiser
     if any((!) ∘ isnothing ∘ opt, m.f) || any((!) ∘ isnothing ∘ Zopt, m.f)
         μ₀ = pr_means(m)
@@ -310,7 +314,7 @@ function hyperparameter_expec_gradient(
     dΣ = -dot(∇E_Σ, J̃)
     dΣ += -dot(∇E_Σ, 2.0 * (diag_ABt(ι, κΣ)))
     dΣ += -dot(∇E_Σ, 2.0 * (ι * mean(gp)) .* (gp.κ * mean(gp)))
-    return getρ(i) * (dμ + dΣ)
+    return ρ(i) * (dμ + dΣ)
 end
 
 ## Gradient with respect to hyperparameters for numerical VI ##
@@ -329,7 +333,7 @@ function hyperparameter_expec_gradient(
     J̃ = Jnn - (diag_ABt(ι, gp.Knm) + diag_ABt(gp.κ, Jnm))
     dμ = dot(∇E_μ, ι * mean(gp))
     dΣ = dot(∇E_Σ, J̃ + 2.0 * diag_ABt(ι, κΣ))
-    return getρ(i) * (dμ + dΣ)
+    return ρ(i) * (dμ + dΣ)
 end
 
 function hyperparameter_online_gradient(

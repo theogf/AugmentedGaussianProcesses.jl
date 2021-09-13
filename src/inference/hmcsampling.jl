@@ -41,8 +41,7 @@ mutable struct HMCSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     end
 end
 
-isStochastic(::HMCSampling) = false
-getρ(::HMCSampling{T}) where {T} = one(T)
+ρ(::HMCSampling{T}) where {T} = one(T)
 nMinibatch(i::HMCSampling) = i.nSamples
 
 function HMCSampling(; ϵ::T=1e-5, nBurnin::Int=100, thinning::Int=10) where {T<:Real}

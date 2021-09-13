@@ -157,7 +157,9 @@ end
 @inline function ∇E_μ(::LogisticSoftMaxLikelihood, ::AOptimizer, y::AbstractVector, state)
     return 0.5 .* (y .- state.γ)
 end
-@inline ∇E_Σ(::LogisticSoftMaxLikelihood, ::AOptimizer, ::AbstractVector, state) = 0.5 .* state.θ
+@inline function ∇E_Σ(::LogisticSoftMaxLikelihood, ::AOptimizer, ::AbstractVector, state)
+    return 0.5 .* state.θ
+end
 
 ## ELBO Section ##
 function expec_loglikelihood(
@@ -180,7 +182,14 @@ function PolyaGammaKL(::LogisticSoftMaxLikelihood, y, state)
 end
 
 function PoissonKL(::LogisticSoftMaxLikelihood, state)
-    return sum(broadcast(PoissonKL, state.γ, Ref(state.α ./ state.β), Ref(digamma.(state.α) .- log.(state.β))))
+    return sum(
+        broadcast(
+            PoissonKL,
+            state.γ,
+            Ref(state.α ./ state.β),
+            Ref(digamma.(state.α) .- log.(state.β)),
+        ),
+    )
 end
 
 ##  Compute the equivalent of KL divergence between an improper prior p(λ) (``1_{[0,\\infty]}``) and a variational Gamma distribution ##

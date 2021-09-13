@@ -20,10 +20,7 @@ Sparse Variational Gaussian Process
 - `obsdim::Int=1` : Dimension of the data. 1 : X ∈ DxN, 2: X ∈ NxD
 """
 mutable struct SVGP{
-    T<:Real,
-    TLikelihood<:AbstractLikelihood,
-    TInference<:AbstractInference,
-    N,
+    T<:Real,TLikelihood<:AbstractLikelihood,TInference<:AbstractInference,N
 } <: AbstractGPModel{T,TLikelihood,TInference,N}
     f::NTuple{N,SparseVarLatent{T}}
     likelihood::TLikelihood
@@ -72,12 +69,7 @@ function SVGP(
     end
 
     model = SVGP{T,typeof(likelihood),typeof(inference),n_latent(likelihood)}(
-        latentf,
-        likelihood,
-        inference,
-        verbose,
-        atfrequency,
-        false,
+        latentf, likelihood, inference, verbose, atfrequency, false
     )
     if isa(optimiser, ALRSVI)
         init!(model)

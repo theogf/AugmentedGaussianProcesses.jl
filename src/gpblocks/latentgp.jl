@@ -33,9 +33,7 @@ end
 
 function VarLatent(T::DataType, dim::Int, kernel::Kernel, mean::PriorMean, opt)
     return VarLatent(
-        GPPrior(deepcopy(kernel), deepcopy(mean)),
-        VarPosterior{T}(dim),
-        deepcopy(opt),
+        GPPrior(deepcopy(kernel), deepcopy(mean)), VarPosterior{T}(dim), deepcopy(opt)
     )
 end
 
@@ -213,8 +211,8 @@ mean_f(μ::AbstractVector, κ::AbstractMatrix) = κ * μ
 
 var_f(model::AbstractGPModel, kernel_matrices) = var_f.(model.f, kernel_matrices)
 
-@traitfn function var_f(gp::T, kernel_matrices) where {T<:AbstractLatent; IsFull{T}}
-    var_f(cov(gp))
+@traitfn function var_f(gp::T, kernel_matrices) where {T <: AbstractLatent; IsFull{T}}
+    return var_f(cov(gp))
 end
 @traitfn function var_f(gp::T, kernel_matrices) where {T <: AbstractLatent; !IsFull{T}}
     return var_f(cov(gp), kernel_matrices.κ, kernel_matrices.K̃)

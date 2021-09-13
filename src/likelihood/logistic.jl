@@ -16,8 +16,7 @@ For the analytic version the likelihood, it is augmented via:
 where ``ω \sim \mathcal{PG}(\omega | 1, 0)``, and ``\mathcal{PG}`` is the Polya-Gamma distribution.
 See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383).
 """
-struct LogisticLikelihood{T<:Real} <: ClassificationLikelihood{T}
-end
+struct LogisticLikelihood{T<:Real} <: ClassificationLikelihood{T} end
 
 function LogisticLikelihood()
     return LogisticLikelihood{Float64}()
@@ -65,10 +64,11 @@ function init_local_vars(state, ::LogisticLikelihood{T}, batchsize::Int) where {
 end
 
 function local_updates!(
-    l::LogisticLikelihood{T}, ::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
+    local_vars, ::LogisticLikelihood{T}, ::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
 ) where {T}
-    @. l.c = sqrt(diagΣ + abs2(μ))
-    @. l.θ = 0.5 * tanh(0.5 * l.c) / l.c
+    @. local_vars.c = sqrt(diagΣ + abs2(μ))
+    @. local_vars.θ = 0.5 * tanh(0.5 * local_vars.c) / local_vars.c
+    return local_vars
 end
 
 function sample_local!(l::LogisticLikelihood, ::AbstractVector, f::AbstractVector)
