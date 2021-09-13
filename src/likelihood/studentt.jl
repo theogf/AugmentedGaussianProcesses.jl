@@ -15,9 +15,9 @@ where `ν` is the number of degrees of freedom and `σ` is the standard deviatio
 
 For the augmented analytical solution, it is augmented via:
 ```math
-    p(y|f,ω) = N(y|f,σ^2 ω)
+    p(y|f,\omega) = N(y|f,\sigma^2 \omega)
 ```
-Where ``\omega \sim \mathcal{IG}(0.5\nu,0.5\nu)` where ``\mathcal{IG}`` is the inverse-gamma distribution.
+Where ``\omega \sim \mathcal{IG}(0.5\nu,0.5\nu)`` where ``\mathcal{IG}`` is the inverse-gamma distribution.
 See paper [Robust Gaussian Process Regression with a Student-t Likelihood](http://www.jmlr.org/papers/volume12/jylanki11a/jylanki11a.pdf)
 """
 struct StudentTLikelihood{T<:Real} <: RegressionLikelihood{T}
@@ -78,11 +78,11 @@ function local_updates!(
 end
 
 function sample_local!(
-    l::StudentTLikelihood{T}, y::AbstractVector, f::AbstractVector
+    state, l::StudentTLikelihood{T}, y::AbstractVector, f::AbstractVector
 ) where {T}
-    l.c .= rand.(InverseGamma.(l.α, 0.5 * (abs2.(f - y) .+ l.σ^2 * l.ν)))
-    set_ω!(l, inv.(l.c))
-    return nothing
+    state.c .= rand.(InverseGamma.(l.α, 0.5 * (abs2.(f - y) .+ l.σ^2 * l.ν)))
+    state.ω .= inv.(l.c)
+    return state
 end
 
 ## Global Gradients ##

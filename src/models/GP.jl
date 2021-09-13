@@ -50,24 +50,17 @@ function GP(
     likelihood = GaussianLikelihood(noise; opt_noise=opt_noise)
     inference = Analytic()
 
-    y, nLatent, likelihood = check_data!(y, likelihood)
+    y = check_data!(y, likelihood)
     data = wrap_data(X, y)
-    nFeatures = nSamples(data)
+    n_feature = n_sample(data)
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
 
-    latentf = LatentGP(T, nFeatures, kernel, mean, optimiser)
-
-    likelihood = init_likelihood(likelihood, inference, 1, nSamples(data))
-
-    xview = view_x(data, :)
-    yview = view_y(likelihood, data, 1:nSamples(data))
-    inference = init_inference(inference, nSamples(data), xview, yview)
+    latentf = LatentGP(T, n_feature, kernel, mean, optimiser)
 
     model = GP(data, latentf, likelihood, inference, verbose, atfrequency, false)
-    update_parameters!(model)
-    set_trained!(model, true)
+    model = train!(model, 1)
     return model
 end
 

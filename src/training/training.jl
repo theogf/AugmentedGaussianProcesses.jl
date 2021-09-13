@@ -164,9 +164,7 @@ function update_parameters!(m::VStP, state, x, y)
 end
 
 function compute_kernel_matrices(m::GP{T}, state, x, ::Bool) where {T}
-    kernel_matrices = map(f.m) do gp
-        compute_K(gp, x)
-    end
+    kernel_matrices = (; K=compute_K(gp, x, T(jitt)))
     setHPupdated!(inference(m), false)
     return merge(state, (; kernel_matrices))
 end

@@ -112,7 +112,8 @@ function expec_loglikelihood(
     num_sample = batchsize(i)
     tot = 0.0
     for j in 1:num_sample # Loop over every data point
-        samples = raw_samples .* sqrt.([σ²[k][j] for k in 1:num_latent])' .+ [μ[k][j] for k in 1:num_latent]'
+        samples =
+            raw_samples .* sqrt.([σ²[k][j] for k in 1:num_latent])' .+ [μ[k][j] for k in 1:num_latent]'
         # samples is of dimension nMC x nLatent again
         y_j = getindex.(y, j) # Obtain the label for data point j
         for f in eachrow(samples)

@@ -3,13 +3,13 @@ include("prior.jl")
 include("posterior.jl")
 
 ## Exact Gaussian Process
-struct LatentGP{T,Tpr<:GPPrior,Tpo<:Posterior{T},O,Tstate} <: AbstractLatent{T,Tpr,Tpo}
+struct LatentGP{T,Tpr<:GPPrior,Tpo<:Posterior{T},O} <: AbstractLatent{T,Tpr,Tpo}
     prior::Tpr
     post::Tpo
     opt::O
 end
 
-function LatentGP(T::DataType, kernel::Kernel, mean::PriorMean, opt)
+function LatentGP(T::DataType, dim::Int, kernel::Kernel, mean::PriorMean, opt)
     return LatentGP(
         GPPrior(deepcopy(kernel), deepcopy(mean)),
         Posterior(dim, zeros(T, dim), cholesky(Matrix{T}(I(dim)))),

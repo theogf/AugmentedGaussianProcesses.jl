@@ -69,6 +69,7 @@ end
         mean_f(m, state.kernel_matrices),
         var_f(m, state.kernel_matrices),
     )
+    state = merge(state, (; local_vars))
     natural_gradient!.(
         m.f,
         ∇E_μ(m, y, local_vars),

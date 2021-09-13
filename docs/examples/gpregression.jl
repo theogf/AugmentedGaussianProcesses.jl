@@ -2,7 +2,6 @@
 # 
 # ### Loading necessary packages
 using AugmentedGaussianProcesses
-const AGP = AugmentedGaussianProcesses
 using Distributions
 using Plots
 
@@ -34,16 +33,14 @@ kernel = SqExponentialKernel();#  + PeriodicKernel()
 for (index, num_inducing) in enumerate(Ms)
     @info "Training with $(num_inducing) points"
     m = SVGP(
-        X,
-        Y, # First arguments are the input and output
         kernel, # Kernel
         GaussianLikelihood(σ), # Likelihood used
         AnalyticVI(), # Inference usede to solve the problem
-        num_inducing; # Number of inducing points used
+        inducingpoints(KmeansAlg(num_inducing), X); # Inducing points initialized with kmeans
         optimiser=false, # Keep kernel parameters fixed
         Zoptimiser=false, # Keep inducing points locations fixed
     )
-    @time train!(m, 100) # Train the model for 100 iterations
+    @time train!(m, X, Y, 100) # Train the model for 100 iterations
     models[index] = m # Save the model in the array
 end
 

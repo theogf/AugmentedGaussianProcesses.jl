@@ -1,18 +1,14 @@
 ## Solve the classical GP Regression ##
-mutable struct Analytic{T<:Real,Tx<:AbstractVector,Ty<:AbstractVector} <:
+mutable struct Analytic{T<:Real} <:
                AbstractInference{T}
-    ϵ::T #Convergence criteria
-    n_iter::Integer #Number of steps performed
+    ϵ::T # Convergence criteria
+    n_iter::Int # Number of steps performed
+    batchsize::Int 
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
-    xview::Tx
-    yview::Ty
-    function Analytic{T}(ϵ::T) where {T}
-        return new{T,Vector{T},Vector{T}}(ϵ)
-    end
     function Analytic{T}(
-        ϵ::T, nSamples::Integer, xview::Tx, yview::Ty
-    ) where {T,Tx<:AbstractVector,Ty<:AbstractVector}
-        return new{T,Tx,Ty}(ϵ, 0, nSamples, true, xview, yview)
+        ϵ::T
+    ) where {T}
+        return new{T}(ϵ, 0, 0, false)
     end
 end
 
@@ -40,25 +36,19 @@ function init_inference(
     return Analytic{T}(conv_crit(i), nSamples, xview, yview)
 end
 
-function analytic_updates!(m::GP{T}) where {T}
+function analytic_updates(m::GP{T}, state, y) where {T}
     f = getf(m)
     l = likelihood(m)
-    f.post.Σ = pr_cov(f) + first(l.σ²) * I
-    f.post.α .= cov(f) \ (yview(m) - pr_mean(f, xview(m)))
+    K = state.kernel_matrices.K
+    f.post.Σ = K + first(l.σ²) * I
+    f.post.α .= cov(f) \ (y - pr_mean(f, first(Zviews(m))))
     if !isnothing(l.opt_noise)
         g = 0.5 * (norm(mean(f), 2) - tr(inv(cov(f))))
-        Δlogσ² = Optimise.apply!(l.opt_noise, l.σ², g .* l.σ²)
+        Δlogσ², state.local_vars.state_σ² = Optimisers.apply!(l.opt_noise, state.local_vars.state_σ², l.σ², g .* l.σ²)
         l.σ² .= exp.(log.(l.σ²) .+ Δlogσ²)
     end
 end
 
-xview(i::Analytic) = i.xview
-yview(i::Analytic) = i.yview
-
-nMinibatch(i::Analytic) = i.nSamples
-
 ρ(::Analytic{T}) where {T} = one(T)
-
-MBIndices(i::Analytic) = 1:nSamples(i)
 
 is_stochastic(::Analytic) = false
