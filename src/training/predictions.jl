@@ -26,7 +26,7 @@ end
     m::TGP, X_test::AbstractVector, state=nothing; cov::Bool=true, diag::Bool=true
 ) where {T,TGP<:AbstractGPModel{T};!IsMultiOutput{TGP}}
     Ks = if isnothing(state)
-        compute_K.(gp, Zviews(m), T(jitt))
+        compute_K.(m.f, Zviews(m), T(jitt))
     else
         getproperty.(state.kernel_matrices, :K)
     end
@@ -53,7 +53,7 @@ end
     m::TGP, X_test::AbstractVector, state=nothing; cov::Bool=true, diag::Bool=true
 ) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     Ks = if isnothing(state)
-        compute_K.(gp, Zviews(model), T(jitt))
+        compute_K.(m.f, Zviews(model), T(jitt))
     else
         getproperty.(state.kernel_matrices, :K)
     end
@@ -85,7 +85,7 @@ function _predict_f(
     m::MCGP{T}, X_test::AbstractVector, state=nothing; cov::Bool=true, diag::Bool=true
 ) where {T}
     Ks = if isnothing(state)
-        compute_K.(gp, Zviews(model), T(jitt))
+        compute_K.(m.f, Zviews(model), T(jitt))
     else
         getproperty.(state.kernel_matrices, :K)
     end

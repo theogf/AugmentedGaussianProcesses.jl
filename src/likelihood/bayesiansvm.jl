@@ -75,7 +75,7 @@ function local_updates!(
     diagΣ::AbstractVector,
 ) where {T}
     @. local_vars.ω = abs2(one(T) - y * μ) + diagΣ
-    @. local_vars.θ = inv(sqrt(l.ω))
+    @. local_vars.θ = inv(sqrt(local_vars.ω))
     return local_vars
 end
 
