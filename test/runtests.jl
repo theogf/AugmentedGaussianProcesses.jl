@@ -13,8 +13,8 @@ include("testingtools.jl")
 @testset "AugmentedGaussianProcesses.jl tests" begin
     @info "Testing data"
     @testset "Data test" begin
-        include(joinpath("data", "datacontainer.jl"))
-        include(joinpath("data", "utils.jl"))
+        include("data/datacontainer.jl")
+        include("data/utils.jl")
     end
 
     @info "Function tests"

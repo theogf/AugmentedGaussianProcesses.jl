@@ -1,8 +1,8 @@
 abstract type MultiClassLikelihood{T<:Real} <: AbstractLikelihood{T} end
 
-num_latent(l::MultiClassLikelihood) = num_class(l)
+n_latent(l::MultiClassLikelihood) = n_class(l)
 
-num_class(l::MultiClassLikelihood) = l.nClasses
+n_class(l::MultiClassLikelihood) = l.n_class
 
 ## Return the labels in a vector of vectors for multiple outputs ##
 function treat_labels!(

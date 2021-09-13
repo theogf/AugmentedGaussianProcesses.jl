@@ -52,14 +52,14 @@ function Base.show(io::IO, ::HeteroscedasticLikelihood{T}) where {T}
     return print(io, "Gaussian likelihood with heteroscedastic noise")
 end
 
-num_latent(::HeteroscedasticLikelihood) = 2
+n_latent(::HeteroscedasticLikelihood) = 2
 
 function treat_labels!(y::AbstractVector{<:Real}, likelihood::HeteroscedasticLikelihood)
     return y, 2, likelihood
 end
 
-function treat_labels!(y::AbstractVector, likelihood::HeteroscedasticLikelihood)
-    return error("For regression target(s) should be real valued")
+function treat_labels!(::AbstractVector, ::HeteroscedasticLikelihood)
+    return error("For regression, target(s) should be real valued")
 end
 
 function init_likelihood(

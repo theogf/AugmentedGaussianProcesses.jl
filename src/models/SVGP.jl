@@ -67,13 +67,11 @@ function SVGP(
         mean = EmpiricalMean(mean)
     end
 
-    latentf = ntuple(
-        _ -> SparseVarLatent(T, Z, kernel, mean, optimiser, Zoptimiser),
-        nLatent,
-    )
+    latentf = ntuple(n_latent(likelihood)) do _
+        return SparseVarLatent(T, Z, kernel, mean, optimiser, Zoptimiser)
+    end
 
-    model = SVGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
-        data,
+    model = SVGP{T,typeof(likelihood),typeof(inference),n_latent(likelihood)}(
         latentf,
         likelihood,
         inference,

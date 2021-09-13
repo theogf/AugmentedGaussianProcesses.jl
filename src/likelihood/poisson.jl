@@ -1,30 +1,22 @@
-"""
+@doc raw"""
     Poisson Likelihood(λ=1.0)
 
 ## Arguments
-- `λ::Real` : Poisson rate
+- `λ::Real` : Maximal Poisson rate
 
 ---
 
-[Poisson Likelihood](https://en.wikipedia.org/wiki/Poisson_distribution) where a Poisson distribution is defined at every point in space (careful, it's different from continous Poisson processes)
+[Poisson Likelihood](https://en.wikipedia.org/wiki/Poisson_distribution) where a Poisson distribution is defined at every point in space (careful, it's different from continous Poisson processes).
 ```math
-    p(y|f) = Poisson(y|\\lambda \\sigma(f))
+    p(y|f) = \text{Poisson}(y|\lambda \sigma(f))
 ```
-Where `σ` is the logistic function.
+Where ``\sigma`` is the logistic function.
 Augmentation details will be released at some point (open an issue if you want to see them)
 """
-mutable struct PoissonLikelihood{T<:Real,A<:AbstractVector{T}} <: EventLikelihood{T}
+mutable struct PoissonLikelihood{T<:Real} <: EventLikelihood{T}
     λ::T
-    c::A
-    γ::A
-    θ::A
     function PoissonLikelihood{T}(λ::T) where {T<:Real}
-        return new{T,Vector{T}}(λ)
-    end
-    function PoissonLikelihood{T}(
-        λ::T, c::A, γ::A, θ::A
-    ) where {T<:Real,A<:AbstractVector{T}}
-        return new{T,A}(λ, c, γ, θ)
+        return new{T}(λ)
     end
 end
 
@@ -77,14 +69,19 @@ function compute_proba(
 end
 
 ### Local Updates ###
+function init_local_vars(state, ::PoissonLikelihood{T}, batchsize::Int) where {T}
+    return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize)), γ=rand(T, batchsize)))
+end
+
 
 function local_updates!(
-    l::PoissonLikelihood{T}, y::AbstractVector, μ::AbstractVector, diag_cov::AbstractVector
+    local_vars, l::PoissonLikelihood{T}, y::AbstractVector, μ::AbstractVector, diag_cov::AbstractVector
 ) where {T}
-    @. l.c = sqrt(abs2(μ) + diag_cov)
-    @. l.γ = 0.5 * l.λ * safe_expcosh(-0.5 * μ, 0.5 * l.c)
-    @. l.θ = (y + l.γ) / l.c * tanh(0.5 * l.c)
-    return l.λ = sum(y) / sum(expectation.(logistic, μ, diag_cov))
+    @. local_vars.c = sqrt(abs2(μ) + diag_cov)
+    @. local_vars.γ = 0.5 * l.λ * safe_expcosh(-0.5 * μ, 0.5 * local_vars.c)
+    @. local_vars.θ = (y + local_vars.γ) / local_vars.c * tanh(0.5 * local_vars.c)
+    l.λ = sum(y) / sum(expectation.(logistic, μ, diag_cov))
+    return local_vars
 end
 
 function sample_local!(l::PoissonLikelihood, y::AbstractVector, f::AbstractVector)
@@ -94,22 +91,22 @@ end
 
 ### Global Updates ###
 
-@inline ∇E_μ(l::PoissonLikelihood, ::AOptimizer, y::AbstractVector) = (0.5 * (y - l.γ),)
-@inline ∇E_Σ(l::PoissonLikelihood, ::AOptimizer, y::AbstractVector) = (0.5 * l.θ,)
+@inline ∇E_μ(::PoissonLikelihood, ::AOptimizer, y::AbstractVector, state) = (0.5 * (y - state.γ),)
+@inline ∇E_Σ(::PoissonLikelihood, ::AOptimizer, y::AbstractVector, state) = (0.5 * state.θ,)
 
 ## ELBO Section ##
 function expec_loglikelihood(
-    l::PoissonLikelihood{T}, ::AnalyticVI, y, μ::AbstractVector, Σ::AbstractVector
+    l::PoissonLikelihood{T}, ::AnalyticVI, y, μ::AbstractVector, Σ::AbstractVector, state
 ) where {T}
-    tot = 0.5 * (dot(μ, (y - l.γ)) - dot(l.θ, abs2.(μ)) - dot(l.θ, Σ))
+    tot = 0.5 * (dot(μ, (y - state.γ)) - dot(state.θ, abs2.(μ)) - dot(state.θ, Σ))
     tot += Zygote.@ignore(
-        sum(y * log(l.λ)) - sum(logfactorial, y) - logtwo * sum((y + l.γ))
+        sum(y * log(l.λ)) - sum(logfactorial, y) - logtwo * sum((y + state.γ))
     )
     return tot
 end
 
-AugmentedKL(l::PoissonLikelihood, y::AbstractVector) = PoissonKL(l) + PolyaGammaKL(l, y)
+AugmentedKL(l::PoissonLikelihood, y::AbstractVector, state) = PoissonKL(l, state) + PolyaGammaKL(l, y, state)
 
-PoissonKL(l::PoissonLikelihood) = PoissonKL(l.γ, l.λ)
+PoissonKL(l::PoissonLikelihood, state) = PoissonKL(state.γ, l.λ)
 
-PolyaGammaKL(l::PoissonLikelihood, y::AbstractVector) = PolyaGammaKL(y + l.γ, l.c, l.θ)
+PolyaGammaKL(l::PoissonLikelihood, y::AbstractVector, state) = PolyaGammaKL(y + state.γ, state.c, state.θ)

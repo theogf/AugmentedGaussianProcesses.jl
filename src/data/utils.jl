@@ -14,8 +14,7 @@ end
 
 # Verify that the data is self-consistent and consistent with the likelihood ##
 function check_data!(y::AbstractArray, likelihood::Union{Distribution,AbstractLikelihood})
-    y, nLatent, likelihood = treat_labels!(y, likelihood)
-    return y, nLatent, likelihood
+    return treat_labels!(y, likelihood)
 end
 
 # Transform Z as an OptimIP if it's not the case already

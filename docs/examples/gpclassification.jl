@@ -33,16 +33,14 @@ kernel = SqExponentialKernel() ∘ ScaleTransform(1.0)
 for (i, num_inducing) in enumerate(Ms)
     @info "Training with $(num_inducing) points"
     m = SVGP(
-        X,
-        Y,
         kernel,
         LogisticLikelihood(),
         AnalyticVI(),
-        num_inducing;
+        inducingpoints(KmeansAlg(num_inducing), X);
         optimiser=false,
         Zoptimiser=false,
     )
-    @time train!(m, 20)
+    @time train!(m, X, Y, 20)
     models[i] = m
 end
 # ### Running the full model

@@ -23,10 +23,12 @@ function train!(
     iterations > 0 || error("Number of iterations should be positive")
     
     X, Tx = wrap_X(X, obsdim)
-    y, n_latent, likelihood = check_data!(y, likelihood)
+    y = check_data!(y, likelihood(model))
     data = wrap_data(X, y)
     isstochastic(model) && 0 < batchsize(inference) < n_sample(data) || error("The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object")
-    
+    if isstochastic(model)
+        set_ρ!(model, n_sample(data) / batchsize(inference))
+    end
     
     if verbose(model) > 0
         @info "Starting training $model with $(n_sample(data)) samples, $(n_feature(data)) features and $(n_latent) latent GP" *

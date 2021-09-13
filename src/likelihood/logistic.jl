@@ -16,7 +16,7 @@ For the analytic version the likelihood, it is augmented via:
 where ``ω \sim \mathcal{PG}(\omega | 1, 0)``, and ``\mathcal{PG}`` is the Polya-Gamma distribution.
 See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383).
 """
-struct LogisticLikelihood{T<:Real,A<:AbstractVector{T}} <: ClassificationLikelihood{T}
+struct LogisticLikelihood{T<:Real} <: ClassificationLikelihood{T}
 end
 
 function LogisticLikelihood()

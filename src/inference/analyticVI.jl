@@ -10,7 +10,7 @@ mutable struct AnalyticVI{T,O<:AVIOptimizer} <: VariationalInference{T}
     function AnalyticVI{T}(ϵ::T, optimiser, batchsize::Int, stoch::Bool) where {T}
         vi_opt = AVIOptimizer(optimiser)
         return new{T,typeof(vi_opt)}(
-            ϵ, 0, stoch, 0, batchsize, one(T), true, vi_opt,
+            ϵ, 0, stoch, batchsize, one(T), true, vi_opt,
         )
     end
 end
