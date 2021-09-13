@@ -64,7 +64,7 @@ function compute_proba(
 end
 
 ## Local Updates ##
-function init_local_vars(state, ::BayesianSVM{T}, batchsize::Int)
+function init_local_vars(state, ::BayesianSVM{T}, batchsize::Int) where {T}
     return merge(state, (; local_vars=(; ω=rand(T, batchsize), θ=zeros(T, batchsize))))
 end
 

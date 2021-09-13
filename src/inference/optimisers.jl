@@ -10,14 +10,14 @@ function RobbinsMonro(κ::Real=0.51, τ::Real=1)
     return RobbinsMonro(κ, τ, IdDict())
 end
 
-function Optimise.apply!(o::RobbinsMonro, x, Δ)
-    κ = o.κ
-    τ = o.τ
-    n = get!(o.state, x, 1)
-    Δ .*= 1 / (τ + n)^κ
-    o.state[x] = n + 1
-    return Δ
-end
+# function Optimisers.apply!(o::RobbinsMonro, x, Δ)
+#     κ = o.κ
+#     τ = o.τ
+#     n = get!(o.state, x, 1)
+#     Δ .*= 1 / (τ + n)^κ
+#     o.state[x] = n + 1
+#     return Δ
+# end # TODO
 
 mutable struct ALRSVI
     τ::Int64
@@ -88,13 +88,13 @@ function finalize_init_ALRSVI!(vi_opt::AVIOptimizer, gp::AbstractLatent{T}) wher
     return objη₂.ρ[] = sum(abs2, objη₂.g) / objη₂.h
 end
 
-function Optimise.apply!(opt::ALRSVI, x, Δ)
-    # update timestep
-    obj = get(opt.state, x)
-    obj.t += 1
-    obj.g .= (1.0 - 1.0 / obj.τ) * obj.g .+ 1.0 / obj.τ * Δ
-    obj.h[] = (1.0 - 1.0 / obj.τ) * obj.h[] + 1.0 / obj.τ * sum(abs2, Δ)
-    obj.ρ[] = dot(obj.g, obj.g) / obj.h[]
-    obj.τ[] = obj.τ[] * (1 - obj.ρ[]) + 1.0
-    return obj.ρ * Δ
-end
+# function Optimisers.apply!(opt::ALRSVI, x, Δ)
+#     # update timestep
+#     obj = get(opt.state, x)
+#     obj.t += 1
+#     obj.g .= (1.0 - 1.0 / obj.τ) * obj.g .+ 1.0 / obj.τ * Δ
+#     obj.h[] = (1.0 - 1.0 / obj.τ) * obj.h[] + 1.0 / obj.τ * sum(abs2, Δ)
+#     obj.ρ[] = dot(obj.g, obj.g) / obj.h[]
+#     obj.τ[] = obj.τ[] * (1 - obj.ρ[]) + 1.0
+#     return obj.ρ * Δ
+# end #TODO

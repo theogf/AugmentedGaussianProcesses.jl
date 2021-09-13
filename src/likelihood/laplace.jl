@@ -54,7 +54,7 @@ end
 ## Local Updates ##
 # b : Variational parameter b of GIG
 # θ : Expected value of ω
-function init_local_vars(state, ::LaplaceLikelihood{T}, batchsize::Int)
+function init_local_vars(state, ::LaplaceLikelihood{T}, batchsize::Int) where {T}
     return merge(state, (; local_vars=(; b=rand(T, batchsize), θ=zeros(T, batchsize))))
 end
 

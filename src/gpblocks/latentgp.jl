@@ -201,7 +201,9 @@ nat2(gp::AbstractVarLatent) = nat2(posterior(gp))
 
 mean_f(model::AbstractGPModel, kernel_matrices) = mean_f.(model.f, kernel_matrices)
 
-@traitfn mean_f(gp::T, ::Any) where {T <: AbstractLatent; IsFull{T}} = mean_f(mean(gp))
+@traitfn function mean_f(gp::T, kernel_matrices) where {T <: AbstractLatent; IsFull{T}}
+    return mean_f(mean(gp))
+end
 @traitfn function mean_f(gp::T, kernel_matrices) where {T <: AbstractLatent; !IsFull{T}}
     return mean_f(mean(gp), kernel_matrices.κ)
 end
@@ -211,8 +213,10 @@ mean_f(μ::AbstractVector, κ::AbstractMatrix) = κ * μ
 
 var_f(model::AbstractGPModel, kernel_matrices) = var_f.(model.f, kernel_matrices)
 
-@traitfn var_f(gp::T, ::Any) where {T <: AbstractLatent; IsFull{T}} = var_f(cov(gp))
-@traitfn function var_f(gp::T, kernela_matrices) where {T <: AbstractLatent; !IsFull{T}}
+@traitfn function var_f(gp::T, kernel_matrices) where {T<:AbstractLatent; IsFull{T}}
+    var_f(cov(gp))
+end
+@traitfn function var_f(gp::T, kernel_matrices) where {T <: AbstractLatent; !IsFull{T}}
     return var_f(cov(gp), kernel_matrices.κ, kernel_matrices.K̃)
 end
 
@@ -235,7 +239,7 @@ Zopt(gp::OnlineVarLatent) = gp.Zopt
     return cholesky(kernelmatrix(kernel(gp), X) + jitt * I)
 end
 
-@traitfn function compute_K(gp::T, jitt::Real) where {T <: AbstractLatent; !IsFull{T}}
+@traitfn function compute_K(gp::TGP, jitt::Real) where {TGP <: AbstractLatent; !IsFull{TGP}}
     return cholesky(kernelmatrix(kernel(gp), gp.Z) + jitt * I)
 end
 

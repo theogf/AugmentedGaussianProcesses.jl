@@ -26,7 +26,7 @@ struct StudentTLikelihood{T<:Real} <: RegressionLikelihood{T}
     σ::T
     function StudentTLikelihood{T}(ν::T, σ::T=one(T)) where {T<:Real}
         ν > 0.5 || error("ν should be greater than 0.5")
-        return new{T,Vector{T}}(ν, (ν + one(T)) / 2.0, σ)
+        return new{T}(ν, (ν + one(T)) / 2.0, σ)
     end
 end
 
@@ -61,7 +61,7 @@ function compute_proba(
 end
 
 ## Local Updates ##
-function init_local_vars(state, ::StudentTLikelihood{T}, batchsize::Int)
+function init_local_vars(state, ::StudentTLikelihood{T}, batchsize::Int) where {T}
     return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
 end
 

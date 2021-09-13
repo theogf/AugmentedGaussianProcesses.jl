@@ -34,7 +34,7 @@ using Reexport
 @reexport using InducingPoints
 
 using AbstractMCMC
-using AdvancedHMC
+# using AdvancedHMC
 using ChainRulesCore: ChainRulesCore, NoTangent
 using Distributions:
     Distributions,
@@ -104,6 +104,7 @@ include(joinpath("data", "utils.jl"))
 include(joinpath("functions", "plotting.jl"))
 
 # Training and prediction functions
+include(joinpath("training", "init_state.jl"))
 include(joinpath("training", "training.jl"))
 include(joinpath("training", "sampling.jl"))
 include(joinpath("training", "onlinetraining.jl"))

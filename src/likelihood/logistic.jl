@@ -60,6 +60,9 @@ function compute_proba(
 end
 
 ### Local Updates Section ###
+function init_local_vars(state, ::LogisticLikelihood{T}, batchsize::Int) where {T}
+    return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
+end
 
 function local_updates!(
     l::LogisticLikelihood{T}, ::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector

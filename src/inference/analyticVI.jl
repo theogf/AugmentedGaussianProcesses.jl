@@ -8,8 +8,9 @@ mutable struct AnalyticVI{T,O<:AVIOptimizer} <: VariationalInference{T}
     vi_opt::O # Local optimizer for the variational parameters
 
     function AnalyticVI{T}(ϵ::T, optimiser, batchsize::Int, stoch::Bool) where {T}
-        return new{T}(
-            ϵ, 0, stoch, 0, batchsize, one(T), true, AVIOptimizer(optimiser),
+        vi_opt = AVIOptimizer(optimiser)
+        return new{T,typeof(vi_opt)}(
+            ϵ, 0, stoch, 0, batchsize, one(T), true, vi_opt,
         )
     end
 end
@@ -242,10 +243,11 @@ end
 function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI, state)
     if isStochastic(i)
         if haskey(state, :vi_opt_state)
-        Δ₁, state_η₁ = Optimisers.apply(opt.optimiser, vi_opt_state.η₁, nat1(gp), vi_opt_state.∇η₁)
-        Δ₂, state_η₂ = Optimisers.apply(
-            opt.optimiser, vi_opt_state.η₂, nat2(gp).data, vi_opt_state.∇η₂
-        )
+            Δ₁, state_η₁ = Optimisers.apply(opt.optimiser, vi_opt_state.η₁, nat1(gp), vi_opt_state.∇η₁)
+            Δ₂, state_η₂ = Optimisers.apply(
+                opt.optimiser, vi_opt_state.η₂, nat2(gp).data, vi_opt_state.∇η₂
+            )
+        end
         gp.post.η₁ .+= Δ₁
         gp.post.η₂ .= Symmetric(Δ₂) + nat2(gp)
         vi_opt_state = merge(vi_opt_state, (; state_η₁, state_η₂))

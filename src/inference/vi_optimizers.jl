@@ -6,12 +6,12 @@ abstract type AOptimizer <: InferenceOptimizer end
 abstract type NOptimizer <: InferenceOptimizer end
 
 # Analytic VI Optimizer
-struct AVIOptimizer{T<:Real} <: AOptimizer{T}
+struct AVIOptimizer{O} <: AOptimizer
     optimiser::O # Optimiser for stochastic updates
 end
 
 # Numerical VI Optimizer
-struct NVIOptimizer{T<:Real,O} <: NOptimizer{T}
+struct NVIOptimizer{T<:Real,O} <: NOptimizer
     optimiser::O #Learning rate for stochastic updates
     ∇η₁::Vector{T}
     ∇η₂::Matrix{T}
@@ -30,7 +30,7 @@ struct NVIOptimizer{T<:Real,O} <: NOptimizer{T}
     end
 end
 
-# Sampling Optimizer, does not contain anyting, just placeholder for sampling
+# Sampling Optimizer, does not contain anyting, just a place-holder for sampling
 struct SOptimizer{O} <: AOptimizer
     optimiser::O
 end
