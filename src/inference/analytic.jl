@@ -1,13 +1,10 @@
 ## Solve the classical GP Regression ##
-mutable struct Analytic{T<:Real} <:
-               AbstractInference{T}
+mutable struct Analytic{T<:Real} <: AbstractInference{T}
     ϵ::T # Convergence criteria
     n_iter::Int # Number of steps performed
-    batchsize::Int 
+    batchsize::Int
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
-    function Analytic{T}(
-        ϵ::T
-    ) where {T}
+    function Analytic{T}(ϵ::T) where {T}
         return new{T}(ϵ, 0, 0, false)
     end
 end
@@ -44,7 +41,9 @@ function analytic_updates(m::GP{T}, state, y) where {T}
     f.post.α .= cov(f) \ (y - pr_mean(f, first(Zviews(m))))
     if !isnothing(l.opt_noise)
         g = 0.5 * (norm(mean(f), 2) - tr(inv(cov(f))))
-        Δlogσ², state.local_vars.state_σ² = Optimisers.apply!(l.opt_noise, state.local_vars.state_σ², l.σ², g .* l.σ²)
+        Δlogσ², state.local_vars.state_σ² = Optimisers.apply!(
+            l.opt_noise, state.local_vars.state_σ², l.σ², g .* l.σ²
+        )
         l.σ² .= exp.(log.(l.σ²) .+ Δlogσ²)
     end
 end

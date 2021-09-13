@@ -106,7 +106,9 @@ function variational_updates!(
         state.kernel_matrices[2],
         state.vi_opt_state[2],
     )
-    vi_opt_state_2 = global_update!(m.f[2], opt_type(inference(m)), inference(m), state.vi_opt_state[2])
+    vi_opt_state_2 = global_update!(
+        m.f[2], opt_type(inference(m)), inference(m), state.vi_opt_state[2]
+    )
     local_vars = heteroscedastic_expectations!(
         local_vars, likelihood(m), mean_f(m.f[2]), var_f(m.f[2])
     )
@@ -120,7 +122,9 @@ function variational_updates!(
         state.kernel_matrices[1],
         state.vi_opt_state[1],
     )
-    vi_opt_state_1 = global_update!(m.f[1], opt_type(inference(m)), inference(m), state.vi_opt_state[1])
+    vi_opt_state_1 = global_update!(
+        m.f[1], opt_type(inference(m)), inference(m), state.vi_opt_state[1]
+    )
     vi_opt_state = (vi_opt_state_1, vi_opt_state_2)
     return merge(state, (; vi_opt_state))
 end
@@ -158,7 +162,11 @@ function expec_loglikelihood(
     l::HeteroscedasticLikelihood{T}, ::AnalyticVI, y::AbstractVector, μ, diag_cov, state
 ) where {T}
     tot = length(y) * (0.5 * log(l.λ[1]) - log(2 * sqrt(twoπ)))
-    tot += 0.5 * (dot(μ[2], (0.5 .- state.γ)) - dot(abs2.(μ[2]), state.θ) - dot(diag_cov[2], state.θ))
+    tot +=
+        0.5 * (
+            dot(μ[2], (0.5 .- state.γ)) - dot(abs2.(μ[2]), state.θ) -
+            dot(diag_cov[2], state.θ)
+        )
     tot -= PoissonKL(l, y, μ[1], diag_cov[1], state)
     return tot
 end
@@ -166,7 +174,11 @@ end
 AugmentedKL(l::HeteroscedasticLikelihood, ::AbstractVector, state) = PolyaGammaKL(l, state)
 
 function PoissonKL(
-    l::HeteroscedasticLikelihood{T}, y::AbstractVector, μ::AbstractVector, Σ::AbstractVector, state
+    l::HeteroscedasticLikelihood{T},
+    y::AbstractVector,
+    μ::AbstractVector,
+    Σ::AbstractVector,
+    state,
 ) where {T}
     return PoissonKL(
         state.γ, 0.5 * l.λ[1] * (abs2.(y - μ) + Σ), log.(0.5 * l.λ[1] * (abs2.(μ - y) + Σ))
