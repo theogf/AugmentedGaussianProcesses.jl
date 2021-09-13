@@ -44,7 +44,8 @@ set_ρ!(m::AbstractGPModel, ρ) = setρ!(inference(m), ρ)
 setHPupdated!(inf::AbstractInference, status::Bool) = inf.HyperParametersUpdated = status
 isHPupdated(inf::AbstractInference) = inf.HyperParametersUpdated
 
-nIter(inf::AbstractInference) = inf.nIter
+n_iter(m::AbstractGPModel) = n_iter(inference(m))
+n_iter(inf::AbstractInference) = inf.n_iter
 
 get_opt(::AbstractInference) = nothing
 get_opt(i::VariationalInference) = i.vi_opt

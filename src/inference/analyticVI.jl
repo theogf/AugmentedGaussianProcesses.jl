@@ -77,6 +77,7 @@ end
         get_opt(inference(m)),
         Zviews(m),
         state.kernel_matrices,
+        state.vi_opt_state,
     )
     state = global_update!(m, state)
     return merge(state, (; local_vars))
@@ -229,20 +230,21 @@ end
 @traitfn function global_update!(
     model::TGP, state
 ) where {T,L,TGP<:AbstractGPModel{T,L,<:AnalyticVI};!IsFull{TGP}}
-    state = global_update!.(model.f, inference(model).vi_opt, inference(model), state)
-    return state
+    vi_opt_state =
+        global_update!.(
+            model.f, inference(model).vi_opt, inference(model), state.vi_opt_state
+        )
+    return merge(state, (; vi_opt_state))
 end
 
-function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI, state)
+function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI, vi_opt_state)
     if is_stochastic(i)
-        if haskey(state, :vi_opt_state)
-            Δ₁, state_η₁ = Optimisers.apply(
-                opt.optimiser, vi_opt_state.state_η₁, nat1(gp), vi_opt_state.∇η₁
-            )
-            Δ₂, state_η₂ = Optimisers.apply(
-                opt.optimiser, vi_opt_state.state_η₂, nat2(gp).data, vi_opt_state.∇η₂
-            )
-        end
+        Δ₁, state_η₁ = Optimisers.apply(
+            opt.optimiser, vi_opt_state.state_η₁, nat1(gp), vi_opt_state.∇η₁
+        )
+        Δ₂, state_η₂ = Optimisers.apply(
+            opt.optimiser, vi_opt_state.state_η₂, nat2(gp).data, vi_opt_state.∇η₂
+        )
         gp.post.η₁ .+= Δ₁
         gp.post.η₂ .= Symmetric(Δ₂) + nat2(gp)
         vi_opt_state = merge(vi_opt_state, (; state_η₁, state_η₂))

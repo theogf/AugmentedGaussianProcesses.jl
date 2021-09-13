@@ -2,8 +2,7 @@
 mutable struct Analytic{T<:Real,Tx<:AbstractVector,Ty<:AbstractVector} <:
                AbstractInference{T}
     ϵ::T #Convergence criteria
-    nIter::Integer #Number of steps performed
-    nSamples::Int
+    n_iter::Integer #Number of steps performed
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     xview::Tx
     yview::Ty

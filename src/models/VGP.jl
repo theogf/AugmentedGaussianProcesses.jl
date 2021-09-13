@@ -46,7 +46,7 @@ function VGP(
     obsdim::Int=1,
 )
     X, T = wrap_X(X, obsdim)
-    y, nLatent, likelihood = check_data!(y, likelihood)
+    y = check_data!(y, likelihood)
 
     inference isa VariationalInference || error(
         "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`",
@@ -71,9 +71,11 @@ function VGP(
         mean = EmpiricalMean(mean)
     end
 
-    latentf = ntuple(_ -> VarLatent(T, n_feature, kernel, mean, optimiser), nLatent)
+    latentf = ntuple(n_latent(likelihood)) do _
+        VarLatent(T, n_feature, kernel, mean, optimiser)
+    end
 
-    return VGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
+    return VGP{T,typeof(likelihood),typeof(inference),typeof(data),n_latent(likelihood)}(
         data, latentf, likelihood, inference, verbose, atfrequency, false
     )
 end
@@ -85,6 +87,7 @@ function Base.show(io::IO, model::VGP)
     )
 end
 
+Zviews(m::VGP) = Ref(input(m.data))
 objective(m::VGP) = ELBO(m::VGP)
 
 @traitimpl IsFull{VGP}

@@ -61,8 +61,8 @@ function train!(
             if !isnothing(callback)
                 callback(model, state, n_iter(model)) #Use a callback method if set by user
             end
-            if (nIter(model) % model.atfrequency == 0) &&
-               (nIter(model) >= 3) &&
+            if (n_iter(model) % model.atfrequency == 0) &&
+               (n_iter(model) >= 3) &&
                (local_iter != iterations)
                 state = update_hyperparameters!(model, state) #Update the hyperparameters
             end
@@ -88,7 +88,7 @@ function train!(
                 end
             end
             local_iter += 1
-            model.inference.nIter += 1
+            model.inference.n_iter += 1
             (local_iter <= iterations) || break #Verify if the number of maximum iterations has been reached
         # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         catch e
@@ -113,7 +113,13 @@ end
     model::TGP, iterations; callback=nothing, convergence=nothing, state=nothing
 ) where {TGP <: AbstractGPModel; IsFull{TGP}}
     return train!(
-        model, input(model), output(model), iterations; callback, convergence, state
+        model,
+        input(model.data),
+        output(model.data),
+        iterations;
+        callback,
+        convergence,
+        state,
     )
 end
 
@@ -125,7 +131,7 @@ end
 
 function update_parameters!(model::VGP, state, x, y)
     state = compute_kernel_matrices(model, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    state = variational_updates(state, model, y)
+    state = variational_updates(model, state, y)
     return state
 end
 
@@ -136,17 +142,17 @@ function update_parameters!(model::SVGP, state, x, y)
     return state
 end
 
-function update_parameters!(m::MOVGP, state, x, y)
-    state = compute_kernel_matrices(m, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    state = update_A!(m)
-    state = variational_updates!(m, state, y)
+function update_parameters!(model::MOVGP, state, x, y)
+    state = compute_kernel_matrices(model, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = update_A!(model)
+    state = variational_updates(model, state, y)
     return nothing
 end
 
 function update_parameters!(m::MOSVGP, state, x, y)
     state = compute_kernel_matrices(m, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     update_A!(m)
-    state = variational_updates!(m, state, y)
+    state = variational_updates(m, state, y)
     return state
 end
 
@@ -189,7 +195,6 @@ end
     else
         state.kernel_matrices
     end
-    @show typeof(x)
     # If change of hyperparameters or if stochatic
     kernel_matrices = if isHPupdated(inference(m)) || is_stochastic(inference(m)) || update
         κs = map(m.f, kernel_matrices) do gp, kernel_matrix

@@ -104,7 +104,7 @@ include("data/utils.jl")
 include("functions/plotting.jl")
 
 # Training and prediction functions
-include("training/init_state.jl")
+include("training/states.jl")
 include("training/training.jl")
 include("training/sampling.jl")
 include("training/onlinetraining.jl")

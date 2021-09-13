@@ -26,7 +26,7 @@ function init_vi_opt_state(::VarLatent, ::VariationalInference)
 end
 
 function init_vi_opt_state(gp::SparseVarLatent, vi::VariationalInference)
-    state = (; ∇η₁=zero(mean(gp)), ∇η₂=zero(cov(gp)))
+    state = (; ∇η₁=zero(mean(gp)), ∇η₂=zero(cov(gp).data))
     if is_stochastic(vi)
         state_η₁ = init(opt(vi), nat1(gp))
         state_η₂ = init(opt(vi), nat2(gp).data)

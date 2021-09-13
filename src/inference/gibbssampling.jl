@@ -12,7 +12,7 @@ mutable struct GibbsSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     nBurnin::Int # Number of burnin samples
     thinning::Int # Frequency at which samples are saved
     ϵ::T # Convergence criteria
-    nIter::Integer # Number of samples computed
+    n_iter::Integer # Number of samples computed
     HyperParametersUpdated::Bool # Flag for updating kernel matrices
     opt::NTuple{N,SOptimizer}
     sample_store::Vector{Vector{Vector{T}}}

@@ -231,13 +231,11 @@ Zopt(::AbstractLatent) = nothing
 Zopt(gp::SparseVarLatent) = gp.Zopt
 Zopt(gp::OnlineVarLatent) = gp.Zopt
 
-@traitfn function compute_K(
-    gp::TGP, X::AbstractVector, jitt::Real
-) where {TGP <: AbstractLatent; IsFull{TGP}}
+function compute_K(gp::AbstractLatent, X::AbstractVector, jitt::Real)
     return cholesky(kernelmatrix(kernel(gp), X) + jitt * I)
 end
 
-@traitfn function compute_K(gp::TGP, jitt::Real) where {TGP <: AbstractLatent; !IsFull{TGP}}
+function compute_K(gp::AbstractLatent, jitt::Real)
     return cholesky(kernelmatrix(kernel(gp), gp.Z) + jitt * I)
 end
 

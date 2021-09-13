@@ -18,19 +18,14 @@ struct NVIOptimizer{T<:Real,O} <: NOptimizer
     ν::Vector{T} #Derivative -<dv/dx>_qn
     λ::Vector{T} #Derivative  <d²V/dx²>_qm
     L::LowerTriangular{T,Matrix{T}}
-    function NVIOptimizer{T}(n::Int, b::Int, opt::O) where {T,O}
-        return new{T,O}(
-            opt,
-            zeros(T, n),
-            zeros(T, n, n),
-            zeros(T, b),
-            zeros(T, b),
-            LowerTriangular(diagm(sqrt(0.5) * ones(T, n))),
-        )
-    end
 end
 
 # Sampling Optimizer, does not contain anyting, just a place-holder for sampling
 struct SOptimizer{O} <: AOptimizer
     optimiser::O
 end
+
+Base.length(::InferenceOptimizer) = 1
+
+Base.iterate(i::InferenceOptimizer) = (i, nothing)
+Base.iterate(::InferenceOptimizer, ::Any) = nothing

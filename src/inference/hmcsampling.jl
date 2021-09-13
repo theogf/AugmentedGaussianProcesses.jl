@@ -12,8 +12,7 @@ mutable struct HMCSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     nBurnin::Int # Number of burnin samples
     thinning::Integer # Frequency at which samples are saved
     ϵ::T #Convergence criteria
-    nIter::Int #Number of samples computed
-    nSamples::Int # Number of data samples
+    n_iter::Int #Number of samples computed
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     opt::NTuple{N,SOptimizer}
     xview::Tx

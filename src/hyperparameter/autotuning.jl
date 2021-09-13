@@ -26,7 +26,7 @@ function update_hyperparameters!(m::GP, state)
         end
     end
     # end
-    return nothing
+    return state
 end
 
 # @traitfn function update_hyperparameters!(
@@ -64,7 +64,7 @@ end
             end
         end
     end
-    return nothing
+    return state
 end
 
 @traitfn function update_hyperparameters!(
@@ -105,7 +105,7 @@ end
             end
         end
     end
-    return nothing
+    return state
 end
 
 ## Update all hyperparameters for the full batch GP models ##

@@ -1,71 +1,34 @@
-mutable struct MCIntegrationVI{T<:Real,N,Tx,Ty} <: NumericalVI{T}
+mutable struct MCIntegrationVI{T<:Real} <: NumericalVI{T}
     nMC::Int64 #Number of samples for MC Integrations
     clipping::T
     ϵ::T #Convergence criteria
-    nIter::Integer #Number of steps performed
+    n_iter::Integer #Number of steps performed
     stoch::Bool # Flag for stochastic optimization
-    nSamples::Int #Number of samples of the data
-    nMinibatch::Int #Size of mini-batches
+    batchsize::Int #Size of mini-batches
     ρ::T # Scaling coeff. for stoch. opt.
     NaturalGradient::Bool
     HyperParametersUpdated::Bool # Flag for updating kernel matrix
-    vi_opt::NTuple{N,NVIOptimizer}
-    MBIndices::Vector{Int} #Indices of the minibatch
-    xview::Tx
-    yview::Ty
+    vi_opt::NVIOptimizer
     function MCIntegrationVI{T}(
         ϵ::T,
         nMC::Int,
         optimiser,
         Stochastic::Bool,
         clipping::Real,
-        nMinibatch::Int,
+        batchsize::Int,
         natural::Bool,
     ) where {T<:Real}
-        return new{T,1,Vector{T},Vector{T}}(
+        return new{T}(
             nMC,
             clipping,
             ϵ,
             0,
             Stochastic,
-            0,
-            nMinibatch,
+            batchsize,
             one(T),
             natural,
             true,
             (NVIOptimizer{T}(0, 0, optimiser),),
-        )
-    end
-    function MCIntegrationVI{T}(
-        ϵ::Real,
-        Stochastic::Bool,
-        nMC::Int,
-        clipping::Real,
-        nFeatures::Vector{<:Int},
-        nSamples::Int,
-        nMinibatch::Int,
-        nLatent::Int,
-        optimiser,
-        natural::Bool,
-        xview::Tx,
-        yview::Ty,
-    ) where {T,Tx,Ty}
-        vi_opts = ntuple(i -> NVIOptimizer{T}(nFeatures[i], nMinibatch, optimiser), nLatent)
-        return new{T,nLatent,Tx,Ty}(
-            nMC,
-            clipping,
-            ϵ,
-            0,
-            Stochastic,
-            nSamples,
-            nMinibatch,
-            T(nSamples / nMinibatch),
-            natural,
-            true,
-            vi_opts,
-            1:nMinibatch,
-            xview,
-            yview,
         )
     end
 end
@@ -127,8 +90,8 @@ function MCIntegrationSVI(
     return MCIntegrationVI{T}(ϵ, nMC, optimiser, true, clipping, nMinibatch, natural)
 end
 
-function grad_expectations!(m::AbstractGPModel{T,L,<:MCIntegrationVI{T,N}}) where {T,L,N}
-    raw_samples = randn(T, inference(m).nMC, nLatent(m))
+function grad_expectations!(m::AbstractGPModel{T,L,<:MCIntegrationVI{T}}) where {T,L}
+    raw_samples = randn(T, inference(m).nMC, n_latent(m))
     samples = similar(raw_samples)
     μ = mean_f(m)
     σ² = var_f(m)
@@ -141,14 +104,15 @@ function grad_expectations!(m::AbstractGPModel{T,L,<:MCIntegrationVI{T,N}}) wher
 end
 
 function expec_loglikelihood(
-    l::AbstractLikelihood, i::MCIntegrationVI{T,N}, y, μ, σ²
-) where {T,N} # μ and σ² are tuples of vectors
-    raw_samples = randn(T, i.nMC, N) # dimension nMC x nLatent
+    l::AbstractLikelihood, i::MCIntegrationVI{T}, y, μ, σ²
+) where {T} # μ and σ² are tuples of vectors
+    num_latent = length(μ)
+    raw_samples = randn(T, i.nMC, num_latent) # dimension nMC x nLatent
     # samples = similar(raw_samples)
-    nSamples = length(MBIndices(i))
+    num_sample = batchsize(i)
     tot = 0.0
-    for j in 1:nSamples # Loop over every data point
-        samples = raw_samples .* sqrt.([σ²[k][j] for k in 1:N])' .+ [μ[k][j] for k in 1:N]'
+    for j in 1:num_sample # Loop over every data point
+        samples = raw_samples .* sqrt.([σ²[k][j] for k in 1:num_latent])' .+ [μ[k][j] for k in 1:num_latent]'
         # samples is of dimension nMC x nLatent again
         y_j = getindex.(y, j) # Obtain the label for data point j
         for f in eachrow(samples)

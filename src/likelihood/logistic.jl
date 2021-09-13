@@ -64,7 +64,11 @@ function init_local_vars(state, ::LogisticLikelihood{T}, batchsize::Int) where {
 end
 
 function local_updates!(
-    local_vars, ::LogisticLikelihood{T}, ::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
+    local_vars,
+    ::LogisticLikelihood{T},
+    ::AbstractVector,
+    μ::AbstractVector,
+    diagΣ::AbstractVector,
 ) where {T}
     @. local_vars.c = sqrt(diagΣ + abs2(μ))
     @. local_vars.θ = 0.5 * tanh(0.5 * local_vars.c) / local_vars.c
