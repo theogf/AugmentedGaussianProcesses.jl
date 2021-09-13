@@ -9,9 +9,7 @@ mutable struct AnalyticVI{T,O<:AVIOptimizer} <: VariationalInference{T}
 
     function AnalyticVI{T}(ϵ::T, optimiser, batchsize::Int, stoch::Bool) where {T}
         vi_opt = AVIOptimizer(optimiser)
-        return new{T,typeof(vi_opt)}(
-            ϵ, 0, stoch, batchsize, one(T), true, vi_opt,
-        )
+        return new{T,typeof(vi_opt)}(ϵ, 0, stoch, batchsize, one(T), true, vi_opt)
     end
 end
 
@@ -55,7 +53,7 @@ end
 
 function Base.show(io::IO, inference::AnalyticVI)
     return print(
-        io, "Analytic$(isStochastic(inference) ? " Stochastic" : "") Variational Inference"
+        io, "Analytic$(is_stochastic(inference) ? " Stochastic" : "") Variational Inference"
     )
 end
 
@@ -75,7 +73,7 @@ end
         m.f,
         ∇E_μ(m, y, local_vars),
         ∇E_Σ(m, y, local_vars),
-        getρ(inference(m)),
+        ρ(inference(m)),
         get_opt(inference(m)),
         Zviews(m),
         state.kernel_matrices,
@@ -99,13 +97,14 @@ end
         m.f,
         ∇E_μ(m, y, local_vars),
         ∇E_Σ(m, y, local_vars),
-        getρ(inference(m)),
+        ρ(inference(m)),
         get_opt(inference(m)),
         Zviews(m),
         state.kernel_matrices,
+        state.vi_opt_state,
     ) # Compute the natural gradients of u given the weighted sum of the gradient of f
     state = global_update!(m, state) # Update η₁ and η₂
-    return merge(state, (;local_vars))
+    return merge(state, (; local_vars))
 end
 
 # Wrappers for tuple of 1 element,
@@ -139,9 +138,10 @@ function natural_gradient!(
     ::Real,
     ::AVIOptimizer,
     X::AbstractVector,
-    state,
+    kernel_matrices,
+    vi_opt_state,
 ) where {T}
-    K = state.kernel_matrices.K
+    K = kernel_matrices.K
     gp.post.η₁ .= ∇E_μ .+ K \ pr_mean(gp, X)
     gp.post.η₂ .= -Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(K))
     return gp
@@ -155,12 +155,12 @@ function natural_gradient!(
     ρ::Real,
     ::AVIOptimizer,
     Z::AbstractVector,
-    state,
+    kernel_matrices,
+    vi_opt_state,
 ) where {T}
-    kernel_matrices = state.kernel_matrices
     K, κ = kernel_matrices.K, kernel_matrices.κ
-    state.vi_opt_state.∇η₁ .= ∇η₁(∇E_μ, ρ, κ, K, pr_mean(gp, Z), nat1(gp))
-    state.vi_opt_state.∇η₂ .= ∇η₂(∇E_Σ, ρ, κ, K, nat2(gp))
+    vi_opt_state.∇η₁ .= ∇η₁(∇E_μ, ρ, κ, K, pr_mean(gp, Z), nat1(gp))
+    vi_opt_state.∇η₂ .= ∇η₂(∇E_Σ, ρ, κ, K, nat2(gp))
     return gp
 end
 
@@ -195,25 +195,18 @@ function natural_gradient!(
     ::Real,
     ::AVIOptimizer,
     Z::AbstractVector,
-    state,
+    kernel_matrices,
+    vi_opt_state,
 ) where {T}
-    kernel_matrices = state.kernel_matrices
     K = kernel_matrices.K
     κ = kernel_matrices.κ
     κₐ = kernel_matrices.κₐ
-    previous_gp = state.previous_gp
+    previous_gp = vi_opt_state.previous_gp
     prevη₁ = previous_gp.η₁
     invDₐ = previous_gp.invDₐ
-    gp.post.η₁ =
-        K \ pr_mean(gp, Z) +
-        transpose(κ) * ∇E_μ +
-        transpose(κₐ) * prevη₁
+    gp.post.η₁ = K \ pr_mean(gp, Z) + transpose(κ) * ∇E_μ + transpose(κₐ) * prevη₁
     gp.post.η₂ =
-        -Symmetric(
-            ρκdiagθκ(1.0, κ, ∇E_Σ) +
-            0.5 * transpose(κₐ) * invDₐ * κₐ +
-            0.5 * inv(K),
-        )
+        -Symmetric(ρκdiagθκ(1.0, κ, ∇E_Σ) + 0.5 * transpose(κₐ) * invDₐ * κₐ + 0.5 * inv(K))
     return gp
 end
 
@@ -241,11 +234,13 @@ end
 end
 
 function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI, state)
-    if isStochastic(i)
+    if is_stochastic(i)
         if haskey(state, :vi_opt_state)
-            Δ₁, state_η₁ = Optimisers.apply(opt.optimiser, vi_opt_state.η₁, nat1(gp), vi_opt_state.∇η₁)
+            Δ₁, state_η₁ = Optimisers.apply(
+                opt.optimiser, vi_opt_state.state_η₁, nat1(gp), vi_opt_state.∇η₁
+            )
             Δ₂, state_η₂ = Optimisers.apply(
-                opt.optimiser, vi_opt_state.η₂, nat2(gp).data, vi_opt_state.∇η₂
+                opt.optimiser, vi_opt_state.state_η₂, nat2(gp).data, vi_opt_state.∇η₂
             )
         end
         gp.post.η₁ .+= Δ₁
@@ -271,7 +266,7 @@ end
 ) where {T,L,TGP<:AbstractGPModel{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     tot = zero(T)
     tot +=
-        getρ(inference(model)) * expec_loglikelihood(
+        ρ(inference(model)) * expec_loglikelihood(
             likelihood(model),
             inference(model),
             y,
@@ -281,7 +276,7 @@ end
         )
     tot -= GaussianKL(model, state)
     tot -= Zygote.@ignore(
-        getρ(inference(model)) * AugmentedKL(likelihood(model), yview(model))
+        ρ(inference(model)) * AugmentedKL(likelihood(model), yview(model))
     )
     return tot -= extraKL(model)
 end
@@ -292,14 +287,19 @@ end
 ) where {T,L,TGP<:AbstractGPModel{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     tot = zero(T)
     tot += sum(
-        getρ(inference(model)) .*
+        ρ(inference(model)) .*
         expec_loglikelihood.(
-            likelihood(model), inference(model), yview(model), mean_f(model), var_f(model), state.local_vars
+            likelihood(model),
+            inference(model),
+            yview(model),
+            mean_f(model),
+            var_f(model),
+            state.local_vars,
         ),
     )
     tot -= GaussianKL(model)
     tot -= Zygote.@ignore(
-        sum(getρ(inference(model)) .* AugmentedKL.(likelihood(model), yview(model)))
+        sum(ρ(inference(model)) .* AugmentedKL.(likelihood(model), yview(model)))
     )
     return tot
 end
