@@ -5,7 +5,6 @@
 # ### Loading necessary packages
 using Plots
 using AugmentedGaussianProcesses
-const AGP = AugmentedGaussianProcesses
 using Distributions
 
 # ## Creating some random data

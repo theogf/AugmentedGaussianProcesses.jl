@@ -8,7 +8,7 @@ n_class(l::MultiClassLikelihood) = l.n_class
 function treat_labels!(
     y::AbstractArray{T,N}, likelihood::L
 ) where {T,N,L<:MultiClassLikelihood}
-    @assert N <= 1 "Target should be a vector of labels"
+    N <= 1 "Target should be a vector of labels"
     init_multiclass_likelihood!(likelihood, y)
     return likelihood.Y, num_class(likelihood), likelihood
 end
@@ -31,16 +31,16 @@ function Distributions.loglikelihood(
 end
 
 function create_mapping!(l::MultiClassLikelihood, y::AbstractVector)
-    nClasses = num_class(l)
+    num_latent = n_latent(l)
     if !isdefined(l, :class_mapping)
         l.class_mapping = unique(y)
-        if length(l.class_mapping) <= nClasses &&
-           issubset(l.class_mapping, collect(1:nClasses))
-            l.class_mapping = collect(1:nClasses)
+        if length(l.class_mapping) <= num_latent &&
+           issubset(l.class_mapping, collect(1:num_latent))
+            l.class_mapping = collect(1:num_latent)
         elseif length(l.class_mapping) > nClasses
             throw(
                 ErrorException(
-                    "The number of unique labels in the data : $(l.class_mapping) is not of the same size then the predefined class number ; $nClasses",
+                    "The number of unique labels in the data : $(l.class_mapping) is not of the same size then the predefined class number ; $num_latent",
                 ),
             )
         end
@@ -48,20 +48,19 @@ function create_mapping!(l::MultiClassLikelihood, y::AbstractVector)
     return l.ind_mapping = Dict(value => key for (key, value) in enumerate(l.class_mapping))
 end
 
-""" Given the labels, return one hot encoding, and the mapping of each class"""
-function create_one_hot!(l, y)
-    @assert issubset(unique(y), l.class_mapping)
-    l.Y = [falses(length(y)) for i in 1:num_class(l)]
-    l.y_class = zeros(Int64, length(y))
+# Given the labels, return one hot encoding, and the mapping of each class
+function create_one_hot(l::MultiClassLikelihood, y)
+    issubset(unique(y), l.class_mapping) || error("Some labels of y are not part of the expect labels")
+    Y = falses(length(y), n_class(l))
     for i in 1:length(y)
-        for j in 1:num_class(l)
+        for j in 1:n_class(l)
             if y[i] == l.class_mapping[j]
-                l.Y[j][i] = true
-                l.y_class[i] = j
-                break
+                Y[i, j] = true
+                break # Once we found the right one, we get out
             end
         end
     end
+    return Y
 end
 
 function compute_proba(

@@ -70,7 +70,7 @@ function Base.show(io::IO, model::GP)
     )
 end
 
-nLatent(::GP) = 1
+n_latent(::GP) = 1
 Zviews(model::GP) = [input(model)]
 
 @traitimpl IsFull{GP}

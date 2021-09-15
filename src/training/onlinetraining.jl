@@ -42,8 +42,8 @@ function train!(
 
     wrap_data!(data(m), X, y) # Set the data in the model
 
-    _nLatent == nLatent(m) || "Data should always contains the same number of outputs"
-    iterations > 0 || "Number of iterations should be positive"
+    _nLatent == n_latent(m) || error("Data should always contains the same number of outputs")
+    iterations > 0 || error("Number of iterations should be positive")
     setnMinibatch!(inference(m), nSamples(data(m)))
     setnSamples!(inference(m), nSamples(data(m)))
     # setMBIndices!(inference(m), collect(1:nMinibatch(inference(m))))

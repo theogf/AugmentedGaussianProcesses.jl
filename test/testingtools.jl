@@ -65,7 +65,7 @@ function tests_likelihood(
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.VarLatent}
                     @test AGP.output(model) isa AbstractVector
                     @test AGP.input(model) isa AbstractVector
-                    @test AGP.nLatent(model) == nLatent
+                    @test AGP.n_latent(model) == nLatent
                     model_opt = VGP(X, y, k, l, AnalyticVI(); optimiser=true, verbose=0)
                     tests(model, model_opt, X, f, y, problem)
                 else
@@ -83,7 +83,7 @@ function tests_likelihood(
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.VarLatent}
                     @test AGP.output(model) isa AbstractVector
                     @test AGP.input(model) isa AbstractVector
-                    @test AGP.nLatent(model) == nLatent
+                    @test AGP.n_latent(model) == nLatent
                     model_opt = VGP(X, y, k, l, QuadratureVI(); optimiser=true, verbose=0)
                     tests(model, model_opt, X, f, y, problem)
                 else
@@ -99,7 +99,7 @@ function tests_likelihood(
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.VarLatent}
                     @test AGP.output(model) isa AbstractVector
                     @test AGP.input(model) isa AbstractVector
-                    @test AGP.nLatent(model) == nLatent
+                    @test AGP.n_latent(model) == nLatent
                     model_opt = VGP(
                         X, y, k, l, MCIntegrationVI(); optimiser=true, verbose=0
                     )
@@ -129,7 +129,7 @@ function tests_likelihood(
                     @test AGP.likelihood(model) isa ltype
                     @test AGP.inference(model) isa AnalyticVI
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.OnlineVarLatent}
-                    @test AGP.nLatent(model) == nLatent
+                    @test AGP.n_latent(model) == nLatent
                     global model_opt = OnlineSVGP(
                         k,
                         l,
@@ -152,7 +152,7 @@ function tests_likelihood(
                     @test AGP.likelihood(model) isa ltype
                     @test AGP.inference(model) isa QuadratureVI
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.OnlineVarLatent}
-                    @test AGP.nLatent(model) == nLatent
+                    @test AGP.n_latent(model) == nLatent
                     model_opt = OnlineSVGP(
                         k, l, QuadratureVI(), UniGrid(10); optimiser=true, verbose=0
                     )
@@ -170,7 +170,7 @@ function tests_likelihood(
                     @test AGP.likelihood(model) isa ltype
                     @test AGP.inference(model) isa MCIntegrationVI
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.SparseVarLatent}
-                    @test AGP.nLatent(model) == nLatent
+                    @test AGP.n_latent(model) == nLatent
                     model_opt = OnlineSVGP(
                         k, l, MCIntegrationVI(), UniGrid(10); optimiser=true, verbose=0
                     )
@@ -195,7 +195,7 @@ function tests_likelihood(
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.SparseVarLatent}
                     @test AGP.output(model) isa AbstractVector
                     @test AGP.input(model) isa AbstractVector
-                    @test AGP.nLatent(model) == nLatent
+                    @test AGP.n_latent(model) == nLatent
                     model_opt = SVGP(
                         X,
                         y,
@@ -228,7 +228,7 @@ function tests_likelihood(
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.SparseVarLatent}
                     @test AGP.output(model) isa AbstractVector
                     @test AGP.input(model) isa AbstractVector
-                    @test AGP.nLatent(model) == nLatent
+                    @test AGP.n_latent(model) == nLatent
                     model_opt = SVGP(
                         X,
                         y,
@@ -259,7 +259,7 @@ function tests_likelihood(
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.SparseVarLatent}
                     @test AGP.output(model) isa AbstractVector
                     @test AGP.input(model) isa AbstractVector
-                    @test AGP.nLatent(model) == nLatent
+                    @test AGP.n_latent(model) == nLatent
                     model_opt = SVGP(
                         X,
                         y,
@@ -297,7 +297,7 @@ function tests_likelihood(
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.SampledLatent}
                     @test AGP.output(model) isa AbstractVector
                     @test AGP.input(model) isa AbstractVector
-                    @test AGP.nLatent(model) == nLatent
+                    @test AGP.n_latent(model) == nLatent
                     samples = sample(model, 100; progress=false)
                     @test_broken samples2 = sample(model, 100; cat=true, progress=false)
                 else
@@ -311,7 +311,7 @@ function tests_likelihood(
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.SampledLatent}
                     @test AGP.output(model) isa AbstractVector
                     @test AGP.input(model) isa AbstractVector
-                    @test AGP.nLatent(model) == nLatent
+                    @test AGP.n_latent(model) == nLatent
                     samples = sample(model, 20; progress=false)
                     @test_broken samples2 = sample(model, 20; cat=true)
                 else

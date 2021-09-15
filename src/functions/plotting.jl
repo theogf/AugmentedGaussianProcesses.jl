@@ -16,7 +16,7 @@ using RecipesBase
             x, gp.y
         end
     end
-    if nLatent(gp) == 1
+    if n_latent(gp) == 1
         @series begin
             ribbon := nSigma * sqrt.(sig_f)
             fillalpha --> 0.3
@@ -25,7 +25,7 @@ using RecipesBase
             x, f
         end
     else
-        for t in 1:nLatent(gp)
+        for t in 1:n_latent(gp)
             @series begin
                 ribbon := nSigma * sqrt.(sig_f[t])
                 fillalpha --> 0.3

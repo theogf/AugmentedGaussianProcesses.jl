@@ -28,18 +28,18 @@ end
 
 ## return the linear sum of the expectation gradient given μ ##
 @traitfn function ∇E_μ(m::TGP) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
-    ∇ = [zeros(T, nMinibatch(m.inference)) for i in 1:nLatent(m)]
+    ∇ = [zeros(T, nMinibatch(m.inference)) for i in 1:n_latent(m)]
     ∇Eμs = ∇E_μ.(likelihood(m), Ref(opt_type(m.inference)), yview(m))
     ∇EΣs = ∇E_Σ.(likelihood(m), Ref(opt_type(m.inference)), yview(m))
     μ_f = mean_f.(m.f)
     for t in 1:(m.nTask)
         for j in 1:m.nf_per_task[t]
-            for q in 1:nLatent(m)
+            for q in 1:n_latent(m)
                 ∇[q] .+=
                     m.A[t][j][q] * (
                         ∇Eμs[t][j] -
                         2 * ∇EΣs[t][j] .*
-                        sum(m.A[t][j][qq] * μ_f[qq] for qq in 1:nLatent(m) if qq != q)
+                        sum(m.A[t][j][qq] * μ_f[qq] for qq in 1:n_latent(m) if qq != q)
                     )
             end
         end
@@ -49,11 +49,11 @@ end
 
 ## return the linear sum of the expectation gradient given diag(Σ) ##
 @traitfn function ∇E_Σ(m::TGP) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
-    ∇ = [zeros(T, nMinibatch(m.inference)) for i in 1:(m.nLatent)]
+    ∇ = [zeros(T, batchsize(m.inference)) for _ in 1:n_latent(m)]
     ∇Es = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), yview(m))
     for t in 1:(m.nTask)
         for j in 1:m.nf_per_task[t]
-            for q in 1:nLatent(m)
+            for q in 1:n_latent(m)
                 ∇[q] .+= m.A[t][j][q]^2 * ∇Es[t][j]
             end
         end
@@ -72,13 +72,13 @@ end
         for t in 1:(m.nTask)
             for j in 1:m.nf_per_task[t]
                 ∇A = zero(m.A[t][j])
-                for q in 1:nLatent(m)
+                for q in 1:n_latent(m)
                     x1 =
                         dot(∇Eμ[t][j], μ_f[q]) -
                         2 * dot(
                             ∇EΣ[t][j],
                             μ_f[q] .*
-                            sum(m.A[t][j][qq] * μ_f[qq] for qq in 1:nLatent(m) if qq != q),
+                            sum(m.A[t][j][qq] * μ_f[qq] for qq in 1:n_latent(m) if qq != q),
                         )
                     x2 = dot(∇EΣ[t][j], abs2.(μ_f[q]) + Σ_f[q])
                     # new_A[t,j,q] = x1/(2*x2)

@@ -114,8 +114,8 @@ function _sample_f(
     k_star=kernelmatrix.(kernels(m), [X_test], Zviews(m)),
 ) where {T}
     return [
-        Ref(k_star[k] / pr_cov(m.f[k])) .* getindex.(inference(m).sample_store, k) for
-        k in 1:nLatent(m)
+        Ref(k_star[k] / Ks[k]) .* getindex.(inference(m).sample_store, k) for
+        k in 1:n_latent(m)
     ]
 end
 

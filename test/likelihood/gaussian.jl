@@ -27,7 +27,7 @@
             @test AGP.getf(model) isa AGP.LatentGP
             @test AGP.output(model) isa AbstractVector
             @test AGP.input(model) isa AbstractVector
-            @test AGP.nLatent(model) == 1
+            @test AGP.n_latent(model) == 1
             L = AGP.objective(model)
             @test_nowarn train!(model, 10)
             @test L < AGP.objective(model)
@@ -59,7 +59,7 @@
                 @test AGP.getf(model) isa NTuple{1,AGP.SparseVarLatent}
                 @test AGP.output(model) isa AbstractVector
                 @test AGP.input(model) isa AbstractVector
-                @test AGP.nLatent(model) == 1
+                @test AGP.n_latent(model) == 1
                 @test AGP.likelihood(model) isa GaussianLikelihood
                 model_opt = SVGP(
                     X,

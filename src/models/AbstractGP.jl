@@ -8,8 +8,8 @@ Base.eltype(::AbstractGPModel{T}) where {T} = T
 data(m::AbstractGPModel) = m.data
 likelihood(m::AbstractGPModel) = m.likelihood
 inference(m::AbstractGPModel) = m.inference
-nLatent(::AbstractGPModel{<:Real,<:AbstractLikelihood,<:AbstractInference,N}) where {N} = N
-nOutput(m::AbstractGPModel) = 1
+n_latent(::AbstractGPModel{<:Real,<:AbstractLikelihood,<:AbstractInference,N}) where {N} = N
+n_output(m::AbstractGPModel) = 1
 @traitfn nFeatures(m::TGP) where {TGP <: AbstractGPModel; !IsSparse{TGP}} = nSamples(m)
 @traitfn nFeatures(m::TGP) where {TGP <: AbstractGPModel; IsSparse{TGP}} = m.nFeatures
 
@@ -41,7 +41,7 @@ function Random.rand(model::AbstractGPModel, X::AbstractMatrix, n::Int=1)
 end
 
 function Random.rand(model::AbstractGPModel{T}, X::AbstractVector, n::Int=1) where {T<:Real}
-    if nLatent(model) == 1
+    if n_latent(model) == 1
         rand!(model, Array{T}(undef, length(X), n), X)
     else
         @error "Sampling not implemented for multiple output GPs"
