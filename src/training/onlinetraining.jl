@@ -1,10 +1,12 @@
 """
-    train!(model::AbstractGPModel, X::AbstractMatrix, y::AbstractVector;obsdim = 1, iterations::Int=10,callback=nothing,conv=0)
-    train!(model::AbstractGPModel, X::AbstractVector, y::AbstractVector;iterations::Int=20,callback=nothing,conv=0)
+    train!(model::AbstractGPModel, X::AbstractMatrix, y::AbstractArray; obsdim = 1, iterations::Int=10,callback=nothing,conv=0)
+    train!(model::AbstractGPModel, X::AbstractVector, y::AbstractArray; iterations::Int=20,callback=nothing,conv=0)
 
 Function to train the given GP `model`.
 
-**Keyword Arguments**
+
+
+## Keyword Arguments
 
 there are options to change the number of max iterations,
 - `iterations::Int` : Number of iterations (not necessarily epochs!)for training
@@ -42,24 +44,23 @@ function train!(
     X, _ = wrap_X(X)
     y = check_data!(y, likelihood(m))
 
-    data = wrap_data!(X, y) # Set the data in the model
-        if is_stochastic(model)
-        0 < batchsize(inference(model)) <= n_sample(data) || error(
-            "The size of mini-batch $(batchsize(inference(model))) is incorrect (negative or bigger than number of samples), please set `batchsize` correctly in the inference object",
+    data = wrap_data(X, y) # Set the data in the model
+    if is_stochastic(m)
+        0 < batchsize(inference(m)) <= n_sample(data) || error(
+            "The size of mini-batch $(batchsize(inference(m))) is incorrect (negative or bigger than number of samples), please set `batchsize` correctly in the inference object",
         )
         set_ρ!(model, n_sample(data) / batchsize(inference))
     else
-        set_batchsize!(inference(model), n_sample(data))
+        set_batchsize!(inference(m), n_sample(data))
     end
 
-    state = isnothing(state) ? init_state(model) : state
-    if n_iter(m) == 1 # The first time data is seen, initialize all parameters
-        init_online_model(m, data)
+    state = isnothing(state) ? init_state(m) : state
+    if n_iter(m) == 0 # The first time data is seen, initialize all parameters
+        init_online_model(m, X)
     else
-        save_old_parameters!(m)
+        state = save_old_parameters!(m, state)
         updateZ!(m, X)
     end
-
 
     # model.evol_conv = [] #Array to check on the evolution of convergence
     local_iter = 1
@@ -67,35 +68,52 @@ function train!(
 
     while true # Loop until one condition is matched
         try # Allow for keyboard interruption without losing the model
-            if local_iter == 1
-                compute_old_matrices!(m)
-                local_updates!(likelihood(m), yview(m), mean_f(m), var_f(m))
-                ∇E_μs = ∇E_μ(m)
-                ∇E_Σs = ∇E_Σ(m) # They need to be computed before recomputing the matrices
-                compute_kernel_matrices!(m)
-                natural_gradient!.(
-                    ∇E_μs, ∇E_Σs, ρ(m), get_opt(inference(m)), Zviews(m), m.f
+            if local_iter == 1 # This is needed for dealing with change of sizes
+                state = compute_old_matrices!(m, state, X)
+                local_vars = local_updates!(
+                    state.local_vars,
+                    likelihood(m),
+                    y,
+                    mean_f(m, state.kernel_matrices),
+                    var_f(m, state.kernel_matrices),
                 )
-                global_update!(m)
+                # We compute the updates given current data but with
+                # the previous inducing points to get directly 
+                # the right size for the variational parameters
+                ∇E_μs = ∇E_μ(m, y, local_vars)
+                ∇E_Σs = ∇E_Σ(m, y, local_vars)
+                state = compute_kernel_matrices(m, state, X)
+                natural_gradient!.(
+                    m.f,
+                    ∇E_μs,
+                    ∇E_Σs,
+                    ρ(m),
+                    get_opt(inference(m)),
+                    Zviews(m),
+                    state.kernel_matrices,
+                    state.opt_state,
+                )
+                @show size(mean(m.f[1]))
+                state = global_update!(m, state)
             else
-                update_parameters!(m) #Update all the variational parameters
+                state = update_parameters!(m, state, X, y) #Update all the variational parameters
             end
             set_trained!(m, true)
             if !isnothing(callback)
-                callback(m, nIter(m)) #Use a callback method if given by user
+                callback(m, state, n_iter(m)) #Use a callback method if given by user
             end
-            if (nIter(m) % m.atfrequency == 0) && nIter(m) >= 3
-                update_hyperparameters!(m) #Update the hyperparameters
+            if (n_iter(m) % m.atfrequency == 0) && n_iter(m) >= 3
+                state = update_hyperparameters!(m, state) #Update the hyperparameters
             end
             if verbose(m) > 2 || (verbose(m) > 1 && local_iter % 10 == 0)
-                print("Iteration : $(nIter(m)), ")
+                print("Iteration : $(n_iter(m)), ")
                 print("ELBO is : $(objective(m))")
                 print("\n")
                 println("number of points : $(dim(m[1]))")
             end
             ### Print out informations about the convergence
             local_iter += 1
-            m.inference.nIter += 1
+            m.inference.n_iter += 1
             (local_iter <= iterations) || break # Verify if the number of maximum iterations has been reached
         # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
         catch e
@@ -107,19 +125,25 @@ function train!(
             end
         end
     end
-    # if model.verbose > 0
-    # println("Training ended after $local_iter iterations. Total number of iterations $(model.inference.nIter)")
-    # end
-    compute_kernel_matrices!(m) #Compute final version of the matrices for prediction
-    return set_trained!(m, true)
+    if verbose(m) > 0
+        println(
+            "Training ended after",
+            local_iter,
+            " iterations. Total number of iterations ",
+            n_iter(model),
+        )
+    end
+    state = compute_kernel_matrices(m, state, X, true) #Compute final version of the matrices for prediction
+    set_trained!(m, true)
+    return m, state
 end
 
 # Update all variational parameters of the online sparse 
 # variational GP Model
-function update_parameters!(model::OnlineSVGP)
-    compute_kernel_matrices!(model) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    variational_updates!(model)
-    return nothing
+function update_parameters!(model::OnlineSVGP, state, X, y)
+    state = compute_kernel_matrices(model, state, X) #Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
+    state = variational_updates(model, state, y)
+    return state
 end
 
 function InducingPoints.updateZ!(m::OnlineSVGP, x)
@@ -132,57 +156,53 @@ function InducingPoints.updateZ!(m::OnlineSVGP, x)
 end
 
 function save_old_parameters!(m::OnlineSVGP, state)
-    opt_state = map(m.f, state.opt_state) do gp, opt_state
-        previous_gp = save_old_gp!(gp, opt_state.previous_gp)
-        merge(opt_state, (; previous_gp))
-    end
-    merge(state, (; opt_state))
+    opt_state =
+        map(m.f, state.opt_state, state.kernel_matrices) do gp, opt_state, kernel_matrices
+            previous_gp = save_old_gp!(gp, opt_state.previous_gp, kernel_matrices.K)
+            merge(opt_state, (; previous_gp))
+        end
+    return merge(state, (; opt_state))
 end
 
-function save_old_gp!(gp::OnlineVarLatent{T}, previous_gp) where {T}
-    Zₐ = deepcopy(gp.Z)
-    # gp.Z = InducingPoints.remove_point(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))# Matrix(pr_cov(gp)))
-    invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp))) # Compute Σ⁻¹ₐ - K⁻¹ₐ
-    previous_gp.prevη₁ .= nat1(gp)
-    prev𝓛ₐ = (-logdet(cov(gp)) + logdet(pr_cov(gp)) - dot(mean(gp), nat1(gp))) / 2
-    return merge(previous_gp, (; Zₐ, invDₐ, prev𝓛ₐ))
+function save_old_gp!(gp::OnlineVarLatent{T}, previous_gp, K) where {T}
+    gp.Zₐ = deepcopy(gp.Z)
+    gp.Z = InducingPoints.remove_point(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(K))# Matrix(pr_cov(gp)))
+    invDₐ = Symmetric(-2.0 * nat2(gp) - inv(K)) # Compute Σ⁻¹ₐ - K⁻¹ₐ
+    prevη₁ = nat1(gp)
+    prev𝓛ₐ = (-logdet(cov(gp)) + logdet(K) - dot(mean(gp), nat1(gp))) / 2
+    return merge(previous_gp, (; invDₐ, prevη₁, prev𝓛ₐ))
 end
 
-function init_online_model(m::OnlineSVGP{T}, data) where {T<:Real}
+function init_online_model(m::OnlineSVGP{T}, x) where {T<:Real}
     m.f = ntuple(length(m.f)) do i
-        init_online_gp!(m.f[i], m, data)
+        init_online_gp!(m.f[i], x)
     end
     return setHPupdated!(inference(m), false)
 end
 
-function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T=T(jitt)) where {T}
-    Z = InducingPoints.initZ(gp.Zalg, input(m); kernel=kernel(gp))
+function init_online_gp!(gp::OnlineVarLatent{T}, x, jitt::T=T(jitt)) where {T}
+    Z = InducingPoints.initZ(gp.Zalg, x; kernel=kernel(gp))
     k = length(Z)
     post = OnlineVarPosterior{T}(k)
     prior = GPPrior(kernel(gp), pr_mean(gp))
     return OnlineVarLatent(
-        prior,
-        post,
-        Z,
-        gp.Zalg,
-        gp.Zupdated,
-        gp.opt,
-        gp.Zopt,
+        prior, post, Z, deepcopy(Z), gp.Zalg, gp.Zupdated, gp.opt, gp.Zopt
     )
 end
 
 function compute_old_matrices!(m::OnlineSVGP{T}, state, x) where {T}
-    kernel_matrices = map(m.f, state.kernel_matrices, state.opt_state) do gp, kernel_matrices, opt_state
-        return compute_old_matrices!(gp, kernel_matrices, opt_state.prev_gp, x, T(jitt))
+    kernel_matrices = haskey(state, :kernel_matrices) ? state.kernel_matrices : (;)
+    kernel_matrices = map(m.f, kernel_matrices) do gp, kernel_matrices
+        return compute_old_matrices!(gp, kernel_matrices, x, T(jitt))
     end
     return merge(state, (; kernel_matrices))
 end
 
-function compute_old_matrices!(gp::OnlineVarLatent, state, prev_gp, X::AbstractVector, jitt::Real)
-    K = cholesky(kernelmatrix(kernel(gp), prev_gp.Zₐ) + jitt * I)
-    Knm = kernelmatrix(kernel(gp), X, prev_gp.Zₐ)
+function compute_old_matrices!(gp::OnlineVarLatent, state, X::AbstractVector, jitt::Real)
+    K = cholesky(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
+    Knm = kernelmatrix(kernel(gp), X, gp.Zₐ)
     κ = Knm / K
     K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(κ, Knm)
     all(K̃ .> 0) || error("K̃ has negative values")
-    return merge(state, (;K, Knm, κ, K̃))
+    return merge(state, (; K, Knm, κ, K̃))
 end

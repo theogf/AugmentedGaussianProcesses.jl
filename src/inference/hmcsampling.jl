@@ -77,7 +77,7 @@ function init_sampler!(
     nSamples::Integer,
     cat_samples::Bool,
 ) where {T<:Real}
-    if inference.nIter == 0 || !cat_samples
+    if n_iter(inference) == 0 || !cat_samples
         inference.sample_store = zeros(T, nSamples, nFeatures, nLatent)
     else
         inference.sample_store = cat(

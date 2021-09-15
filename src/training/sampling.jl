@@ -31,7 +31,7 @@ function AbstractMCMC.step(
     compute_kernel_matrices!(model.gp)
     sample_local!(likelihood(model.gp), yview(model.gp), means(model.gp))
     f = sample_global!.(∇E_μ(model.gp), ∇E_Σ(model.gp), Zviews(model.gp), getf(model.gp))
-    sampler.sampler.nIter += 1
+    sampler.sampler.n_iter += 1
     return f, nothing
 end
 
@@ -40,7 +40,7 @@ function AbstractMCMC.step(
 )
     sample_local!(likelihood(model.gp), yview(model.gp), means(model.gp))
     f = sample_global!.(∇E_μ(model.gp), ∇E_Σ(model.gp), Zviews(model.gp), getf(model.gp))
-    sampler.sampler.nIter += 1
+    sampler.sampler.n_iter += 1
     return f, nothing
 end
 

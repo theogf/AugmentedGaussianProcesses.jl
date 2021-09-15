@@ -80,7 +80,7 @@ end
 
 function SampledLatent(T::DataType, dim::Int, kernel::Kernel, mean::PriorMean)
     return SampledLatent(
-        GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I, dim, dim))),
+        GPPrior(deepcopy(kernel), deepcopy(mean)),
         SampledPosterior(dim, zeros(T, dim), Symmetric(Matrix{T}(I(dim)))),
     )
 end
@@ -101,26 +101,16 @@ mutable struct OnlineVarLatent{
     prior::Tpr
     post::Tpo
     Z::TZ
+    Zₐ::TZ
     Zalg::TZalg
-    Knm::Matrix{T}
-    κ::Matrix{T}
-    K̃::Vector{T}
     Zupdated::Bool
     opt::Topt
     Zopt::TZopt
-    Zₐ::AbstractVector
-    Kab::Matrix{T}
-    κₐ::Matrix{T}
-    K̃ₐ::Matrix{T}
-    invDₐ::Symmetric{T,Matrix{T}}
-    prev𝓛ₐ::T
-    prevη₁::Vector{T}
 end
 
 function OnlineVarLatent(
     T::DataType,
     dim::Int,
-    nSamplesUsed::Int,
     Z::AbstractVector,
     Zalg::InducingPoints.OnIPSA,
     kernel::Kernel,
@@ -129,23 +119,14 @@ function OnlineVarLatent(
     Zopt=nothing,
 )
     return OnlineVarLatent(
-        GPPrior(deepcopy(kernel), deepcopy(mean), cholesky(Matrix{T}(I, dim, dim))),
+        GPPrior(deepcopy(kernel), deepcopy(mean)),
         OnlineVarPosterior{T}(dim),
         Z,
+        deepcopy(Z),
         Zalg,
-        Matrix{T}(undef, nSamplesUsed, dim),
-        Matrix{T}(undef, nSamplesUsed, dim),
-        Vector{T}(undef, nSamplesUsed),
         false,
         deepcopy(opt),
         deepcopy(Zopt),
-        deepcopy(Z),
-        Matrix{T}(I, dim, dim),
-        Matrix{T}(I, dim, dim),
-        Matrix{T}(I, dim, dim),
-        Symmetric(Matrix{T}(I, dim, dim)),
-        zero(T),
-        Vector{T}(undef, dim),
     )
 end
 
@@ -162,14 +143,7 @@ end
 
 function TVarLatent(T::DataType, ν::Real, dim::Int, kernel::Kernel, mean::PriorMean, opt)
     return TVarLatent(
-        TPrior(
-            deepcopy(kernel),
-            deepcopy(mean),
-            cholesky(Matrix{T}(I, dim, dim)),
-            ν,
-            rand(T),
-            rand(T),
-        ),
+        TPrior(deepcopy(kernel), deepcopy(mean), ν, rand(T), rand(T)),
         VarPosterior{T}(dim),
         deepcopy(opt),
     )
@@ -247,16 +221,16 @@ function compute_κ(gp::SparseVarLatent, X::AbstractVector, K, jitt::Real)
     return (; Knm, κ, K̃)
 end
 
-function compute_κ!(gp::OnlineVarLatent, X::AbstractVector, K, jitt::Real)
+function compute_κ(gp::OnlineVarLatent, X::AbstractVector, K, jitt::Real)
     # Covariance with the model at t-1
     Kab = kernelmatrix(kernel(gp), gp.Zₐ, gp.Z)
-    κₐ = gp.Kab / K
+    κₐ = Kab / K
     Kₐ = Symmetric(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
     K̃ₐ = Kₐ - κₐ * transpose(Kab)
 
     # Covariance with a new batch
     Knm = kernelmatrix(kernel(gp), X, gp.Z)
-    κ = gp.Knm / K
+    κ = Knm / K
     K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(κ, Knm)
     all(K̃ .> 0) || error("K̃ has negative values")
     return (; Kab, κₐ, K̃ₐ, Knm, κ, K̃)

@@ -17,16 +17,15 @@ This likelihood has the same properties as [softmax](https://en.wikipedia.org/wi
 For the analytical version, the likelihood is augmented multiple times.
 More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670).
 """
-mutable struct LogisticSoftMaxLikelihood{T<:Real} <:
-               MultiClassLikelihood{T}
+mutable struct LogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
     n_class::Int
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
     function LogisticSoftMaxLikelihood{T}(n_class::Int) where {T}
-        new{T}(n_class)
+        return new{T}(n_class)
     end
     function LogisticSoftMaxLikelihood{T}(n_class, class_mapping, ind_mapping) where {T}
-        new{T}(n_class, class_mapping, ind_mapping)
+        return new{T}(n_class, class_mapping, ind_mapping)
     end
 end
 
@@ -106,7 +105,12 @@ end
 function sample_local!(l::LogisticSoftMaxLikelihood{T}, y, f) where {T}
     broadcast!(f -> rand.(Poisson.(0.5 * l.α .* safe_expcosh.(-0.5 * f, 0.5 * f))), l.γ, f)
     l.α .= rand.(Gamma.(one(T) .+ (l.γ...), 1.0 ./ l.β))
-    set_ω!(l, broadcast((y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), eachcol(y), l.γ, f))
+    set_ω!(
+        l,
+        broadcast(
+            (y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), eachcol(y), l.γ, f
+        ),
+    )
     return nothing
 end
 
@@ -161,7 +165,9 @@ end
 function grad_samples(
     model::AbstractGPModel{T,<:LogisticSoftMaxLikelihood,<:NumericalVI},
     samples::AbstractMatrix{T},
+    opt_state,
     y,
+    index,
 ) where {T}
     grad_μ = zeros(T, n_latent(model))
     grad_Σ = zeros(T, n_latent(model))
@@ -176,15 +182,13 @@ function grad_samples(
         grad_Σ += diaghessian_logisticsoftmax(samples[i, :], σ, y) / s - abs2.(g_μ)
     end
     for k in 1:n_latent(model)
-        get_opt(inference(model), k).ν[index] = -grad_μ[k] / num_sample
-        get_opt(inference(model), k).λ[index] = grad_Σ[k] / num_sample
+        opt_state[k].ν[index] = -grad_μ[k] / num_sample
+        opt_state[k].λ[index] = grad_Σ[k] / num_sample
     end
 end
 
 function log_like_samples(
-    ::AbstractGPModel{T,<:LogisticSoftMaxLikelihood},
-    samples::AbstractMatrix,
-    y,
+    ::AbstractGPModel{T,<:LogisticSoftMaxLikelihood}, samples::AbstractMatrix, y
 ) where {T}
     num_sample = size(samples, 1)
     loglike = zero(T)
@@ -195,19 +199,15 @@ function log_like_samples(
     return loglike / num_sample
 end
 
-function grad_logisticsoftmax(
-    s::AbstractVector{T}, σ::AbstractVector{T}, y
-) where {T<:Real}
+function grad_logisticsoftmax(s::AbstractVector{T}, σ::AbstractVector{T}, y) where {T<:Real}
     return s[i] * (y .- s) .* (1.0 .- σ)
 end
 
 function diaghessian_logisticsoftmax(
     s::AbstractVector{T}, σ::AbstractVector{T}, y
 ) where {T<:Real}
-    return s[y][1] * (1 .- σ) .* (
-        abs2.(y - s) .* (1 .- σ) - s .* (1 .- s) .* (1 .- σ) -
-        σ .* (y - s)
-    )
+    return s[y][1] * (1 .- σ) .*
+           (abs2.(y - s) .* (1 .- σ) - s .* (1 .- s) .* (1 .- σ) - σ .* (y - s))
 end
 
 function hessian_logisticsoftmax(

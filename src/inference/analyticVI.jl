@@ -204,7 +204,7 @@ function natural_gradient!(
     κ = kernel_matrices.κ
     κₐ = kernel_matrices.κₐ
     previous_gp = opt_state.previous_gp
-    prevη₁ = previous_gp.η₁
+    prevη₁ = previous_gp.prevη₁
     invDₐ = previous_gp.invDₐ
     gp.post.η₁ = K \ pr_mean(gp, Z) + transpose(κ) * ∇E_μ + transpose(κₐ) * prevη₁
     gp.post.η₂ =
@@ -232,9 +232,7 @@ end
     model::TGP, state
 ) where {T,L,TGP<:AbstractGPModel{T,L,<:AnalyticVI};!IsFull{TGP}}
     opt_state =
-        global_update!.(
-            model.f, inference(model).vi_opt, inference(model), state.opt_state
-        )
+        global_update!.(model.f, inference(model).vi_opt, inference(model), state.opt_state)
     return merge(state, (; opt_state))
 end
 
@@ -279,7 +277,7 @@ end
         )
     tot -= GaussianKL(model, state)
     tot -= Zygote.@ignore(
-        ρ(inference(model)) * AugmentedKL(likelihood(model), yview(model))
+        ρ(inference(model)) * AugmentedKL(likelihood(model), yview(model), state)
     )
     return tot -= extraKL(model)
 end

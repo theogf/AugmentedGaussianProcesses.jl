@@ -60,14 +60,14 @@ function MCIntegrationVI(;
 end
 
 """
-    MCIntegrationSVI(nMinibatch::Int; ϵ::Real=1e-5, nMC::Integer=1000, clipping=Inf, natural=true, optimiser=Momentum(0.0001))
+    MCIntegrationSVI(batchsize::Int; ϵ::Real=1e-5, nMC::Integer=1000, clipping=Inf, natural=true, optimiser=Momentum(0.0001))
 
 Stochastic Variational Inference solver by approximating gradients via Monte Carlo integration when using minibatches
 See [`MCIntegrationVI`](@ref) for more explanations.
 
 ## Argument
 
--`nMinibatch::Integer` : Number of samples per mini-batches
+-`batchsize::Integer` : Number of samples per mini-batches
 
 ## Keyword arguments
 
@@ -90,62 +90,38 @@ function MCIntegrationSVI(
     return MCIntegrationVI{T}(ϵ, nMC, optimiser, true, clipping, nMinibatch, natural)
 end
 
-function grad_expectations!(m::AbstractGPModel{T,L,<:MCIntegrationVI{T}}) where {T,L}
+function grad_expectations!(
+    m::AbstractGPModel{T,L,<:MCIntegrationVI{T}}, state, y
+) where {T,L}
     raw_samples = randn(T, inference(m).nMC, n_latent(m))
     samples = similar(raw_samples)
-    μ = mean_f(m)
-    σ² = var_f(m)
-    nSamples = length(MBIndices(m))
-    for j in 1:nSamples # Loop over every data point
+    μ = mean_f(m, state.kernel_matrices)
+    σ² = var_f(m, state.kernel_matrices)
+    num_sample = batchsize(m)
+    for j in 1:num_sample # Loop over every data point
         samples .=
             raw_samples .* sqrt.([σ²[k][j] for k in 1:n_latent(m)])' .+ [μ[k][j] for k in 1:n_latent(m)]'
-        grad_samples(m, samples, j) # Compute the gradient for data point j
+        grad_samples!(m, samples, state, y, j) # Compute the gradient for data point j
     end
 end
 
 function expec_loglikelihood(
     l::AbstractLikelihood, i::MCIntegrationVI{T}, y, μ, σ²
 ) where {T} # μ and σ² are tuples of vectors
-    num_latent = length(μ)
+    num_latent = n_latent(l)
     raw_samples = randn(T, i.nMC, num_latent) # dimension nMC x nLatent
     # samples = similar(raw_samples)
     num_sample = batchsize(i)
     tot = 0.0
     for j in 1:num_sample # Loop over every data point
-        samples =
+        samples .=
             raw_samples .* sqrt.([σ²[k][j] for k in 1:num_latent])' .+ [μ[k][j] for k in 1:num_latent]'
         # samples is of dimension nMC x nLatent again
-        y_j = getindex.(y, j) # Obtain the label for data point j
+        y_j = y[j, :] # Obtain the label for data point j
         for f in eachrow(samples)
-            # return sum(eachrow(samples)) do f # We now compute the loglikelihood over every sample
+            # We now compute the loglikelihood over every sample
             tot += loglikelihood(l, y_j, f)
         end
     end
     return tot / i.nMC
 end
-
-# function expec_loglikelihood(
-#     l::AbstractLikelihood, i::MCIntegrationVI{T,N}, y, μ, σ²
-# ) where {T,N}
-#     raw_samples = randn(T, i.nMC, N) # dimension nMC x nLatent
-#     # samples = similar(raw_samples)
-#     nSamples = length(MBIndices(i))
-#     return sum(expec_loglikelihood_datapoint.(l, Ref(raw_samples), Ref(y), Ref(μ), Ref(σ²), 1:nSamples, N)) / i.nMC
-#     # return sum(1:nSamples) do j # Loop over every data point
-#     #     samples = raw_samples .* sqrt.([σ²[k][j] for k in 1:N])' .+ [μ[k][j] for k in 1:N]'
-#     #     # samples is of dimension nMC x nLatent again
-#     #     y_j = getindex.(y, j) # Obtain the label for data point j
-#     #     return sum(eachrow(samples)) do f # We now compute the loglikelihood over every sample
-#     #         return loglikelihood(l, y_j, f)
-#     #     end
-#     # end / i.nMC
-# end
-
-# function expec_loglikelihood_datapoint(l::AbstractLikelihood, raw_samples, y, μ, σ², j, N)
-#     samples = raw_samples .* sqrt.([σ²[k][j] for k in 1:N])' .+ [μ[k][j] for k in 1:N]'
-#     # samples is of dimension nMC x nLatent again
-#     y_j = getindex.(y, j) # Obtain the label for data point j
-#     return sum((f->loglikelihood(l, y_j, f)).(eachrow(samples))) # We now compute the loglikelihood over every sample
-#     # return 
-# # end
-# end

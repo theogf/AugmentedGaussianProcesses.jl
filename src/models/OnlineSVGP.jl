@@ -1,8 +1,5 @@
 mutable struct OnlineSVGP{
-    T<:Real,
-    TLikelihood<:AbstractLikelihood,
-    TInference<:AbstractInference,
-    N,
+    T<:Real,TLikelihood<:AbstractLikelihood,TInference<:AbstractInference,N
 } <: AbstractGPModel{T,TLikelihood,TInference,N}
     f::NTuple{N,OnlineVarLatent{T}}
     likelihood::TLikelihood
@@ -59,18 +56,21 @@ function OnlineSVGP(
 
     num_latent = n_latent(likelihood)
     latentf = ntuple(num_latent) do _
-        return OnlineVarLatent(T, 0, 0, [], Zalg, kernel, mean, optimiser, Zoptimiser)
+        return OnlineVarLatent(T, 0, [], Zalg, kernel, mean, optimiser, Zoptimiser)
     end
     # inference.nIter = 1
     return OnlineSVGP{T,typeof(likelihood),typeof(inference),num_latent}(
-        data, latentf, likelihood, inference, verbose, atfrequency, false
+        latentf, likelihood, inference, verbose, atfrequency, false
     )
 end
 
 function Base.show(io::IO, model::OnlineSVGP) where {T}
     return print(
         io,
-        "Online Variational Gaussian Process with a ", likelihood(model), " infered by ", inference(model),
+        "Online Variational Gaussian Process with a ",
+        likelihood(model),
+        " infered by ",
+        inference(model),
     )
 end
 

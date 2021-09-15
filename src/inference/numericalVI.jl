@@ -98,7 +98,9 @@ end
 ∇E_μ(::AbstractLikelihood, i::NVIOptimizer, ::AbstractVector) = (-i.ν,)
 ∇E_Σ(::AbstractLikelihood, i::NVIOptimizer, ::AbstractVector) = (0.5 .* i.λ,)
 
-function variational_updates!(model::AbstractGPModel{T,L,<:NumericalVI}, state, y) where {T,L}
+function variational_updates(
+    model::AbstractGPModel{T,L,<:NumericalVI}, state, y
+) where {T,L}
     grad_expectations!(model, state, y)
     classical_gradient!.(
         model.f,
@@ -142,10 +144,8 @@ function classical_gradient!(
     K = kernel_matrices.K
     κ = kernel_matrices.κ
     opt_state.∇η₂ .=
-        ρ(i) * transpose(κ) * Diagonal(∇E_Σ) * κ -
-        0.5 * (inv(K) - inv(cov(gp)))
-    opt_state.∇η₁ .=
-        ρ(i) * transpose(κ) * ∇E_μ - K \ (mean(gp) - pr_mean(gp, Z))
+        ρ(i) * transpose(κ) * Diagonal(∇E_Σ) * κ - 0.5 * (inv(K) - inv(cov(gp)))
+    opt_state.∇η₁ .= ρ(i) * transpose(κ) * ∇E_μ - K \ (mean(gp) - pr_mean(gp, Z))
     return opt_state
 end
 
@@ -157,8 +157,12 @@ end
 
 function global_update!(model::AbstractGPModel{T,L,<:NumericalVI}, state) where {T,L}
     opt_state = map(model.f, state.opt_state) do gp, opt_state
-        Δμ, state_μ = Optimisers.apply(model.inference.optimiser, opt_state.state_μ, mean(gp), opt_state.∇η₁)
-        ΔΣ, state_Σ = Optimisers.apply(model.inference.optimiser, opt_state.state_Σ, cov(gp).data, opt_state.∇η₂)
+        Δμ, state_μ = Optimisers.apply(
+            model.inference.optimiser, opt_state.state_μ, mean(gp), opt_state.∇η₁
+        )
+        ΔΣ, state_Σ = Optimisers.apply(
+            model.inference.optimiser, opt_state.state_Σ, cov(gp).data, opt_state.∇η₂
+        )
         gp.post.μ .+= Δμ
         α = 1.0
         while !isposdef(cov(gp) + α * Symmetric(ΔΣ)) && α > 1e-8

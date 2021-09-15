@@ -99,13 +99,14 @@ function apply_quad(y::Real, μ::Real, σ²::Real, i::QuadratureVI, l::AbstractL
     # return mapreduce((w, x) -> w * Distributions.loglikelihood(l, y, x), +, i.weights, xs)# loglikelihood.(l, y, x))
 end
 
-function grad_expectations!(m::AbstractGPModel{T,L,<:QuadratureVI}) where {T,L}
-    y = yview(m)
-    for (gp, opt) in zip(m.f, get_opt(inference(m)))
-        μ = mean_f(gp)
-        Σ = var_f(gp)
-        for i in 1:nMinibatch(inference(m))
-            opt.ν[i], opt.λ[i] = grad_quad(likelihood(m), y[i], μ[i], Σ[i], inference(m))
+function grad_expectations!(m::AbstractGPModel{T,L,<:QuadratureVI}, state, y) where {T,L}
+    for (gp, opt_state, kernel_matrices) in zip(m.f, state.opt_state, state.kernel_matrices)
+        μ = mean_f(gp, kernel_matrices)
+        Σ = var_f(gp, kernel_matrices)
+        for i in 1:batchsize(inference(m))
+            opt_state.ν[i], opt_state.λ[i] = grad_quad(
+                likelihood(m), y[i], μ[i], Σ[i], inference(m)
+            )
         end
     end
 end

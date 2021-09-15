@@ -101,7 +101,7 @@ function train!(
         end
     end
     if verbose(model) > 0
-        @info "Training ended after $(local_iter - 1) iterations. Total number of iterations $(nIter(model))"
+        @info "Training ended after $(local_iter - 1) iterations. Total number of iterations $(n_iter(model))"
     end
     state = compute_kernel_matrices(model, state, true) # Compute final version of the matrices for predictions
     post_step!(model)
@@ -187,7 +187,7 @@ end
     m::TGP, state, x, update::Bool=false
 ) where {T,TGP<:AbstractGPModel{T};!IsFull{TGP}}
     kernel_matrices = if isHPupdated(inference(m)) || update
-        Ks = map(m.f) do gp
+        map(m.f) do gp
             (; K=compute_K(gp, T(jitt)))
         end
     else

@@ -32,14 +32,14 @@ function (l::SoftMaxLikelihood)(y::Int, f::AbstractVector{<:Real})
     return StatsFuns.softmax(f)[y]
 end
 
-function Base.show(io::IO, model::SoftMaxLikelihood{T}) where {T}
+function Base.show(io::IO, ::SoftMaxLikelihood{T}) where {T}
     return print(io, "Softmax likelihood")
 end
 
 function sample_local!(model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling}) where {T}
     model.likelihood.θ .= broadcast(
         (y::BitVector, γ::AbstractVector{<:Real}, μ::AbstractVector{<:Real}, i::Int64) ->
-            rand.(PolyaGamma.(1.0, μ - logsumexp())),
+            rand.(PolyaGamma.(1.0, μ - logsumexp(μ))),
         model.likelihood.Y,
         model.likelihood.γ,
         model.μ,
@@ -51,9 +51,10 @@ end
 function grad_samples(
     model::AbstractGPModel{T,<:SoftMaxLikelihood},
     samples::AbstractMatrix{T},
-    y::BitVector,
+    opt_state,
+    y,
+    index,
 ) where {T}
-    class = model.likelihood.y_class[index]
     grad_μ = zeros(T, n_latent(model))
     grad_Σ = zeros(T, n_latent(model))
     num_sample = size(samples, 1)
@@ -66,8 +67,8 @@ function grad_samples(
         grad_Σ += h - abs2.(g_μ)
     end
     for k in 1:n_latent(model)
-        get_opt(inference(model), k).ν[index] = -grad_μ[k] / num_sample
-        get_opt(inference(model), k).λ[index] = grad_Σ[k] / num_sample
+        opt_state[k].ν[index] = -grad_μ[k] / num_sample
+        opt_state[k].λ[index] = grad_Σ[k] / num_sample
     end
 end
 

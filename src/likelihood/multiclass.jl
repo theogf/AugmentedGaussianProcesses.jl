@@ -49,7 +49,8 @@ end
 
 # Given the labels, return one hot encoding, and the mapping of each class
 function create_one_hot(l::MultiClassLikelihood, y)
-    issubset(unique(y), l.class_mapping) || error("Some labels of y are not part of the expect labels")
+    issubset(unique(y), l.class_mapping) ||
+        error("Some labels of y are not part of the expect labels")
     Y = falses(length(y), n_class(l))
     for i in 1:length(y)
         for j in 1:n_class(l)

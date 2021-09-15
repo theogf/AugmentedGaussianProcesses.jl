@@ -35,10 +35,10 @@ IP_alg = OIPS(0.8);
 model = OnlineSVGP(k, GaussianLikelihood(σ), AnalyticVI(), IP_alg; optimiser=false)
 anim = Animation()
 size_batch = 100
+state = nothing
 for (i, (X_batch, y_batch)) in
     enumerate(eachbatch((X_train, y_train); obsdim=1, size=size_batch))
-    
-    train!(model, X_batch, y_batch; iterations=3)
+    global _, state = train!(model, X_batch, y_batch, state; iterations=5)
     plot_model(model, X, X_test, X_train[1:(i * size_batch)], y_train[1:(i * size_batch)])
     frame(anim)
 end

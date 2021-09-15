@@ -62,9 +62,12 @@ function init_local_vars(state, ::NegBinomialLikelihood{T}, batchsize::Int) wher
     return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
 end
 
-
 function local_updates!(
-    local_vars, l::NegBinomialLikelihood{T}, y::AbstractVector, μ::AbstractVector, Σ::AbstractVector
+    local_vars,
+    l::NegBinomialLikelihood{T},
+    y::AbstractVector,
+    μ::AbstractVector,
+    Σ::AbstractVector,
 ) where {T}
     @. local_vars.c = sqrt(abs2(μ) + Σ)
     @. local_vars.θ = (l.r + y) / local_vars.c * tanh(0.5 * local_vars.c)

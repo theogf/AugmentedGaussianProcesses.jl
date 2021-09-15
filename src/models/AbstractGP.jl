@@ -48,7 +48,7 @@ function Random.rand(model::AbstractGPModel{T}, X::AbstractVector, n::Int=1) whe
     end
 end
 
-pr_covs(model::AbstractGPModel) = pr_cov.(model.f)
+pr_covs(model::AbstractGPModel, x) = pr_cov.(model.f, Ref(x))
 
 pr_means(model::AbstractGPModel) = pr_mean.(model.f)
 pr_means(model::AbstractGPModel, X::AbstractVector) = pr_mean.(model.f, Ref(X))
