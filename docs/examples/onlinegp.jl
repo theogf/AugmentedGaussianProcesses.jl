@@ -37,6 +37,7 @@ anim = Animation()
 size_batch = 100
 for (i, (X_batch, y_batch)) in
     enumerate(eachbatch((X_train, y_train); obsdim=1, size=size_batch))
+    
     train!(model, X_batch, y_batch; iterations=3)
     plot_model(model, X, X_test, X_train[1:(i * size_batch)], y_train[1:(i * size_batch)])
     frame(anim)

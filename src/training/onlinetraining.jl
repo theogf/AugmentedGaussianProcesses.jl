@@ -32,32 +32,34 @@ end
 function train!(
     m::OnlineSVGP,
     X::AbstractVector,
-    y::AbstractArray;
+    y::AbstractArray,
+    state=nothing;
     iterations::Int=20,
     callback::Union{Nothing,Function}=nothing,
     conv::Union{Nothing,Function}=nothing,
 )
-    X, _ = wrap_X(X)
-    y, _nLatent, m.likelihood = check_data!(y, likelihood(m))
-
-    wrap_data!(data(m), X, y) # Set the data in the model
-
-    _nLatent == n_latent(m) || error("Data should always contains the same number of outputs")
     iterations > 0 || error("Number of iterations should be positive")
-    setnMinibatch!(inference(m), nSamples(data(m)))
-    setnSamples!(inference(m), nSamples(data(m)))
-    # setMBIndices!(inference(m), collect(1:nMinibatch(inference(m))))
+    X, _ = wrap_X(X)
+    y = check_data!(y, likelihood(m))
 
-    if nIter(m) == 1 # The first time data is seen, initialize all parameters
-        init_onlinemodel(m)
-        m.likelihood = init_likelihood(
-            likelihood(m), inference(m), nLatent(m), nSamples(data(m))
+    data = wrap_data!(X, y) # Set the data in the model
+        if is_stochastic(model)
+        0 < batchsize(inference(model)) <= n_sample(data) || error(
+            "The size of mini-batch $(batchsize(inference(model))) is incorrect (negative or bigger than number of samples), please set `batchsize` correctly in the inference object",
         )
+        set_ρ!(model, n_sample(data) / batchsize(inference))
+    else
+        set_batchsize!(inference(model), n_sample(data))
+    end
+
+    state = isnothing(state) ? init_state(model) : state
+    if n_iter(m) == 1 # The first time data is seen, initialize all parameters
+        init_online_model(m, data)
     else
         save_old_parameters!(m)
-        m.likelihood = init_likelihood(likelihood(m), inference(m), nLatent(m), nSamples(m))
-        updateZ!(m)
+        updateZ!(m, X)
     end
+
 
     # model.evol_conv = [] #Array to check on the evolution of convergence
     local_iter = 1
@@ -120,95 +122,67 @@ function update_parameters!(model::OnlineSVGP)
     return nothing
 end
 
-function InducingPoints.updateZ!(m::OnlineSVGP)
+function InducingPoints.updateZ!(m::OnlineSVGP, x)
     for gp in m.f
-        gp.Z = InducingPoints.updateZ(gp.Z, gp.Zalg, input(m); kernel=kernel(gp))
+        gp.Z = InducingPoints.updateZ(gp.Z, gp.Zalg, x; kernel=kernel(gp))
         gp.post.dim = length(Zview(gp))
     end
     setHPupdated!(inference(m), true)
     return nothing
 end
 
-function save_old_parameters!(m::OnlineSVGP)
-    for gp in m.f
-        save_old_gp!(gp)
+function save_old_parameters!(m::OnlineSVGP, state)
+    opt_state = map(m.f, state.opt_state) do gp, opt_state
+        previous_gp = save_old_gp!(gp, opt_state.previous_gp)
+        merge(opt_state, (; previous_gp))
     end
+    merge(state, (; opt_state))
 end
 
-function save_old_gp!(gp::OnlineVarLatent{T}) where {T}
-    gp.Zₐ = deepcopy(gp.Z)
-    gp.Z = InducingPoints.remove_point(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))# Matrix(pr_cov(gp)))
-    gp.invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp))) # Compute Σ⁻¹ₐ - K⁻¹ₐ
-    gp.prevη₁ = copy(nat1(gp))
-    gp.prev𝓛ₐ = (-logdet(cov(gp)) + logdet(pr_cov(gp)) - dot(mean(gp), nat1(gp))) / 2
-    return nothing
+function save_old_gp!(gp::OnlineVarLatent{T}, previous_gp) where {T}
+    Zₐ = deepcopy(gp.Z)
+    # gp.Z = InducingPoints.remove_point(Random.GLOBAL_RNG, gp.Z, gp.Zalg, Matrix(pr_cov(gp)))# Matrix(pr_cov(gp)))
+    invDₐ = Symmetric(-2.0 * nat2(gp) - inv(pr_cov(gp))) # Compute Σ⁻¹ₐ - K⁻¹ₐ
+    previous_gp.prevη₁ .= nat1(gp)
+    prev𝓛ₐ = (-logdet(cov(gp)) + logdet(pr_cov(gp)) - dot(mean(gp), nat1(gp))) / 2
+    return merge(previous_gp, (; Zₐ, invDₐ, prev𝓛ₐ))
 end
 
-function init_onlinemodel(m::OnlineSVGP{T}) where {T<:Real}
+function init_online_model(m::OnlineSVGP{T}, data) where {T<:Real}
     m.f = ntuple(length(m.f)) do i
-        init_online_gp!(m.f[i], m)
+        init_online_gp!(m.f[i], m, data)
     end
-    # for gp in m.f
-    #     init_online_gp!(gp, m)
-    # end
-    setρ!(inference(m), one(T))
     return setHPupdated!(inference(m), false)
 end
 
 function init_online_gp!(gp::OnlineVarLatent{T}, m::OnlineSVGP, jitt::T=T(jitt)) where {T}
     Z = InducingPoints.initZ(gp.Zalg, input(m); kernel=kernel(gp))
     k = length(Z)
-    Zₐ = deepcopy(Z)
     post = OnlineVarPosterior{T}(k)
-    prior = GPPrior(
-        kernel(gp), pr_mean(gp), cholesky(kernelmatrix(kernel(gp), Z) + jitt * I)
-    )
-
-    Kab = zeros(T, k, k)
-    κₐ = Matrix{T}(I(k))
-    K̃ₐ = zero(Kab)
-
-    Knm = kernelmatrix(kernel(gp), input(m), Z)
-    κ = Knm / (kernelmatrix(kernel(gp), Z) + jitt * I)
-    K̃ = kernelmatrix_diag(kernel(gp), input(m)) .+ jitt - diag_ABt(κ, Knm)
-    all(K̃ .> 0) || error("K̃ has negative values")
-
-    invDₐ = Symmetric(Matrix{T}(I(k)))
-    prev𝓛ₐ = zero(T)
-    prevη₁ = zeros(T, k)
+    prior = GPPrior(kernel(gp), pr_mean(gp))
     return OnlineVarLatent(
         prior,
         post,
         Z,
         gp.Zalg,
-        Knm,
-        κ,
-        K̃,
         gp.Zupdated,
         gp.opt,
         gp.Zopt,
-        Zₐ,
-        Kab,
-        κₐ,
-        K̃ₐ,
-        invDₐ,
-        prev𝓛ₐ,
-        prevη₁,
     )
-    # return nothing
 end
 
-function compute_old_matrices!(m::OnlineSVGP{T}) where {T}
-    for gp in m.f
-        compute_old_matrices!(gp, xview(m), T(jitt))
+function compute_old_matrices!(m::OnlineSVGP{T}, state, x) where {T}
+    kernel_matrices = map(m.f, state.kernel_matrices, state.opt_state) do gp, kernel_matrices, opt_state
+        return compute_old_matrices!(gp, kernel_matrices, opt_state.prev_gp, x, T(jitt))
     end
+    return merge(state, (; kernel_matrices))
 end
 
-function compute_old_matrices!(gp::OnlineVarLatent, X::AbstractVector, jitt::Real)
-    gp.prior.K = cholesky(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
-    gp.Knm = kernelmatrix(kernel(gp), X, gp.Zₐ)
-    gp.κ = gp.Knm / pr_cov(gp)
-    gp.K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(gp.κ, gp.Knm)
-    all(gp.K̃ .> 0) || error("K̃ has negative values")
-    return nothing
+function compute_old_matrices!(gp::OnlineVarLatent, state, prev_gp, X::AbstractVector, jitt::Real)
+    K = cholesky(kernelmatrix(kernel(gp), prev_gp.Zₐ) + jitt * I)
+    Knm = kernelmatrix(kernel(gp), X, prev_gp.Zₐ)
+    κ = Knm / K
+    K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(κ, Knm)
+    all(K̃ .> 0) || error("K̃ has negative values")
+    return merge(state, (;K, Knm, κ, K̃))
 end

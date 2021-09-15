@@ -104,10 +104,10 @@ function variational_updates!(
         opt_type(inference(m)),
         last(Zviews(m)),
         state.kernel_matrices[2],
-        state.vi_opt_state[2],
+        state.opt_state[2],
     )
     vi_opt_state_2 = global_update!(
-        m.f[2], opt_type(inference(m)), inference(m), state.vi_opt_state[2]
+        m.f[2], opt_type(inference(m)), inference(m), state.opt_state[2]
     )
     local_vars = heteroscedastic_expectations!(
         local_vars, likelihood(m), mean_f(m.f[2]), var_f(m.f[2])
@@ -120,13 +120,13 @@ function variational_updates!(
         opt_type(inference(m)),
         first(Zviews(m)),
         state.kernel_matrices[1],
-        state.vi_opt_state[1],
+        state.opt_state[1],
     )
     vi_opt_state_1 = global_update!(
-        m.f[1], opt_type(inference(m)), inference(m), state.vi_opt_state[1]
+        m.f[1], opt_type(inference(m)), inference(m), state.opt_state[1]
     )
-    vi_opt_state = (vi_opt_state_1, vi_opt_state_2)
-    return merge(state, (; vi_opt_state))
+    opt_state = (vi_opt_state_1, vi_opt_state_2)
+    return merge(state, (; opt_state))
 end
 
 function heteroscedastic_expectations!(

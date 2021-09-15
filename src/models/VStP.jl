@@ -86,7 +86,7 @@ function Base.show(io::IO, model::VStP)
     )
 end
 
-function local_prior_updates!(model::VStP, X, state)
+function local_prior_updates!(model::VStP, state, X)
     kernel_matrices = state.kernel_matrices
     for (gp, k_mat) in zip(model.f, kernel_matrices)
         local_prior_updates!(gp, X, k_mat.K)

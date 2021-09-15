@@ -78,7 +78,7 @@ end
         get_opt(inference(m)),
         Zviews(m),
         state.kernel_matrices,
-        state.vi_opt_state,
+        state.opt_state,
     )
     state = global_update!(m, state)
     return merge(state, (; local_vars))
@@ -103,7 +103,7 @@ end
         get_opt(inference(m)),
         Zviews(m),
         state.kernel_matrices,
-        state.vi_opt_state,
+        state.opt_state,
     ) # Compute the natural gradients of u given the weighted sum of the gradient of f
     state = global_update!(m, state) # Update η₁ and η₂
     return merge(state, (; local_vars))
@@ -141,7 +141,7 @@ function natural_gradient!(
     ::AVIOptimizer,
     X::AbstractVector,
     kernel_matrices,
-    vi_opt_state,
+    opt_state,
 ) where {T}
     K = kernel_matrices.K
     gp.post.η₁ .= ∇E_μ .+ K \ pr_mean(gp, X)
@@ -158,11 +158,11 @@ function natural_gradient!(
     ::AVIOptimizer,
     Z::AbstractVector,
     kernel_matrices,
-    vi_opt_state,
+    opt_state,
 ) where {T}
     K, κ = kernel_matrices.K, kernel_matrices.κ
-    vi_opt_state.∇η₁ .= ∇η₁(∇E_μ, ρ, κ, K, pr_mean(gp, Z), nat1(gp))
-    vi_opt_state.∇η₂ .= ∇η₂(∇E_Σ, ρ, κ, K, nat2(gp))
+    opt_state.∇η₁ .= ∇η₁(∇E_μ, ρ, κ, K, pr_mean(gp, Z), nat1(gp))
+    opt_state.∇η₂ .= ∇η₂(∇E_Σ, ρ, κ, K, nat2(gp))
     return gp
 end
 
@@ -198,12 +198,12 @@ function natural_gradient!(
     ::AVIOptimizer,
     Z::AbstractVector,
     kernel_matrices,
-    vi_opt_state,
+    opt_state,
 ) where {T}
     K = kernel_matrices.K
     κ = kernel_matrices.κ
     κₐ = kernel_matrices.κₐ
-    previous_gp = vi_opt_state.previous_gp
+    previous_gp = opt_state.previous_gp
     prevη₁ = previous_gp.η₁
     invDₐ = previous_gp.invDₐ
     gp.post.η₁ = K \ pr_mean(gp, Z) + transpose(κ) * ∇E_μ + transpose(κₐ) * prevη₁
@@ -231,30 +231,30 @@ end
 @traitfn function global_update!(
     model::TGP, state
 ) where {T,L,TGP<:AbstractGPModel{T,L,<:AnalyticVI};!IsFull{TGP}}
-    vi_opt_state =
+    opt_state =
         global_update!.(
-            model.f, inference(model).vi_opt, inference(model), state.vi_opt_state
+            model.f, inference(model).vi_opt, inference(model), state.opt_state
         )
-    return merge(state, (; vi_opt_state))
+    return merge(state, (; opt_state))
 end
 
-function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI, vi_opt_state)
+function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI, opt_state)
     if is_stochastic(i)
         Δ₁, state_η₁ = Optimisers.apply(
-            opt.optimiser, vi_opt_state.state_η₁, nat1(gp), vi_opt_state.∇η₁
+            opt.optimiser, opt_state.state_η₁, nat1(gp), opt_state.∇η₁
         )
         Δ₂, state_η₂ = Optimisers.apply(
-            opt.optimiser, vi_opt_state.state_η₂, nat2(gp).data, vi_opt_state.∇η₂
+            opt.optimiser, opt_state.state_η₂, nat2(gp).data, opt_state.∇η₂
         )
         gp.post.η₁ .+= Δ₁
         gp.post.η₂ .= Symmetric(Δ₂) + nat2(gp)
-        vi_opt_state = merge(vi_opt_state, (; state_η₁, state_η₂))
+        opt_state = merge(opt_state, (; state_η₁, state_η₂))
     else
-        gp.post.η₁ .+= vi_opt_state.∇η₁
-        gp.post.η₂ .= Symmetric(vi_opt_state.∇η₂ + nat2(gp))
+        gp.post.η₁ .+= opt_state.∇η₁
+        gp.post.η₂ .= Symmetric(opt_state.∇η₂ + nat2(gp))
     end
     global_update!(gp)
-    return vi_opt_state
+    return opt_state
 end
 
 function global_update!(gp::OnlineVarLatent, ::Any, ::Any)

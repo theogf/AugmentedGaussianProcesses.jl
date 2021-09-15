@@ -8,19 +8,18 @@ n_class(l::MultiClassLikelihood) = l.n_class
 function treat_labels!(
     y::AbstractArray{T,N}, likelihood::L
 ) where {T,N,L<:MultiClassLikelihood}
-    N <= 1 "Target should be a vector of labels"
-    init_multiclass_likelihood!(likelihood, y)
-    return likelihood.Y, num_class(likelihood), likelihood
+    N <= 1 || error("Target should be a vector of labels")
+    init_multiclass_likelihood!(likelihood, y) # Initialize a mapping if not existing
+    return create_one_hot(likelihood, y)
 end
 
 function init_multiclass_likelihood!(l::MultiClassLikelihood, y::AbstractVector)
     if !isdefined(l, :ind_mapping)
         create_mapping!(l, y)
     end
-    return create_one_hot!(l, y)
 end
 
-view_y(::MultiClassLikelihood, y::AbstractVector, i::AbstractVector) = view.(y, Ref(i))
+view_y(::MultiClassLikelihood, y::BitMatrix, i::AbstractVector) = view(y, i, :)
 
 onehot_to_ind(y::AbstractVector) = findfirst(y .== 1)
 

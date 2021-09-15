@@ -22,9 +22,15 @@ mutable struct LogisticSoftMaxLikelihood{T<:Real} <:
     n_class::Int
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
+    function LogisticSoftMaxLikelihood{T}(n_class::Int) where {T}
+        new{T}(n_class)
+    end
+    function LogisticSoftMaxLikelihood{T}(n_class, class_mapping, ind_mapping) where {T}
+        new{T}(n_class, class_mapping, ind_mapping)
+    end
 end
 
-LogisticSoftMaxLikelihood(nClasses::Int) = LogisticSoftMaxLikelihood{Float64}(nClasses)
+LogisticSoftMaxLikelihood(n_class::Int) = LogisticSoftMaxLikelihood{Float64}(n_class)
 function LogisticSoftMaxLikelihood(ylabels::AbstractVector)
     return LogisticSoftMaxLikelihood{Float64}(
         length(ylabels), ylabels, Dict(value => key for (key, value) in enumerate(ylabels))
@@ -58,7 +64,6 @@ function Base.show(io::IO, l::LogisticSoftMaxLikelihood{T}) where {T}
 end
 
 ## Local Updates ##
-    Y::Vector{BitVector} # Mapping from instances to classes (one hot encoding)
 function init_local_vars(state, l::LogisticSoftMaxLikelihood{T}, batchsize::Int) where {T}
     num_class = n_class(l)
     c = [ones(T, batchsize) for _ in 1:num_class] # Second moment of fₖ
@@ -71,7 +76,7 @@ end
 
 function local_updates!(
     local_vars,
-    l::LogisticSoftMaxLikelihood,
+    ::LogisticSoftMaxLikelihood,
     y,
     μ::NTuple{N,<:AbstractVector},
     Σ::NTuple{N,<:AbstractVector},
@@ -84,7 +89,7 @@ function local_updates!(
             Ref(local_vars.β),
             local_vars.c,
             μ,
-            Ref(digamma.(l.α)),
+            Ref(digamma.(local_vars.α)),
         ) # Update γ
         local_vars.α .= 1 .+ (local_vars.γ...)
     end
@@ -95,7 +100,7 @@ function local_updates!(
         local_vars.γ, # argument 2
         local_vars.c, # argument 3
     ) # update θ
-    return nothing
+    return local_vars
 end
 
 function sample_local!(l::LogisticSoftMaxLikelihood{T}, y, f) where {T}
@@ -107,10 +112,10 @@ end
 
 ## Global Gradient Section ##
 
-@inline function ∇E_μ(::LogisticSoftMaxLikelihood, ::AOptimizer, y::AbstractVector, state)
-    return 0.5 .* (y .- state.γ)
+@inline function ∇E_μ(::LogisticSoftMaxLikelihood, ::AOptimizer, y, state)
+    return 0.5 .* (eachcol(y) .- state.γ)
 end
-@inline function ∇E_Σ(::LogisticSoftMaxLikelihood, ::AOptimizer, ::AbstractVector, state)
+@inline function ∇E_Σ(::LogisticSoftMaxLikelihood, ::AOptimizer, y, state)
     return 0.5 .* state.θ
 end
 

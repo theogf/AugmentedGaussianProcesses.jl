@@ -158,7 +158,7 @@ end
 
 function update_parameters!(m::VStP, state, x, y)
     state = compute_kernel_matrices!(m, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
-    state = local_prior_updates!(m, x, state)
+    state = local_prior_updates!(m, state, x)
     state = variational_updates!(m, state, y)
     return state
 end
