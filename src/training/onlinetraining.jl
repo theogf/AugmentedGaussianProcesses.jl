@@ -54,9 +54,11 @@ function train!(
         set_batchsize!(inference(m), n_sample(data))
     end
 
+    first_batch = false
     state = isnothing(state) ? init_state(m) : state
     if n_iter(m) == 0 # The first time data is seen, initialize all parameters
         init_online_model(m, X)
+        first_batch = true
     else
         state = save_old_parameters!(m, state)
         updateZ!(m, X)
@@ -82,7 +84,7 @@ function train!(
                 # the right size for the variational parameters
                 ∇E_μs = ∇E_μ(m, y, local_vars)
                 ∇E_Σs = ∇E_Σ(m, y, local_vars)
-                state = compute_kernel_matrices(m, state, X)
+                state = compute_kernel_matrices(m, state, X, true)
                 natural_gradient!.(
                     m.f,
                     ∇E_μs,
@@ -93,8 +95,8 @@ function train!(
                     state.kernel_matrices,
                     state.opt_state,
                 )
-                @show size(mean(m.f[1]))
                 state = global_update!(m, state)
+
             else
                 state = update_parameters!(m, state, X, y) #Update all the variational parameters
             end
@@ -186,7 +188,7 @@ function init_online_gp!(gp::OnlineVarLatent{T}, x, jitt::T=T(jitt)) where {T}
     post = OnlineVarPosterior{T}(k)
     prior = GPPrior(kernel(gp), pr_mean(gp))
     return OnlineVarLatent(
-        prior, post, Z, deepcopy(Z), gp.Zalg, gp.Zupdated, gp.opt, gp.Zopt
+        prior, post, Z, typeof(Z)([]), gp.Zalg, gp.Zupdated, gp.opt, gp.Zopt
     )
 end
 
