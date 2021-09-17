@@ -44,7 +44,16 @@ function (μ₀::AffineMean{T})(x::AbstractMatrix) where {T<:Real}
     return x * μ₀.w .+ first(μ₀.b)
 end
 
-function update!(μ₀::AffineMean{T}, grad) where {T<:Real}
-    μ₀.w .+= Optimise.apply!(μ₀.opt, μ₀.w, grad.w)
-    return μ₀.b .+= Optimise.apply!(μ₀.opt, μ₀.b, Vector(grad.b))
+function init_priormean_state(hyperopt_state, μ₀::AffineMean)
+    μ₀_state = (; w=init(μ₀.opt, μ₀.w), b=init(μ₀.opt, μ₀.b))
+    return merge(hyperopt_state, (;μ₀_state))
+end
+
+function update!(μ₀::AffineMean{T}, hyperopt_state, grad) where {T<:Real}
+    μ₀_state = hyperopt_state.μ₀_state
+    w, Δw = Optimisers.apply(μ₀.opt, μ₀_state.w, μ₀.w, grad.w)
+    b, Δb = Optimisers.apply(μ₀.opt, μ₀_state.w, μ₀.w, grad.w)
+    μ₀.w .+= Δw
+    μ₀.b .+= Δb
+    return merge(hyperopt_state, (;μ₀_state=(;w, b)))
 end

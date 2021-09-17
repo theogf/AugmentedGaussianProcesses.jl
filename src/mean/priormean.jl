@@ -14,3 +14,7 @@ end
 function Base.convert(::Type{PriorMean}, x::AbstractVector{T}) where {T<:Real}
     return EmpiricalMean(x)
 end
+
+function init_priormean_state(hyperopt_state, ::PriorMean)
+    return hyperopt_state
+end

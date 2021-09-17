@@ -52,6 +52,12 @@ function SVGP(
         optimiser = optimiser ? ADAM(0.001) : nothing
     end
 
+    Z = if Z isa Union{ColVecs,RowVecs}
+        collect.(Z) # To allow an easier optimization
+    else
+        Z
+    end
+
     Zoptimiser = if Zoptimiser isa Bool
         Zoptimiser ? ADAM(0.001) : nothing
     else

@@ -63,8 +63,6 @@ function tests_likelihood(
                     @test AGP.likelihood(model) isa ltype
                     @test AGP.inference(model) isa AnalyticVI
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.VarLatent}
-                    @test AGP.output(model) isa AbstractVector
-                    @test AGP.input(model) isa AbstractVector
                     @test AGP.n_latent(model) == nLatent
                     model_opt = VGP(X, y, k, l, AnalyticVI(); optimiser=true, verbose=0)
                     tests(model, model_opt, X, f, y, problem)
@@ -81,8 +79,6 @@ function tests_likelihood(
                     @test AGP.likelihood(model) isa ltype
                     @test AGP.inference(model) isa QuadratureVI
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.VarLatent}
-                    @test AGP.output(model) isa AbstractVector
-                    @test AGP.input(model) isa AbstractVector
                     @test AGP.n_latent(model) == nLatent
                     model_opt = VGP(X, y, k, l, QuadratureVI(); optimiser=true, verbose=0)
                     tests(model, model_opt, X, f, y, problem)
@@ -97,8 +93,6 @@ function tests_likelihood(
                     @test AGP.likelihood(model) isa ltype
                     @test AGP.inference(model) isa MCIntegrationVI
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.VarLatent}
-                    @test AGP.output(model) isa AbstractVector
-                    @test AGP.input(model) isa AbstractVector
                     @test AGP.n_latent(model) == nLatent
                     model_opt = VGP(
                         X, y, k, l, MCIntegrationVI(); optimiser=true, verbose=0
@@ -117,7 +111,7 @@ function tests_likelihood(
         for floattype in floattypes
             @testset "AnalyticVI" begin
                 if dictosvgp["AVI"]
-                    global model = OnlineSVGP(
+                    model = OnlineSVGP(
                         k,
                         l,
                         AnalyticVI(),
@@ -130,7 +124,7 @@ function tests_likelihood(
                     @test AGP.inference(model) isa AnalyticVI
                     @test AGP.getf(model) isa NTuple{nLatent,AGP.OnlineVarLatent}
                     @test AGP.n_latent(model) == nLatent
-                    global model_opt = OnlineSVGP(
+                    model_opt = OnlineSVGP(
                         k,
                         l,
                         AnalyticVI(),

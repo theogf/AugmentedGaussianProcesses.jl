@@ -64,7 +64,7 @@ function train!(
             if (n_iter(model) % model.atfrequency == 0) &&
                (n_iter(model) >= 3) &&
                (local_iter != iterations)
-                state = update_hyperparameters!(model, state) #Update the hyperparameters
+                state = update_hyperparameters!(model, state, x, y) #Update the hyperparameters
             end
             # Print out informations about the convergence
             if verbose(model) > 2 || (verbose(model) > 1 && local_iter % 10 == 0)
@@ -103,7 +103,7 @@ function train!(
     if verbose(model) > 0
         @info "Training ended after $(local_iter - 1) iterations. Total number of iterations $(n_iter(model))"
     end
-    state = compute_kernel_matrices(model, state, true) # Compute final version of the matrices for predictions
+    state = merge(state, (;kernel_matrices=compute_Ks(model, state.kernel_matrices))) # Compute final version of the matrices for predictions
     post_step!(model)
     set_trained!(model, true)
     return model, state
@@ -146,7 +146,7 @@ function update_parameters!(model::MOVGP, state, x, y)
     state = compute_kernel_matrices(model, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     state = update_A!(model)
     state = variational_updates(model, state, y)
-    return nothing
+    return state
 end
 
 function update_parameters!(m::MOSVGP, state, x, y)
@@ -159,12 +159,12 @@ end
 function update_parameters!(m::VStP, state, x, y)
     state = compute_kernel_matrices!(m, state, x) # Recompute the matrices if necessary (always for the stochastic case, or when hyperparameters have been updated)
     state = local_prior_updates!(m, state, x)
-    state = variational_updates!(m, state, y)
+    state = variational_updates(m, state, y)
     return state
 end
 
 function compute_kernel_matrices(m::GP{T}, state, x, ::Bool) where {T}
-    kernel_matrices = (; K=compute_K(gp, x, T(jitt)))
+    kernel_matrices = (; K=compute_K(m.f, x, T(jitt)))
     setHPupdated!(inference(m), false)
     return merge(state, (; kernel_matrices))
 end
@@ -204,4 +204,15 @@ end
     end
     setHPupdated!(inference(m), false)
     return merge(state, (; kernel_matrices)) # update the kernel_matrices state
+end
+
+function compute_Ks(m::AbstractGPModel{T}, kernel_matrices) where {T}
+    return (; kernel_matrices = map(m.f, Zviews(m), kernel_matrices) do gp, x, k_mat
+        K = compute_K(gp, x, T(jitt))
+        merge(k_mat, (;K))
+    end)
+end
+
+function compute_Ks(m::GP{T}, ::Any) where {T}
+    return (; kernel_matrices = (; K = compute_K(m.f, input(m.data), T(jitt))))
 end

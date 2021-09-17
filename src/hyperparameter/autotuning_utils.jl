@@ -1,5 +1,6 @@
 
-### Global constant allowing to chose between forward_diff and zygote_diff for hyperparameter optimization ###
+# Global constant allowing to chose between ForwardDiff and Zygote
+# for hyperparameter optimization
 const ADBACKEND = Ref(:Zygote)
 
 function setadbackend(ad_backend::Symbol)
@@ -8,25 +9,24 @@ function setadbackend(ad_backend::Symbol)
     return ADBACKEND[] = ad_backend
 end
 
-# opt(::AbstractInducingPoints) = nothing
-# opt(Z::OptimIP) = Z.opt
-# data(Z::OptimIP) = Z.Z
-# data(Z::AbstractInducingPoints) = Z
+# Type piracy but will be introduced in a future version
+# See https://github.com/FluxML/Optimisers.jl/pull/24
+Optimisers.init(::Any, ::Any) = nothing
 
 ## Generic fallback when gradient is nothing
-update_kernel!(::Any, ::Any, ::Nothing) = nothing
-update_Z!(::Any, ::Any, ::Nothing) = nothing
+update_kernel!(::Any, ::Any, ::Nothing, ::Any) = nothing
+update_Z!(::Any, ::Any, ::Nothing, ::Any) = nothing
 
 ## Generic fallback when optimizer is nothing
-update_kernel!(::Nothing, ::Kernel, ::NamedTuple) = nothing
-update_kernel!(::Nothing, ::AbstractVector, ::AbstractArray) = nothing
+update_kernel!(::Nothing, ::Kernel, ::NamedTuple, ::NamedTuple) = nothing
+update_kernel!(::Nothing, ::AbstractVector, ::NamedTuple, ::NamedTuple) = nothing
 update_Z!(::Nothing, ::AbstractVector, ::AbstractVector) = nothing
 update_Z!(::Nothing, ::AbstractVector, ::NamedTuple) = nothing
 
 ## Updating prior mean parameters ##
-function update!(μ::PriorMean, g::AbstractVector, X::AbstractVector)
-    return update!(μ, g, X)
-end
+# function update!(μ::PriorMean, g::AbstractVector, X::AbstractVector, state)
+    # return update!(μ, g, X, state)
+# end
 
 ## Updating kernel parameters ##
 
@@ -44,24 +44,29 @@ function update!(opt, k::Kernel, Δ::AbstractVector)
 end
 
 ## Zygote.jl approach with named tuple
-function update_kernel!(opt, k::Union{Kernel,Transform}, g::NamedTuple)
-    foreach(pairs(g)) do (fieldname, grad)
-        update_kernel!(opt, getfield(k, fieldname), grad)
-    end
+function update_kernel!(opt, k::Union{Kernel,Transform}, g::NamedTuple, state::NamedTuple)
+    return NamedTuple(
+        map(pairs(g)) do (fieldname, grad)
+            Pair(fieldname, update_kernel!(opt, getfield(k, fieldname), grad, getfield(state, fieldname)))
+        end
+    )
 end
 
-function update_kernel!(opt, x::AbstractArray, g::AbstractArray)
-    Δ = Optimise.apply!(opt, x, x .* g)
+function update_kernel!(opt, x::AbstractArray, g::AbstractArray, state)
+    state, Δ = Optimisers.apply(opt, state, x, x .* g)
     @. x = exp(log(x) + Δ) # Always assume that parameters need to be positive
+    return state
 end
 
 ## Updating inducing points
-function update_Z!(opt, Z::Union{ColVecs,RowVecs}, Z_grads::NamedTuple)
-    return Z.X .+= Optimise.apply!(opt, Z.X, Z_grads.X)
-end
+# function update_Z!(opt, Z::Union{ColVecs,RowVecs}, Z_grads::NamedTuple, state)
+# return Z.X .+= Optimise.apply!(opt, Z.X, Z_grads.X)
+# end
 
-function update_Z!(opt, Z::AbstractVector, Z_grads::AbstractVector)
-    for (z, zgrad) in zip(Z, Z_grads)
-        z .+= Optimise.apply!(opt, z, zgrad)
+function update_Z!(opt, Z::AbstractVector, Z_grads::AbstractVector, state)
+    return map(Z, Z_grads, state) do z, zgrad, st
+        st, ΔZ = Optimisers.apply(opt, st, z, zgrad)
+        z .+= ΔZ
+        return st
     end
 end

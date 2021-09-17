@@ -50,7 +50,11 @@ end
 ### Local Updates Section ###
 
 function local_updates!(
-    local_vars, l::TemplateLikelihood{T}, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
+    local_vars,
+    l::TemplateLikelihood{T},
+    y::AbstractVector,
+    μ::AbstractVector,
+    diagΣ::AbstractVector,
 )
     # Update the local variables here (in place if you want)
     return local_vars
