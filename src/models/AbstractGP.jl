@@ -28,7 +28,7 @@ set_trained!(m::AbstractGPModel, status::Bool) = m.trained = status
 
 verbose(m::AbstractGPModel) = m.verbose
 
-post_step!(::AbstractGPModel) = nothing
+post_step!(::AbstractGPModel, ::Any) = nothing
 
 function Random.rand!(
     model::AbstractGPModel, A::DenseArray{T}, X::AbstractVector

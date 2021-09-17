@@ -46,6 +46,7 @@ function analytic_updates(m::GP{T}, state, y) where {T}
         )
         l.σ² .= exp.(log.(l.σ²) .+ Δlogσ²)
     end
+    return state
 end
 
 ρ(::Analytic{T}) where {T} = one(T)

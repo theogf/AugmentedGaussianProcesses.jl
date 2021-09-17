@@ -6,7 +6,7 @@ const pred_nodes, pred_weights = (x -> (x[1] .* sqrt2, x[2] ./ sqrtπ))(gaussher
 function _predict_f(
     m::GP{T}, X_test::AbstractVector, state=nothing; cov::Bool=true, diag::Bool=true
 ) where {T}
-    k_star = kernelmatrix(kernel(m.f), X_test, input(m))
+    k_star = kernelmatrix(kernel(m.f), X_test, input(m.data))
     μf = k_star * mean(m.f) # k * α
     if !cov
         return (μf,)

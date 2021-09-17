@@ -73,7 +73,7 @@ function local_updates!(
     diag_cov::AbstractVector,
 ) where {T}
     @. local_vars.c = 0.5 * (diag_cov + abs2(μ - y) + l.σ^2 * l.ν)
-    @. local_vars.θ = l.α / l.c
+    @. local_vars.θ = l.α / local_vars.c
     return local_vars
 end
 

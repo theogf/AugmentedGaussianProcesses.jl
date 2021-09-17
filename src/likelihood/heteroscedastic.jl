@@ -55,11 +55,11 @@ function init_local_vars(
     state, ::HeteroscedasticLikelihood{T}, batchsize::Int
 ) where {T<:Real}
     local_vars = (;
-        c=ones(T, nMinibatch),
-        ϕ=ones(T, nMinibatch),
-        γ=ones(T, nMinibatch),
-        θ=ones(T, nMinibatch),
-        σg=ones(T, nMinibatch),
+        c=ones(T, batchsize),
+        ϕ=ones(T, batchsize),
+        γ=ones(T, batchsize),
+        θ=ones(T, batchsize),
+        σg=ones(T, batchsize),
     )
     return merge(state, (; local_vars))
 end

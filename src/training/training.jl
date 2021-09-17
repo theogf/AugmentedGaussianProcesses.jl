@@ -103,8 +103,8 @@ function train!(
     if verbose(model) > 0
         @info "Training ended after $(local_iter - 1) iterations. Total number of iterations $(n_iter(model))"
     end
-    state = merge(state, (;kernel_matrices=compute_Ks(model, state.kernel_matrices))) # Compute final version of the matrices for predictions
-    post_step!(model)
+    state = merge(state, compute_Ks(model, state.kernel_matrices)) # Compute final version of the matrices for predictions
+    post_step!(model, state)
     set_trained!(model, true)
     return model, state
 end

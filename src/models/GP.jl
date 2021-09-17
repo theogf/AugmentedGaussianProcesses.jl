@@ -60,7 +60,7 @@ function GP(
     latentf = LatentGP(T, n_feature, kernel, mean, optimiser)
 
     model = GP(data, latentf, likelihood, inference, verbose, atfrequency, false)
-    model = train!(model, 1)
+    model, _ = train!(model, 1)
     return model
 end
 
@@ -77,11 +77,11 @@ Zviews(model::GP) = [input(model)]
 
 ### Special case where the ELBO is equal to the marginal likelihood
 
-function post_step!(m::GP)
+function post_step!(m::GP, state)
     f = m.f
     l = likelihood(m)
-    f.post.Σ = pr_cov(f) + first(l.σ²) * I
-    return f.post.α .= cov(f) \ (yview(m) - pr_mean(f, xview(m)))
+    f.post.Σ = state.kernel_matrices.K + first(l.σ²) * I
+    return f.post.α .= cov(f) \ (output(m.data) - pr_mean(f, input(m.data)))
 end
 
 objective(m::GP, ::Any, y) = log_py(m, y)
