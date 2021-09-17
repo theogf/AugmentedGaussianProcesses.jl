@@ -103,7 +103,7 @@ function expec_loglikelihood(
     return tot
 end
 
-AugmentedKL(l::BayesianSVM, ::AbstractVector, state) = Zygote.@ignore(GIGEntropy(l, state))
+AugmentedKL(l::BayesianSVM, state, ::Any) = Zygote.@ignore(GIGEntropy(l, state))
 
 function GIGEntropy(::BayesianSVM, state)
     return 0.5 * sum(log.(state.ω)) + sum(log.(2.0 * besselk.(0.5, sqrt.(state.ω)))) -

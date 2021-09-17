@@ -148,6 +148,6 @@ end
 @traitimpl IsMultiOutput{MOVGP}
 @traitimpl IsFull{MOVGP}
 
-nOutput(::MOVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N,Q} = Q
+n_output(::MOVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N,Q} = Q
 Zviews(m::MOVGP) = [input(m)]
-objective(m::MOVGP) = ELBO(m)
+objective(m::MOVGP, state, y) = ELBO(m, state, y)

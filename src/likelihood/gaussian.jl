@@ -96,4 +96,4 @@ function expec_loglikelihood(
     )
 end
 
-AugmentedKL(::GaussianLikelihood{T}, ::AbstractVector, state) where {T} = zero(T)
+AugmentedKL(::GaussianLikelihood{T}, state, ::Any) where {T} = zero(T)

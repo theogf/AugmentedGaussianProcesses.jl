@@ -183,4 +183,4 @@ end
 
 nOutput(::MOSVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N,Q} = Q
 Zviews(m::MOSVGP) = Zview.(m.f)
-objective(m::MOSVGP) = ELBO(m)
+objective(m::MOSVGP, state, y) = ELBO(m, state, y)

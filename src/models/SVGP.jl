@@ -85,6 +85,6 @@ function Base.show(io::IO, model::SVGP)
 end
 
 Zviews(m::SVGP) = Zview.(m.f)
-objective(m::SVGP) = ELBO(m)
+objective(m::SVGP, state, y) = ELBO(m, state, y)
 
 @traitimpl IsSparse{SVGP}

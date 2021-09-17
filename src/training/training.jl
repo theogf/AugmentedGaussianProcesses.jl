@@ -35,7 +35,7 @@ function train!(
     end
 
     if verbose(model) > 0
-        @info "Starting training $model with $(n_sample(data)) samples, $(n_feature(data)) features and $(n_latent) latent GP" *
+        @info "Starting training $model with $(n_sample(data)) samples, $(n_dim(data)) features and $(n_latent) latent GP" *
               (n_latent(model) > 1 ? "s" : "")
     end
     # model.evol_conv = [] # Array to check on the evolution of convergence
@@ -72,14 +72,14 @@ function train!(
                     next!(p; showvalues=[(:samples, local_iter)])
                 else
                     if (verbose(model) == 2 && local_iter % 10 == 0)
-                        elbo = objective(model, state)
+                        elbo = objective(model, state, y)
                         prev_elbo = elbo
                         ProgressMeter.update!(p, local_iter - 1)
                         ProgressMeter.next!(
                             p; showvalues=[(:iter, local_iter), (:ELBO, elbo)]
                         )
                     elseif verbose(model) > 2
-                        elbo = objective(model, state)
+                        elbo = objective(model, state, y)
                         prev_elbo = elbo
                         ProgressMeter.next!(
                             p; showvalues=[(:iter, local_iter), (:ELBO, prev_elbo)]

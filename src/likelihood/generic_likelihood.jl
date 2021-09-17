@@ -248,10 +248,9 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
             end
 
             function AGP.sample_local!(
-                l::$(lname), y::AbstractVector, f::AbstractVector
+                local_vars, l::$(lname), y::AbstractVector, f::AbstractVector
             ) where {T}
-                return set_ω!(
-                    l,
+                return local_vars.θ =
                     pω.(
                         l,
                         sqrt.(
@@ -261,8 +260,7 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
                                 _gen_γ.(l, y) .* (abs2.(f)),
                             ),
                         ),
-                    ),
-                )
+                    )
             end
 
             ### Natural Gradient Section ###

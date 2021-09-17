@@ -78,11 +78,11 @@ function local_updates!(
 end
 
 function sample_local!(
-    state, l::StudentTLikelihood{T}, y::AbstractVector, f::AbstractVector
+    local_vars, l::StudentTLikelihood{T}, y::AbstractVector, f::AbstractVector
 ) where {T}
-    state.c .= rand.(InverseGamma.(l.α, 0.5 * (abs2.(f - y) .+ l.σ^2 * l.ν)))
-    state.ω .= inv.(l.c)
-    return state
+    local_vars.c .= rand.(InverseGamma.(l.α, 0.5 * (abs2.(f - y) .+ l.σ^2 * l.ν)))
+    local_vars.θ .= inv.(local_vars.c)
+    return local_vars
 end
 
 ## Global Gradients ##
@@ -112,7 +112,7 @@ function expec_loglikelihood(
     return tot
 end
 
-AugmentedKL(l::StudentTLikelihood, ::AbstractVector, state) = InverseGammaKL(l, state)
+AugmentedKL(l::StudentTLikelihood, state, ::Any) = InverseGammaKL(l, state)
 
 function InverseGammaKL(l::StudentTLikelihood{T}, state) where {T}
     α_p = l.ν / 2

@@ -70,10 +70,12 @@ function local_updates!(
     return local_vars
 end
 
-function sample_local!(l::LaplaceLikelihood, y::AbstractVector, f::AbstractVector)
-    @. l.b = rand(GeneralizedInverseGaussian(1 / l.β^2, abs2(f - y), 0.5))
-    set_ω!(l, inv.(l.b))
-    return nothing
+function sample_local!(
+    local_vars, l::LaplaceLikelihood{T}, y::AbstractVector, f::AbstractVector
+) where {T}
+    @. local_vars.b = rand(GeneralizedInverseGaussian(1 / l.β^2, abs2(f - y), 0.5))
+    @. local_vars.θ = inv(local_vars.b)
+    return local_vars
 end
 
 @inline function ∇E_μ(
@@ -106,7 +108,7 @@ function expec_loglikelihood(
     return tot
 end
 
-function AugmentedKL(l::LaplaceLikelihood, ::AbstractVector, state)
+function AugmentedKL(l::LaplaceLikelihood, state, ::Any)
     return GIGEntropy(l, state) - expecExponentialGIG(l, state)
 end
 

@@ -74,8 +74,9 @@ function local_updates!(
     return local_vars
 end
 
-function sample_local!(l::NegBinomialLikelihood, y::AbstractVector, f::AbstractVector)
-    return set_ω!(l, rand.(PolyaGamma.(y .+ Int(l.r), abs.(f))))
+function sample_local!(local_vars, l::NegBinomialLikelihood, y::AbstractVector, f::AbstractVector)
+    local_vars.θ .= rand.(PolyaGamma.(y .+ Int(l.r), abs.(f)))
+    return local_vars
 end
 
 ## Global Updates ##
@@ -93,7 +94,7 @@ end
 
 ## ELBO Section ##
 
-AugmentedKL(l::NegBinomialLikelihood, y::AbstractVector, state) = PolyaGammaKL(l, y, state)
+AugmentedKL(l::NegBinomialLikelihood, state, y) = PolyaGammaKL(l, state, y)
 
 function logabsbinomial(n, k)
     return log(binomial(n, k))
@@ -120,6 +121,6 @@ function expec_loglikelihood(
     return tot
 end
 
-function PolyaGammaKL(l::NegBinomialLikelihood, y::AbstractVector, state)
+function PolyaGammaKL(l::NegBinomialLikelihood, state, y)
     return PolyaGammaKL(y .+ l.r, state.c, state.θ)
 end

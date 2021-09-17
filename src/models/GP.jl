@@ -84,10 +84,9 @@ function post_step!(m::GP)
     return f.post.α .= cov(f) \ (yview(m) - pr_mean(f, xview(m)))
 end
 
-objective(m::GP, ::Any) = log_py(m)
+objective(m::GP, ::Any, y) = log_py(m, y)
 
-function log_py(m::GP)
+function log_py(m::GP, y)
     f = m.f
-    return -0.5 *
-           (dot(yview(m), cov(f) \ yview(m)) + logdet(cov(f)) + nFeatures(m) * log(twoπ))
+    return -0.5 * (dot(y, cov(f) \ y) + logdet(cov(f)) + length(y) * log(twoπ))
 end

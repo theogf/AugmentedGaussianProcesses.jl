@@ -36,7 +36,7 @@ function Base.show(io::IO, ::SoftMaxLikelihood{T}) where {T}
     return print(io, "Softmax likelihood")
 end
 
-function sample_local!(model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling}) where {T}
+function sample_local!(local_vars, model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling}) where {T}
     model.likelihood.θ .= broadcast(
         (y::BitVector, γ::AbstractVector{<:Real}, μ::AbstractVector{<:Real}, i::Int64) ->
             rand.(PolyaGamma.(1.0, μ - logsumexp(μ))),
@@ -45,7 +45,7 @@ function sample_local!(model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling}) where 
         model.μ,
         1:(model.nLatent),
     )
-    return nothing #TODO FINISH AT SOME POINT
+    return local_vars #TODO FINISH AT SOME POINT
 end
 
 function grad_samples(

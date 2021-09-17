@@ -57,17 +57,6 @@ function plot_model(model, X, Y, title=nothing)
         lab="",
         linewidth=3.0,
     )
-    if model isa SVGP # Plot the inducing points as well
-        Plots.plot!(
-            p,
-            vec(model.f[1].Z),
-            zeros(dim(model.f[1]));
-            msize=2.0,
-            color="black",
-            t=:scatter,
-            lab="",
-        )
-    end
     return p
 end;
 

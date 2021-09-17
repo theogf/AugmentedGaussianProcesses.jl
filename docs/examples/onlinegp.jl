@@ -39,7 +39,9 @@ let state = nothing
     for (i, (X_batch, y_batch)) in
         enumerate(eachbatch((X_train, y_train); obsdim=1, size=size_batch))
         _, state = train!(model, X_batch, y_batch, state; iterations=5)
-        plot_model(model, X, X_test, X_train[1:(i * size_batch)], y_train[1:(i * size_batch)])
+        plot_model(
+            model, X, X_test, X_train[1:(i * size_batch)], y_train[1:(i * size_batch)]
+        )
         frame(anim)
     end
 end

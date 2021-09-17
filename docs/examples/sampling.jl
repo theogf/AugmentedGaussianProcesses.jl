@@ -9,7 +9,7 @@ using AugmentedGaussianProcesses
 using Distributions
 using LinearAlgebra
 
-# ### Loading the banana dataset from OpenML
+# ### Generating some random data
 kernel = SqExponentialKernel()
 x = range(0, 10; length=50)
 K = kernelmatrix(kernel, x)

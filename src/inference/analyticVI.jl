@@ -263,7 +263,7 @@ end
 # There are 4 parts : the (augmented) log-likelihood, the Gaussian KL divergence
 # the augmented variable KL divergence, some eventual additional part (like in the online case)
 @traitfn function ELBO(
-    model::TGP, y, state
+    model::TGP, state, y
 ) where {T,L,TGP<:AbstractGPModel{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     tot = zero(T)
     tot +=
@@ -273,18 +273,19 @@ end
             y,
             mean_f(model, state.kernel_matrices),
             var_f(model, state.kernel_matrices),
-            state,
+            state.local_vars,
         )
     tot -= GaussianKL(model, state)
     tot -= Zygote.@ignore(
-        ρ(inference(model)) * AugmentedKL(likelihood(model), yview(model), state)
+        ρ(inference(model)) * AugmentedKL(likelihood(model), state.local_vars, y)
     )
-    return tot -= extraKL(model)
+    tot -= extraKL(model, state)
+    return tot
 end
 
 # Multi-output version
 @traitfn function ELBO(
-    model::TGP, state
+    model::TGP, state, y
 ) where {T,L,TGP<:AbstractGPModel{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     tot = zero(T)
     tot += sum(
@@ -292,15 +293,15 @@ end
         expec_loglikelihood.(
             likelihood(model),
             inference(model),
-            yview(model),
-            mean_f(model),
-            var_f(model),
+            y,
+            mean_f(model, state.kernel_matrices),
+            var_f(model, state.kernel_matrices),
             state.local_vars,
         ),
     )
-    tot -= GaussianKL(model)
+    tot -= GaussianKL(model, state)
     tot -= Zygote.@ignore(
-        sum(ρ(inference(model)) .* AugmentedKL.(likelihood(model), yview(model)))
+        sum(ρ(inference(model)) .* AugmentedKL.(likelihood(model), state.local_vars, y))
     )
     return tot
 end

@@ -109,7 +109,7 @@ function train!(
             end
             if verbose(m) > 2 || (verbose(m) > 1 && local_iter % 10 == 0)
                 print("Iteration : $(n_iter(m)), ")
-                print("ELBO is : $(objective(m))")
+                print("ELBO is : $(objective(m, state, y))")
                 print("\n")
                 println("number of points : $(dim(m[1]))")
             end

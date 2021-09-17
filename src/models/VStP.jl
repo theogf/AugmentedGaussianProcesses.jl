@@ -105,6 +105,6 @@ function local_prior_updates!(gp::TVarLatent, X, K)
 end
 
 Zviews(m::VStP) = [input(m)]
-objective(m::VStP) = ELBO(m)
+objective(m::VStP, state, y) = ELBO(m, state, y)
 
 @traitimpl IsFull{VStP}

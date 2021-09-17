@@ -171,7 +171,7 @@ function expec_loglikelihood(
     return tot
 end
 
-AugmentedKL(l::HeteroscedasticLikelihood, ::AbstractVector, state) = PolyaGammaKL(l, state)
+AugmentedKL(l::HeteroscedasticLikelihood, state, ::Any) = PolyaGammaKL(l, state)
 
 function PoissonKL(
     l::HeteroscedasticLikelihood{T},

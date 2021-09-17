@@ -75,8 +75,9 @@ function local_updates!(
     return local_vars
 end
 
-function sample_local!(l::LogisticLikelihood, ::AbstractVector, f::AbstractVector)
-    return set_ω!(l, rand.(PolyaGamma.(1, abs.(f))))
+function sample_local!(local_vars, ::LogisticLikelihood, ::AbstractVector, f::AbstractVector)
+    local_vars.θ .= rand.(PolyaGamma.(1, abs.(f)))
+    return local_vars
 end
 
 ### Natural Gradient Section ###
@@ -87,7 +88,7 @@ end
 ### ELBO Section ###
 
 function expec_loglikelihood(
-    l::LogisticLikelihood{T},
+    ::LogisticLikelihood{T},
     ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
@@ -99,7 +100,7 @@ function expec_loglikelihood(
     return tot
 end
 
-AugmentedKL(l::LogisticLikelihood, ::AbstractVector, state) = PolyaGammaKL(l, state)
+AugmentedKL(l::LogisticLikelihood, state, ::Any) = PolyaGammaKL(l, state)
 
 function PolyaGammaKL(::LogisticLikelihood{T}, state) where {T}
     return sum(broadcast(PolyaGammaKL, ones(T, length(state.c)), state.c, state.θ))

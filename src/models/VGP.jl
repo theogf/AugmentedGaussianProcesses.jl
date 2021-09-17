@@ -88,6 +88,6 @@ function Base.show(io::IO, model::VGP)
 end
 
 Zviews(m::VGP) = Ref(input(m.data))
-objective(m::VGP) = ELBO(m::VGP)
+objective(m::VGP, state, y) = ELBO(m, state, y)
 
 @traitimpl IsFull{VGP}

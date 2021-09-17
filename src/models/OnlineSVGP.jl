@@ -77,4 +77,4 @@ end
 @traitimpl IsSparse{OnlineSVGP}
 
 Zviews(m::OnlineSVGP) = Zview.(m.f)
-objective(m::OnlineSVGP) = ELBO(m)
+objective(m::OnlineSVGP, state, y) = ELBO(m, state, y)

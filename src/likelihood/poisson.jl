@@ -73,7 +73,7 @@ function init_local_vars(state, ::PoissonLikelihood{T}, batchsize::Int) where {T
     return merge(
         state,
         (;
-            local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize)), γ=rand(T, batchsize)
+            local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize), γ=rand(T, batchsize))
         ),
     )
 end
@@ -92,9 +92,10 @@ function local_updates!(
     return local_vars
 end
 
-function sample_local!(l::PoissonLikelihood, y::AbstractVector, f::AbstractVector)
-    @. l.γ = rand(Poisson(l.λ * logistic(f))) # Sample n
-    return set_ω!(l, rand.(PolyaGamma.(y + Int.(l.γ), abs.(f)))) # Sample ω
+function sample_local!(local_vars, l::PoissonLikelihood, y::AbstractVector, f::AbstractVector)
+    local_vars.γ = rand(Poisson(l.λ * logistic(f))) # Sample n
+    local_vars.θ = rand.(PolyaGamma.(y + Int.(local_vars.γ), abs.(f))) # Sample ω
+    return local_vars
 end
 
 ### Global Updates ###
@@ -115,12 +116,12 @@ function expec_loglikelihood(
     return tot
 end
 
-function AugmentedKL(l::PoissonLikelihood, y::AbstractVector, state)
-    return PoissonKL(l, state) + PolyaGammaKL(l, y, state)
+function AugmentedKL(l::PoissonLikelihood, state, y)
+    return PoissonKL(l, state) + PolyaGammaKL(l, state, y)
 end
 
 PoissonKL(l::PoissonLikelihood, state) = PoissonKL(state.γ, l.λ)
 
-function PolyaGammaKL(l::PoissonLikelihood, y::AbstractVector, state)
+function PolyaGammaKL(::PoissonLikelihood, state, y)
     return PolyaGammaKL(y + state.γ, state.c, state.θ)
 end

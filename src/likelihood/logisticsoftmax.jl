@@ -102,16 +102,13 @@ function local_updates!(
     return local_vars
 end
 
-function sample_local!(l::LogisticSoftMaxLikelihood{T}, y, f) where {T}
-    broadcast!(f -> rand.(Poisson.(0.5 * l.α .* safe_expcosh.(-0.5 * f, 0.5 * f))), l.γ, f)
-    l.α .= rand.(Gamma.(one(T) .+ (l.γ...), 1.0 ./ l.β))
-    set_ω!(
-        l,
-        broadcast(
+function sample_local!(local_vars, l::LogisticSoftMaxLikelihood{T}, y, f) where {T}
+    broadcast!(f -> rand.(Poisson.(0.5 * l.α .* safe_expcosh.(-0.5 * f, 0.5 * f))), local_vars.γ, f)
+    local_vars.α .= rand.(Gamma.(one(T) .+ (local_vars.γ...), 1.0 ./ local_vars.β))
+    local_vars.θ .= broadcast(
             (y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), eachcol(y), l.γ, f
-        ),
-    )
-    return nothing
+        )
+    return local_vars
 end
 
 ## Global Gradient Section ##
@@ -135,11 +132,11 @@ function expec_loglikelihood(
     return tot
 end
 
-function AugmentedKL(l::LogisticSoftMaxLikelihood, y, state)
-    return PolyaGammaKL(l, y, state) + PoissonKL(l, state) + GammaEntropy(l, state)
+function AugmentedKL(l::LogisticSoftMaxLikelihood, state, y)
+    return PolyaGammaKL(l, state, y) + PoissonKL(l, state) + GammaEntropy(l, state)
 end
 
-function PolyaGammaKL(::LogisticSoftMaxLikelihood, y, state)
+function PolyaGammaKL(::LogisticSoftMaxLikelihood, state, y)
     return sum(broadcast(PolyaGammaKL, eachcol(y) .+ state.γ, state.c, state.θ))
 end
 

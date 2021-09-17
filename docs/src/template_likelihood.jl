@@ -50,13 +50,17 @@ end
 ### Local Updates Section ###
 
 function local_updates!(
-    l::TemplateLikelihood{T}, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
-) end
+    local_vars, l::TemplateLikelihood{T}, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
+)
+    # Update the local variables here (in place if you want)
+    return local_vars
+end
 
 function sample_local!(
-    l::TemplateLikelihood{T}, y::AbstractVector, f::AbstractVector
+    local_vars, l::TemplateLikelihood{T}, y::AbstractVector, f::AbstractVector
 ) where {T}
-    return nothing
+    # Sample the local variables here (in place if you want)
+    return local_vars
 end
 
 ### Natural Gradient Section ###

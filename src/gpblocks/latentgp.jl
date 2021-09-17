@@ -159,9 +159,6 @@ setkernel!(gp::AbstractLatent, kernel::Kernel) = setkernel!(prior(gp), kernel)
 pr_mean(gp::AbstractLatent) = mean(prior(gp))
 pr_mean(gp::AbstractLatent, X::AbstractVector) = mean(prior(gp), X)
 setpr_mean!(gp::AbstractLatent, μ₀::PriorMean) = setmean!(prior(gp), μ₀)
-pr_cov(gp::AbstractLatent) = cov(prior(gp))
-pr_cov(gp::TVarLatent) = prior(gp).χ * cov(prior(gp))
-pr_cov!(gp::AbstractLatent, K::Cholesky) = gp.prior.K = K
 
 posterior(gp::AbstractLatent) = gp.post
 Distributions.dim(gp::AbstractLatent) = dim(posterior(gp))

@@ -143,8 +143,7 @@ function classical_gradient!(
 ) where {T<:Real}
     K = kernel_matrices.K
     κ = kernel_matrices.κ
-    opt_state.∇η₂ .=
-      ρκdiagθκ(ρ(i), κ, ∇E_Σ) - 0.5 * (inv(K) - inv(cov(gp)))
+    opt_state.∇η₂ .= ρκdiagθκ(ρ(i), κ, ∇E_Σ) - 0.5 * (inv(K) - inv(cov(gp)))
     opt_state.∇η₁ .= ρ(i) * transpose(κ) * ∇E_μ - K \ (mean(gp) - pr_mean(gp, Z))
     return opt_state
 end

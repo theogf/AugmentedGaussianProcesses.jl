@@ -33,7 +33,7 @@ using Reexport
 @reexport using Optimisers
 @reexport using InducingPoints
 
-using AbstractMCMC
+using AbstractMCMC: AbstractMCMC, step, sample
 # using AdvancedHMC
 using ChainRulesCore: ChainRulesCore, NoTangent
 using Distributions:
