@@ -254,8 +254,13 @@ function proba_y(
     return proba_y(model, KernelFunctions.vec_of_vecs(X_test; obsdim), state; nSamples)
 end
 
-function proba_y(model::MCGP, X_test::AbstractVector, state=nothing; nSamples::Int=200)
-    f = first(_sample_f(model, X_test, state))
+function proba_y(model::MCGP{T}, X_test::AbstractVector, state=nothing; nSamples::Int=200) where {T}
+    Ks = if isnothing(state)
+        cholesky.(kernelmatrix.(kernels(model), Zviews(model)) .+ Ref(T(jitt) * I))
+    else
+        getproperty.(state.kernel_matrices, :K)
+    end
+    f = first(_sample_f(model, X_test, Ks))
     return mean_and_var(compute_proba_f.(likelihood(model), f))
 end
 
