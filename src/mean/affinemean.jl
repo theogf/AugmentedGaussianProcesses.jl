@@ -46,7 +46,7 @@ end
 
 function init_priormean_state(hyperopt_state, μ₀::AffineMean)
     μ₀_state = (; w=init(μ₀.opt, μ₀.w), b=init(μ₀.opt, μ₀.b))
-    return merge(hyperopt_state, (;μ₀_state))
+    return merge(hyperopt_state, (; μ₀_state))
 end
 
 function update!(μ₀::AffineMean{T}, hyperopt_state, grad) where {T<:Real}
@@ -55,5 +55,5 @@ function update!(μ₀::AffineMean{T}, hyperopt_state, grad) where {T<:Real}
     b, Δb = Optimisers.apply(μ₀.opt, μ₀_state.w, μ₀.w, grad.w)
     μ₀.w .+= Δw
     μ₀.b .+= Δb
-    return merge(hyperopt_state, (;μ₀_state=(;w, b)))
+    return merge(hyperopt_state, (; μ₀_state=(; w, b)))
 end

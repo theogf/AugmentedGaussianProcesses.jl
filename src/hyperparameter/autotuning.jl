@@ -12,13 +12,13 @@ function update_hyperparameters!(m::GP, state, x, y)
             Δμ₀, Δk = Zygote.gradient(μ₀, k) do μ₀, k # Compute gradients for the whole model
                 -ELBO(m, x, y, μ₀, k)
             end
-            
+
             # Optimize prior mean
             hp_state = state.hyperopt_state
             if !isnothing(Δμ₀)
                 hp_state = update!(μ₀, Δμ₀, hp_state)
             end
-            
+
             # Optimize kernel parameters
             if isnothing(Δk)
                 @warn "Kernel gradients are equal to zero" maxlog = 1
@@ -26,7 +26,7 @@ function update_hyperparameters!(m::GP, state, x, y)
                 state_k = update_kernel!(opt(m.f), kernel(m.f), Δk, hp_state)
                 hp_state = merge(hp_state, (; state_k))
             end
-            state = merge(state, (;hyperopt_state=hp_state))
+            state = merge(state, (; hyperopt_state=hp_state))
         elseif ADBACKEND[] == :ForwardDiff
             θ, re = destructure((μ₀, k))
             Δ = ForwardDiff.gradient(θ) do θ
@@ -47,7 +47,7 @@ end
 
 @traitfn function update_hyperparameters!(
     m::TGP, state, x, y
-    ) where {TGP <: AbstractGPModel; IsFull{TGP}}
+) where {TGP <: AbstractGPModel; IsFull{TGP}}
     if any((!) ∘ isnothing ∘ opt, m.f) # Check there is a least one optimiser
         hp_state = state.hyperopt_state
         μ₀ = pr_means(m) # Get prior means
@@ -75,7 +75,7 @@ end
                 ELBO(m, re(θ)...)
             end
         end
-        state = merge(state, (;hyperopt_state=hp_state))
+        state = merge(state, (; hyperopt_state=hp_state))
     end
     return state
 end
@@ -123,7 +123,7 @@ end
                 ELBO(m, re(θ)...)
             end
         end
-        state = merge(state, (;hyperopt_state=hp_state))
+        state = merge(state, (; hyperopt_state=hp_state))
     end
     return state
 end

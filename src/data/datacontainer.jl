@@ -45,8 +45,8 @@ end
 struct MODataContainer{Tx<:Real,TX<:AbstractVector,TY<:AbstractVector} <:
        AbstractDataContainer
     X::TX # Feature vectors
-    y::TY # Output (-1,1 for classification, real for regression, matrix for multiclass)
-    n_samples::Int # Number of samples
+    y::TY # Output ({-1,1} for classification, real for regression, matrix for multiclass)
+    n_sample::Int # Number of samples
     n_dim::Int # Number of features per sample
     n_output::Int # Number of outputs
 end
@@ -71,21 +71,4 @@ end
 
 function wrap_X(X::AbstractVector{<:AbstractVector{T}}, ::Int=1) where {T<:Real}
     return X, T
-end
-
-mutable struct OnlineDataContainer <: AbstractDataContainer
-    X::AbstractVector # Feature vectors
-    y::AbstractVector # Output (-1,1 for classification, real for regression, matrix for multiclass)
-    nSamples::Int # Number of samples
-    nDim::Int # Number of features per sample
-    function OnlineDataContainer()
-        return new()
-    end
-end
-
-function wrap_data!(data::OnlineDataContainer, X::AbstractVector, y::AbstractVector)
-    data.X = X
-    data.y = y
-    data.nSamples = size(X, 1)
-    return data.nDim = size(first(X), 1)
 end

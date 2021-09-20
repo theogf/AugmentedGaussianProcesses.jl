@@ -19,7 +19,15 @@ mutable struct GibbsSampling{T<:Real} <: SamplingInference{T}
     function GibbsSampling{T}(nBurnin::Int, thinning::Int, ϵ::Real) where {T}
         nBurnin >= 0 || error("nBurnin should be positive")
         thinning >= 0 || error("thinning should be positive")
-        return new{T}(nBurnin, thinning, ϵ, 0, false, SOptimizer(Descent()), Vector{Vector{Vector{T}}}[])
+        return new{T}(
+            nBurnin,
+            thinning,
+            ϵ,
+            0,
+            false,
+            SOptimizer(Descent()),
+            Vector{Vector{Vector{T}}}[],
+        )
     end
 end
 
@@ -33,7 +41,9 @@ function Base.show(io::IO, ::GibbsSampling{T}) where {T<:Real}
     return print(io, "Gibbs Sampler")
 end
 
-function sample_local!(local_vars, l::AbstractLikelihood, y, f::Tuple{<:AbstractVector{T}}) where {T}
+function sample_local!(
+    local_vars, l::AbstractLikelihood, y, f::Tuple{<:AbstractVector{T}}
+) where {T}
     return sample_local!(local_vars, l, y, first(f))
 end
 

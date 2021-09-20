@@ -11,13 +11,8 @@ struct AVIOptimizer{O} <: AOptimizer
 end
 
 # Numerical VI Optimizer
-struct NVIOptimizer{T<:Real,O} <: NOptimizer
-    optimiser::O #Learning rate for stochastic updates
-    ∇η₁::Vector{T}
-    ∇η₂::Matrix{T}
-    ν::Vector{T} #Derivative -<dv/dx>_qn
-    λ::Vector{T} #Derivative  <d²V/dx²>_qm
-    L::LowerTriangular{T,Matrix{T}}
+struct NVIOptimizer{O} <: NOptimizer
+    optimiser::O # Optimiser for stochastic updates
 end
 
 # Sampling Optimizer, does not contain anyting, just a place-holder for sampling

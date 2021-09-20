@@ -4,18 +4,18 @@
 Multiclass likelihood with [Softmax transformation](https://en.wikipedia.org/wiki/Softmax_function):
 
 ```math
-p(y=i|\{f_k\}_{k=1}^K) = \frac{\exp(f\_i)}{\sum_{k=1}^K\exp(f_k)}
+p(y=i|\{f_k\}_{k=1}^K) = \frac{\exp(f_i)}{\sum_{k=1}^K\exp(f_k)}
 ```
 
 There is no possible augmentation for this likelihood
 """
-mutable struct SoftMaxLikelihood{T<:Real,A<:AbstractVector{T}} <: MultiClassLikelihood{T}
+mutable struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
     nClasses::Int
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
 end
 
-SoftMaxLikelihood(n_class::Int) = SoftMaxLikelihood{Float64}(n_class)
+SoftMaxLikelihood(n_class::Int) = SoftMaxLikelihood{Float64}(n_class, [], Dict{Any,Int}())
 function SoftMaxLikelihood(ylabels::AbstractVector)
     return SoftMaxLikelihood{Float64}(
         length(ylabels), ylabels, Dict(value => key for (key, value) in enumerate(ylabels))
@@ -36,7 +36,9 @@ function Base.show(io::IO, ::SoftMaxLikelihood{T}) where {T}
     return print(io, "Softmax likelihood")
 end
 
-function sample_local!(local_vars, model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling}) where {T}
+function sample_local!(
+    local_vars, model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling}
+) where {T}
     model.likelihood.θ .= broadcast(
         (y::BitVector, γ::AbstractVector{<:Real}, μ::AbstractVector{<:Real}, i::Int64) ->
             rand.(PolyaGamma.(1.0, μ - logsumexp(μ))),

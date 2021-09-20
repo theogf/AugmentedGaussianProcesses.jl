@@ -28,7 +28,7 @@ mutable struct MCIntegrationVI{T<:Real} <: NumericalVI{T}
             one(T),
             natural,
             true,
-            (NVIOptimizer{T}(0, 0, optimiser),),
+            NVIOptimizer(optimiser),
         )
     end
 end
@@ -80,14 +80,14 @@ See [`MCIntegrationVI`](@ref) for more explanations.
 MCIntegrationSVI
 
 function MCIntegrationSVI(
-    nMinibatch::Integer;
+    batchsize::Integer;
     ϵ::T=1e-5,
     nMC::Integer=200,
     optimiser=Momentum(0.001),
     clipping::Real=0.0,
     natural::Bool=true,
 ) where {T<:Real}
-    return MCIntegrationVI{T}(ϵ, nMC, optimiser, true, clipping, nMinibatch, natural)
+    return MCIntegrationVI{T}(ϵ, nMC, optimiser, true, clipping, batchsize, natural)
 end
 
 function grad_expectations!(

@@ -25,7 +25,7 @@ update_Z!(::Nothing, ::AbstractVector, ::NamedTuple) = nothing
 
 ## Updating prior mean parameters ##
 # function update!(μ::PriorMean, g::AbstractVector, X::AbstractVector, state)
-    # return update!(μ, g, X, state)
+# return update!(μ, g, X, state)
 # end
 
 ## Updating kernel parameters ##
@@ -47,8 +47,13 @@ end
 function update_kernel!(opt, k::Union{Kernel,Transform}, g::NamedTuple, state::NamedTuple)
     return NamedTuple(
         map(pairs(g)) do (fieldname, grad)
-            Pair(fieldname, update_kernel!(opt, getfield(k, fieldname), grad, getfield(state, fieldname)))
-        end
+            Pair(
+                fieldname,
+                update_kernel!(
+                    opt, getfield(k, fieldname), grad, getfield(state, fieldname)
+                ),
+            )
+        end,
     )
 end
 

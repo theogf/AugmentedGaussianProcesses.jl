@@ -75,7 +75,9 @@ function local_updates!(
     return local_vars
 end
 
-function sample_local!(local_vars, ::LogisticLikelihood, ::AbstractVector, f::AbstractVector)
+function sample_local!(
+    local_vars, ::LogisticLikelihood, ::AbstractVector, f::AbstractVector
+)
     local_vars.θ .= rand.(PolyaGamma.(1, abs.(f)))
     return local_vars
 end

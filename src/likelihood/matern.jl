@@ -87,8 +87,11 @@ function local_updates!(
     return l.θ .= 3.0 ./ (2.0 .* sqrt.(3) * l.c * l.ρ .+ 2 * l.ρ^2)
 end
 
-function sample_local!(local_vars, l::Matern3_2Likelihood, y::AbstractVector, f::AbstractVector)
-    local_vars.θ .= rand.(GeneralizedInverseGaussian.(3 / (2 * l.ρ^2), 2.0 .* abs2.(f - y), 1.5))
+function sample_local!(
+    local_vars, l::Matern3_2Likelihood, y::AbstractVector, f::AbstractVector
+)
+    local_vars.θ .=
+        rand.(GeneralizedInverseGaussian.(3 / (2 * l.ρ^2), 2.0 .* abs2.(f - y), 1.5))
     return local_vars
 end
 

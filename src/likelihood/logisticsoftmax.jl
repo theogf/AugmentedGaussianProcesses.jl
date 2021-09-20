@@ -103,11 +103,13 @@ function local_updates!(
 end
 
 function sample_local!(local_vars, l::LogisticSoftMaxLikelihood{T}, y, f) where {T}
-    broadcast!(f -> rand.(Poisson.(0.5 * l.α .* safe_expcosh.(-0.5 * f, 0.5 * f))), local_vars.γ, f)
+    broadcast!(
+        f -> rand.(Poisson.(0.5 * l.α .* safe_expcosh.(-0.5 * f, 0.5 * f))), local_vars.γ, f
+    )
     local_vars.α .= rand.(Gamma.(one(T) .+ (local_vars.γ...), 1.0 ./ local_vars.β))
     local_vars.θ .= broadcast(
-            (y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), eachcol(y), l.γ, f
-        )
+        (y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), eachcol(y), l.γ, f
+    )
     return local_vars
 end
 

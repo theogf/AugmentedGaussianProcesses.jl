@@ -254,7 +254,9 @@ function proba_y(
     return proba_y(model, KernelFunctions.vec_of_vecs(X_test; obsdim), state; nSamples)
 end
 
-function proba_y(model::MCGP{T}, X_test::AbstractVector, state=nothing; nSamples::Int=200) where {T}
+function proba_y(
+    model::MCGP{T}, X_test::AbstractVector, state=nothing; nSamples::Int=200
+) where {T}
     Ks = if isnothing(state)
         cholesky.(kernelmatrix.(kernels(model), Zviews(model)) .+ Ref(T(jitt) * I))
     else

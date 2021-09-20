@@ -11,7 +11,7 @@ p(y|f) \propto \exp(2 \max(1-yf, 0))
 For the analytic version of the likelihood, it is augmented via:
 
 ```math
-p(y|f, ω) = \frac{1}{\sqrt(2\pi\omega) \exp(-\frac{(1+\omega-yf)^2}{2\omega}))
+p(y|f, ω) = \frac{1}{\sqrt(2\pi\omega)} \exp\left(-\frac{(1+\omega-yf)^2}{2\omega})\right)
 ```
 
 where ``ω \sim 1[0,\infty)`` has an improper prior (his posterior is however has a valid distribution, a Generalized Inverse Gaussian). For reference [see this paper](http://ecmlpkdd2017.ijs.si/papers/paperID502.pdf).

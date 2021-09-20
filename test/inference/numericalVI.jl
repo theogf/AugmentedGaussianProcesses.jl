@@ -1,13 +1,5 @@
-seed!(42)
-L = 3
-D = 10
-N = 20
-nSamples = 10
-b = 5
-x = rand(N, D)
-y = rand(N)
-
 @testset "NumericalVI" begin
+    b = 10
     @test NumericalVI(:quad) isa QuadratureVI
     @test NumericalVI(:mc) isa MCIntegrationVI
     @test_throws ErrorException NumericalVI(:blah)

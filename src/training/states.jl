@@ -22,8 +22,15 @@ function init_opt_state(state, model::AbstractGPModel)
     end
 end
 
-function init_opt_state(::VarLatent, ::VariationalInference)
+function init_opt_state(::VarLatent, vi::VariationalInference)
     return (;)
+end
+
+function init_opt_state(::VarLatent, vi::NumericalVI)
+    return (;
+        ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
+        λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm
+    )
 end
 
 function init_opt_state(gp::SparseVarLatent, vi::VariationalInference)
@@ -32,6 +39,12 @@ function init_opt_state(gp::SparseVarLatent, vi::VariationalInference)
         state_η₁ = state(opt(vi), nat1(gp))
         state_η₂ = state(opt(vi), nat2(gp).data)
         merge(state, (; state_η₁, state_η₂))
+    end
+    if vi isa NumericalVI
+        merge(state, (;
+            ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
+            λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm
+        ))
     end
     return state
 end
@@ -62,28 +75,28 @@ function init_hyperopt_state(state, model::AbstractGPModel)
     return merge(state, (; hyperopt_state))
 end
 
-@traitfn function init_hyperopt_state(gp::TGP) where {TGP<:AbstractLatent;IsFull{TGP}}
+@traitfn function init_hyperopt_state(gp::TGP) where {TGP <: AbstractLatent; IsFull{TGP}}
     hyperopt_state = (;)
     if !isnothing(opt(gp))
         k = kernel(gp)
         state_k = state(opt(gp), k)
-        merge(hyperopt_state, (;state_k))
+        merge(hyperopt_state, (; state_k))
     end
     hyperopt_state = init_priormean_state(hyperopt_state, pr_mean(gp))
     return hyperopt_state
 end
 
-@traitfn function init_hyperopt_state(gp::TGP) where {TGP<:AbstractLatent;!IsFull{TGP}}
+@traitfn function init_hyperopt_state(gp::TGP) where {TGP <: AbstractLatent; !IsFull{TGP}}
     hyperopt_state = (;)
     if !isnothing(opt(gp))
         k = kernel(gp)
         state_k = state(opt(gp), k)
-        merge(hyperopt_state, (;state_k))
+        merge(hyperopt_state, (; state_k))
     end
     if !isnothing(Zopt(gp))
         Z = Zview(gp)
         state_Z = state(opt(gp), Z)
-        merge(hyperopt_state, (;state_Z))
+        merge(hyperopt_state, (; state_Z))
     end
     hyperopt_state = init_priormean_state(hyperopt_state, pr_mean(gp))
     return hyperopt_state

@@ -7,7 +7,7 @@
 
 [Student-t likelihood](https://en.wikipedia.org/wiki/Student%27s_t-distribution) for regression:
 ```math
-    p(y|f,ν,σ) = Γ(0.5(ν+1))/(\sqrt(νπ) σ Γ(0.5ν)) * (1+(y-f)^2/(σ^2ν))^{(-0.5(ν+1))},
+    p(y|f,ν,σ) = \frac{Γ(0.5(ν+1))}{\sqrt(νπ) σ Γ(0.5ν)} (1+\frac{(y-f)^2}{σ^2ν})^{(-0.5(ν+1))},
 ```
 where `ν` is the number of degrees of freedom and `σ` is the standard deviation for local scale of the data.
 

@@ -1,16 +1,13 @@
-seed!(42)
-L = 3
-D = 10
-N = 20
-nSamples = 10
-b = 5
-x = rand(N, D)
-y = rand(N)
 @testset "HMC Sampling" begin
+    seed!(42)
+    L = 3
+    D = 10
+    N = 20
+    nSamples = 10
+    b = 5
     i = HMCSampling(; nBurnin=0, thinning=1)
 
     @test repr(i) == "Hamilton Monte Carlo Sampler"
-    i = AGP.tuple_inference(i, L, D, N, b, [], [])
 
     @test AGP.ρ(i) == 1
     @test AGP.is_stochastic(i) == false

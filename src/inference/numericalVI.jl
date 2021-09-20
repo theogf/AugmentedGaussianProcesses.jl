@@ -12,7 +12,7 @@ include("MCVI.jl")
 isnatural(vi::NumericalVI) = vi.NaturalGradient
 
 """
-    NumericalVI(integration_technique::Symbol=:quad;ϵ::T=1e-5,nMC::Integer=1000,nGaussHermite::Integer=20,optimiser=Momentum(0.001))
+    NumericalVI(integration_technique::Symbol=:quad; ϵ::T=1e-5, nMC::Integer=1000, nGaussHermite::Integer=20, optimiser=Momentum(0.001))
 
 General constructor for Variational Inference via numerical approximation.
 
@@ -56,7 +56,7 @@ General constructor for Stochastic Variational Inference via numerical approxima
 
 ## Arguments
 
-- `nMinibatch::Integer` : Number of samples per mini-batches
+- `batchsize::Integer` : Number of samples per mini-batches
 - `integration_technique::Symbol` : Method of approximation can be `:quad` for quadrature see [QuadratureVI](@ref) or `:mc` for MC integration see [MCIntegrationVI](@ref)
 
 ## Keyword arguments
@@ -67,7 +67,7 @@ General constructor for Stochastic Variational Inference via numerical approxima
 - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.001)`
 """
 function NumericalSVI(
-    nMinibatch::Integer,
+    batchsize::Integer,
     integration_technique::Symbol=:quad;
     ϵ::T=1e-5,
     nMC::Integer=200,
@@ -76,9 +76,9 @@ function NumericalSVI(
     natural::Bool=true,
 ) where {T<:Real}
     if integration_technique == :quad
-        QuadratureVI{T}(ϵ, nGaussHermite, optimiser, true, 0.0, nMinibatch, natural)
+        QuadratureVI{T}(ϵ, nGaussHermite, optimiser, true, 0.0, batchsize, natural)
     elseif integration_technique == :mc
-        MCIntegrationVI{T}(ϵ, nMC, optimiser, true, 0.0, nMinibatch, natural)
+        MCIntegrationVI{T}(ϵ, nMC, optimiser, true, 0.0, batchsize, natural)
     else
         throw(
             ErrorException(
@@ -95,8 +95,8 @@ function Base.show(io::IO, inference::NumericalVI)
     )
 end
 
-∇E_μ(::AbstractLikelihood, i::NVIOptimizer, ::AbstractVector) = (-i.ν,)
-∇E_Σ(::AbstractLikelihood, i::NVIOptimizer, ::AbstractVector) = (0.5 .* i.λ,)
+∇E_μ(::AbstractLikelihood, ::NVIOptimizer, ::AbstractVector, state) = (-state.ν,)
+∇E_Σ(::AbstractLikelihood, ::NVIOptimizer, ::AbstractVector, state) = (0.5 .* state.λ,)
 
 function variational_updates(
     model::AbstractGPModel{T,L,<:NumericalVI}, state, y
@@ -104,8 +104,8 @@ function variational_updates(
     grad_expectations!(model, state, y)
     classical_gradient!.(
         model.f,
-        ∇E_μ(likelihood(model), vi_opt(inference(model)), state),
-        ∇E_Σ(likelihood(model), vi_opt(inference(model)), state),
+        ∇E_μ(likelihood(model), vi_opt(inference(model)), y, state.opt_state),
+        ∇E_Σ(likelihood(model), vi_opt(inference(model)), y, state.opt_state),
         inference(model),
         Zviews(model),
         state.kernel_matrices,
@@ -156,10 +156,10 @@ end
 
 function global_update!(model::AbstractGPModel{T,L,<:NumericalVI}, state) where {T,L}
     opt_state = map(model.f, state.opt_state) do gp, opt_state
-        Δμ, state_μ = Optimisers.apply(
+        state_μ, Δμ = Optimisers.apply(
             model.inference.optimiser, opt_state.state_μ, mean(gp), opt_state.∇η₁
         )
-        ΔΣ, state_Σ = Optimisers.apply(
+        state_Σ, ΔΣ = Optimisers.apply(
             model.inference.optimiser, opt_state.state_Σ, cov(gp).data, opt_state.∇η₂
         )
         gp.post.μ .+= Δμ
@@ -189,12 +189,17 @@ function expec_loglikelihood(
     return expec_loglikelihood(l, i, y, first(μ), first(Σ))
 end
 
-function ELBO(m::AbstractGPModel{T,L,<:NumericalVI}) where {T,L}
+function ELBO(m::AbstractGPModel{T,L,<:NumericalVI}, state, y) where {T,L}
     tot = zero(T)
     tot +=
-        ρ(m) *
-        expec_loglikelihood(likelihood(m), inference(m), yview(m), mean_f(m), var_f(m))
-    tot -= GaussianKL(m)
-    tot -= extraKL(m)
+        ρ(m) * expec_loglikelihood(
+            likelihood(m),
+            inference(m),
+            y,
+            mean_f(m, state.kernel_matrices),
+            var_f(m, state.kernel_matrices),
+        )
+    tot -= GaussianKL(m, state)
+    tot -= extraKL(m, state)
     return tot
 end

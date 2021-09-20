@@ -35,7 +35,7 @@ mutable struct QuadratureVI{T} <: NumericalVI{T}
     ) where {T}
         gh = gausshermite(n_points)
         return new{T}(
-            nPoints,
+            n_points,
             gh[1] .* sqrt2,
             gh[2] ./ sqrtπ,
             clipping,
@@ -46,7 +46,7 @@ mutable struct QuadratureVI{T} <: NumericalVI{T}
             one(T),
             natural,
             true,
-            NVIOptimizer{T,typeof(optimiser)}(optimiser),
+            NVIOptimizer(optimiser),
         )
     end
 end
