@@ -73,13 +73,9 @@ function SVGP(
     latentf = ntuple(n_latent(likelihood)) do _
         return SparseVarLatent(T, Z, kernel, mean, optimiser, Zoptimiser)
     end
-
     model = SVGP{T,typeof(likelihood),typeof(inference),n_latent(likelihood)}(
         latentf, likelihood, inference, verbose, atfrequency, false
     )
-    if isa(optimiser, ALRSVI)
-        init!(model)
-    end
     return model
 end
 

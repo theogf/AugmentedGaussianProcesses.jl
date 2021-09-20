@@ -1,4 +1,4 @@
-abstract type AbstractGPModel{T<:Real,L<:AbstractLikelihood{T},I<:AbstractInference{T},N} end
+abstract type AbstractGPModel{T<:Real,L<:AbstractLikelihood,I<:AbstractInference,N} end
 
 @traitdef IsFull{X}
 @traitdef IsMultiOutput{X}

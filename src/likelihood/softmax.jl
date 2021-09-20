@@ -10,7 +10,7 @@ p(y=i|\{f_k\}_{k=1}^K) = \frac{\exp(f_i)}{\sum_{k=1}^K\exp(f_k)}
 There is no possible augmentation for this likelihood
 """
 mutable struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
-    nClasses::Int
+    n_class::Int
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
 end

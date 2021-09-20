@@ -182,7 +182,7 @@ mean_f(μ::AbstractVector, κ::AbstractMatrix) = κ * μ
 
 var_f(model::AbstractGPModel, kernel_matrices) = var_f.(model.f, kernel_matrices)
 
-@traitfn function var_f(gp::T, ::Any) where {T <: AbstractLatent; IsFull{T}}
+@traitfn function var_f(gp::T, kernel_matrices) where {T <: AbstractLatent; IsFull{T}}
     return var_f(cov(gp))
 end
 @traitfn function var_f(gp::T, kernel_matrices) where {T <: AbstractLatent; !IsFull{T}}

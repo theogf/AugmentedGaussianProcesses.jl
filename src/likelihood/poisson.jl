@@ -95,8 +95,8 @@ end
 function sample_local!(
     local_vars, l::PoissonLikelihood, y::AbstractVector, f::AbstractVector
 )
-    local_vars.γ = rand(Poisson(l.λ * logistic(f))) # Sample n
-    local_vars.θ = rand.(PolyaGamma.(y + Int.(local_vars.γ), abs.(f))) # Sample ω
+    @. local_vars.γ = rand(Poisson(l.λ * logistic(f))) # Sample n
+    @. local_vars.θ = rand(PolyaGamma(y + Int(local_vars.γ), abs(f))) # Sample ω
     return local_vars
 end
 

@@ -36,7 +36,7 @@ function create_mapping!(l::MultiClassLikelihood, y::AbstractVector)
         if length(l.class_mapping) <= num_latent &&
            issubset(l.class_mapping, collect(1:num_latent))
             l.class_mapping = collect(1:num_latent)
-        elseif length(l.class_mapping) > nClasses
+        elseif length(l.class_mapping) > num_latent
             throw(
                 ErrorException(
                     "The number of unique labels in the data : $(l.class_mapping) is not of the same size then the predefined class number ; $num_latent",

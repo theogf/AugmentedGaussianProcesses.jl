@@ -5,8 +5,6 @@ struct AffineMean{T<:Real,V<:AbstractVector{T},O} <: PriorMean{T}
     opt::O
 end
 
-@functor AffineMean
-
 """
     AffineMean(w::Vector, b::Real; opt = ADAM(0.01))
     AffineMean(dims::Int; opt=ADAM(0.01))
