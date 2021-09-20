@@ -15,7 +15,7 @@ There are currently 8 possible Gaussian Process models:
 ```julia
     GP(X_train, y_train, kernel; kwargs...)
 ```
-- [`VGP`](@ref) is a variational GP model: a multivariate Gaussian is approximating the true posterior. There is no inducing points augmentation involved. Therefore it is well suited for small datasets (~10^3 samples)
+- [`VGP`](@ref) is a variational GP model: a multivariate Gaussian is approximating the true posterior. There is no inducing points augmentation involved. Therefore it is well suited for small datasets (~10^3 samples).
 ```julia
     VGP(X_train, y_train, kernel, likelihood, inference; kwargs...)
 ```
@@ -34,7 +34,7 @@ There are currently 8 possible Gaussian Process models:
     OnlineSVGP(kernel, likelihood, inference, ind_point_algorithm; kwargs...)
 ```
 
-- [`MOVGP`](@ref) is a multi output variational GP model based on the principle `f_output[i] = sum(A[i, j] * f_latent[j] for j in 1:n_latent)`. The number of latent GP is free:
+- [`MOVGP`](@ref) is a multi output variational GP model based on the principle `f_output[i] = sum(A[i, j] * f_latent[j] for j in 1:n_latent)`. The number of latent GP is free.
 ```julia
     MOVGP(X_train, ys_train, kernel, likelihood/s, inference, n_latent; kwargs...)
 ```
@@ -44,7 +44,7 @@ There are currently 8 possible Gaussian Process models:
     MOVGP(X_train, ys_train, kernel, likelihood/s, inference, n_latent, n_inducing_points; kwargs...)
 ```
 
-- [`VStP`](@ref) is a variational Student-T model where the prior is a multivariate Student-T distribution with scale `K`, mean `μ₀` and degrees of freedom `ν`. The inference is done automatically by augmenting the prior as a scale mixture of inverse gamma
+- [`VStP`](@ref) is a variational Student-T model where the prior is a multivariate Student-T distribution with scale `K`, mean `μ₀` and degrees of freedom `ν`. The inference is done automatically by augmenting the prior as a scale mixture of inverse gamma.
 ```julia
     VStP(X_train, y_train, kernel, likelihood, inference, ν; kwargs...)
 ```
@@ -55,28 +55,28 @@ There are currently 8 possible Gaussian Process models:
 #### Regression
 
 For **regression**, four likelihoods are available :
-- The classical [`GaussianLikelihood`](@ref), for [**Gaussian noise**](https://en.wikipedia.org/wiki/Gaussian_noise)
-- The [`StudentTLikelihood`](@ref), assuming noise from a [**Student-T**](https://en.wikipedia.org/wiki/Student%27s_t-distribution) distribution (more robust to ouliers)
+- The classical [`GaussianLikelihood`](@ref), for [**Gaussian noise**](https://en.wikipedia.org/wiki/Gaussian_noise).
+- The [`StudentTLikelihood`](@ref), assuming noise from a [**Student-T**](https://en.wikipedia.org/wiki/Student%27s_t-distribution) distribution (more robust to ouliers).
 - The [`LaplaceLikelihood`](@ref), with noise from a [**Laplace**](https://en.wikipedia.org/wiki/Laplace_distribution) distribution.
 - The [`HeteroscedasticLikelihood`](@ref), (in development) where the noise is a function of the input: ``Var(X) = λσ^{-1}(g(X))`` where `g(X)` is an additional Gaussian Process and `σ` is the logistic function.
 
 #### Classification
 
 For **classification** one can select among
-- The [`LogisticLikelihood`](@ref) : a Bernoulli likelihood with a [**logistic link**](https://en.wikipedia.org/wiki/Logistic_function)
+- The [`LogisticLikelihood`](@ref) : a Bernoulli likelihood with a [**logistic link**](https://en.wikipedia.org/wiki/Logistic_function).
 - The [`BayesianSVM`](@ref) likelihood based on the [**frequentist SVM**](https://en.wikipedia.org/wiki/Support_vector_machine#Bayesian_SVM), equivalent to use a hinge loss.
 
 #### Event Likelihoods
 
 For likelihoods such as Poisson or Negative Binomial, we approximate a parameter by `σ(f)`. Two Likelihoods are implemented :
-- The [`PoissonLikelihood`](@ref) : A discrete [Poisson process](https://en.wikipedia.org/wiki/Poisson_distribution) (one parameter per point) with the scale parameter defined as `λσ(f)`
-- The [`NegBinomialLikelihood`](@ref) : The [Negative Binomial likelihood](https://en.wikipedia.org/wiki/Negative_binomial_distribution) where `r` is fixed and we define the success probability `p` as `σ(f)`
+- The [`PoissonLikelihood`](@ref) : A discrete [Poisson process](https://en.wikipedia.org/wiki/Poisson_distribution) (one parameter per point) with the scale parameter defined as `λσ(f)`.
+- The [`NegBinomialLikelihood`](@ref) : The [Negative Binomial likelihood](https://en.wikipedia.org/wiki/Negative_binomial_distribution) where `r` is fixed and we define the success probability `p` as `σ(f)`.
 
 #### Multi-class classification
 
 There is two available likelihoods for multi-class classification:
-- The [`SoftMaxLikelihood`](@ref), the most common approach. However no analytical solving is possible
-- The [`LogisticSoftMaxLikelihood`](@ref), a modified softmax where the exponential function is replaced by the logistic function. It allows to get a fully conjugate model, [**Corresponding paper**](https://arxiv.org/abs/1905.09670)
+- The [`SoftMaxLikelihood`](@ref), the most common approach. However no analytical solving is possible.
+- The [`LogisticSoftMaxLikelihood`](@ref), a modified softmax where the exponential function is replaced by the logistic function. It allows to get a fully conjugate model, [**Corresponding paper**](https://arxiv.org/abs/1905.09670).
 
 ### More options
 
@@ -86,12 +86,12 @@ There is the project to get distributions from `Distributions.jl` to work direct
 
 Inference can be done in various ways.
 
-- [`AnalyticVI`](@ref) : [Variational Inference](https://en.wikipedia.org/wiki/Variational_Bayesian_methods) with closed-form updates. For non-Gaussian likelihoods, this relies on augmented version of the likelihoods. For using Stochastic Variational Inference, one can use [`AnalyticSVI`](@ref) with the size of the mini-batch as an argument
+- [`AnalyticVI`](@ref) : [Variational Inference](https://en.wikipedia.org/wiki/Variational_Bayesian_methods) with closed-form updates. For non-Gaussian likelihoods, this relies on augmented version of the likelihoods. For using Stochastic Variational Inference, one can use [`AnalyticSVI`](@ref) with the size of the mini-batch as an argument.
 - [`GibbsSampling`](@ref) : Gibbs Sampling of the true posterior, this also rely on an augmented version of the likelihoods, this is only valid for the `VGP` model at the moment.
 
 The two next methods rely on numerical approximation of an integral and I therefore recommend using the classical `Descent` approach as it will use anyway the natural gradient updates. `ADAM` seem to give random results.
 - [`QuadratureVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via quadrature.
-- [`MCIntegrationVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via Monte Carlo Integration
+- [`MCIntegrationVI`](@ref) : Variational Inference with gradients computed by estimating the expected log-likelihood via Monte Carlo Integration.
 
 [WIP] : [AdvancedHMC.jl](https://github.com/TuringLang/AdvancedHMC.jl) will be integrated at some point, although generally the Gibbs sampling is preferable when available.
 
@@ -130,15 +130,15 @@ Note that for MO(S)VGP you can use a mix of different likelihoods.
 
 One can optimize the kernel hyperparameters as well as the inducing points location by maximizing the ELBO. All derivations are already hand-coded (no AD needed). One can select the optimization scheme via :
 - The `optimiser` keyword, can be `nothing` or `false` for no optimization or can be an optimiser from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/).
-- The `Zoptimiser` keyword, similar to `optimiser` it is used for optimizing the inducing points locations, it is by default set to `nothing` (no optimization)
+- The `Zoptimiser` keyword, similar to `optimiser` it is used for optimizing the inducing points locations, it is by default set to `nothing` (no optimization).
 
 #### [PriorMean](@id meanprior)
 
 The `mean` keyword allows you to add different types of prior means:
-- [`ZeroMean`](@ref), a constant mean that cannot be optimized
-- [`ConstantMean`](@ref), a constant mean that can be optimized
-- [`EmpiricalMean`](@ref), a vector mean with a different value for each point
-- [`AffineMean`](@ref), `μ₀` is given by `X*w + b`
+- [`ZeroMean`](@ref), a constant mean that cannot be optimized.
+- [`ConstantMean`](@ref), a constant mean that can be optimized.
+- [`EmpiricalMean`](@ref), a vector mean with a different value for each point.
+- [`AffineMean`](@ref), `μ₀` is given by `X*w + b`.
 
 ## [Training](@id train)
 
@@ -146,7 +146,7 @@ Training is straightforward after initializing the `model` by running :
 ```julia
 train!(model;  iterations=100, callback=callbackfunction)
 ```
-Where the `callback` option is for running a function at every iteration. `callbackfunction` should be defined as`
+Where the `callback` option is for running a function at every iteration. `callbackfunction` should be defined as
 ```julia
 function callbackfunction(model, iter)
     # do things here...
@@ -157,7 +157,7 @@ end
 
 Once the model has been trained it is finally possible to compute predictions. There always three possibilities :
 
-- `predict_f(model, X_test; covf=true, fullcov=false)` : Compute the parameters (mean and covariance) of the latent normal distributions of each test points. If `covf=false` return only the mean, if `fullcov=true` return a covariance matrix instead of only the diagonal
+- `predict_f(model, X_test; covf=true, fullcov=false)` : Compute the parameters (mean and covariance) of the latent normal distributions of each test points. If `covf=false` return only the mean, if `fullcov=true` return a covariance matrix instead of only the diagonal.
 - `predict_y(model, X_test)` : Compute the point estimate of the predictive likelihood for regression or the label of the most likely class for classification.
 - `proba_y(model, X_test)` : Return the mean with the variance of eahc point for regression or the predictive likelihood to obtain the class `y=1` for classification.
 
