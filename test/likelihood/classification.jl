@@ -4,7 +4,7 @@
     y = rand([1, -1], 10)
     @test AGP.treat_labels!(y, l) == y
     y = rand([0, 1], 10)
-    @test AGP.treat_labels!(y, l) == (y .- 0.5)
+    @test AGP.treat_labels!(y, l) == 2 * (y .- 0.5)
     y = randn(10)
     @test_throws ErrorException AGP.treat_labels!(y, l)
     y = rand([2, 3], 10)

@@ -47,7 +47,7 @@ end
 function init_local_vars(state, l::GaussianLikelihood{T}, batchsize::Int) where {T}
     local_vars = (; θ=fill(inv(l.σ²[1]), batchsize))
     if !isnothing(l.opt_noise)
-        state_σ² = init(l.opt_noise, l.σ²)
+        state_σ² = Optimisers.init(l.opt_noise, l.σ²)
         local_vars = merge(local_vars, (; state_σ²))
     end
     return merge(state, (; local_vars))
