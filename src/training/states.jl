@@ -26,7 +26,7 @@ function init_opt_state(::VarLatent, vi::VariationalInference)
     return (;)
 end
 
-function init_opt_state(::VarLatent, vi::NumericalVI)
+function init_opt_state(::VarLatent{T}, vi::NumericalVI) where {T}
     return (;
         ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
         λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm

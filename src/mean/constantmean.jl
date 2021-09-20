@@ -24,13 +24,13 @@ end
 (μ::ConstantMean{T})(x::AbstractMatrix) where {T<:Real} = fill(first(μ.C), size(x, 1))
 
 function init_priormean_state(hyperopt_state, μ₀::ConstantMean)
-    μ₀_state = (; C=init(μ₀.opt, μ₀.C))
+    μ₀_state = (; C=Optimisers.state(μ₀.opt, μ₀.C))
     return merge(hyperopt_state, (; μ₀_state))
 end
 
 function update!(μ₀::ConstantMean{T}, hyperopt_state, grad) where {T<:Real}
     μ₀_state = hyperopt_state.μ₀_state
-    C, ΔC = Optimisers.apply(μ₀.opt, μ₀_state.C, μ₀.w, grad)
+    C, ΔC = Optimisers.apply(μ₀.opt, μ₀_state.C, μ₀.C, grad)
     μ₀.C .+= ΔC
     return merge(hyperopt_state, (; μ₀_state=(; C)))
 end
