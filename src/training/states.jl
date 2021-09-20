@@ -8,7 +8,11 @@ end
 @traitfn function init_local_vars(
     state, model::TGP
 ) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
-    return state = init_local_vars(state, likelihood(model), batchsize(model))
+    if inference(model) isa Union{Analytic,AnalyticVI,GibbsSampling}
+        return state = init_local_vars(state, likelihood(model), batchsize(model))
+    else
+        return state
+    end
 end
 
 function init_opt_state(state, model::AbstractGPModel)
@@ -26,24 +30,31 @@ function init_opt_state(::VarLatent, vi::VariationalInference)
     return (;)
 end
 
-function init_opt_state(::VarLatent{T}, vi::NumericalVI) where {T}
+function init_opt_state(gp::VarLatent{T}, vi::NumericalVI) where {T}
     return (;
         ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
         λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm
+        state_μ = Optimisers.state(opt(vi).optimiser, mean(gp)),
+        state_Σ = Optimisers.state(opt(vi), cov(gp).data),
+        ∇η₁=zero(mean(gp)),
+        ∇η₂=zero(cov(gp).data),
     )
 end
 
-function init_opt_state(gp::SparseVarLatent, vi::VariationalInference)
+function init_opt_state(gp::SparseVarLatent{T}, vi::VariationalInference) where {T}
     state = (; ∇η₁=zero(mean(gp)), ∇η₂=zero(cov(gp).data))
-    if is_stochastic(vi)
-        state_η₁ = Optimisers.state(opt(vi).optimiser, nat1(gp))
-        state_η₂ = Optimisers.state(opt(vi), nat2(gp).data)
-        state = merge(state, (; state_η₁, state_η₂))
+    if vi isa AnalyticVI && is_stochastic(vi)
+        state = merge(state, (;
+            state_η₁ = Optimisers.state(opt(vi).optimiser, nat1(gp)),
+            state_η₂ = Optimisers.state(opt(vi), nat2(gp).data),
+        ))
     end
     if vi isa NumericalVI
         state = merge(state, (;
             ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
             λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm
+            state_μ = Optimisers.state(opt(vi).optimiser, mean(gp)),
+            state_Σ = Optimisers.state(opt(vi), cov(gp).data),
         ))
     end
     return state

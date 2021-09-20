@@ -98,10 +98,11 @@ function grad_expectations!(
     μ = mean_f(m, state.kernel_matrices)
     σ² = var_f(m, state.kernel_matrices)
     num_sample = batchsize(m)
+    opt_state = state.opt_state
     for j in 1:num_sample # Loop over every data point
         samples .=
             raw_samples .* sqrt.([σ²[k][j] for k in 1:n_latent(m)])' .+ [μ[k][j] for k in 1:n_latent(m)]'
-        grad_samples!(m, samples, state, y, j) # Compute the gradient for data point j
+        grad_samples!(m, samples, opt_state, y[j, :], j) # Compute the gradient for data point j
     end
 end
 
@@ -114,7 +115,7 @@ function expec_loglikelihood(
     num_sample = batchsize(i)
     tot = 0.0
     for j in 1:num_sample # Loop over every data point
-        samples .=
+        samples =
             raw_samples .* sqrt.([σ²[k][j] for k in 1:num_latent])' .+ [μ[k][j] for k in 1:num_latent]'
         # samples is of dimension nMC x nLatent again
         y_j = y[j, :] # Obtain the label for data point j

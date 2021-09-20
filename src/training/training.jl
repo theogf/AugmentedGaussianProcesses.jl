@@ -210,7 +210,7 @@ end
 end
 
 function compute_Ks(m::AbstractGPModel{T}, kernel_matrices) where {T}
-    return (; kernel_matrices=map(m.f, Zviews(m), kernel_matrices) do gp, x, k_mat
+    return (; kernel_matrices=broadcast(m.f, Zviews(m), kernel_matrices) do gp, x, k_mat
         K = compute_K(gp, x, T(jitt))
         merge(k_mat, (; K))
     end)

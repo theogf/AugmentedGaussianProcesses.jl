@@ -30,6 +30,7 @@ function ELBO(model::AbstractGPModel, X::AbstractMatrix, y::AbstractArray; obsdi
 end
 
 function ELBO(model::AbstractGPModel, X::AbstractVector, y::AbstractArray)
+    y = treat_labels!(y, likelihood(model))
     state = compute_kernel_matrices(model, (; ), X, true)
     if inference(model) isa AnalyticVI
         state = init_local_vars(state, likelihood(model), length(X))
@@ -44,6 +45,7 @@ function ELBO(model::OnlineSVGP, state::NamedTuple, X::AbstractMatrix, y::Abstra
 end
 
 function ELBO(model::OnlineSVGP, state::NamedTuple, X::AbstractVector, y::AbstractArray)
+    y = treat_labels!(y, likelihood(model))
     state = compute_kernel_matrices(model, state, X, true)
     if inference(model) isa AnalyticVI
         state = init_local_vars(state, likelihood(model), length(X))

@@ -6,7 +6,7 @@ include("bayesiansvm.jl")
 """ Return the labels in a vector of vectors for multiple outputs"""
 function treat_labels!(y::AbstractVector{<:Real}, ::ClassificationLikelihood)
     labels = unique(y)
-    y isa AbstractVector{<:Int} || error("y labels should be Int")
+    y isa AbstractVector{<:Union{Int,Bool}} || error("y labels should be Int")
     if sort(Int64.(labels)) == [0; 1]
         return (y .- 0.5) * 2
     elseif sort(Int64.(labels)) == [-1; 1]

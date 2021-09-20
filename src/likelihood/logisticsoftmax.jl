@@ -104,11 +104,11 @@ end
 
 function sample_local!(local_vars, l::LogisticSoftMaxLikelihood{T}, y, f) where {T}
     broadcast!(
-        f -> rand.(Poisson.(0.5 * l.α .* safe_expcosh.(-0.5 * f, 0.5 * f))), local_vars.γ, f
+        f -> rand.(Poisson.(0.5 * local_vars.α .* safe_expcosh.(-0.5 * f, 0.5 * f))), local_vars.γ, f
     )
     local_vars.α .= rand.(Gamma.(one(T) .+ (local_vars.γ...), 1.0 ./ local_vars.β))
     local_vars.θ .= broadcast(
-        (y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), eachcol(y), l.γ, f
+        (y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), eachcol(y), local_vars.γ, f
     )
     return local_vars
 end
@@ -127,7 +127,7 @@ function expec_loglikelihood(
     ::LogisticSoftMaxLikelihood{T}, ::AnalyticVI, y, μ, Σ, state
 ) where {T}
     tot = -length(y) * logtwo
-    tot += -sum(sum(state.γ .+ y)) * logtwo
+    tot += -sum(sum(state.γ .+ eachcol(y))) * logtwo
     tot += 0.5 * sum(zip(state.θ, state.γ, eachcol(y), μ, Σ)) do (θ, γ, y, μ, Σ)
         dot(μ, (y - γ)) - dot(θ, abs2.(μ)) - dot(θ, Σ)
     end
@@ -161,7 +161,7 @@ end
 
 ## Numerical Gradient Section ##
 
-function grad_samples(
+function grad_samples!(
     model::AbstractGPModel{T,<:LogisticSoftMaxLikelihood,<:NumericalVI},
     samples::AbstractMatrix{T},
     opt_state,
@@ -199,7 +199,7 @@ function log_like_samples(
 end
 
 function grad_logisticsoftmax(s::AbstractVector{T}, σ::AbstractVector{T}, y) where {T<:Real}
-    return s[i] * (y .- s) .* (1.0 .- σ)
+    return s[y][1] * (y .- s) .* (1.0 .- σ)
 end
 
 function diaghessian_logisticsoftmax(

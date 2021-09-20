@@ -95,8 +95,8 @@ function Base.show(io::IO, inference::NumericalVI)
     )
 end
 
-∇E_μ(::AbstractLikelihood, ::NVIOptimizer, ::AbstractVector, state) = (-state.ν,)
-∇E_Σ(::AbstractLikelihood, ::NVIOptimizer, ::AbstractVector, state) = (0.5 .* state.λ,)
+∇E_μ(::AbstractLikelihood, ::NVIOptimizer, ::Any, state) = map(x->-x.ν, state)
+∇E_Σ(::AbstractLikelihood, ::NVIOptimizer, ::Any, state) = map(x->x.λ / 2, state)
 
 function variational_updates(
     model::AbstractGPModel{T,L,<:NumericalVI}, state, y
@@ -104,8 +104,8 @@ function variational_updates(
     grad_expectations!(model, state, y)
     classical_gradient!.(
         model.f,
-        ∇E_μ(likelihood(model), vi_opt(inference(model)), y, state.opt_state),
-        ∇E_Σ(likelihood(model), vi_opt(inference(model)), y, state.opt_state),
+        ∇E_μ(likelihood(model), opt(inference(model)), y, state.opt_state),
+        ∇E_Σ(likelihood(model), opt(inference(model)), y, state.opt_state),
         inference(model),
         Zviews(model),
         state.kernel_matrices,
@@ -114,7 +114,8 @@ function variational_updates(
     if isnatural(inference(model))
         natural_gradient!.(model.f, state.kernel_matrices, state.opt_state)
     end
-    return global_update!(model)
+    state = global_update!(model, state)
+    return state
 end
 
 function classical_gradient!(
@@ -157,10 +158,10 @@ end
 function global_update!(model::AbstractGPModel{T,L,<:NumericalVI}, state) where {T,L}
     opt_state = map(model.f, state.opt_state) do gp, opt_state
         state_μ, Δμ = Optimisers.apply(
-            model.inference.optimiser, opt_state.state_μ, mean(gp), opt_state.∇η₁
+            opt(inference(model)), opt_state.state_μ, mean(gp), opt_state.∇η₁
         )
         state_Σ, ΔΣ = Optimisers.apply(
-            model.inference.optimiser, opt_state.state_Σ, cov(gp).data, opt_state.∇η₂
+            opt(inference(model)), opt_state.state_Σ, cov(gp).data, opt_state.∇η₂
         )
         gp.post.μ .+= Δμ
         α = 1.0

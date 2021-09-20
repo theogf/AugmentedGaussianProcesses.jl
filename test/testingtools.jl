@@ -10,7 +10,7 @@ function tests(model1, model2, X, f, y, problem)
     model1, state1 = train!(model1, X, y, 1)
     L = AGP.objective(model1, X, y)
     @test L < 0
-    train!(model1, 5)
+    train!(model1, X, y, 5)
     @test testconv(model1, problem, X, f, y)
     @test all(proba_y(model1, X)[2] .> 0)
     train!(model2, X, y, 6)
@@ -190,8 +190,6 @@ function tests_likelihood(
                     @test AGP.likelihood(model) isa ltype
                     @test AGP.inference(model) isa GibbsSampling
                     @test AGP.getf(model) isa NTuple{n_latent,AGP.SampledLatent}
-                    @test AGP.output(model) isa AbstractVector
-                    @test AGP.input(model) isa AbstractVector
                     @test AGP.n_latent(model) == n_latent
                     samples = sample(model, 100; progress=false)
                     @test_broken samples2 = sample(model, 100; cat=true, progress=false)
@@ -204,8 +202,6 @@ function tests_likelihood(
                     @test AGP.likelihood(model) isa ltype
                     @test AGP.inference(model) isa HMCSampling
                     @test AGP.getf(model) isa NTuple{n_latent,AGP.SampledLatent}
-                    @test AGP.output(model) isa AbstractVector
-                    @test AGP.input(model) isa AbstractVector
                     @test AGP.n_latent(model) == n_latent
                     samples = sample(model, 20; progress=false)
                     @test_broken samples2 = sample(model, 20; cat=true)
