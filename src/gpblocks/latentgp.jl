@@ -182,7 +182,7 @@ mean_f(μ::AbstractVector, κ::AbstractMatrix) = κ * μ
 
 var_f(model::AbstractGPModel, kernel_matrices) = var_f.(model.f, kernel_matrices)
 
-@traitfn function var_f(gp::T, kernel_matrices) where {T <: AbstractLatent; IsFull{T}}
+@traitfn function var_f(gp::T, ::Any) where {T <: AbstractLatent; IsFull{T}}
     return var_f(cov(gp))
 end
 @traitfn function var_f(gp::T, kernel_matrices) where {T <: AbstractLatent; !IsFull{T}}
@@ -218,12 +218,19 @@ function compute_κ(gp::SparseVarLatent, X::AbstractVector, K, jitt::Real)
     return (; Knm, κ, K̃)
 end
 
-function compute_κ(gp::OnlineVarLatent, X::AbstractVector, K, jitt::Real)
+function compute_κ(gp::OnlineVarLatent{T}, X::AbstractVector, K, jitt::Real) where {T}
+    k = dim(gp)
     # Covariance with the model at t-1
-    Kab = kernelmatrix(kernel(gp), gp.Zₐ, gp.Z)
-    κₐ = Kab / K
-    Kₐ = Symmetric(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
-    K̃ₐ = Kₐ - κₐ * transpose(Kab)
+    if isempty(gp.Zₐ)
+        Kab = zeros(T, k, k)
+        κₐ = I
+        K̃ₐ = zero(Kab)
+    else
+        Kab = kernelmatrix(kernel(gp), gp.Zₐ, gp.Z)
+        κₐ = Kab / K
+        Kₐ = Symmetric(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
+        K̃ₐ = Kₐ - κₐ * transpose(Kab)
+    end
 
     # Covariance with a new batch
     Knm = kernelmatrix(kernel(gp), X, gp.Z)

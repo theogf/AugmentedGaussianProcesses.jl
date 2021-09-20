@@ -92,7 +92,7 @@ end
 function expec_loglikelihood(
     ::BayesianSVM{T},
     ::AnalyticVI,
-    y::AbstractVector,
+    y,
     μ::AbstractVector,
     diag_cov::AbstractVector,
     state,

@@ -75,7 +75,7 @@ end
         ∇E_μ(m, y, local_vars),
         ∇E_Σ(m, y, local_vars),
         ρ(inference(m)),
-        get_opt(inference(m)),
+        opt(inference(m)),
         Zviews(m),
         state.kernel_matrices,
         state.opt_state,
@@ -100,7 +100,7 @@ end
         ∇E_μ(m, y, local_vars),
         ∇E_Σ(m, y, local_vars),
         ρ(inference(m)),
-        get_opt(inference(m)),
+        opt(inference(m)),
         Zviews(m),
         state.kernel_matrices,
         state.opt_state,
@@ -119,17 +119,6 @@ function local_updates!(
     diagΣ::Tuple{<:AbstractVector{T}},
 ) where {T}
     return local_updates!(local_vars, l, y, first(μ), first(diagΣ))
-end
-
-function expec_loglikelihood(
-    l::AbstractLikelihood,
-    i::AnalyticVI,
-    y,
-    μ::Tuple{<:AbstractVector{T}},
-    diagΣ::Tuple{<:AbstractVector{T}},
-    state,
-) where {T}
-    return expec_loglikelihood(l, i, y, first(μ), first(diagΣ), state)
 end
 
 # Coordinate ascent updates on the natural parameters ##
@@ -238,10 +227,10 @@ end
 
 function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI, opt_state)
     if is_stochastic(i)
-        Δ₁, state_η₁ = Optimisers.apply(
+        state_η₁, Δ₁ = Optimisers.apply(
             opt.optimiser, opt_state.state_η₁, nat1(gp), opt_state.∇η₁
         )
-        Δ₂, state_η₂ = Optimisers.apply(
+        state_η₂, Δ₂ = Optimisers.apply(
             opt.optimiser, opt_state.state_η₂, nat2(gp).data, opt_state.∇η₂
         )
         gp.post.η₁ .+= Δ₁
@@ -263,7 +252,7 @@ end
 # There are 4 parts : the (augmented) log-likelihood, the Gaussian KL divergence
 # the augmented variable KL divergence, some eventual additional part (like in the online case)
 @traitfn function ELBO(
-    model::TGP, state, y
+    model::TGP, state::NamedTuple, y
 ) where {T,L,TGP<:AbstractGPModel{T,L,<:AnalyticVI};!IsMultiOutput{TGP}}
     tot = zero(T)
     tot +=
@@ -285,7 +274,7 @@ end
 
 # Multi-output version
 @traitfn function ELBO(
-    model::TGP, state, y
+    model::TGP, state::NamedTuple, y
 ) where {T,L,TGP<:AbstractGPModel{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     tot = zero(T)
     tot += sum(
@@ -304,4 +293,15 @@ end
         sum(ρ(inference(model)) .* AugmentedKL.(likelihood(model), state.local_vars, y))
     )
     return tot
+end
+
+function expec_loglikelihood(
+    l::AbstractLikelihood,
+    i::AnalyticVI,
+    y,
+    μ::Tuple{<:AbstractVector{T}},
+    diagΣ::Tuple{<:AbstractVector{T}},
+    state,
+) where {T}
+    return expec_loglikelihood(l, i, y, first(μ), first(diagΣ), state)
 end

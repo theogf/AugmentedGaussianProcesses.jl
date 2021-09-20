@@ -36,12 +36,12 @@ end
 function init_opt_state(gp::SparseVarLatent, vi::VariationalInference)
     state = (; ∇η₁=zero(mean(gp)), ∇η₂=zero(cov(gp).data))
     if is_stochastic(vi)
-        state_η₁ = state(opt(vi), nat1(gp))
-        state_η₂ = state(opt(vi), nat2(gp).data)
-        merge(state, (; state_η₁, state_η₂))
+        state_η₁ = Optimisers.state(opt(vi).optimiser, nat1(gp))
+        state_η₂ = Optimisers.state(opt(vi), nat2(gp).data)
+        state = merge(state, (; state_η₁, state_η₂))
     end
     if vi isa NumericalVI
-        merge(state, (;
+        state = merge(state, (;
             ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
             λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm
         ))
@@ -54,7 +54,7 @@ function init_opt_state(gp::OnlineVarLatent{T}, vi::VariationalInference) where 
     if is_stochastic(vi)
         state_η₁ = state(opt(vi), nat1(gp))
         state_η₂ = state(opt(vi), nat2(gp).data)
-        merge(state, (; state_η₁, state_η₂))
+        state = merge(state, (; state_η₁, state_η₂))
     end
     k = dim(gp)
     prev𝓛ₐ = zero(T)
@@ -79,8 +79,8 @@ end
     hyperopt_state = (;)
     if !isnothing(opt(gp))
         k = kernel(gp)
-        state_k = state(opt(gp), k)
-        merge(hyperopt_state, (; state_k))
+        state_k = Optimisers.state(opt(gp), k)
+        hyperopt_state = merge(hyperopt_state, (; state_k))
     end
     hyperopt_state = init_priormean_state(hyperopt_state, pr_mean(gp))
     return hyperopt_state
@@ -90,13 +90,13 @@ end
     hyperopt_state = (;)
     if !isnothing(opt(gp))
         k = kernel(gp)
-        state_k = state(opt(gp), k)
-        merge(hyperopt_state, (; state_k))
+        state_k = Optimisers.state(opt(gp), k)
+        hyperopt_state = merge(hyperopt_state, (; state_k))
     end
     if !isnothing(Zopt(gp))
         Z = Zview(gp)
-        state_Z = state(opt(gp), Z)
-        merge(hyperopt_state, (; state_Z))
+        state_Z = Optimisers.state(opt(gp), Z)
+        hyperopt_state = merge(hyperopt_state, (; state_Z))
     end
     hyperopt_state = init_priormean_state(hyperopt_state, pr_mean(gp))
     return hyperopt_state

@@ -27,10 +27,10 @@ end
 end
 
 ## return the linear sum of the expectation gradient given μ ##
-@traitfn function ∇E_μ(m::TGP) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
-    ∇ = [zeros(T, nMinibatch(m.inference)) for i in 1:n_latent(m)]
-    ∇Eμs = ∇E_μ.(likelihood(m), Ref(opt_type(m.inference)), yview(m))
-    ∇EΣs = ∇E_Σ.(likelihood(m), Ref(opt_type(m.inference)), yview(m))
+@traitfn function ∇E_μ(m::TGP, ys, local_vars) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
+    ∇ = [zeros(T, batchsize(inference(m))) for i in 1:n_latent(m)]
+    ∇Eμs = ∇E_μ.(likelihood(m), Ref(opt(inference(m))), ys, local_vars)
+    ∇EΣs = ∇E_Σ.(likelihood(m), Ref(opt(inference(m))), ys, local_vars)
     μ_f = mean_f.(m.f)
     for t in 1:(m.nTask)
         for j in 1:m.nf_per_task[t]
@@ -48,9 +48,9 @@ end
 end
 
 ## return the linear sum of the expectation gradient given diag(Σ) ##
-@traitfn function ∇E_Σ(m::TGP) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
-    ∇ = [zeros(T, batchsize(m.inference)) for _ in 1:n_latent(m)]
-    ∇Es = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), yview(m))
+@traitfn function ∇E_Σ(m::TGP, ys, local_vars) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
+    ∇ = [zeros(T, batchsize(inference(m))) for _ in 1:n_latent(m)]
+    ∇Es = ∇E_Σ.(likelihood(m), Ref(opt(inference(m))), ys, local_vars)
     for t in 1:(m.nTask)
         for j in 1:m.nf_per_task[t]
             for q in 1:n_latent(m)
@@ -62,12 +62,13 @@ end
 end
 
 ##
-@traitfn function update_A!(m::TGP) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
+@traitfn function update_A!(m::TGP, ys, state) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     if !isnothing(m.A_opt)
+        local_vars = state.local_vars
         μ_f = mean_f.(m.f) # κμ || μ
         Σ_f = var_f.(m.f) #Diag(K̃ + κΣκ) || Diag(Σ)
-        ∇Eμ = ∇E_μ.(m.likelihood, Ref(opt_type(m.inference)), yview(m))
-        ∇EΣ = ∇E_Σ.(m.likelihood, Ref(opt_type(m.inference)), yview(m))
+        ∇Eμ = ∇E_μ.(likelihood(m), Ref(opt(inference(m))), ys, local_vars)
+        ∇EΣ = ∇E_Σ.(likelihood(m), Ref(opt(inference(m))), ys, local_vars)
         # new_A = zero(model.A)
         for t in 1:(m.nTask)
             for j in 1:m.nf_per_task[t]

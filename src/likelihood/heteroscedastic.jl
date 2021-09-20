@@ -98,32 +98,32 @@ function variational_updates!(
     )
     natural_gradient!(
         m.f[2],
-        ∇E_μ(likelihood(m), opt_type(inference(m)), yview(m), local_vars)[2],
-        ∇E_Σ(likelihood(m), opt_type(inference(m)), yview(m), local_vars)[2],
+        ∇E_μ(likelihood(m), opt(inference(m)), yview(m), local_vars)[2],
+        ∇E_Σ(likelihood(m), opt(inference(m)), yview(m), local_vars)[2],
         ρ(m),
-        opt_type(inference(m)),
+        opt(inference(m)),
         last(Zviews(m)),
         state.kernel_matrices[2],
         state.opt_state[2],
     )
     vi_opt_state_2 = global_update!(
-        m.f[2], opt_type(inference(m)), inference(m), state.opt_state[2]
+        m.f[2], opt(inference(m)), inference(m), state.opt_state[2]
     )
     local_vars = heteroscedastic_expectations!(
         local_vars, likelihood(m), mean_f(m.f[2]), var_f(m.f[2])
     )
     natural_gradient!(
         m.f[1],
-        ∇E_μ(likelihood(m), opt_type(inference(m)), yview(m), local_vars)[1],
-        ∇E_Σ(likelihood(m), opt_type(inference(m)), yview(m), local_vars)[1],
+        ∇E_μ(likelihood(m), opt(inference(m)), yview(m), local_vars)[1],
+        ∇E_Σ(likelihood(m), opt(inference(m)), yview(m), local_vars)[1],
         ρ(m),
-        opt_type(inference(m)),
+        opt(inference(m)),
         first(Zviews(m)),
         state.kernel_matrices[1],
         state.opt_state[1],
     )
     vi_opt_state_1 = global_update!(
-        m.f[1], opt_type(inference(m)), inference(m), state.opt_state[1]
+        m.f[1], opt(inference(m)), inference(m), state.opt_state[1]
     )
     opt_state = (vi_opt_state_1, vi_opt_state_2)
     return merge(state, (; opt_state))

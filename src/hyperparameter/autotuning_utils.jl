@@ -46,11 +46,11 @@ end
 ## Zygote.jl approach with named tuple
 function update_kernel!(opt, k::Union{Kernel,Transform}, g::NamedTuple, state::NamedTuple)
     return NamedTuple(
-        map(pairs(g)) do (fieldname, grad)
+        map(keys(g)) do fieldname
             Pair(
                 fieldname,
                 update_kernel!(
-                    opt, getfield(k, fieldname), grad, getfield(state, fieldname)
+                    opt, getfield(k, fieldname), getfield(g, fieldname), getfield(state, fieldname)
                 ),
             )
         end,

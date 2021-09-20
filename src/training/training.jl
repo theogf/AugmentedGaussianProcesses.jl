@@ -29,7 +29,7 @@ function train!(
         0 < batchsize(inference(model)) <= n_sample(data) || error(
             "The size of mini-batch $(batchsize(inference(model))) is incorrect (negative or bigger than number of samples), please set `batchsize` correctly in the inference object",
         )
-        set_ρ!(model, n_sample(data) / batchsize(inference))
+        set_ρ!(model, n_sample(data) / batchsize(inference(model)))
     else
         set_batchsize!(inference(model), n_sample(data))
     end
@@ -40,6 +40,9 @@ function train!(
     end
     # model.evol_conv = [] # Array to check on the evolution of convergence
     local_iter = 1
+    if isnothing(state)
+        setHPupdated!(inference(model), true)
+    end
     state = isnothing(state) ? init_state(model) : state
     conv = Inf
     p = Progress(iterations; dt=0.2, desc="Training Progress: ")
@@ -51,7 +54,7 @@ function train!(
                     1:n_sample(data), batchsize(model); replace=false
                 )
                 x = view_x(data, minibatch)
-                y = view_y(likelihood(m), data, minibatch)
+                y = view_y(likelihood(model), data, minibatch)
             else
                 x = input(data)
                 y = view_y(likelihood(model), data, 1:n_sample(data))
@@ -117,9 +120,9 @@ end
         input(model.data),
         output(model.data),
         iterations;
+        state,
         callback,
         convergence,
-        state,
     )
 end
 

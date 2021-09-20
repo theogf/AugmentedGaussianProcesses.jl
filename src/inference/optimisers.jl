@@ -1,23 +1,22 @@
-mutable struct RobbinsMonro
-    κ::Float64
-    τ::Float64
-    state::IdDict
+struct RobbinsMonro{T}
+    κ::T
+    τ::T
 end
 
 function RobbinsMonro(κ::Real=0.51, τ::Real=1)
-    @assert 0.5 < κ <= 1 "κ should be in the interval (0.5,1]"
-    @assert τ > 0 "τ should be positive"
-    return RobbinsMonro(κ, τ, IdDict())
+    0.5 < κ <= 1 || error("κ should be in the interval (0.5,1]")
+    τ > 0 || error("τ should be positive")
+    return RobbinsMonro{promote_type(typeof(κ),typeof(τ))}(κ, τ)
 end
 
-# function Optimisers.apply!(o::RobbinsMonro, x, Δ)
-#     κ = o.κ
-#     τ = o.τ
-#     n = get!(o.state, x, 1)
-#     Δ .*= 1 / (τ + n)^κ
-#     o.state[x] = n + 1
-#     return Δ
-# end # TODO
+Optimisers.init(::RobbinsMonro, ::Any) = 1
+
+function Optimisers.apply(o::RobbinsMonro, st, x, Δ)
+    κ = o.κ
+    τ = o.τ
+    n = st
+    return (n + 1), Δ * 1 / (τ + n)^κ
+end
 
 mutable struct ALRSVI
     τ::Int64

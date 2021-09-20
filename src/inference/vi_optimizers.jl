@@ -20,6 +20,10 @@ struct SOptimizer{O} <: AOptimizer
     optimiser::O
 end
 
+Optimisers.state(opt::InferenceOptimizer, x) = Optimisers.state(opt.optimiser, x)
+Optimisers.apply(opt::InferenceOptimizer, st, x, dx) = Optimisers.apply(opt.optimiser, st, x, dx)
+Optimisers.update(opt::InferenceOptimizer, st, x, dx) = Optimisers.update(opt.optimiser, st, x, dx)
+
 Base.length(::InferenceOptimizer) = 1
 
 Base.iterate(i::InferenceOptimizer) = (i, nothing)

@@ -16,7 +16,8 @@ there are options to change the number of max iterations,
 function train!(
     m::OnlineSVGP,
     X::AbstractMatrix,
-    y::AbstractArray;
+    y::AbstractArray,
+    state=nothing;
     iterations::Int=20,
     callback=nothing,
     convergence=nothing,
@@ -25,7 +26,8 @@ function train!(
     return train!(
         m,
         KernelFunctions.vec_of_vecs(X; obsdim=obsdim),
-        y;
+        y,
+        state;
         iterations=iterations,
         callback=callback,
     )
@@ -54,24 +56,26 @@ function train!(
         set_batchsize!(inference(m), n_sample(data))
     end
 
-    first_batch = false
-    state = isnothing(state) ? init_state(m) : state
     if n_iter(m) == 0 # The first time data is seen, initialize all parameters
         init_online_model(m, X)
-        first_batch = true
     else
         state = save_old_parameters!(m, state)
         updateZ!(m, X)
     end
+    state = isnothing(state) ? init_state(m) : state
 
-    # model.evol_conv = [] #Array to check on the evolution of convergence
+    # model.evol_conv = [] # Array to check on the evolution of convergence
     local_iter = 1
     conv = Inf
 
     while true # Loop until one condition is matched
         try # Allow for keyboard interruption without losing the model
             if local_iter == 1 # This is needed for dealing with change of sizes
-                state = compute_old_matrices!(m, state, X)
+                if n_iter(m) == 0 # First iteration Zₐ is empty
+                    state = compute_kernel_matrices(m, state, X, true)
+                else
+                    state = compute_old_matrices(m, state, X)
+                end
                 local_vars = local_updates!(
                     state.local_vars,
                     likelihood(m),
@@ -90,7 +94,7 @@ function train!(
                     ∇E_μs,
                     ∇E_Σs,
                     ρ(m),
-                    get_opt(inference(m)),
+                    opt(inference(m)),
                     Zviews(m),
                     state.kernel_matrices,
                     state.opt_state,
@@ -98,14 +102,14 @@ function train!(
                 state = global_update!(m, state)
 
             else
-                state = update_parameters!(m, state, X, y) #Update all the variational parameters
+                state = update_parameters!(m, state, X, y) # Update all the variational parameters
             end
             set_trained!(m, true)
             if !isnothing(callback)
-                callback(m, state, n_iter(m)) #Use a callback method if given by user
+                callback(m, state, n_iter(m)) # Use a callback method if given by user
             end
             if (n_iter(m) % m.atfrequency == 0) && n_iter(m) >= 3
-                state = update_hyperparameters!(m, state, X, y) #Update the hyperparameters
+                state = update_hyperparameters!(m, state, X, y) # Update the hyperparameters
             end
             if verbose(m) > 2 || (verbose(m) > 1 && local_iter % 10 == 0)
                 print("Iteration : $(n_iter(m)), ")
@@ -116,8 +120,8 @@ function train!(
             ### Print out informations about the convergence
             local_iter += 1
             m.inference.n_iter += 1
-            (local_iter <= iterations) || break # Verify if the number of maximum iterations has been reached
-        # (iter < model.nEpochs && conv > model.ϵ) || break; #Verify if any condition has been broken
+            local_iter <= iterations || break # Check if the number of maximum iterations has been reached
+            # (iter < model.nEpochs && conv > model.ϵ) || break; # Check if any condition has been broken
         catch e
             if e isa InterruptException
                 @warn "Training interrupted by user at iteration $local_iter"
@@ -176,7 +180,7 @@ function save_old_gp!(gp::OnlineVarLatent{T}, previous_gp, K) where {T}
 end
 
 function init_online_model(m::OnlineSVGP{T}, x) where {T<:Real}
-    m.f = ntuple(length(m.f)) do i
+    m.f = ntuple(n_latent(m)) do i
         init_online_gp!(m.f[i], x)
     end
     return setHPupdated!(inference(m), false)
@@ -192,19 +196,19 @@ function init_online_gp!(gp::OnlineVarLatent{T}, x, jitt::T=T(jitt)) where {T}
     )
 end
 
-function compute_old_matrices!(m::OnlineSVGP{T}, state, x) where {T}
-    kernel_matrices = haskey(state, :kernel_matrices) ? state.kernel_matrices : (;)
-    kernel_matrices = map(m.f, kernel_matrices) do gp, kernel_matrices
-        return compute_old_matrices!(gp, kernel_matrices, x, T(jitt))
+function compute_old_matrices(m::OnlineSVGP{T}, state, x) where {T}
+    kernel_matrices = haskey(state, :kernel_matrices) ? state.kernel_matrices : ntuple(x->(;), n_latent(m))
+    kernel_matrices = map(m.f, kernel_matrices) do gp, k_mat
+        return compute_old_matrices(gp, k_mat, x, T(jitt))
     end
     return merge(state, (; kernel_matrices))
 end
 
-function compute_old_matrices!(gp::OnlineVarLatent, state, X::AbstractVector, jitt::Real)
+function compute_old_matrices(gp::OnlineVarLatent, state, X::AbstractVector, jitt::Real)
     K = cholesky(kernelmatrix(kernel(gp), gp.Zₐ) + jitt * I)
     Knm = kernelmatrix(kernel(gp), X, gp.Zₐ)
     κ = Knm / K
     K̃ = kernelmatrix_diag(kernel(gp), X) .+ jitt - diag_ABt(κ, Knm)
-    all(K̃ .> 0) || error("K̃ has negative values")
+    all(>(0), K̃) || error("K̃ has negative values")
     return merge(state, (; K, Knm, κ, K̃))
 end

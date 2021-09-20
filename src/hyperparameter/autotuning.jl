@@ -10,7 +10,7 @@ function update_hyperparameters!(m::GP, state, x, y)
             hp_state = state.hyperopt_state
             # Compute gradients
             Δμ₀, Δk = Zygote.gradient(μ₀, k) do μ₀, k # Compute gradients for the whole model
-                -ELBO(m, x, y, μ₀, k)
+                ELBO(m, x, y, μ₀, k)
             end
 
             # Optimize prior mean
@@ -54,10 +54,10 @@ end
         ks = kernels(m) # Get kernels
         if ADBACKEND[] == :Zygote
             Δμ₀, Δk = Zygote.gradient(μ₀, ks) do μ₀, ks # Compute gradients for the whole model
-                -ELBO(m, x, y, μ₀, ks, state)
+                ELBO(m, x, y, μ₀, ks, state)
             end
             # Optimize prior mean
-            if isnothing(Δμ₀)
+            if !isnothing(Δμ₀)
                 hp_state = update!.(μ₀, Δμ₀, hp_state)
             end
             if !isnothing(ks)
@@ -66,8 +66,12 @@ end
             end
             # Optimize kernel parameters
             hp_state = map(m.f, Δk, hp_state) do gp, Δ, hp_st
-                state_k = update_kernel!(opt(gp), kernel(gp), Δ, hp_st.state_k)
-                return merge(hp_st, (; state_k))
+                if isnothing(opt(gp))
+                    return hp_st
+                else
+                    state_k = update_kernel!(opt(gp), kernel(gp), Δ, hp_st.state_k)
+                    return merge(hp_st, (; state_k))
+                end
             end
         elseif ADBACKEND[] == :ForwardDiff
             θ, re = destructure((μ₀, ks))
@@ -91,10 +95,10 @@ end
         Zs = Zviews(m)
         if ADBACKEND[] == :Zygote
             Δμ₀, Δk, ΔZ = Zygote.gradient(μ₀, ks, Zs) do μ₀, ks, Zs
-                -ELBO(m, x, y, μ₀, ks, Zs, state)
+                ELBO(m, x, y, μ₀, ks, Zs, state)
             end
             # Optimize prior mean
-            if isnothing(Δμ₀)
+            if !isnothing(Δμ₀)
                 hp_state = update!.(μ₀, Δμ₀, hp_state)
             end
 
@@ -103,8 +107,12 @@ end
                 @warn "Kernel gradients are equal to zero" maxlog = 1
             else
                 hp_state = map(m.f, Δk, hp_state) do gp, Δ, hp_st
-                    state_k = update_kernel!(opt(gp), kernel(gp), Δ, hp_st.state_k)
-                    return merge(hp_st, (; state_k))
+                    if !isnothing(opt(gp))
+                        state_k = update_kernel!(opt(gp), kernel(gp), Δ, hp_st.state_k)
+                        return merge(hp_st, (; state_k))
+                    else
+                        return hp_st
+                    end
                 end
             end
 
@@ -113,8 +121,12 @@ end
                 @warn "Inducing point locations gradients are equal to zero" maxlog = 1
             else
                 hp_state = map(m.f, ΔZ, hp_state) do gp, Δ, hp_st
-                    state_Z = update_Z!(Zopt(gp), Zview(gp), Δ, hp_state.state_Z)
-                    merge(hp_st, (; state_Z))
+                    if !isnothing(Zopt(gp))
+                        state_Z = update_Z!(Zopt(gp), Zview(gp), Δ, hp_st.state_Z)
+                        return merge(hp_st, (; state_Z))
+                    else
+                        return hp_st
+                    end
                 end
             end
         elseif ADBACKEND[] == :ForwardDiff

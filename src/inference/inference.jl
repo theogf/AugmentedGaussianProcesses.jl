@@ -39,14 +39,13 @@ set_batchsize!(inf::AbstractInference, n::Int) = inf.batchsize = n
 ρ(inf::AbstractInference) = inf.ρ
 ρ(m::AbstractGPModel) = ρ(inference(m))
 set_ρ!(inf::AbstractInference, ρ) = inf.ρ = ρ
-set_ρ!(m::AbstractGPModel, ρ) = setρ!(inference(m), ρ)
+set_ρ!(m::AbstractGPModel, ρ) = set_ρ!(inference(m), ρ)
 
 setHPupdated!(inf::AbstractInference, status::Bool) = inf.HyperParametersUpdated = status
 isHPupdated(inf::AbstractInference) = inf.HyperParametersUpdated
 
 n_iter(inf::AbstractInference) = inf.n_iter
 
-get_opt(::AbstractInference) = nothing
-get_opt(i::VariationalInference) = i.vi_opt
-get_opt(i::SamplingInference) = i.opt
-opt_type(i::AbstractInference) = get_opt(i)
+opt(::AbstractInference) = nothing
+opt(i::VariationalInference) = i.vi_opt
+opt(i::SamplingInference) = i.opt
