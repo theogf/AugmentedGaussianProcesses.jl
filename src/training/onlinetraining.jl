@@ -105,7 +105,7 @@ function train!(
                 callback(m, state, n_iter(m)) #Use a callback method if given by user
             end
             if (n_iter(m) % m.atfrequency == 0) && n_iter(m) >= 3
-                state = update_hyperparameters!(m, state) #Update the hyperparameters
+                state = update_hyperparameters!(m, state, X, y) #Update the hyperparameters
             end
             if verbose(m) > 2 || (verbose(m) > 1 && local_iter % 10 == 0)
                 print("Iteration : $(n_iter(m)), ")
