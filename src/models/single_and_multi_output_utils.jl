@@ -1,5 +1,17 @@
+## return the expectation gradient given μ ##
+@traitfn function ∇E_μ(m::TGP, y, state) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
+    return ∇E_μ(likelihood(m), opt(inference(m)), y, state)
+end
+
+## return the expectation gradient given diag(Σ) ##
+@traitfn function ∇E_Σ(m::TGP, y, state) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
+    return ∇E_Σ(likelihood(m), opt(inference(m)), y, state)
+end
+
 ##
-@traitfn function mean_f(model::TGP, state) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
+@traitfn function mean_f(
+    model::TGP, state
+) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     μ_q = mean_f.(model.f, state.kernel_matrices)
     μ_f = []
     for i in 1:(model.nTask)
@@ -15,7 +27,9 @@
 end
 
 ##
-@traitfn function var_f(model::TGP, state) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
+@traitfn function var_f(
+    model::TGP, state
+) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     Σ_q = var_f.(model.f, state.kernel_matrices)
     Σ_f = []
     for i in 1:(model.nTask)
@@ -31,10 +45,10 @@ end
 end
 
 ## return the linear sum of the expectation gradient given μ ##
-@traitfn function ∇E_μ(m::TGP, ys, state) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
+@traitfn function ∇E_μ(m::TGP, y, state) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
     ∇ = [zeros(T, batchsize(inference(m))) for i in 1:n_latent(m)]
-    ∇Eμs = ∇E_μ.(likelihood(m), Ref(opt(inference(m))), ys, state.local_vars)
-    ∇EΣs = ∇E_Σ.(likelihood(m), Ref(opt(inference(m))), ys, state.local_vars)
+    ∇Eμs = ∇E_μ.(likelihood(m), Ref(opt(inference(m))), y, state.local_vars)
+    ∇EΣs = ∇E_Σ.(likelihood(m), Ref(opt(inference(m))), y, state.local_vars)
     μ_f = mean_f.(m.f, state.kernel_matrices)
     for t in 1:(m.nTask)
         for j in 1:m.nf_per_task[t]
@@ -52,9 +66,9 @@ end
 end
 
 ## return the linear sum of the expectation gradient given diag(Σ) ##
-@traitfn function ∇E_Σ(m::TGP, ys, state) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
+@traitfn function ∇E_Σ(m::TGP, y, state) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
     ∇ = [zeros(T, batchsize(inference(m))) for _ in 1:n_latent(m)]
-    ∇Es = ∇E_Σ.(likelihood(m), Ref(opt(inference(m))), ys, state.local_vars)
+    ∇Es = ∇E_Σ.(likelihood(m), Ref(opt(inference(m))), y, state.local_vars)
     for t in 1:(m.nTask)
         for j in 1:m.nf_per_task[t]
             for q in 1:n_latent(m)
@@ -66,7 +80,7 @@ end
 end
 
 ##
-@traitfn function update_A!(m::TGP, state, ys) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
+function update_A!(m::TGP, state, ys) where {TGP<:AbstractGPModel}
     if !isnothing(m.A_opt)
         local_vars = state.local_vars
         μ_f = mean_f.(m.f, state.kernel_matrices) # κμ || μ

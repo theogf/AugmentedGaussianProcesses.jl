@@ -6,7 +6,7 @@ end
 function RobbinsMonro(κ::Real=0.51, τ::Real=1)
     0.5 < κ <= 1 || error("κ should be in the interval (0.5,1]")
     τ > 0 || error("τ should be positive")
-    return RobbinsMonro{promote_type(typeof(κ),typeof(τ))}(κ, τ)
+    return RobbinsMonro{promote_type(typeof(κ), typeof(τ))}(κ, τ)
 end
 
 Optimisers.init(::RobbinsMonro, ::Any) = 1
@@ -33,7 +33,7 @@ function Optimisers.init(opt::ALRSVI{T}, x::AbstractArray) where {T}
     g = zero(x)
     h = norm(g)
     τ = zero(T)
-    return (;i, g, h, ρ=opt.ρ, τ)
+    return (; i, g, h, ρ=opt.ρ, τ)
 end
 
 function apply(opt::ALRSVI, state, x::AbstractArray, Δx::AbstractArray)
@@ -48,11 +48,11 @@ function apply(opt::ALRSVI, state, x::AbstractArray, Δx::AbstractArray)
             ρ = sum(abs2, g) / h
         end
     else
-        g = (1 - 1 / opt.τ) * state.g  + 1 / opt.τ * Δx
-        h = (1 - 1 / opt.τ) * state.h  + 1 / opt.τ * sum(abs2, Δx)
+        g = (1 - 1 / opt.τ) * state.g + 1 / opt.τ * Δx
+        h = (1 - 1 / opt.τ) * state.h + 1 / opt.τ * sum(abs2, Δx)
         ρ = sum(abs2, g) / h
         τ = state.τ * (1 - ρ) + 1.0
     end
 
-    return (;i=(i+1), g, h, ρ, τ), ρ * Δx
+    return (; i=(i + 1), g, h, ρ, τ), ρ * Δx
 end

@@ -95,8 +95,8 @@ function Base.show(io::IO, inference::NumericalVI)
     )
 end
 
-∇E_μ(::AbstractLikelihood, ::NVIOptimizer, ::Any, state) = map(x->-x.ν, state)
-∇E_Σ(::AbstractLikelihood, ::NVIOptimizer, ::Any, state) = map(x->x.λ / 2, state)
+∇E_μ(::AbstractLikelihood, ::NVIOptimizer, ::Any, state) = map(x -> -x.ν, state)
+∇E_Σ(::AbstractLikelihood, ::NVIOptimizer, ::Any, state) = map(x -> x.λ / 2, state)
 
 function variational_updates(
     model::AbstractGPModel{T,L,<:NumericalVI}, state, y

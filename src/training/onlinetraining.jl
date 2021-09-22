@@ -121,7 +121,7 @@ function train!(
             local_iter += 1
             m.inference.n_iter += 1
             local_iter <= iterations || break # Check if the number of maximum iterations has been reached
-            # (iter < model.nEpochs && conv > model.ϵ) || break; # Check if any condition has been broken
+        # (iter < model.nEpochs && conv > model.ϵ) || break; # Check if any condition has been broken
         catch e
             if e isa InterruptException
                 @warn "Training interrupted by user at iteration $local_iter"
@@ -197,7 +197,11 @@ function init_online_gp!(gp::OnlineVarLatent{T}, x, jitt::T=T(jitt)) where {T}
 end
 
 function compute_old_matrices(m::OnlineSVGP{T}, state, x) where {T}
-    kernel_matrices = haskey(state, :kernel_matrices) ? state.kernel_matrices : ntuple(x->(;), n_latent(m))
+    kernel_matrices = if haskey(state, :kernel_matrices)
+        state.kernel_matrices
+    else
+        ntuple(x -> (;), n_latent(m))
+    end
     kernel_matrices = map(m.f, kernel_matrices) do gp, k_mat
         return compute_old_matrices(gp, k_mat, x, T(jitt))
     end

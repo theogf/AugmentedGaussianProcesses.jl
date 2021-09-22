@@ -104,7 +104,9 @@ end
 
 function sample_local!(local_vars, l::LogisticSoftMaxLikelihood{T}, y, f) where {T}
     broadcast!(
-        f -> rand.(Poisson.(0.5 * local_vars.α .* safe_expcosh.(-0.5 * f, 0.5 * f))), local_vars.γ, f
+        f -> rand.(Poisson.(0.5 * local_vars.α .* safe_expcosh.(-0.5 * f, 0.5 * f))),
+        local_vars.γ,
+        f,
     )
     local_vars.α .= rand.(Gamma.(one(T) .+ (local_vars.γ...), 1.0 ./ local_vars.β))
     local_vars.θ .= broadcast(

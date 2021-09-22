@@ -20,7 +20,7 @@ Where ``\sigma`` is the logistic function
 struct NegBinomialLikelihood{T,Tr} <: EventLikelihood{T}
     r::Tr
     function NegBinomialLikelihood{T}(r::Tr) where {T,Tr}
-        new{T,Tr}(r)
+        return new{T,Tr}(r)
     end
 end
 

@@ -42,26 +42,22 @@
         Z = inducingpoints(KmeansAlg(M), X)
         for floattype in floattypes
             test_inference_SVGP(
-                        X,
-                        y,
-                        f,
-                        k,
-                        GaussianLikelihood(),
-                        GaussianLikelihood,
-                        floattype,
-                        Z,
-                        1,
-                        "Regression",
-                        AnalyticVI(),
-                        AnalyticSVI(10);
-                        valid=true,
+                X,
+                y,
+                f,
+                k,
+                GaussianLikelihood(),
+                GaussianLikelihood,
+                floattype,
+                Z,
+                1,
+                "Regression",
+                AnalyticVI(),
+                AnalyticSVI(10);
+                valid=true,
             )
-            @test_throws ErrorException SVGP(
-                k, GaussianLikelihood(), QuadratureVI(), Z
-            )
-            @test_throws ErrorException SVGP(
-                k, GaussianLikelihood(), MCIntegrationVI(), Z
-            )
+            @test_throws ErrorException SVGP(k, GaussianLikelihood(), QuadratureVI(), Z)
+            @test_throws ErrorException SVGP(k, GaussianLikelihood(), MCIntegrationVI(), Z)
         end
     end
     @testset "MCGP" begin

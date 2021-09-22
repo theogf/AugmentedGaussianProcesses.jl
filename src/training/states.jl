@@ -26,7 +26,9 @@ function init_opt_state(state, model::AbstractGPModel)
     end
 end
 
-function init_opt_state(::Union{VarLatent{T},TVarLatent{T}}, vi::VariationalInference) where {T}
+function init_opt_state(
+    ::Union{VarLatent{T},TVarLatent{T}}, vi::VariationalInference
+) where {T}
     return (;)
 end
 
@@ -34,8 +36,8 @@ function init_opt_state(gp::Union{VarLatent{T},TVarLatent{T}}, vi::NumericalVI) 
     return (;
         ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
         λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm
-        state_μ = Optimisers.state(opt(vi).optimiser, mean(gp)),
-        state_Σ = Optimisers.state(opt(vi), cov(gp).data),
+        state_μ=Optimisers.state(opt(vi).optimiser, mean(gp)),
+        state_Σ=Optimisers.state(opt(vi), cov(gp).data),
         ∇η₁=zero(mean(gp)),
         ∇η₂=zero(cov(gp).data),
     )
@@ -44,18 +46,24 @@ end
 function init_opt_state(gp::SparseVarLatent{T}, vi::VariationalInference) where {T}
     state = (; ∇η₁=zero(mean(gp)), ∇η₂=zero(cov(gp).data))
     if vi isa AnalyticVI && is_stochastic(vi)
-        state = merge(state, (;
-            state_η₁ = Optimisers.state(opt(vi).optimiser, nat1(gp)),
-            state_η₂ = Optimisers.state(opt(vi), nat2(gp).data),
-        ))
+        state = merge(
+            state,
+            (;
+                state_η₁=Optimisers.state(opt(vi).optimiser, nat1(gp)),
+                state_η₂=Optimisers.state(opt(vi), nat2(gp).data),
+            ),
+        )
     end
     if vi isa NumericalVI
-        state = merge(state, (;
-            ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
-            λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm
-            state_μ = Optimisers.state(opt(vi).optimiser, mean(gp)),
-            state_Σ = Optimisers.state(opt(vi), cov(gp).data),
-        ))
+        state = merge(
+            state,
+            (;
+                ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
+                λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm
+                state_μ=Optimisers.state(opt(vi).optimiser, mean(gp)),
+                state_Σ=Optimisers.state(opt(vi), cov(gp).data),
+            ),
+        )
     end
     return state
 end

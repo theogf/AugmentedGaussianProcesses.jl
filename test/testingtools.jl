@@ -61,22 +61,23 @@ function tests_likelihood(
     @testset "VGP" begin
         for floattype in floattypes
             dictvgp = dict["VGP"]
-            for (name, code, inference) in zip(VIs, VIcodes, [AnalyticVI(), QuadratureVI(), MCIntegrationVI()])
-            @testset "$name" begin
-                test_inference_VGP(
-                    X,
-                    y,
-                    f,
-                    k,
-                    l,
-                    ltype,
-                    floattype,
-                    n_latent,
-                    problem,
-                    inference;
-                    valid=dictvgp[code],
-                )
-            end
+            for (name, code, inference) in
+                zip(VIs, VIcodes, [AnalyticVI(), QuadratureVI(), MCIntegrationVI()])
+                @testset "$name" begin
+                    test_inference_VGP(
+                        X,
+                        y,
+                        f,
+                        k,
+                        l,
+                        ltype,
+                        floattype,
+                        n_latent,
+                        problem,
+                        inference;
+                        valid=dictvgp[code],
+                    )
+                end
             end
         end # Loop on float types
     end # VGP
@@ -258,9 +259,7 @@ function test_inference_VGP(
         model_opt = VGP(X, y, k, l, inference; optimiser=true, verbose=0)
         tests(model, model_opt, X, f, y, problem)
     else
-        @test_throws ErrorException VGP(
-            X, y, k, l, inference; optimiser=false, verbose=0
-        )
+        @test_throws ErrorException VGP(X, y, k, l, inference; optimiser=false, verbose=0)
     end
 end
 

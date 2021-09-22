@@ -21,8 +21,12 @@ struct SOptimizer{O} <: AOptimizer
 end
 
 Optimisers.state(opt::InferenceOptimizer, x) = Optimisers.state(opt.optimiser, x)
-Optimisers.apply(opt::InferenceOptimizer, st, x, dx) = Optimisers.apply(opt.optimiser, st, x, dx)
-Optimisers.update(opt::InferenceOptimizer, st, x, dx) = Optimisers.update(opt.optimiser, st, x, dx)
+function Optimisers.apply(opt::InferenceOptimizer, st, x, dx)
+    return Optimisers.apply(opt.optimiser, st, x, dx)
+end
+function Optimisers.update(opt::InferenceOptimizer, st, x, dx)
+    return Optimisers.update(opt.optimiser, st, x, dx)
+end
 
 Base.length(::InferenceOptimizer) = 1
 

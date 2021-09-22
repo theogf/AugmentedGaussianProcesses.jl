@@ -44,8 +44,8 @@ function analytic_updates(m::GP{T}, state, y) where {T}
         state_σ², Δlogσ² = Optimisers.apply(
             l.opt_noise, state.local_vars.state_σ², l.σ², g .* l.σ²
         )
-        local_vars = merge(state.local_vars, (;state_σ²))
-        state = merge(state, (;local_vars))
+        local_vars = merge(state.local_vars, (; state_σ²))
+        state = merge(state, (; local_vars))
         l.σ² .= exp.(log.(l.σ²) .+ Δlogσ²)
     end
     return state

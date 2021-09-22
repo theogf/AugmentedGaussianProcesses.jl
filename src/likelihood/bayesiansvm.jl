@@ -90,12 +90,7 @@ end
 ## ELBO
 
 function expec_loglikelihood(
-    ::BayesianSVM{T},
-    ::AnalyticVI,
-    y,
-    μ::AbstractVector,
-    diag_cov::AbstractVector,
-    state,
+    ::BayesianSVM{T}, ::AnalyticVI, y, μ::AbstractVector, diag_cov::AbstractVector, state
 ) where {T}
     tot = -(0.5 * length(y) * logtwo)
     tot += dot(μ, y)

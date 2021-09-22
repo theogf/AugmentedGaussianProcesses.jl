@@ -45,7 +45,7 @@ function (μ₀::AffineMean{T})(x::AbstractMatrix) where {T<:Real}
 end
 
 function init_priormean_state(hyperopt_state, μ₀::AffineMean)
-    μ₀_state  = (; w=Optimisers.init(μ₀.opt, μ₀.w), b=Optimisers.init(μ₀.opt, μ₀.b))
+    μ₀_state = (; w=Optimisers.init(μ₀.opt, μ₀.w), b=Optimisers.init(μ₀.opt, μ₀.b))
     return merge(hyperopt_state, (; μ₀_state))
 end
 

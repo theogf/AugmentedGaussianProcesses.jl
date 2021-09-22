@@ -50,7 +50,10 @@ function update_kernel!(opt, k::Union{Kernel,Transform}, g::NamedTuple, state::N
             Pair(
                 fieldname,
                 update_kernel!(
-                    opt, getfield(k, fieldname), getfield(g, fieldname), getfield(state, fieldname)
+                    opt,
+                    getfield(k, fieldname),
+                    getfield(g, fieldname),
+                    getfield(state, fieldname),
                 ),
             )
         end,
