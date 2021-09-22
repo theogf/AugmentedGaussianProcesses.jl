@@ -7,7 +7,6 @@
     y = rand.(NegativeBinomial.(r, AGP.logistic.(f)))
     floattypes = [Float64]
     args = (
-        NegBinomialLikelihood,
         Dict(
             "VGP" => Dict("AVI" => true, "QVI" => false, "MCVI" => false),
             "SVGP" => Dict("AVI" => true, "QVI" => false, "MCVI" => false),
@@ -22,6 +21,6 @@
         y,
         k,
     )
-    tests_likelihood(NegBinomialLikelihood(r), args...)
-    tests_likelihood(NegBinomialLikelihood(rfloat), args...)
+    tests_likelihood(NegBinomialLikelihood(r), NegBinomialLikelihood{Float64}, args...)
+    tests_likelihood(NegBinomialLikelihood(rfloat), NegBinomialLikelihood{Float64}, args...)
 end
