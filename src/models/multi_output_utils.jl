@@ -66,7 +66,7 @@ end
 end
 
 ##
-@traitfn function update_A!(m::TGP, ys, state) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
+@traitfn function update_A!(m::TGP, state, ys) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     if !isnothing(m.A_opt)
         local_vars = state.local_vars
         μ_f = mean_f.(m.f, state.kernel_matrices) # κμ || μ

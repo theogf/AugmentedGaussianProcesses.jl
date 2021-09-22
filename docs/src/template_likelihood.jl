@@ -11,15 +11,8 @@ See all functions you need to implement
 
 
 """
-struct TemplateLikelihood{T<:Real,A<:AbstractVector{T}} <: AbstractLikelihood{T}
+struct TemplateLikelihood{T<:Real} <: AbstractLikelihood{T}
     ## Additional parameters can be added
-    θ::A
-    function TemplateLikelihood{T}() where {T<:Real}
-        return new{T,Vector{T}}()
-    end
-    function TemplateLikelihood{T}(θ::A) where {T<:Real,A<:AbstractVector{T}}
-        return new{T,A}(θ)
-    end
 end
 
 function TemplateLikelihood()
@@ -69,5 +62,5 @@ end
 
 ### Natural Gradient Section ###
 
-∇E_μ(l::TemplateLikelihood, ::AOptimizer, y::AbstractVector) = (nothing,)
-∇E_Σ(l::TemplateLikelihood, ::AOptimizer, y::AbstractVector) = (nothing,)
+∇E_μ(l::TemplateLikelihood, ::AOptimizer, y, state) = (nothing,)
+∇E_Σ(l::TemplateLikelihood, ::AOptimizer, y, state) = (nothing,)

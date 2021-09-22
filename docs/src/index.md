@@ -25,19 +25,19 @@ pkg> add AugmentedGaussianProcesses
 Here is a simple example to start right away :
 ```julia
 using AugmentedGaussianProcesses
-model = SVGP(X_train,y_train,SqExponentialKernel(1.0),LogisticLikelihood(),AnalyticVI(),50)
-train!(model,100)
-y_pred = predict_y(model,X_test)
+model = SVGP(compose(SqExponentialKernel(), ScaleTransform(1.0)), LogisticLikelihood(), AnalyticVI(), inducingpoints(KmeansAlg(50), X_train))
+train!(model, X_train, y_train; iterations=100)
+y_pred = predict_y(model, X_test)
 ```
 
 ### Related Gaussian Processes packages
 
-- [GaussianProcesses.jl](https://github.com/STOR-i/GaussianProcesses.jl) : General package for Gaussian Processes with many available likelihoods
-- [Stheno.jl](https://github.com/willtebbutt/Stheno.jl) : Package for Gaussian Process regression
-- [AbstractGPs.jl](https://github.com/JuliaGaussianProcesses/AbstractGPs.jl) : General package containing base functions for working with GPs
-- [GPLikelihoods.jl](https://github.com/JuliaGaussianProcesses/GPLikelihoods.jl) : Package to define likelihoods for latent GP models
-
-A general comparison between this package is done on [Julia GP Package Comparison](@ref). Benchmark evaluations may come later.
+- [GaussianProcesses.jl](https://github.com/STOR-i/GaussianProcesses.jl) : General package for Gaussian Processes with many available likelihoods.
+- [Stheno.jl](https://github.com/willtebbutt/Stheno.jl) : Package for Gaussian Process regression.
+- [AbstractGPs.jl](https://github.com/JuliaGaussianProcesses/AbstractGPs.jl) : General package containing base functions for working with GPs.
+- [GPLikelihoods.jl](https://github.com/JuliaGaussianProcesses/GPLikelihoods.jl) : Package to define likelihoods for latent GP models.
+- [ApproximateGPs.jl](https://github.com/JuliaGaussianProcesses/ApproximateGPs.jl) : Package for variational GPs based on AbstractGPs.jl.
+A general comparison between this package is done on [Julia GP Package Comparison](@ref).
 
 ### License
 

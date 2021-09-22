@@ -21,11 +21,12 @@ There are currently 8 possible Gaussian Process models:
 ```
 - [`SVGP`](@ref) is a variational GP model augmented with inducing points. The optimization is done on those points, allowing for stochastic updates and large scalability. The counterpart can be a slightly lower accuracy and the need to select the number and the location of the inducing points (however this is a problem currently worked on).
 ```julia
-    SVGP(X_train, y_train, kernel, likelihood, inference, n_inducingpoints; kwargs...)
+    SVGP(kernel, likelihood, inference, Z; kwargs...)
 ```
+where `Z` is the position of the inducing points.
 
-- [`MCGP](@ref) is a GP model where the posterior is represented via a collection of samplers.
-- ```julia
+- [`MCGP`](@ref) is a GP model where the posterior is represented via a collection of samplers.
+```julia
   - MCGP(X_train, y_train, kernel, likelihood, inference; kwargs...)
   ```
 
@@ -41,7 +42,7 @@ There are currently 8 possible Gaussian Process models:
 
 - [`MOSVGP`](@ref) is the same thing as `MOVGP` but with inducing pointsa multi output sparse variational GP model, based on Moreno-Muñoz 18'.
 ```julia
-    MOVGP(X_train, ys_train, kernel, likelihood/s, inference, n_latent, n_inducing_points; kwargs...)
+    MOVGP(kernel, likelihood/s, inference, n_latent, n_inducing_points; kwargs...)
 ```
 
 - [`VStP`](@ref) is a variational Student-T model where the prior is a multivariate Student-T distribution with scale `K`, mean `μ₀` and degrees of freedom `ν`. The inference is done automatically by augmenting the prior as a scale mixture of inverse gamma
@@ -124,6 +125,19 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 | VStP | ✔ | ✖ | ✔ | ✔ |
 
 Note that for MO(S)VGP you can use a mix of different likelihoods.
+### Inducing Points
+
+Both [`SVGP`](@ref) and [`MOSVGP`](@ref) do not take data directly as inputs but inducing points instead.
+AGP.jl directly reexports the [InducingPoints.jl](https://github.com/JuliaGaussianProcesses/InducingPoints.jl) package for you to use.
+For example to use a k-means approach to select `100` points on your input data you can use:
+```julia
+    Z = inducingpoints(KmeanAlg(100), X)
+```
+
+`Z` will always be an `AbstractVector` and be directly compatible with `SVGP` and `MOSVGP`
+
+For [`OnlineSVGP`](@ref), since it cannot be assumed that you have data from the start, only an [online inducing points selection algorithm](https://juliagaussianprocesses.github.io/InducingPoints.jl/dev/#Online-Inducing-Points-Selection) can be used.
+The inducing points locations will be initialized with the first batch of data
 ### Additional Parameters
 
 #### Hyperparameter optimization
@@ -142,24 +156,44 @@ The `mean` keyword allows you to add different types of prior means:
 
 ## [Training](@id train)
 
+
+### Offline models
+
 Training is straightforward after initializing the `model` by running :
 ```julia
-train!(model;  iterations=100, callback=callbackfunction)
+model, state = train!(model, X_train, y_train; iterations=100, callback=callbackfunction)
 ```
-Where the `callback` option is for running a function at every iteration. `callbackfunction` should be defined as`
+where the `callback` option is for running a function at every iteration. `callbackfunction` should be defined as`
 ```julia
 function callbackfunction(model, iter)
     # do things here...
 end
 ```
 
+The returned `state` will contain different variables such as some kernel matrices and local variables.
+You can reuse this state to save some computations when using prediction functions or computing the [`ELBO`](@ref).
+
+Note that passing `X_train` and `y_train` is optional for [`GP`](@ref), [`VGP`](@ref) and [`MCGP`](@ref)
+
+### Online models
+
+We recommend looking at [the tutorial on online Gaussian processes](/examples/onlinegp/).
+One needs to pass a state around, i.e.
+```julia
+    let state=nothing
+        for (X_batch, y_batch) in eachbatch((X_train, y_train))
+            model, state = train!(model, X_batch, y_batch, state; iterations=10)
+        end
+    end
+```
+
 ## [Prediction](@id pred)
 
 Once the model has been trained it is finally possible to compute predictions. There always three possibilities :
 
-- `predict_f(model, X_test; covf=true, fullcov=false)` : Compute the parameters (mean and covariance) of the latent normal distributions of each test points. If `covf=false` return only the mean, if `fullcov=true` return a covariance matrix instead of only the diagonal
+- `predict_f(model, X_test; covf=true, fullcov=false)` : Compute the parameters (mean and covariance) of the latent normal distributions of each test points. If `covf=false` return only the mean, if `fullcov=true` return a covariance matrix instead of only the diagonal.
 - `predict_y(model, X_test)` : Compute the point estimate of the predictive likelihood for regression or the label of the most likely class for classification.
-- `proba_y(model, X_test)` : Return the mean with the variance of eahc point for regression or the predictive likelihood to obtain the class `y=1` for classification.
+- `proba_y(model, X_test)` : Return the mean with the variance of each point for regression or the predictive likelihood to obtain the class `y=1` for classification.
 
 ## Miscellaneous
 

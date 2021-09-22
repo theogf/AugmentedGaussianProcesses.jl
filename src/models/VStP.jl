@@ -48,7 +48,7 @@ function VStP(
     obsdim::Int=1,
 )
     X, T = wrap_X(X, obsdim)
-    y, nLatent, likelihood = check_data!(y, likelihood)
+    y = check_data!(y, likelihood)
 
     inference isa VariationalInference || error(
         "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`",
@@ -72,9 +72,11 @@ function VStP(
         mean = EmpiricalMean(mean)
     end
 
-    latentf = ntuple(_ -> TVarLatent(T, ν, n_feature, kernel, mean, optimiser), nLatent)
+    latentf = ntuple(n_latent(likelihood)) do _
+        return TVarLatent(T, ν, n_feature, kernel, mean, optimiser)
+    end
 
-    return VStP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
+    return VStP{T,typeof(likelihood),typeof(inference),typeof(data),n_latent(likelihood)}(
         data, latentf, likelihood, inference, verbose, atfrequency, false
     )
 end
@@ -91,6 +93,7 @@ function local_prior_updates!(model::VStP, state, X)
     for (gp, k_mat) in zip(model.f, kernel_matrices)
         local_prior_updates!(gp, X, k_mat.K)
     end
+    return state
 end
 
 function local_prior_updates!(gp::TVarLatent, X, K)
@@ -104,7 +107,7 @@ function local_prior_updates!(gp::TVarLatent, X, K)
     return prior(gp).χ = (prior(gp).ν + dim(gp)) / (prior(gp).ν .+ prior(gp).l²)
 end
 
-Zviews(m::VStP) = [input(m)]
+Zviews(m::VStP) = (input(m.data),)
 objective(m::VStP, state, y) = ELBO(m, state, y)
 
 @traitimpl IsFull{VStP}

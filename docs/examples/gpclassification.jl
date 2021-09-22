@@ -15,7 +15,7 @@ data = CSV.read(data.body, DataFrame)
 data.Class[data.Class .== 2] .= -1
 data = Matrix(data)
 X = data[:, 1:2]
-Y = data[:, end];
+Y = Int.(data[:, end]);
 
 # ### We create a function to visualize the data
 

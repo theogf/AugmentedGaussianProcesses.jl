@@ -72,10 +72,10 @@ A complete documentation is available [in the docs](https://theogf.github.io/Aug
 ```julia
 using AugmentedGaussianProcesses;
 using KernelFunctions
-model = SVGP(X_train, Y_train, SqExponentialKernel(), LogisticLikelihood(),AnalyticSVI(100), 64)
-train!(model, 100)
-Y_predic = predict_y(model, X_test) #For getting the label directly
-Y_predic_prob, Y_predic_prob_var = proba_y(model,X_test) #For getting the likelihood (and likelihood uncertainty) of predicting class 1
+model = SVGP(SqExponentialKernel(), LogisticLikelihood(), AnalyticSVI(100), 64)
+train!(model, X_train, Y_train, 100)
+Y_predic = predict_y(model, X_test) # For getting the label directly
+Y_predic_prob, Y_predic_prob_var = proba_y(model, X_test) # For getting the likelihood (and likelihood uncertainty) of predicting class 1
 ```
 
 Both [documentation](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable/) and [examples/tutorials](https://nbviewer.jupyter.org/github/theogf/AugmentedGaussianProcesses.jl/tree/master/examples/) are available.

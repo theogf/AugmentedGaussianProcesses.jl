@@ -60,17 +60,16 @@ end
             if !isnothing(Δμ₀)
                 hp_state = update!.(μ₀, Δμ₀, hp_state)
             end
-            if !isnothing(ks)
-                isnothing(Δk)
+            if isnothing(Δk)
                 @warn "Kernel gradients are equal to zero" maxlog = 1
-            end
-            # Optimize kernel parameters
-            hp_state = map(m.f, Δk, hp_state) do gp, Δ, hp_st
-                if isnothing(opt(gp))
-                    return hp_st
-                else
-                    state_k = update_kernel!(opt(gp), kernel(gp), Δ, hp_st.state_k)
-                    return merge(hp_st, (; state_k))
+            else
+                hp_state = map(m.f, Δk, hp_state) do gp, Δ, hp_st
+                    if isnothing(opt(gp))
+                        return hp_st
+                    else
+                        state_k = update_kernel!(opt(gp), kernel(gp), Δ, hp_st.state_k)
+                        return merge(hp_st, (; state_k))
+                    end
                 end
             end
         elseif ADBACKEND[] == :ForwardDiff

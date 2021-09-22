@@ -18,82 +18,41 @@ function Optimisers.apply(o::RobbinsMonro, st, x, Δ)
     return (n + 1), Δ * 1 / (τ + n)^κ
 end
 
-mutable struct ALRSVI
-    τ::Int64
-    state::IdDict
+"""
+    ALRSVI(n_mc=10, \rho)
+
+Adaptive Learning Rate for Stochastic Variational Inference
+"""
+struct ALRSVI{T}
+    n_mc::Int # Number of initial MC steps
+    ρ::T # Initial learning rate
 end
 
-struct ALRSVIBase{T<:Real}
-    g::Array{T}
-    h::Base.RefValue{T}
-    ρ::Base.RefValue{T}
-    τ::Base.RefValue{T}
-    t::Base.RefValue{Int64}
+function Optimisers.init(opt::ALRSVI{T}, x::AbstractArray) where {T}
+    i = 1
+    g = zero(x)
+    h = norm(g)
+    τ = zero(T)
+    return (;i, g, h, ρ=opt.ρ, τ)
 end
 
-""" Construct Adaptive Learning Rate for Stochastic Variational Inference"""
-function ALRSVI(ρ::Real=0.1, τ::Int=100)
-    return ALRSVI(ρ, τ, IdDict())
-end
-
-function init!(model::AbstractGPModel{T,L,<:AnalyticVI}) where {T,L}
-    for n_s in 1:(model.vi_opt[1].opt.τ)
-        model.inference.MBIndices .= StatsBase.sample(
-            1:(model.inference.nSamples), model.inference.nMinibatch; replace=false
-        )
-        model.inference.xview = view(model.X, model.inference.MBIndices, :)
-        model.inference.yview = view_y(model.likelihood, model.y, model.inference.MBIndices)
-        compute_kernel_matrices!(model)
-        local_updates!(likelihood(model), yview(model), mean_f(model), var_f(model))
-        natural_gradient!.(
-            ∇E_μ(model.likelihood, model.inference.vi_opt[1], yview(model)),
-            ∇E_Σ(model.likelihood, model.inference.vi_opt[1], yview(model)),
-            model.inference,
-            model.inference.vi_opt,
-            Zviews(model),
-            model.f,
-        )
-        init_ALRSVI!.(model.inference.vi_opt, model.f, τ)
+function apply(opt::ALRSVI, state, x::AbstractArray, Δx::AbstractArray)
+    if state.i <= opt.n_mc
+        g = state.g + Δx
+        h = state.h + norm(Δx)
+        ρ = opt.ρ
+        τ = state.τ
+        if state.i == opt.τ
+            g = g / τ
+            h = h / τ
+            ρ = sum(abs2, g) / h
+        end
+    else
+        g = (1 - 1 / opt.τ) * state.g  + 1 / opt.τ * Δx
+        h = (1 - 1 / opt.τ) * state.h  + 1 / opt.τ * sum(abs2, Δx)
+        ρ = sum(abs2, g) / h
+        τ = state.τ * (1 - ρ) + 1.0
     end
-    return finalize_init_ALRSVI!.(model.inference.vi_opt, model.f)
+
+    return (;i=(i+1), g, h, ρ, τ), ρ * Δx
 end
-
-function init_ALRSVI!(vi_opt::AVIOptimizer, gp::AbstractLatent{T}, τ) where {T}
-    objη₁ = get!(
-        vi_opt.opt.state,
-        gp.η₁,
-        ALRSVIBase(zeros(T, gp.dims), Ref(zero(T)), Ref(1.0), Ref(τ), Ref(1)),
-    )
-    objη₁.g .+= inf.∇η₁
-    objη₁.h[] += norm(inf.∇η₁)
-
-    objη₂ = get!(
-        vi_opt.opt.state,
-        gp.η₂,
-        ALRSVIBase(zeros(T, gp.dims, gp.dims), Ref(zero(T)), Ref(1.0), Ref(τ), Ref(1)),
-    )
-    objη₂.g .+= inf.∇η₂
-    return objη₂.h[] += sum(abs2, inf.∇η₂)
-end
-
-function finalize_init_ALRSVI!(vi_opt::AVIOptimizer, gp::AbstractLatent{T}) where {T}
-    objη₁ = get(vi_opt.opt.state, gp.η₁)
-    objη₁.g ./= obj.τ
-    objη₁.h[] /= obj.τ
-    objη₁.ρ[] = dot(objη₁.g, objη₁.g) / objη₁.h
-    objη₂ = get(vi_opt.opt.state, gp.η₂)
-    objη₂.g ./= obj.τ
-    objη₂.h[] /= obj.τ
-    return objη₂.ρ[] = sum(abs2, objη₂.g) / objη₂.h
-end
-
-# function Optimisers.apply!(opt::ALRSVI, x, Δ)
-#     # update timestep
-#     obj = get(opt.state, x)
-#     obj.t += 1
-#     obj.g .= (1.0 - 1.0 / obj.τ) * obj.g .+ 1.0 / obj.τ * Δ
-#     obj.h[] = (1.0 - 1.0 / obj.τ) * obj.h[] + 1.0 / obj.τ * sum(abs2, Δ)
-#     obj.ρ[] = dot(obj.g, obj.g) / obj.h[]
-#     obj.τ[] = obj.τ[] * (1 - obj.ρ[]) + 1.0
-#     return obj.ρ * Δ
-# end #TODO
