@@ -26,11 +26,11 @@ function init_opt_state(state, model::AbstractGPModel)
     end
 end
 
-function init_opt_state(::Union{VarLatent,TVarLatent}, vi::VariationalInference)
+function init_opt_state(::Union{VarLatent{T},TVarLatent{T}}, vi::VariationalInference) where {T}
     return (;)
 end
 
-function init_opt_state(gp::Union{VarLatent{T}, TVarLatent{T}}, vi::NumericalVI) where {T}
+function init_opt_state(gp::Union{VarLatent{T},TVarLatent{T}}, vi::NumericalVI) where {T}
     return (;
         ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
         λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm
