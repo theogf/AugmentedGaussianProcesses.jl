@@ -15,7 +15,7 @@ x = range(0, 10; length=50)
 K = kernelmatrix(kernel, x)
 f = rand(MvNormal(K + 1e-8I)) # Sample a random GP
 y = rand.(Bernoulli.(AGP.logistic.(f)))
-y_sign = sign.(y .- 0.5)
+y_sign = Int.(sign.(y .- 0.5))
 
 # ### We create a function to visualize the data
 
