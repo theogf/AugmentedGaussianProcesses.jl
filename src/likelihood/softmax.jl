@@ -13,9 +13,15 @@ mutable struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
     n_class::Int
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
+    function SoftMaxLikelihood{T}(n_class::Int) where {T}
+        return new{T}(n_class)
+    end
+    function SoftMaxLikelihood{T}(n_class, class_mapping, ind_mapping) where {T}
+        return new{T}(n_class, class_mapping, ind_mapping)
+    end
 end
 
-SoftMaxLikelihood(n_class::Int) = SoftMaxLikelihood{Float64}(n_class, [], Dict{Any,Int}())
+SoftMaxLikelihood(n_class::Int) = SoftMaxLikelihood{Float64}(n_class)
 function SoftMaxLikelihood(ylabels::AbstractVector)
     return SoftMaxLikelihood{Float64}(
         length(ylabels), ylabels, Dict(value => key for (key, value) in enumerate(ylabels))
@@ -50,7 +56,7 @@ function sample_local!(
     return local_vars #TODO FINISH AT SOME POINT
 end
 
-function grad_samples(
+function grad_samples!(
     model::AbstractGPModel{T,<:SoftMaxLikelihood},
     samples::AbstractMatrix{T},
     opt_state,
@@ -82,11 +88,11 @@ function log_like_samples(
 end
 
 function grad_softmax(s::AbstractVector{<:Real}, y)
-    return (y - s) * s[i]
+    return (y - s) * s[y][1]
 end
 
 function diaghessian_softmax(s::AbstractVector{<:Real}, y)
-    return s[i] * (abs2.(y - s) - s .* (1 .- s))
+    return s[y][1] * (abs2.(y - s) - s .* (1 .- s))
 end
 
 function hessian_softmax(s::AbstractVector{T}, y) where {T}

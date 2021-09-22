@@ -17,9 +17,16 @@ if ``r\in \mathbb{N}`` or
 if ``r\in\mathbb{R}``.
 Where ``\sigma`` is the logistic function
 """
-struct NegBinomialLikelihood{T<:Real} <: EventLikelihood{T}
-    r::T
+struct NegBinomialLikelihood{T,Tr} <: EventLikelihood{T}
+    r::Tr
+    function NegBinomialLikelihood{T}(r::Tr) where {T,Tr}
+        new{T,Tr}(r)
+    end
 end
+
+NegBinomialLikelihood(r::Int) = NegBinomialLikelihood{Float64}(r)
+
+NegBinomialLikelihood(r::T) where {T<:Real} = NegBinomialLikelihood{T}(r)
 
 implemented(::NegBinomialLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) = true
 
@@ -58,7 +65,7 @@ function compute_proba(
 end
 
 ## Local Updates ##
-function init_local_vars(state, ::NegBinomialLikelihood{T}, batchsize::Int) where {T}
+function init_local_vars(state, ::NegBinomialLikelihood{T}, batchsize::Int) where {T<:Real}
     return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
 end
 
