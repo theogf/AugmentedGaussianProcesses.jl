@@ -1,6 +1,6 @@
 # Kernels (Covariance functions)
 
-Kernels are entirely defered to the package [KernelFunctions.jl](https://github.com/JuliaGaussianProcesses/KernelFunctions.jl), you can have a look at the documentation to see which are available. Note that, for now, optimization is only possible for `ScaleTransform` or `ARDTransform` with `ForwardDiff` while all others should be compatible with `Zygote`
+Kernels are entirely defered to the package [KernelFunctions.jl](https://github.com/JuliaGaussianProcesses/KernelFunctions.jl), you can have a look at the documentation to see which are available. Note that, for now, optimization is only possible for `ScaleTransform` or `ARDTransform` with `ForwardDiff` while all others should be compatible with `Zygote`.
 
 ## Hyperparameter optimization
 
