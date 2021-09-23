@@ -11,15 +11,8 @@ See all functions you need to implement
 
 
 """
-struct TemplateLikelihood{T<:Real,A<:AbstractVector{T}} <: AbstractLikelihood{T}
+struct TemplateLikelihood{T<:Real} <: AbstractLikelihood{T}
     ## Additional parameters can be added
-    θ::A
-    function TemplateLikelihood{T}() where {T<:Real}
-        return new{T,Vector{T}}()
-    end
-    function TemplateLikelihood{T}(θ::A) where {T<:Real,A<:AbstractVector{T}}
-        return new{T,A}(θ)
-    end
 end
 
 function TemplateLikelihood()
@@ -32,8 +25,7 @@ function implemented(
     return true
 end
 
-function pdf(l::TemplateLikelihood, y::Real, f::Real) 
-end
+function pdf(l::TemplateLikelihood, y::Real, f::Real) end
 
 function Base.show(io::IO, model::TemplateLikelihood)
     return print(io, "Template Likelihood")
@@ -51,17 +43,24 @@ end
 ### Local Updates Section ###
 
 function local_updates!(
-    l::TemplateLikelihood{T}, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
-) 
+    local_vars,
+    l::TemplateLikelihood{T},
+    y::AbstractVector,
+    μ::AbstractVector,
+    diagΣ::AbstractVector,
+)
+    # Update the local variables here (in place if you want)
+    return local_vars
 end
 
 function sample_local!(
-    l::TemplateLikelihood{T}, y::AbstractVector, f::AbstractVector
+    local_vars, l::TemplateLikelihood{T}, y::AbstractVector, f::AbstractVector
 ) where {T}
-    return nothing
+    # Sample the local variables here (in place if you want)
+    return local_vars
 end
 
 ### Natural Gradient Section ###
 
-∇E_μ(l::TemplateLikelihood, ::AOptimizer, y::AbstractVector) = (nothing,)
-∇E_Σ(l::TemplateLikelihood, ::AOptimizer, y::AbstractVector) = (nothing,)
+∇E_μ(l::TemplateLikelihood, ::AOptimizer, y, state) = (nothing,)
+∇E_Σ(l::TemplateLikelihood, ::AOptimizer, y, state) = (nothing,)
