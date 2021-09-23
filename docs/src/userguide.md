@@ -27,8 +27,8 @@ where `Z` is the position of the inducing points.
 
 - [`MCGP`](@ref) is a GP model where the posterior is represented via a collection of samplers.
 ```julia
-  - MCGP(X_train, y_train, kernel, likelihood, inference; kwargs...)
-  ```
+   MCGP(X_train, y_train, kernel, likelihood, inference; kwargs...)
+```
 
 - [`OnlineSVGP`](@ref) is an online variational GP model. It is based on the streaming method of Bui 17', it supports all likelihoods, even with multiple latents.
 ```julia
