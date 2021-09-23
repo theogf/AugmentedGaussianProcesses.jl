@@ -9,17 +9,17 @@
     ysbad = vcat(ys, ybad)
     @testset "DataContainer" begin
         data = AGP.wrap_data(X, y)
-        @test AGP.nSamples(data) == n_samples
-        @test AGP.nDim(data) == n_dim
-        @test AGP.nOutput(data) == 1
+        @test AGP.n_sample(data) == n_samples
+        @test AGP.n_dim(data) == n_dim
+        @test AGP.n_output(data) == 1
         @test AGP.input(data) == X
         @test AGP.output(data) == y
         @test_throws ErrorException AGP.wrap_data(X, ybad)
         # Multiple ys case
         data = AGP.wrap_data(X, ys)
-        @test AGP.nSamples(data) == n_samples
-        @test AGP.nDim(data) == n_dim
-        @test AGP.nOutput(data) == 1
+        @test AGP.n_sample(data) == n_samples
+        @test AGP.n_dim(data) == n_dim
+        @test AGP.n_output(data) == 1
         @test AGP.input(data) == X
         @test AGP.output(data) == ys
         @test_throws ErrorException AGP.wrap_data(X, ysbad)
@@ -27,22 +27,12 @@
 
     @testset "MODataContainer" begin
         data = AGP.wrap_modata(X, ys)
-        @test AGP.nSamples(data) == n_samples
-        @test AGP.nDim(data) == n_dim
-        @test AGP.nOutput(data) == n_out
+        @test AGP.n_sample(data) == n_samples
+        @test AGP.n_dim(data) == n_dim
+        @test AGP.n_output(data) == n_out
         @test AGP.input(data) == X
         @test AGP.output(data) == ys
-        @test_throws ErrorException AGP.wrap_data(X, ysbad)    
-    end
-
-    @testset "OnlineDataContainer" begin
-        data = AGP.OnlineDataContainer()
-        AGP.wrap_data!(data, AGP.wrap_X(X)[1], y)
-        @test AGP.nSamples(data) == n_samples
-        @test AGP.nDim(data) == n_dim
-        @test AGP.nOutput(data) == 1
-        @test AGP.input(data) == X
-        @test AGP.output(data) == y
+        @test_throws ErrorException AGP.wrap_data(X, ysbad)
     end
 
     X = rand(5, 2)
@@ -52,5 +42,4 @@
         @test AGP.wrap_X(vec(X))[1] isa AbstractVector
         @test AGP.wrap_X(vec(X))[2] == Float64
     end
-
 end

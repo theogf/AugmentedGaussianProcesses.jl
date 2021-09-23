@@ -47,7 +47,7 @@ Ms = [4, 8, 16, 32, 64]
 Create an empty array of GPs
 
 ```@example gpregression
-models = Vector{AbstractGP}(undef,length(Ms) + 1)
+models = Vector{AbstractGPModel}(undef,length(Ms) + 1)
 kernel = SqExponentialKernel()#  + PeriodicKernel()
 for (index, num_inducing) in enumerate(Ms)
     @info "Training with $(num_inducing) points"
@@ -142,7 +142,7 @@ Create an array of model with different likelihoods:
 likelihoods = [StudentTLikelihood(3.0),
                 LaplaceLikelihood(3.0),
                 HeteroscedasticLikelihood(1.0)]
-ngmodels = Vector{AbstractGP}(undef, length(likelihoods)+1)
+ngmodels = Vector{AbstractGPModel}(undef, length(likelihoods)+1)
 for (i, l) in enumerate(likelihoods)
     @info "Training with the $(l)" # We need to use VGP
     m = VGP(X, Y, # First arguments are the input and output

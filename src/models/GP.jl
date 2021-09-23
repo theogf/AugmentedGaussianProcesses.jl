@@ -24,9 +24,9 @@ mutable struct GP{
     TLikelihood<:AbstractLikelihood,
     TInference<:AbstractInference,
     TData<:DataContainer,
-} <: AbstractGP{T,TLikelihood,TInference,1}
+} <: AbstractGPModel{T,TLikelihood,TInference,1}
     data::TData
-    f::LatentGP{T} # Vector of latent GPs
+    f::LatentGP{T}
     likelihood::TLikelihood
     inference::TInference
     verbose::Int #Level of printing information
@@ -50,24 +50,17 @@ function GP(
     likelihood = GaussianLikelihood(noise; opt_noise=opt_noise)
     inference = Analytic()
 
-    y, nLatent, likelihood = check_data!(y, likelihood)
+    y = check_data!(y, likelihood)
     data = wrap_data(X, y)
-    nFeatures = nSamples(data)
+    n_feature = n_sample(data)
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
 
-    latentf = LatentGP(T, nFeatures, kernel, mean, optimiser)
-
-    likelihood = init_likelihood(likelihood, inference, 1, nSamples(data))
-
-    xview = view_x(data, :)
-    yview = view_y(likelihood, data, 1:nSamples(data))
-    inference = init_inference(inference, nSamples(data), xview, yview)
+    latentf = LatentGP(T, n_feature, kernel, mean, optimiser)
 
     model = GP(data, latentf, likelihood, inference, verbose, atfrequency, false)
-    update_parameters!(model)
-    set_trained!(model, true)
+    model, _ = train!(model, 1)
     return model
 end
 
@@ -77,24 +70,23 @@ function Base.show(io::IO, model::GP)
     )
 end
 
-nLatent(::GP) = 1
+n_latent(::GP) = 1
 Zviews(model::GP) = [input(model)]
 
 @traitimpl IsFull{GP}
 
 ### Special case where the ELBO is equal to the marginal likelihood
 
-function post_step!(m::GP)
+function post_step!(m::GP, state)
     f = m.f
     l = likelihood(m)
-    f.post.Σ = pr_cov(f) + first(l.σ²) * I
-    return f.post.α .= cov(f) \ (yview(m) - pr_mean(f, xview(m)))
+    f.post.Σ = state.kernel_matrices.K + first(l.σ²) * I
+    return f.post.α .= cov(f) \ (output(m.data) - pr_mean(f, input(m.data)))
 end
 
-objective(m::GP) = log_py(m)
+objective(m::GP, ::Any, y) = log_py(m, y)
 
-function log_py(m::GP)
+function log_py(m::GP, y)
     f = m.f
-    return -0.5 *
-           (dot(yview(m), cov(f) \ yview(m)) + logdet(cov(f)) + nFeatures(m) * log(twoπ))
+    return -0.5 * (dot(y, cov(f) \ y) + logdet(cov(f)) + length(y) * log(twoπ))
 end

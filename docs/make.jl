@@ -28,23 +28,24 @@ end
 
 # Make the docs
 
-makedocs(modules = [AugmentedGaussianProcesses],
-         format = Documenter.Writers.HTMLWriter.HTML(
-            assets = ["assets/icon.ico"],
-            analytics = "UA-129106538-2",
-            ),
-         sitename= "AugmentedGaussianProcesses",
-         authors = "Théo Galy-Fajou",
-         pages = [
-         "Home" => "index.md",
-         "Background" => "background.md",
-         "User Guide" => "userguide.md",
-         "Kernels" => "kernel.md",
-         "Examples" => joinpath.("examples", filter(x -> endswith(x, ".md"), readdir(MD_OUTPUT))),
-         "Julia GP Packages" => "comparison.md",
-         "API" => "api.md"
-         ]
-         )
+makedocs(;
+    modules=[AugmentedGaussianProcesses],
+    format=Documenter.Writers.HTMLWriter.HTML(;
+        assets=["assets/icon.ico"], analytics="UA-129106538-2"
+    ),
+    sitename="AugmentedGaussianProcesses",
+    authors="Théo Galy-Fajou",
+    pages=[
+        "Home" => "index.md",
+        "Background" => "background.md",
+        "User Guide" => "userguide.md",
+        "Kernels" => "kernel.md",
+        "Examples" =>
+            joinpath.("examples", filter(x -> endswith(x, ".md"), readdir(MD_OUTPUT))),
+        "Julia GP Packages" => "comparison.md",
+        "API" => "api.md",
+    ],
+)
 
 # Deploy the docs
 

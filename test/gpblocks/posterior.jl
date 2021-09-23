@@ -1,3 +1,1 @@
-@testset "posterior" begin
-    
-end 
+@testset "posterior" begin end

@@ -25,6 +25,14 @@ function (μ₀::EmpiricalMean{T})(x::AbstractMatrix) where {T<:Real}
     return μ₀.C
 end
 
-function update!(μ₀::EmpiricalMean{T}, grad) where {T<:Real}
-    return μ₀.C .+= Optimise.apply!(μ₀.opt, μ₀.C, grad.C)
+function init_priormean_state(hyperopt_state, μ₀::EmpiricalMean)
+    μ₀_state = (; C=Optimisers.init(μ₀.opt, μ₀.C))
+    return merge(hyperopt_state, (; μ₀_state))
+end
+
+function update!(μ₀::EmpiricalMean{T}, hyperopt_state, grad) where {T<:Real}
+    μ₀_state = hyperopt_state.μ₀_state
+    C, ΔC = Optimisers.apply(μ₀.opt, μ₀_state.C, μ₀.C, grad.C)
+    μ₀.C .+= ΔC
+    return merge(hyperopt_state, (; μ₀_state=(; C)))
 end

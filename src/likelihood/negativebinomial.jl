@@ -1,44 +1,34 @@
-"""
+@doc raw"""
     NegBinomialLikelihood(r::Real)
 
 ## Arguments
 - `r::Real` number of failures until the experiment is stopped
 
 ---
+
 [Negative Binomial likelihood](https://en.wikipedia.org/wiki/Negative_binomial_distribution) with number of failures `r`
 ```math
-    p(y|r, f) = binomial(y + r - 1, y) (1 - σ(f))ʳ σ(f)ʸ
-    p(y|r, f) = Γ(y + r)/Γ(y + 1)Γ(r) (1 - σ(f))ʳ σ(f)ʸ
+    p(y|r, f) = {y + r - 1 \choose y} (1 - \sigma(f))^r \sigma(f)^y,
 ```
-Where `σ` is the logistic function
+if ``r\in \mathbb{N}`` or
+```math
+    p(y|r, f) = \frac{\Gamma(y + r)}{\Gamma(y + 1)\Gamma(r)} (1 - \sigma(f))^r \sigma(f)^y,
+```
+if ``r\in\mathbb{R}``.
+Where ``\sigma`` is the logistic function
 """
-struct NegBinomialLikelihood{T<:Real,Tr<:Real,A<:AbstractVector{T}} <: EventLikelihood{T}
+struct NegBinomialLikelihood{T,Tr} <: EventLikelihood{T}
     r::Tr
-    c::A
-    θ::A
-    function NegBinomialLikelihood{T}(r::Real) where {T<:Real}
-        return new{T,typeof(r),Vector{T}}(r)
-    end
-    function NegBinomialLikelihood{T}(
-        r::Real, c::A, θ::A
-    ) where {T<:Real,A<:AbstractVector{T}}
-        return new{T,typeof(r),A}(r, c, θ)
+    function NegBinomialLikelihood{T}(r::Tr) where {T,Tr}
+        return new{T,Tr}(r)
     end
 end
 
-function NegBinomialLikelihood(r::Real)
-    return NegBinomialLikelihood{Float64}(r)
-end
+NegBinomialLikelihood(r::Int) = NegBinomialLikelihood{Float64}(r)
+
+NegBinomialLikelihood(r::T) where {T<:Real} = NegBinomialLikelihood{T}(r)
 
 implemented(::NegBinomialLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) = true
-
-function init_likelihood(
-    likelihood::NegBinomialLikelihood{T}, ::AbstractInference{T}, ::Int, nSamplesUsed::Int
-) where {T}
-    return NegBinomialLikelihood{T}(
-        likelihood.r, rand(T, nSamplesUsed), zeros(T, nSamplesUsed)
-    )
-end
 
 function (l::NegBinomialLikelihood)(y::Real, f::Real)
     return pdf(NegativeBinomial(lr, get_p(l, f)), y)
@@ -75,34 +65,45 @@ function compute_proba(
 end
 
 ## Local Updates ##
-
-function local_updates!(
-    l::NegBinomialLikelihood{T}, y::AbstractVector, μ::AbstractVector, Σ::AbstractVector
-) where {T}
-    @. l.c = sqrt(abs2(μ) + Σ)
-    @. l.θ = (l.r + y) / l.c * tanh(0.5 * l.c)
+function init_local_vars(state, ::NegBinomialLikelihood{T}, batchsize::Int) where {T<:Real}
+    return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
 end
 
-function sample_local!(l::NegBinomialLikelihood, y::AbstractVector, f::AbstractVector)
-    return set_ω!(l, rand.(PolyaGamma.(y .+ Int(l.r), abs.(f))))
+function local_updates!(
+    local_vars,
+    l::NegBinomialLikelihood{T},
+    y::AbstractVector,
+    μ::AbstractVector,
+    Σ::AbstractVector,
+) where {T}
+    @. local_vars.c = sqrt(abs2(μ) + Σ)
+    @. local_vars.θ = (l.r + y) / local_vars.c * tanh(0.5 * local_vars.c)
+    return local_vars
+end
+
+function sample_local!(
+    local_vars, l::NegBinomialLikelihood, y::AbstractVector, f::AbstractVector
+)
+    local_vars.θ .= rand.(PolyaGamma.(y .+ Int(l.r), abs.(f)))
+    return local_vars
 end
 
 ## Global Updates ##
 
 @inline function ∇E_μ(
-    l::NegBinomialLikelihood{T}, ::AOptimizer, y::AbstractVector
+    l::NegBinomialLikelihood{T}, ::AOptimizer, y::AbstractVector, state
 ) where {T}
     return (0.5 * (y .- l.r),)
 end
 @inline function ∇E_Σ(
-    l::NegBinomialLikelihood{T}, ::AOptimizer, y::AbstractVector
+    ::NegBinomialLikelihood{T}, ::AOptimizer, y::AbstractVector, state
 ) where {T}
-    return (0.5 .* l.θ,)
+    return (0.5 .* state.θ,)
 end
 
 ## ELBO Section ##
 
-AugmentedKL(l::NegBinomialLikelihood, y::AbstractVector) = PolyaGammaKL(l, y)
+AugmentedKL(l::NegBinomialLikelihood, state, y) = PolyaGammaKL(l, state, y)
 
 function logabsbinomial(n, k)
     return log(binomial(n, k))
@@ -122,12 +123,13 @@ function expec_loglikelihood(
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
+    state,
 ) where {T}
     tot = Zygote.@ignore(sum(negbin_logconst(y, l.r))) - log(2.0) * sum(y .+ l.r)
-    tot += 0.5 * dot(μ, (y .- l.r)) - 0.5 * dot(l.θ, μ) - 0.5 * dot(l.θ, diag_cov)
+    tot += 0.5 * dot(μ, (y .- l.r)) - 0.5 * dot(state.θ, μ) - 0.5 * dot(state.θ, diag_cov)
     return tot
 end
 
-function PolyaGammaKL(l::NegBinomialLikelihood, y::AbstractVector)
-    return PolyaGammaKL(y .+ l.r, l.c, l.θ)
+function PolyaGammaKL(l::NegBinomialLikelihood, state, y)
+    return PolyaGammaKL(y .+ l.r, state.c, state.θ)
 end

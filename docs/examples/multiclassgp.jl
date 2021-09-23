@@ -39,7 +39,6 @@ end
 # ### And a function to plot the data
 function plot_data(X, Y, σ)
     p = Plots.plot(size(300, 500); lab="", title="sigma = $σ")
-    ys = unique(Y)
     Plots.scatter!(eachcol(X)...; group=Y, msw=0.0, lab="")
     return p
 end
@@ -48,21 +47,21 @@ plot([plot_data(generate_mixture_data(σ)..., σ) for σ in σs]...)
 
 # ## Model training
 # ### Run sparse multiclass classification with different level of noise
-models = Vector{AbstractGP}(undef, length(σs))
+models = Vector{AbstractGPModel}(undef, length(σs))
 kernel = SqExponentialKernel()
 num_inducing = 50
 for (i, σ) in enumerate(σs)
     @info "Training with data with noise $σ"
+    X, y = generate_mixture_data(σ)
     m = SVGP(
-        generate_mixture_data(σ)...,
         kernel,
         LogisticSoftMaxLikelihood(n_class),
         AnalyticVI(),
-        num_inducing;
+        inducingpoints(KmeansAlg(num_inducing), X);
         optimiser=false,
         Zoptimiser=false,
     )
-    @time train!(m, 20)
+    @time train!(m, X, y, 20)
     models[i] = m
 end
 

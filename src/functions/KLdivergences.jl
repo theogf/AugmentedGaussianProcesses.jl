@@ -1,10 +1,10 @@
-"""
-    KL Divergence between the GP Prior and the variational distribution
-"""
-GaussianKL(model::AbstractGP) = mapreduce(GaussianKL, +, model.f, Zviews(model))
+## KL Divergence between the GP Prior and the variational distribution
+function GaussianKL(model::AbstractGPModel, state)
+    return mapreduce(GaussianKL, +, model.f, Zviews(model), state.kernel_matrices)
+end
 
-function GaussianKL(gp::AbstractLatent, X::AbstractVector)
-    return GaussianKL(mean(gp), pr_mean(gp, X), cov(gp), pr_cov(gp))
+function GaussianKL(gp::AbstractLatent, X::AbstractVector, k_mat)
+    return GaussianKL(mean(gp), pr_mean(gp, X), cov(gp), k_mat.K)
 end
 
 ## See https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Multivariate_normal_distributions ##
@@ -27,24 +27,30 @@ function GaussianKL(
     return 0.5 * (logdet(K) - logdet(Σ) + tr(K \ Σ) + dot(μ - μ₀, K \ (μ - μ₀)) - length(μ))
 end
 
-extraKL(::AbstractGP{T}) where {T} = zero(T)
+extraKL(::AbstractGPModel{T}, ::Any) where {T} = zero(T)
 
 """
     extraKL(model::OnlineSVGP)
 
 Extra KL term containing the divergence with the GP at time t and t+1
 """
-function extraKL(model::OnlineSVGP{T}) where {T}
-    KLₐ = zero(T)
-    for gp in model.f
-        κₐμ = gp.κₐ * mean(gp)
-        KLₐ += gp.prev𝓛ₐ
+function extraKL(model::OnlineSVGP{T}, state) where {T}
+    return mapreduce(
+        +, model.f, state.opt_state, state.kernel_matrices
+    ) do gp, opt_state, kernel_mat
+        prev_gp = opt_state.previous_gp
+        κₐμ = kernel_mat.κₐ * mean(gp)
+        KLₐ = prev_gp.prev𝓛ₐ
         KLₐ +=
-            -0.5 *
-            sum(trace_ABt.(Ref(gp.invDₐ), [gp.K̃ₐ, gp.κₐ * cov(gp) * transpose(gp.κₐ)]))
-        KLₐ += dot(gp.prevη₁, κₐμ) - 0.5 * dot(κₐμ, gp.invDₐ * κₐμ)
+            -0.5 * sum(
+                trace_ABt.(
+                    Ref(prev_gp.invDₐ),
+                    [kernel_mat.K̃ₐ, kernel_mat.κₐ * cov(gp) * transpose(kernel_mat.κₐ)],
+                ),
+            )
+        KLₐ += dot(prev_gp.prevη₁, κₐμ) - 0.5 * dot(κₐμ, prev_gp.invDₐ * κₐμ)
+        return KLₐ
     end
-    return KLₐ
 end
 
 InverseGammaKL(α, β, αₚ, βₚ) = GammaKL(α, β, αₚ, βₚ)

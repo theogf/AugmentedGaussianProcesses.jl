@@ -15,7 +15,7 @@ data = CSV.read(data.body, DataFrame)
 data.Class[data.Class .== 2] .= -1
 data = Matrix(data)
 X = data[:, 1:2]
-Y = data[:, end];
+Y = Int.(data[:, end]);
 
 # ### We create a function to visualize the data
 
@@ -28,21 +28,19 @@ plot_data(X, Y; size=(500, 500))
 
 # ### Run sparse classification with increasing number of inducing points
 Ms = [4, 8, 16, 32, 64]
-models = Vector{AbstractGP}(undef, length(Ms) + 1)
+models = Vector{AbstractGPModel}(undef, length(Ms) + 1)
 kernel = SqExponentialKernel() ∘ ScaleTransform(1.0)
 for (i, num_inducing) in enumerate(Ms)
     @info "Training with $(num_inducing) points"
-    m = SVGP(
-        X,
-        Y,
+    global m = SVGP(
         kernel,
         LogisticLikelihood(),
         AnalyticVI(),
-        num_inducing;
+        inducingpoints(KmeansAlg(num_inducing), X);
         optimiser=false,
         Zoptimiser=false,
     )
-    @time train!(m, 20)
+    @time train!(m, X, Y, 20)
     models[i] = m
 end
 # ### Running the full model

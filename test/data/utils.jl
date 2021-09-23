@@ -9,9 +9,10 @@
     l = GaussianLikelihood()
     @test AGP.view_y(l, data, indices) == view(y, indices)
     @test AGP.view_y(l, y, indices) == view(y, indices)
-    data = AGP.wrap_data(wX, ys)
+    y_softmax = falses(5, 3)
+    data = AGP.wrap_data(wX, y_softmax)
     l = SoftMaxLikelihood(3)
-    @test AGP.view_y(l, data, indices) == view.(ys, Ref(indices))
+    @test AGP.view_y(l, data, indices) == view(y_softmax, indices, :)
 
     l = GaussianLikelihood()
     data = AGP.wrap_modata(wX, ys)

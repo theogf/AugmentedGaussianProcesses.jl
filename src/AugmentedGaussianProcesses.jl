@@ -7,7 +7,7 @@ module AugmentedGaussianProcesses
 
 const AGP = AugmentedGaussianProcesses
 export AGP
-export AbstractGP, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP, OnlineSVGP # All models
+export AbstractGPModel, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP, OnlineSVGP # All models
 export AbstractLikelihood,
     RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood, EventLikelihood # All categories of likelihoods
 export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood # Regression Likelihoods
@@ -30,11 +30,11 @@ export @augmodel
 #General modules
 using Reexport
 @reexport using KernelFunctions
-@reexport using Flux.Optimise
+@reexport using Optimisers
 @reexport using InducingPoints
 
-using AbstractMCMC
-using AdvancedHMC
+using AbstractMCMC: AbstractMCMC, step, sample
+# using AdvancedHMC
 using ChainRulesCore: ChainRulesCore, NoTangent
 using Distributions:
     Distributions,
@@ -54,7 +54,6 @@ using Distributions:
     MvNormal,
     Gamma
 using FastGaussQuadrature: gausshermite
-using Flux: params, destructure
 using ForwardDiff
 using KernelFunctions: ColVecs, RowVecs
 using LinearAlgebra
@@ -67,7 +66,7 @@ using SpecialFunctions
 using Zygote
 
 #Include custom module for additional distributions
-include(joinpath("ComplementaryDistributions", "ComplementaryDistributions.jl"))
+include("ComplementaryDistributions/ComplementaryDistributions.jl")
 using .ComplementaryDistributions
 
 # Main classes
@@ -77,39 +76,39 @@ abstract type SamplingInference{T} <: AbstractInference{T} end
 abstract type AbstractLikelihood{T<:Real} end
 abstract type AbstractLatent{T<:Real,Tpr,Tpo} end
 
-include(joinpath("mean", "priormean.jl"))
-include(joinpath("data", "datacontainer.jl"))
-include(joinpath("functions", "utils.jl"))
+include("mean/priormean.jl")
+include("data/datacontainer.jl")
+include("functions/utils.jl")
 
 # Models
-include(joinpath("models", "AbstractGP.jl"))
-include(joinpath("gpblocks", "latentgp.jl"))
-include(joinpath("models", "GP.jl"))
-include(joinpath("models", "VGP.jl"))
-include(joinpath("models", "MCGP.jl"))
-include(joinpath("models", "SVGP.jl"))
-include(joinpath("models", "VStP.jl"))
-include(joinpath("models", "MOSVGP.jl"))
-include(joinpath("models", "MOVGP.jl"))
-include(joinpath("models", "OnlineSVGP.jl"))
-include(joinpath("models", "single_output_utils.jl"))
-include(joinpath("models", "multi_output_utils.jl"))
+include("models/AbstractGP.jl")
+include("gpblocks/latentgp.jl")
+include("models/GP.jl")
+include("models/VGP.jl")
+include("models/MCGP.jl")
+include("models/SVGP.jl")
+include("models/VStP.jl")
+include("models/MOSVGP.jl")
+include("models/MOVGP.jl")
+include("models/OnlineSVGP.jl")
+include("models/single_and_multi_output_utils.jl")
 
-include(joinpath("inference", "inference.jl"))
-include(joinpath("likelihood", "likelihood.jl"))
-include(joinpath("likelihood", "generic_likelihood.jl"))
+include("inference/inference.jl")
+include("likelihood/likelihood.jl")
+include("likelihood/generic_likelihood.jl")
 
-include(joinpath("functions", "KLdivergences.jl"))
-include(joinpath("functions", "ELBO.jl"))
-include(joinpath("data", "utils.jl"))
-include(joinpath("functions", "plotting.jl"))
+include("functions/KLdivergences.jl")
+include("functions/ELBO.jl")
+include("data/utils.jl")
+include("functions/plotting.jl")
 
 # Training and prediction functions
-include(joinpath("training", "training.jl"))
-include(joinpath("training", "sampling.jl"))
-include(joinpath("training", "onlinetraining.jl"))
-include(joinpath("hyperparameter", "autotuning.jl"))
-include(joinpath("training", "predictions.jl"))
+include("training/states.jl")
+include("training/training.jl")
+include("training/sampling.jl")
+include("training/onlinetraining.jl")
+include("hyperparameter/autotuning.jl")
+include("training/predictions.jl")
 include("ar_predict.jl")
 
 end #End Module

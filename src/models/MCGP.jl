@@ -23,7 +23,7 @@ mutable struct MCGP{
     TInference<:AbstractInference{T},
     TData<:AbstractDataContainer,
     N,
-} <: AbstractGP{T,TLikelihood,TInference,N}
+} <: AbstractGPModel{T,TLikelihood,TInference,N}
     data::TData
     f::NTuple{N,SampledLatent{T}} # Vector of latent GPs
     likelihood::TLikelihood
@@ -46,7 +46,7 @@ function MCGP(
     obsdim::Int=1,
 )
     X, T = wrap_X(X, obsdim)
-    y, nLatent, likelihood = check_data!(y, likelihood)
+    y = check_data!(y, likelihood)
 
     inference isa SamplingInference || error(
         "The inference object should be of type `SamplingInference` : either `GibbsSampling` or `HMCSampling`",
@@ -59,7 +59,7 @@ function MCGP(
     !isa(likelihood, Distribution) ||
         error("Using Distributions.jl distributions is unfortunately not yet implemented")
     data = wrap_data(X, y)
-    nFeatures = nSamples(data)
+    n_feature = n_sample(data)
 
     if isa(optimiser, Bool)
         optimiser = optimiser ? ADAM(0.01) : nothing
@@ -71,15 +71,11 @@ function MCGP(
         mean = EmpiricalMean(mean)
     end
 
-    latentf = ntuple(_ -> SampledLatent(T, nFeatures, kernel, mean), nLatent)
+    latentf = ntuple(n_latent(likelihood)) do _
+        return SampledLatent(T, n_feature, kernel, mean)
+    end
 
-    likelihood = init_likelihood(likelihood, inference, nLatent, nSamples(data))
-    xview = view_x(data, 1:nSamples(data))
-    yview = view_y(likelihood, data, 1:nSamples(data))
-    inference = tuple_inference(
-        inference, nLatent, nSamples(data), nSamples(data), nSamples(data), xview, yview
-    )
-    return MCGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
+    return MCGP{T,typeof(likelihood),typeof(inference),typeof(data),n_latent(likelihood)}(
         data, latentf, likelihood, inference, verbose, atfrequency, false
     )
 end
@@ -91,7 +87,7 @@ function Base.show(io::IO, model::MCGP)
     )
 end
 
-Zviews(model::MCGP) = [input(model)]
-objective(::MCGP{T}) where {T} = NaN
+Zviews(model::MCGP) = [input(model.data)]
+objective(::MCGP{T}, ::Any, ::Any) where {T} = NaN
 
 @traitimpl IsFull{MCGP}

@@ -1,7 +1,7 @@
 # using AbstractPlotting
 using RecipesBase
 
-@recipe function f(gp::AbstractGP, x::AbstractVector; showX=false, nSigma=2.0)
+@recipe function f(gp::AbstractGPModel, x::AbstractVector; showX=false, nSigma=2.0)
     showX isa Bool || error("showX should be a boolean")
     nSigma isa Real || error("nSigma should be a Real")
     X = reshape(x, :, 1)
@@ -16,7 +16,7 @@ using RecipesBase
             x, gp.y
         end
     end
-    if nLatent(gp) == 1
+    if n_latent(gp) == 1
         @series begin
             ribbon := nSigma * sqrt.(sig_f)
             fillalpha --> 0.3
@@ -25,7 +25,7 @@ using RecipesBase
             x, f
         end
     else
-        for t in 1:nLatent(gp)
+        for t in 1:n_latent(gp)
             @series begin
                 ribbon := nSigma * sqrt.(sig_f[t])
                 fillalpha --> 0.3

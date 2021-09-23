@@ -1,4 +1,4 @@
-"""
+@doc raw"""
     StudentTLikelihood(ν::T, σ::Real=one(T))
 
 ## Arguments
@@ -7,37 +7,30 @@
 
 [Student-t likelihood](https://en.wikipedia.org/wiki/Student%27s_t-distribution) for regression:
 ```math
-    p(y|f,ν,σ) = Γ(0.5(ν+1))/(sqrt(νπ) σ Γ(0.5ν)) * (1+(y-f)^2/(σ^2ν))^(-0.5(ν+1))
+    p(y|f,ν,σ) = \frac{Γ(0.5(ν+1))}{\sqrt(νπ) σ Γ(0.5ν)} (1+\frac{(y-f)^2}{σ^2ν})^{(-0.5(ν+1))},
 ```
-`ν` is the number of degrees of freedom and `σ` is the standard deviation for local scale of the data.
+where `ν` is the number of degrees of freedom and `σ` is the standard deviation for local scale of the data.
 
 ---
 
-For the analytical solution, it is augmented via:
+For the augmented analytical solution, it is augmented via:
 ```math
-    p(y|f,ω) = N(y|f,σ^2 ω)
+    p(y|f,\omega) = N(y|f,\sigma^2 \omega)
 ```
-Where `ω ~ IG(0.5ν,,0.5ν)` where `IG` is the inverse gamma distribution
+Where ``\omega \sim \mathcal{IG}(0.5\nu,0.5\nu)`` where ``\mathcal{IG}`` is the inverse-gamma distribution.
 See paper [Robust Gaussian Process Regression with a Student-t Likelihood](http://www.jmlr.org/papers/volume12/jylanki11a/jylanki11a.pdf)
 """
-mutable struct StudentTLikelihood{T<:Real,A<:AbstractVector{T}} <: RegressionLikelihood{T}
+struct StudentTLikelihood{T<:Real} <: RegressionLikelihood{T}
     ν::T
     α::T
     σ::T
-    c::A
-    θ::A
     function StudentTLikelihood{T}(ν::T, σ::T=one(T)) where {T<:Real}
         ν > 0.5 || error("ν should be greater than 0.5")
-        return new{T,Vector{T}}(ν, (ν + one(T)) / 2.0, σ)
-    end
-    function StudentTLikelihood{T}(
-        ν::T, σ::T, c::A, θ::A
-    ) where {T<:Real,A<:AbstractVector{T}}
-        return new{T,A}(ν, (ν + one(T)) / 2.0, σ, c, θ)
+        return new{T}(ν, (ν + one(T)) / 2.0, σ)
     end
 end
 
-function StudentTLikelihood(ν::T, σ::T=one(T)) where {T<:Real}
+function StudentTLikelihood(ν::T, σ::Real=one(T)) where {T<:Real}
     return StudentTLikelihood{T}(ν, σ)
 end
 
@@ -45,21 +38,6 @@ function implemented(
     ::StudentTLikelihood, ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}
 )
     return true
-end
-
-function init_likelihood(
-    likelihood::StudentTLikelihood{T},
-    inference::AbstractInference{T},
-    ::Int,
-    nSamplesUsed::Int,
-) where {T}
-    if inference isa AnalyticVI || inference isa GibbsSampling
-        StudentTLikelihood{T}(
-            likelihood.ν, likelihood.σ, rand(T, nSamplesUsed), zeros(T, nSamplesUsed)
-        )
-    else
-        StudentTLikelihood{T}(likelihood.ν, likelihood.σ)
-    end
 end
 
 function (l::StudentTLikelihood)(y::Real, f::Real)
@@ -72,8 +50,8 @@ function Distributions.loglikelihood(l::StudentTLikelihood, y::Real, f::Real)
     # tdistlogpdf(l.ν, (y - f) / l.σ) uses R so not differentiable
 end
 
-function Base.show(io::IO, model::StudentTLikelihood{T}) where {T}
-    return print(io, "Student-t likelihood")
+function Base.show(io::IO, l::StudentTLikelihood{T}) where {T}
+    return print(io, "Student-t likelihood (ν=", l.ν, ", σ=", l.σ, ")")
 end
 
 function compute_proba(
@@ -83,26 +61,36 @@ function compute_proba(
 end
 
 ## Local Updates ##
+function init_local_vars(state, ::StudentTLikelihood{T}, batchsize::Int) where {T}
+    return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
+end
 
 function local_updates!(
-    l::StudentTLikelihood{T}, y::AbstractVector, μ::AbstractVector, diag_cov::AbstractVector
+    local_vars,
+    l::StudentTLikelihood{T},
+    y::AbstractVector,
+    μ::AbstractVector,
+    diag_cov::AbstractVector,
 ) where {T}
-    l.c .= 0.5 * (diag_cov + abs2.(μ - y) .+ l.σ^2 * l.ν)
-    return l.θ = l.α ./ l.c
+    @. local_vars.c = 0.5 * (diag_cov + abs2(μ - y) + l.σ^2 * l.ν)
+    @. local_vars.θ = l.α / local_vars.c
+    return local_vars
 end
 
 function sample_local!(
-    l::StudentTLikelihood{T}, y::AbstractVector, f::AbstractVector
+    local_vars, l::StudentTLikelihood{T}, y::AbstractVector, f::AbstractVector
 ) where {T}
-    l.c .= rand.(InverseGamma.(l.α, 0.5 * (abs2.(f - y) .+ l.σ^2 * l.ν)))
-    set_ω!(l, inv.(l.c))
-    return nothing
+    local_vars.c .= rand.(InverseGamma.(l.α, 0.5 * (abs2.(f - y) .+ l.σ^2 * l.ν)))
+    local_vars.θ .= inv.(local_vars.c)
+    return local_vars
 end
 
 ## Global Gradients ##
 
-@inline ∇E_μ(l::StudentTLikelihood, ::AOptimizer, y::AbstractVector) = (l.θ .* y,)
-@inline ∇E_Σ(l::StudentTLikelihood, ::AOptimizer, ::AbstractVector) = (0.5 .* l.θ,)
+@inline ∇E_μ(::StudentTLikelihood, ::AOptimizer, y::AbstractVector, state) = (state.θ .* y,)
+@inline function ∇E_Σ(::StudentTLikelihood, ::AOptimizer, ::AbstractVector, state)
+    return (0.5 .* state.θ,)
+end
 
 ## ELBO Section ##
 
@@ -112,23 +100,24 @@ function expec_loglikelihood(
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
+    state,
 ) where {T}
     tot = -0.5 * length(y) * (log(twoπ * l.σ^2))
-    tot += -sum(log.(l.c) .- digamma(l.α))
+    tot += -sum(log.(state.c) .- digamma(l.α))
     tot +=
         -0.5 * (
-            dot(l.θ, diag_cov) + dot(l.θ, abs2.(μ)) - 2.0 * dot(l.θ, μ .* y) +
-            dot(l.θ, abs2.(y))
+            dot(state.θ, diag_cov) + dot(state.θ, abs2.(μ)) - 2.0 * dot(state.θ, μ .* y) +
+            dot(state.θ, abs2.(y))
         )
     return tot
 end
 
-AugmentedKL(l::StudentTLikelihood, ::AbstractVector) = InverseGammaKL(l)
+AugmentedKL(l::StudentTLikelihood, state, ::Any) = InverseGammaKL(l, state)
 
-function InverseGammaKL(l::StudentTLikelihood{T}) where {T}
+function InverseGammaKL(l::StudentTLikelihood{T}, state) where {T}
     α_p = l.ν / 2
     β_p = α_p * l.σ^2
-    return InverseGammaKL(l.α, l.c, α_p, β_p)
+    return InverseGammaKL(l.α, state.c, α_p, β_p)
 end
 
 ## PDF and Log PDF Gradients ## (verified gradients)

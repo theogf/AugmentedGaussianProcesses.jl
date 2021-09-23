@@ -4,7 +4,7 @@ Make prediction for the next `t` times. Assumes that `y_past` is already ordered
 """
 @traitfn function predict_ar(
     m::TGP, p::Int=3, n::Int=1; y_past=get_y(m)
-) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
+) where {T,TGP<:AbstractGPModel{T};!IsMultiOutput{TGP}}
     @assert y_past isa AbstractVector{<:Real}
     @assert length(y_past) >= p
     Xtest = reshape(y_past[(end - p + 1):end], 1, :)
@@ -20,7 +20,7 @@ ks = []
 
 @traitfn function predict_ar(
     m::TGP, p::Int=3, n::Int=1; y_past=get_y(m)
-) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     @assert y_past isa AbstractVector{<:AbstractVector}
     @assert length(y_past) == m.nTask
     @assert all(length.(y_past) .>= p)
@@ -36,7 +36,7 @@ end
 
 @traitfn function sample_ar(
     m::TGP, p::Int, n::Int=1; y_past=get_y(m)
-) where {T,TGP<:AbstractGP{T};!IsMultiOutput{TGP}}
+) where {T,TGP<:AbstractGPModel{T};!IsMultiOutput{TGP}}
     @assert y_past isa AbstractVector{<:Real}
     @assert length(y_past) >= p
     Xtest = reshape(y_past[(end - p):end], 1, :)
@@ -51,7 +51,7 @@ end
 
 @traitfn function sample_ar(
     m::TGP, p::Int, n::Int=1; y_past=get_y(m)
-) where {T,TGP<:AbstractGP{T};IsMultiOutput{TGP}}
+) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     @assert y_past isa AbstractVector{<:AbstractVector}
     @assert length(y_past) == m.nTask
     @assert all(length.(y_past) .>= p)

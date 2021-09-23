@@ -1,23 +1,70 @@
-function ELBO(model::GP, pr_mean, kernel)
+function ELBO(model::GP, X, y, pr_mean, kernel)
     setpr_mean!(model.f, pr_mean)
     setkernel!(model.f, kernel)
-    compute_kernel_matrices!(model, true)
-    return log_py(model)
+    state = compute_kernel_matrices(model, (;), X, true)
+    return objective(model, state, y)
 end
 
-@traitfn function ELBO(model::TGP, pr_means, kernels) where {TGP <: AbstractGP; IsFull{TGP}}
+function ELBO(model::AbstractGPModel, X, y, pr_means, kernels, state)
     setpr_means!(model, pr_means)
     setkernels!(model, kernels)
-    compute_kernel_matrices!(model, true)
-    return ELBO(model)
+    state = compute_kernel_matrices(model, state, X, true)
+    return objective(model, state, y)
 end
 
-@traitfn function ELBO(
-    model::TGP, pr_means, kernels, Zs
-) where {TGP <: AbstractGP; !IsFull{TGP}}
+function ELBO(model::AbstractGPModel, X, y, pr_means, kernels, Zs, state)
     setpr_means!(model, pr_means)
     setkernels!(model, kernels)
     setZs!(model, Zs)
-    compute_kernel_matrices!(model, true)
-    return ELBO(model)
+    state = compute_kernel_matrices(model, state, X, true)
+    return objective(model, state, y)
+end
+
+# External ELBO call on internal and new data
+@traitfn function ELBO(model::TGP) where {TGP <: AbstractGPModel; IsFull{TGP}}
+    return ELBO(model, input(model.data), output(model.data))
+end
+
+function ELBO(model::AbstractGPModel, X::AbstractMatrix, y::AbstractArray; obsdim=1)
+    return ELBO(model, KernelFunctions.vec_of_vecs(X; obsdim), y)
+end
+
+function ELBO(model::AbstractGPModel, X::AbstractVector, y::AbstractArray)
+    y = treat_labels!(y, likelihood(model))
+    state = compute_kernel_matrices(model, (;), X, true)
+    if inference(model) isa AnalyticVI
+        state = init_local_vars(state, likelihood(model), length(X))
+        local_vars = local_updates!(
+            state.local_vars,
+            likelihood(model),
+            y,
+            mean_f(model, state.kernel_matrices),
+            var_f(model, state.kernel_matrices),
+        )
+        merge(state, (; local_vars))
+    end
+    return ELBO(model, state, y)
+end
+
+function ELBO(
+    model::OnlineSVGP, state::NamedTuple, X::AbstractMatrix, y::AbstractArray; obsdim=1
+)
+    return ELBO(model, state, KernelFunctions.vec_of_vecs(X; obsdim), y)
+end
+
+function ELBO(model::OnlineSVGP, state::NamedTuple, X::AbstractVector, y::AbstractArray)
+    y = treat_labels!(y, likelihood(model))
+    state = compute_kernel_matrices(model, state, X, true)
+    if inference(model) isa AnalyticVI
+        state = init_local_vars(state, likelihood(model), length(X))
+        local_vars = local_updates!(
+            state.local_vars,
+            likelihood(model),
+            y,
+            mean_f(model, state.kernel_matrices),
+            var_f(model, state.kernel_matrices),
+        )
+        merge(state, (; local_vars))
+    end
+    return ELBO(model, state, y)
 end

@@ -2,7 +2,6 @@
 # 
 # ### Loading necessary packages
 using AugmentedGaussianProcesses
-const AGP = AugmentedGaussianProcesses
 using Distributions
 using Plots
 
@@ -27,23 +26,21 @@ scatter(X, Y; lab="")
 
 Ms = [4, 8, 16, 32, 64];
 # Create an empty array of GPs
-models = Vector{AbstractGP}(undef, length(Ms) + 1);
+models = Vector{AbstractGPModel}(undef, length(Ms) + 1);
 # Chose a kernel
 kernel = SqExponentialKernel();#  + PeriodicKernel()
 # And Run sparse classification with an increasing number of inducing points
 for (index, num_inducing) in enumerate(Ms)
     @info "Training with $(num_inducing) points"
     m = SVGP(
-        X,
-        Y, # First arguments are the input and output
         kernel, # Kernel
         GaussianLikelihood(σ), # Likelihood used
         AnalyticVI(), # Inference usede to solve the problem
-        num_inducing; # Number of inducing points used
+        inducingpoints(KmeansAlg(num_inducing), X); # Inducing points initialized with kmeans
         optimiser=false, # Keep kernel parameters fixed
         Zoptimiser=false, # Keep inducing points locations fixed
     )
-    @time train!(m, 100) # Train the model for 100 iterations
+    @time train!(m, X, Y, 100) # Train the model for 100 iterations
     models[index] = m # Save the model in the array
 end
 
@@ -123,7 +120,7 @@ Plots.plot(
 likelihoods = [
     StudentTLikelihood(3.0), LaplaceLikelihood(3.0), HeteroscedasticLikelihood(1.0)
 ]
-ngmodels = Vector{AbstractGP}(undef, length(likelihoods) + 1)
+ngmodels = Vector{AbstractGPModel}(undef, length(likelihoods) + 1)
 for (i, l) in enumerate(likelihoods)
     @info "Training with the $(l)" # We need to use VGP
     m = VGP(

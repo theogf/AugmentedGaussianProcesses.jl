@@ -20,7 +20,7 @@ Run sparse classification with increasing number of inducing points
 
 ```@example gpclassification
 Ms = [4, 8, 16, 32, 64]
-models = Vector{AbstractGP}(undef, length(Ms) + 1)
+models = Vector{AbstractGPModel}(undef, length(Ms) + 1)
 kernel = transform(SqExponentialKernel(), 1.0)
 for (i, num_inducing) in enumerate(Ms)
     @info "Training with $(num_inducing) points"

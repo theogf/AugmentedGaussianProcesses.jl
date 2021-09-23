@@ -10,85 +10,43 @@ Variational Inference solver by approximating gradients via numerical integratio
 - `natural::Bool` : Use natural gradients
 - `optimiser` : Optimiser used for the variational updates. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `Momentum(0.0001)`
 """
-mutable struct QuadratureVI{T,N,Tx,Ty} <: NumericalVI{T}
-    nPoints::Int # Number of points for the quadrature
+mutable struct QuadratureVI{T} <: NumericalVI{T}
+    n_points::Int # Number of points for the quadrature
     nodes::Vector{T} # Nodes locations
     weights::Vector{T} # Weights for each node
     clipping::T # Clipping value of the gradient
     ϵ::T #Convergence criteria
-    nIter::Integer #Number of steps performed
+    n_iter::Integer #Number of steps performed
     stoch::Bool #Use of mini-batches
-    nSamples::Int #Number of samples of the data
-    nMinibatch::Int #Size of mini-batches
+    batchsize::Int #Size of mini-batches
     ρ::T #Stochastic Coefficient
     NaturalGradient::Bool
     HyperParametersUpdated::Bool # Flag for updating kernel matrices
-    vi_opt::NTuple{N,NVIOptimizer}
-    MBIndices::Vector{Int} #Indices of the minibatch
-    xview::Tx
-    yview::Ty
+    vi_opt::NVIOptimizer
 
     function QuadratureVI{T}(
         ϵ::T,
-        nPoints::Integer,
+        n_points::Integer,
         optimiser,
         Stochastic::Bool,
         clipping::Real,
-        nMinibatch::Int,
+        batchsize::Int,
         natural::Bool,
     ) where {T}
-        return new{T,1,Vector{T},Vector{T}}(
-            nPoints,
-            [],
-            [],
-            clipping,
-            ϵ,
-            0,
-            Stochastic,
-            0,
-            nMinibatch,
-            one(T),
-            natural,
-            true,
-            (NVIOptimizer{T}(0, 0, optimiser),),
-        )
-    end
-
-    function QuadratureVI{T}(
-        ϵ::T,
-        Stochastic::Bool,
-        nPoints::Int,
-        clipping::Real,
-        nFeatures::Vector{<:Int},
-        nSamples::Int,
-        nMinibatch::Int,
-        nLatent::Int,
-        optimiser,
-        natural::Bool,
-        xview::Tx,
-        yview::Ty,
-    ) where {T,Tx,Ty}
-        gh = gausshermite(nPoints)
-        vi_opts = ntuple(
-            i -> NVIOptimizer{T}(nFeatures[i], nMinibatch[i], optimiser), nLatent
-        )
-        return new{T,nLatent,Tx,Ty}(
-            nPoints,
+        gh = gausshermite(n_points)
+        return new{T}(
+            n_points,
             gh[1] .* sqrt2,
             gh[2] ./ sqrtπ,
             clipping,
             ϵ,
             0,
             Stochastic,
-            nSamples,
-            nMinibatch,
-            T(nSamples / nMinibatch),
+            batchsize,
+            one(T),
             natural,
             true,
-            vi_opts,
-            1:nMinibatch,
-            xview,
-            yview,
+            NVIOptimizer(optimiser),
         )
     end
 end
@@ -129,31 +87,6 @@ function QuadratureSVI(
     return QuadratureVI{T}(ϵ, nGaussHermite, optimiser, true, clipping, nMinibatch, natural)
 end
 
-function tuple_inference(
-    i::QuadratureVI{T},
-    nLatent::Int,
-    nFeatures::Vector{<:Int},
-    nSamples::Int,
-    nMinibatch::Int,
-    xview,
-    yview,
-) where {T}
-    return QuadratureVI{T}(
-        conv_crit(i),
-        isStochastic(i),
-        i.nPoints,
-        i.clipping,
-        nFeatures,
-        nSamples,
-        nMinibatch,
-        nLatent,
-        i.vi_opt[1].optimiser,
-        i.NaturalGradient,
-        xview,
-        yview,
-    )
-end
-
 function expec_loglikelihood(
     l::AbstractLikelihood, i::QuadratureVI, y, μ::AbstractVector, diagΣ::AbstractVector
 )
@@ -166,13 +99,14 @@ function apply_quad(y::Real, μ::Real, σ²::Real, i::QuadratureVI, l::AbstractL
     # return mapreduce((w, x) -> w * Distributions.loglikelihood(l, y, x), +, i.weights, xs)# loglikelihood.(l, y, x))
 end
 
-function grad_expectations!(m::AbstractGP{T,L,<:QuadratureVI}) where {T,L}
-    y = yview(m)
-    for (gp, opt) in zip(m.f, get_opt(inference(m)))
-        μ = mean_f(gp)
-        Σ = var_f(gp)
-        for i in 1:nMinibatch(inference(m))
-            opt.ν[i], opt.λ[i] = grad_quad(likelihood(m), y[i], μ[i], Σ[i], inference(m))
+function grad_expectations!(m::AbstractGPModel{T,L,<:QuadratureVI}, state, y) where {T,L}
+    for (gp, opt_state, kernel_matrices) in zip(m.f, state.opt_state, state.kernel_matrices)
+        μ = mean_f(gp, kernel_matrices)
+        Σ = var_f(gp, kernel_matrices)
+        for i in 1:batchsize(inference(m))
+            opt_state.ν[i], opt_state.λ[i] = grad_quad(
+                likelihood(m), y[i], μ[i], Σ[i], inference(m)
+            )
         end
     end
 end

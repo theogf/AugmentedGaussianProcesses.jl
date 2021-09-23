@@ -1,23 +1,17 @@
-"""
-    GaussianLikelihood(σ²::T=1e-3) # σ² is the **variance**
+@doc raw"""
+    GaussianLikelihood(σ²::T=1e-3) # σ² is the variance of the noise
 
 Gaussian noise :
 ```math
-    p(y|f) = N(y|f,σ²)
+    p(y|f) = N(y|f,\sigma^2)
 ```
-There is no augmentation needed for this likelihood which is already conjugate to a Gaussian prior
+There is no augmentation needed for this likelihood which is already conjugate to a Gaussian prior.
 """
-struct GaussianLikelihood{T<:Real,O,A<:AbstractVector{T}} <: RegressionLikelihood{T}
-    σ²::A
+struct GaussianLikelihood{T<:Real,O} <: RegressionLikelihood{T}
+    σ²::Vector{T}
     opt_noise::O
-    θ::A
     function GaussianLikelihood{T}(σ²::T, opt_noise) where {T<:Real}
-        return new{T,typeof(opt_noise),Vector{T}}([σ²], opt_noise)
-    end
-    function GaussianLikelihood{T}(
-        σ²::T, opt_noise, θ::A
-    ) where {T<:Real,A<:AbstractVector{T}}
-        return new{T,typeof(opt_noise),A}(A([σ²]), opt_noise, θ)
+        return new{T,typeof(opt_noise)}([σ²], opt_noise)
     end
 end
 
@@ -50,30 +44,43 @@ function compute_proba(
     return μ, σ² .+ noise(l)
 end
 
-function init_likelihood(
-    likelihood::GaussianLikelihood{T}, ::AbstractInference, ::Int, nSamplesUsed::Int
-) where {T}
-    return GaussianLikelihood{T}(
-        noise(likelihood), likelihood.opt_noise, fill(inv(noise(likelihood)), nSamplesUsed)
-    )
+function init_local_vars(state, l::GaussianLikelihood{T}, batchsize::Int) where {T}
+    local_vars = (; θ=fill(inv(l.σ²[1]), batchsize))
+    if !isnothing(l.opt_noise)
+        state_σ² = Optimisers.init(l.opt_noise, l.σ²)
+        local_vars = merge(local_vars, (; state_σ²))
+    end
+    return merge(state, (; local_vars))
 end
 
 function local_updates!(
-    l::GaussianLikelihood, y::AbstractVector, μ::AbstractVector, var_f::AbstractVector
+    local_vars,
+    l::GaussianLikelihood,
+    y::AbstractVector,
+    μ::AbstractVector,
+    var_f::AbstractVector,
 )
     if !isnothing(l.opt_noise)
         grad = 0.5 * ((sum(abs2, y - μ) + sum(var_f)) / noise(l) - length(y))
-        l.σ² .= exp.(log.(l.σ²) + Optimise.apply!(l.opt_noise, l.σ², [grad]))
+        gradlog, local_vars.state_σ² = Optimisers.apply!(
+            l.opt_noise, local_vars.state_σ², l.σ², [grad]
+        )
+        l.σ² .= exp.(log.(l.σ²) + gradlog)
     end
-    return l.θ .= inv(noise(l))
+    local_vars.θ .= inv(noise(l))
+    return local_vars
 end
 
-@inline function ∇E_μ(l::GaussianLikelihood{T}, ::AOptimizer, y::AbstractVector) where {T}
+@inline function ∇E_μ(
+    l::GaussianLikelihood{T}, ::AOptimizer, y::AbstractVector, state
+) where {T}
     return (y ./ noise(l),)
 end
 
-@inline function ∇E_Σ(l::GaussianLikelihood{T}, ::AOptimizer, ::AbstractVector) where {T}
-    return (0.5 * l.θ,)
+@inline function ∇E_Σ(
+    ::GaussianLikelihood{T}, ::AOptimizer, ::AbstractVector, state
+) where {T}
+    return (0.5 * state.θ,)
 end
 
 function expec_loglikelihood(
@@ -82,10 +89,11 @@ function expec_loglikelihood(
     y::AbstractVector,
     μ::AbstractVector,
     diagΣ::AbstractVector,
+    state,
 )
     return -0.5 * (
         length(y) * (log(twoπ) + log(noise(l))) + (sum(abs2, y - μ) + sum(diagΣ)) / noise(l)
     )
 end
 
-AugmentedKL(::GaussianLikelihood{T}, ::AbstractVector) where {T} = zero(T)
+AugmentedKL(::GaussianLikelihood{T}, state, ::Any) where {T} = zero(T)

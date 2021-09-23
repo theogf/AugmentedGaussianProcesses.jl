@@ -12,8 +12,7 @@ mutable struct HMCSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     nBurnin::Int # Number of burnin samples
     thinning::Integer # Frequency at which samples are saved
     ϵ::T #Convergence criteria
-    nIter::Int #Number of samples computed
-    nSamples::Int # Number of data samples
+    n_iter::Int #Number of samples computed
     HyperParametersUpdated::Bool #To know if the inverse kernel matrix must updated
     opt::NTuple{N,SOptimizer}
     xview::Tx
@@ -41,8 +40,7 @@ mutable struct HMCSampling{T<:Real,N,Tx,Ty} <: SamplingInference{T}
     end
 end
 
-isStochastic(::HMCSampling) = false
-getρ(::HMCSampling{T}) where {T} = one(T)
+ρ(::HMCSampling{T}) where {T} = one(T)
 nMinibatch(i::HMCSampling) = i.nSamples
 
 function HMCSampling(; ϵ::T=1e-5, nBurnin::Int=100, thinning::Int=10) where {T<:Real}
@@ -79,7 +77,7 @@ function init_sampler!(
     nSamples::Integer,
     cat_samples::Bool,
 ) where {T<:Real}
-    if inference.nIter == 0 || !cat_samples
+    if n_iter(inference) == 0 || !cat_samples
         inference.sample_store = zeros(T, nSamples, nFeatures, nLatent)
     else
         inference.sample_store = cat(

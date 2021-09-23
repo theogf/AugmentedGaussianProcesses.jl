@@ -28,7 +28,7 @@ mutable struct MOSVGP{
     TData<:AbstractDataContainer,
     N,
     Q,
-} <: AbstractGP{T,TLikelihood,TInference,N}
+} <: AbstractGPModel{T,TLikelihood,TInference,N}
     data::TData
     nFeatures::Vector{Int64} # Number of features of the GP (equal to number of points)
     nf_per_task::Vector{Int64}
@@ -105,20 +105,20 @@ function MOSVGP(
     end
     nKernel = length(kernel)
 
-
-    nInducingPoints = if nInducingPoints isa AbstractVector{<:AbstractVector{<:AbstractVector}}
-        nInducingPoints
-    elseif nInducingPoints isa AbstractVector{<:AbstractVector}
-        [deepcopy(nInducingPoints) for _ in 1:nLatent]
-    elseif nInducingPoints isa Int
-        Zref = InducingPoints(KMeansAlg(nInducingPoints), X)
-        [deepcopy(Zref) for _ in 1:nLatent]
-    end
+    nInducingPoints =
+        if nInducingPoints isa AbstractVector{<:AbstractVector{<:AbstractVector}}
+            nInducingPoints
+        elseif nInducingPoints isa AbstractVector{<:AbstractVector}
+            [deepcopy(nInducingPoints) for _ in 1:nLatent]
+        elseif nInducingPoints isa Int
+            Zref = InducingPoints(KMeansAlg(nInducingPoints), X)
+            [deepcopy(Zref) for _ in 1:nLatent]
+        end
 
     nFeatures = size.(Z, 1)
 
     _nMinibatch = nSamples(data)
-    if isStochastic(inference)
+    if is_stochastic(inference)
         0 < nMinibatch(inference) < nSamples || error(
             "The size of mini-batch $(nMinibatch(inference)) is incorrect (negative or bigger than number of samples), please set nMinibatch correctly in the inference object",
         )
@@ -183,4 +183,4 @@ end
 
 nOutput(::MOSVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N,Q} = Q
 Zviews(m::MOSVGP) = Zview.(m.f)
-objective(m::MOSVGP) = ELBO(m)
+objective(m::MOSVGP, state, y) = ELBO(m, state, y)

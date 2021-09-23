@@ -1,9 +1,9 @@
-"""
+@doc raw"""
     LogisticLikelihood()
 
 Bernoulli likelihood with a logistic link for the Bernoulli likelihood
 ```math
-    p(y|f) = \\sigma(yf) = \\frac{1}{1+\\exp(-yf)},
+    p(y|f) = \sigma(yf) = \frac{1}{1 + \exp(-yf)},
 ```
 (for more info see : [wiki page](https://en.wikipedia.org/wiki/Logistic_function))
 
@@ -11,21 +11,12 @@ Bernoulli likelihood with a logistic link for the Bernoulli likelihood
 
 For the analytic version the likelihood, it is augmented via:
 ```math
-    p(y|f,ω) = exp(0.5(yf - (yf)^2 ω))
+    p(y|f,ω) = \exp\left(0.5(yf - (yf)^2 \omega)\right)
 ```
-where ``ω ~ PG(ω | 1, 0)``, and `PG` is the Polya-Gamma distribution
-See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383)
+where ``ω \sim \mathcal{PG}(\omega | 1, 0)``, and ``\mathcal{PG}`` is the Polya-Gamma distribution.
+See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383).
 """
-struct LogisticLikelihood{T<:Real,A<:AbstractVector{T}} <: ClassificationLikelihood{T}
-    c::A
-    θ::A
-    function LogisticLikelihood{T}() where {T<:Real}
-        return new{T,Vector{T}}()
-    end
-    function LogisticLikelihood{T}(c::A, θ::A) where {T<:Real,A<:AbstractVector{T}}
-        return new{T,A}(c, θ)
-    end
-end
+struct LogisticLikelihood{T<:Real} <: ClassificationLikelihood{T} end
 
 function LogisticLikelihood()
     return LogisticLikelihood{Float64}()
@@ -35,19 +26,6 @@ function implemented(
     ::LogisticLikelihood, ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}
 )
     return true
-end
-
-function init_likelihood(
-    ::LogisticLikelihood{T},
-    inference::AbstractInference{T},
-    nLatent::Int,
-    nSamplesUsed::Int,
-) where {T}
-    if inference isa AnalyticVI || inference isa GibbsSampling
-        LogisticLikelihood{T}(abs.(rand(T, nSamplesUsed)), zeros(T, nSamplesUsed))
-    else
-        LogisticLikelihood{T}()
-    end
 end
 
 function (::LogisticLikelihood)(y::Real, f::Real)
@@ -81,41 +59,53 @@ function compute_proba(
 end
 
 ### Local Updates Section ###
-
-function local_updates!(
-    l::LogisticLikelihood{T}, ::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
-) where {T}
-    @. l.c = sqrt(diagΣ + abs2(μ))
-    @. l.θ = 0.5 * tanh(0.5 * l.c) / l.c
+function init_local_vars(state, ::LogisticLikelihood{T}, batchsize::Int) where {T}
+    return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
 end
 
-function sample_local!(l::LogisticLikelihood, ::AbstractVector, f::AbstractVector)
-    return set_ω!(l, rand.(PolyaGamma.(1, abs.(f))))
+function local_updates!(
+    local_vars,
+    ::LogisticLikelihood{T},
+    ::AbstractVector,
+    μ::AbstractVector,
+    diagΣ::AbstractVector,
+) where {T}
+    @. local_vars.c = sqrt(diagΣ + abs2(μ))
+    @. local_vars.θ = 0.5 * tanh(0.5 * local_vars.c) / local_vars.c
+    return local_vars
+end
+
+function sample_local!(
+    local_vars, ::LogisticLikelihood, ::AbstractVector, f::AbstractVector
+)
+    local_vars.θ .= rand.(PolyaGamma.(1, abs.(f)))
+    return local_vars
 end
 
 ### Natural Gradient Section ###
 
-∇E_μ(::LogisticLikelihood, ::AOptimizer, y::AbstractVector) = (0.5 * y,)
-∇E_Σ(l::LogisticLikelihood, ::AOptimizer, ::AbstractVector) = (0.5 * l.θ,)
+∇E_μ(::LogisticLikelihood, ::AOptimizer, y::AbstractVector, state) = (0.5 * y,)
+∇E_Σ(::LogisticLikelihood, ::AOptimizer, ::AbstractVector, state) = (0.5 * state.θ,)
 
 ### ELBO Section ###
 
 function expec_loglikelihood(
-    l::LogisticLikelihood{T},
+    ::LogisticLikelihood{T},
     ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
+    state,
 ) where {T}
     tot = -(0.5 * length(y) * logtwo)
-    tot += 0.5 .* (dot(μ, y) - dot(l.θ, diag_cov) - dot(l.θ, μ))
+    tot += 0.5 .* (dot(μ, y) - dot(state.θ, diag_cov) - dot(state.θ, μ))
     return tot
 end
 
-AugmentedKL(l::LogisticLikelihood, ::AbstractVector) = PolyaGammaKL(l)
+AugmentedKL(l::LogisticLikelihood, state, ::Any) = PolyaGammaKL(l, state)
 
-function PolyaGammaKL(l::LogisticLikelihood{T}) where {T}
-    return sum(broadcast(PolyaGammaKL, ones(T, length(l.c)), l.c, l.θ))
+function PolyaGammaKL(::LogisticLikelihood{T}, state) where {T}
+    return sum(broadcast(PolyaGammaKL, ones(T, length(state.c)), state.c, state.θ))
 end
 
 ### Gradient Section ###

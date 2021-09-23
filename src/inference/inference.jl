@@ -7,7 +7,7 @@ include("optimisers.jl")
 
 export RobbinsMonro, ALRSVI
 
-post_process!(::AbstractGP) = nothing
+post_process!(::AbstractGPModel) = nothing
 
 # Utils to iterate over inference objects
 Base.length(::AbstractInference) = 1
@@ -15,7 +15,7 @@ Base.length(::AbstractInference) = 1
 Base.iterate(i::AbstractInference) = (i, nothing)
 Base.iterate(::AbstractInference, ::Any) = nothing
 
-isStochastic(i::AbstractInference) = i.stoch
+is_stochastic(i::AbstractInference) = i.stoch
 
 ## Multiple accessors
 conv_crit(i::AbstractInference) = i.ϵ
@@ -33,49 +33,19 @@ function global_update!(gp::OnlineVarLatent)
 end
 
 ## Default function for getting a view on y
-xview(inf::AbstractInference) = inf.xview
-setxview!(inf::AbstractInference, xview) = inf.xview = xview
+batchsize(inf::AbstractInference) = inf.batchsize
+set_batchsize!(inf::AbstractInference, n::Int) = inf.batchsize = n
 
-setyview!(inf::AbstractInference, yview) = inf.yview = yview
-yview(inf::AbstractInference) = inf.yview
-
-nMinibatch(inf::AbstractInference) = inf.nMinibatch
-setnMinibatch!(inf::AbstractInference, n::Int) = inf.nMinibatch = n
-
-nSamples(i::AbstractInference) = i.nSamples
-setnSamples!(inf::AbstractInference, n::Int) = inf.nSamples = n
-
-getρ(inf::AbstractInference) = inf.ρ
-setρ!(inf::AbstractInference, ρ) = inf.ρ = ρ
-
-MBIndices(inf::AbstractInference) = inf.MBIndices
-function setMBIndices!(inf::AbstractInference, mbindices::AbstractVector)
-    return inf.MBIndices .= mbindices
-end
+ρ(inf::AbstractInference) = inf.ρ
+ρ(m::AbstractGPModel) = ρ(inference(m))
+set_ρ!(inf::AbstractInference, ρ) = inf.ρ = ρ
+set_ρ!(m::AbstractGPModel, ρ) = set_ρ!(inference(m), ρ)
 
 setHPupdated!(inf::AbstractInference, status::Bool) = inf.HyperParametersUpdated = status
 isHPupdated(inf::AbstractInference) = inf.HyperParametersUpdated
 
-nIter(inf::AbstractInference) = inf.nIter
+n_iter(inf::AbstractInference) = inf.n_iter
 
-get_opt(::AbstractInference) = nothing
-get_opt(i::VariationalInference) = i.vi_opt
-get_opt(i::SamplingInference) = i.opt
-get_opt(i::AbstractInference, n::Int) = get_opt(i)[n]
-opt_type(i::AbstractInference) = first(get_opt(i))
-
-# Initialize the final version of the inference objects
-# using the right parametrization and size
-function tuple_inference(
-    i::AbstractInference,
-    nLatent::Int,
-    nFeatures::Int,
-    nSamples::Int,
-    nMinibatch::Int,
-    xview::AbstractVector,
-    yview::AbstractVector,
-)
-    return tuple_inference(
-        i, nLatent, fill(nFeatures, nLatent), nSamples, nMinibatch, xview, yview
-    )
-end
+opt(::AbstractInference) = nothing
+opt(i::VariationalInference) = i.vi_opt
+opt(i::SamplingInference) = i.opt

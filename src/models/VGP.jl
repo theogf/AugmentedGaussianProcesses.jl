@@ -23,9 +23,8 @@ mutable struct VGP{
     TInference<:AbstractInference,
     TData<:AbstractDataContainer,
     N,
-} <: AbstractGP{T,TLikelihood,TInference,N}
+} <: AbstractGPModel{T,TLikelihood,TInference,N}
     data::TData # Data container
-    nFeatures::Vector{Int}
     f::NTuple{N,VarLatent{T}} # Vector of latent GPs
     likelihood::TLikelihood
     inference::TInference
@@ -47,7 +46,7 @@ function VGP(
     obsdim::Int=1,
 )
     X, T = wrap_X(X, obsdim)
-    y, nLatent, likelihood = check_data!(y, likelihood)
+    y = check_data!(y, likelihood)
 
     inference isa VariationalInference || error(
         "The inference object should be of type `VariationalInference` : either `AnalyticVI` or `NumericalVI`",
@@ -64,7 +63,7 @@ function VGP(
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
 
-    nFeatures = nSamples(data)
+    n_feature = n_sample(data)
 
     if typeof(mean) <: Real
         mean = ConstantMean(mean)
@@ -72,23 +71,12 @@ function VGP(
         mean = EmpiricalMean(mean)
     end
 
-    latentf = ntuple(_ -> VarLatent(T, nFeatures, kernel, mean, optimiser), nLatent)
+    latentf = ntuple(n_latent(likelihood)) do _
+        VarLatent(T, n_feature, kernel, mean, optimiser)
+    end
 
-    likelihood = init_likelihood(likelihood, inference, nLatent, nSamples(data))
-    xview = view_x(data, :)
-    yview = view_y(likelihood, data, 1:nSamples(data))
-    inference = tuple_inference(
-        inference, nLatent, nFeatures, nSamples(data), nSamples(data), xview, yview
-    )
-    return VGP{T,typeof(likelihood),typeof(inference),typeof(data),nLatent}(
-        data,
-        fill(nFeatures, nLatent),
-        latentf,
-        likelihood,
-        inference,
-        verbose,
-        atfrequency,
-        false,
+    return VGP{T,typeof(likelihood),typeof(inference),typeof(data),n_latent(likelihood)}(
+        data, latentf, likelihood, inference, verbose, atfrequency, false
     )
 end
 
@@ -99,7 +87,7 @@ function Base.show(io::IO, model::VGP)
     )
 end
 
-Zviews(m::VGP) = [input(m)]
-objective(m::VGP) = ELBO(m::VGP)
+Zviews(m::VGP) = (input(m.data),)
+objective(m::VGP, state, y) = ELBO(m, state, y)
 
 @traitimpl IsFull{VGP}

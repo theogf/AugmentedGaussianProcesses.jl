@@ -4,8 +4,8 @@ include("poisson.jl")
 include("negativebinomial.jl")
 
 """ Return the labels in a vector of vectors for multiple outputs"""
-function treat_labels!(y::AbstractVector{<:Int}, likelihood::EventLikelihood)
-    return y, 1, likelihood
+function treat_labels!(y::AbstractVector{<:Int}, ::EventLikelihood)
+    return y
 end
 
 function treat_labels!(::AbstractVector{<:Real}, ::EventLikelihood)

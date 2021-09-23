@@ -13,8 +13,8 @@ include("testingtools.jl")
 @testset "AugmentedGaussianProcesses.jl tests" begin
     @info "Testing data"
     @testset "Data test" begin
-        include(joinpath("data", "datacontainer.jl"))
-        include(joinpath("data", "utils.jl"))
+        include("data/datacontainer.jl")
+        include("data/utils.jl")
     end
 
     @info "Function tests"
@@ -25,8 +25,7 @@ include("testingtools.jl")
     end
 
     @info "Hyperparameter tests"
-    @testset "Hyperparameters" begin
-    end
+    @testset "Hyperparameters" begin end
 
     @info "Inference tests"
     @testset "Inference" begin

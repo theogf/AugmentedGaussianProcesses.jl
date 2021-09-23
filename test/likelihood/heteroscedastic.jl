@@ -2,7 +2,7 @@
     N, d = 500, 1
     k = SqExponentialKernel() ∘ ScaleTransform(10.0)
     X, f = generate_f(N, d, k)
-    X, g = generate_f(N, d, k; X = X)
+    X, g = generate_f(N, d, k; X=X)
     g .-= 3.0
     λ = 2.0
     σ = λ * AGP.logistic.(g)
@@ -24,6 +24,6 @@
         X,
         f,
         y,
-        k
+        k,
     )
 end
