@@ -24,7 +24,7 @@ More details can be found in the paper [Multi-Class Gaussian Process Classificat
 """
 LogisticSoftMaxLikelihood(x) = MultiClassLikelihood(LogisticSoftMaxLink(), x)
 
-struct LogisticSoftMaxLink <: Link end
+struct LogisticSoftMaxLink <: AbstractLink end
 
 function (::LogisticSoftMaxLink)(f::AbstractVector{<:Real})
     return normalize(logistic.(f), 1)
@@ -40,7 +40,7 @@ end
 Base.show(io::IO, ::LogisticSoftMaxLink) = print(io, "Logistic-SoftMax Link")
 
 ## Local Updates ##
-function init_local_vars(state, l::MultiClassLikelihood{<:LogisticSoftMaxLink,T}, batchsize::Int) where {T}
+function init_local_vars(state, l::MultiClassLikelihood{<:LogisticSoftMaxLink}, batchsize::Int, T::DataType=Float64)
     num_class = n_class(l)
     c = [ones(T, batchsize) for _ in 1:num_class] # Second moment of fₖ
     α = num_class * ones(T, batchsize) # First variational parameter of Gamma distribution
@@ -79,13 +79,13 @@ function local_updates!(
     return local_vars
 end
 
-function sample_local!(local_vars, ::MultiClassLikelihood{<:LogisticSoftMaxLink,T}, y, f) where {T}
+function sample_local!(local_vars, ::MultiClassLikelihood{<:LogisticSoftMaxLink}, y, f)
     broadcast!(
         f -> rand.(Poisson.(0.5 * local_vars.α .* safe_expcosh.(-0.5 * f, 0.5 * f))),
         local_vars.γ,
         f,
     )
-    local_vars.α .= rand.(Gamma.(one(T) .+ (local_vars.γ...), 1.0 ./ local_vars.β))
+    local_vars.α .= rand.(Gamma.(1 .+ (local_vars.γ...), inv.(local_vars.β)))
     local_vars.θ .= broadcast(
         (y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), eachcol(y), local_vars.γ, f
     )
@@ -103,8 +103,8 @@ end
 
 ## ELBO Section ##
 function expec_loglikelihood(
-    ::MultiClassLikelihood{<:LogisticSoftMaxLink,T}, ::AnalyticVI, y, μ, Σ, state
-) where {T}
+    ::MultiClassLikelihood{<:LogisticSoftMaxLink}, ::AnalyticVI, y, μ, Σ, state
+)
     tot = -length(y) * logtwo
     tot += -sum(sum(state.γ .+ eachcol(y))) * logtwo
     tot += 0.5 * sum(zip(state.θ, state.γ, eachcol(y), μ, Σ)) do (θ, γ, y, μ, Σ)
@@ -178,13 +178,13 @@ function log_like_samples(
 end
 
 function grad_logisticsoftmax(s::AbstractVector{T}, σ::AbstractVector{T}, y) where {T<:Real}
-    return s[y][1] * (y .- s) .* (1.0 .- σ)
+    return s[y][1] * (y .- s) .* (one(T) .- σ)
 end
 
 function diaghessian_logisticsoftmax(
     s::AbstractVector{T}, σ::AbstractVector{T}, y
 ) where {T<:Real}
-    return s[y][1] * (1 .- σ) .*
+    return s[y][1] * (one(T) .- σ) .*
            (abs2.(y - s) .* (1 .- σ) - s .* (1 .- s) .* (1 .- σ) - σ .* (y - s))
 end
 
@@ -197,11 +197,11 @@ function hessian_logisticsoftmax(
     @inbounds for j in 1:m
         for k in 1:m
             hessian[j, k] =
-                (1 - σ[j]) *
+                (one(T) - σ[j]) *
                 s[i] *
                 (
-                    (δ(T, i, k) - s[k]) * (1.0 - σ[k]) * (δ(T, i, j) - s[j]) -
-                    s[j] * (δ(T, j, k) - s[k]) * (1.0 - σ[k]) -
+                    (δ(T, i, k) - s[k]) * (one(T) - σ[k]) * (δ(T, i, j) - s[j]) -
+                    s[j] * (δ(T, j, k) - s[k]) * (one(T) - σ[k]) -
                     δ(T, k, j) * σ[j] * (δ(T, i, j) - s[j])
                 )
         end

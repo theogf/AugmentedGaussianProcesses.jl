@@ -18,16 +18,12 @@ where ``ω \sim 1[0,\infty)`` has an improper prior (his posterior is however ha
 """
 BayesianSVM() = BernoulliLikelihood(SVMLink())
 
-struct SVMLink <: Link end
+struct SVMLink <: AbstractLink end
 
 implemented(::BernoulliLikelihood{<:SVMLink}, ::AnalyticVI) = true
 
 function (::SVMLink)(f::Real)
     return svmlikelihood(f)
-end
-
-function Base.show(io::IO, ::BayesianSVM{T}) where {T}
-    return print(io, "Bayesian SVM")
 end
 
 # Return likelihood equivalent to SVM hinge loss
@@ -43,9 +39,9 @@ end
 
 function local_updates!(
     local_vars,
-    ::BernoulliLikelihood{<:SVMLink,T},
+    ::BernoulliLikelihood{<:SVMLink},
     y::AbstractVector,
-    μ::AbstractVector,
+    μ::AbstractVector{T},
     diagΣ::AbstractVector,
 ) where {T}
     @. local_vars.c = abs2(one(T) - y * μ) + diagΣ
@@ -53,22 +49,22 @@ function local_updates!(
     return local_vars
 end
 
-@inline function ∇E_μ(::BernoulliLikelihood{<:SVMLink,T}, ::AOptimizer, y::AbstractVector, state) where {T}
-    return (y .* (state.θ .+ one(T)),)
+@inline function ∇E_μ(::BernoulliLikelihood{<:SVMLink}, ::AOptimizer, y::AbstractVector, state)
+    return (y .* (state.θ .+ one(eltype(θ))),)
 end
 
-@inline function ∇E_Σ(::BernoulliLikelihood{<:SVMLink,T}, ::AOptimizer, ::AbstractVector, state) where {T}
+@inline function ∇E_Σ(::BernoulliLikelihood{<:SVMLink}, ::AOptimizer, ::AbstractVector, state)
     return (0.5 .* state.θ,)
 end
 
 ## ELBO
 
 function expec_loglikelihood(
-    ::BernoulliLikelihood{<:SVMLink,T}, ::AnalyticVI, y, μ::AbstractVector, diag_cov::AbstractVector, state
-) where {T}
+    ::BernoulliLikelihood{<:SVMLink}, ::AnalyticVI, y, μ::AbstractVector, diag_cov::AbstractVector, state
+)
     tot = -(0.5 * length(y) * logtwo)
     tot += dot(μ, y)
-    tot += -0.5 * dot(state.θ, diag_cov) + dot(state.θ, abs2.(one(T) .- y .* μ))
+    tot += -0.5 * dot(state.θ, diag_cov) + dot(state.θ, abs2.(one(eltype(μ)) .- y .* μ))
     return tot
 end
 

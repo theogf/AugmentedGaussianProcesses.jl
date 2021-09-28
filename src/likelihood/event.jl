@@ -1,4 +1,4 @@
-abstract type EventLikelihood{T<:Real} <: AbstractLikelihood{T} end
+abstract type EventLikelihood <: AbstractLikelihood end
 
 include("poisson.jl")
 include("negativebinomial.jl")

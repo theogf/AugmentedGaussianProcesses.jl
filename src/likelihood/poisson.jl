@@ -13,37 +13,24 @@
 Where ``\sigma`` is the logistic function.
 Augmentation details will be released at some point (open an issue if you want to see them)
 """
-mutable struct PoissonLikelihood{T<:Real} <: EventLikelihood{T}
-    λ::T
-    function PoissonLikelihood{T}(λ::T) where {T<:Real}
-        return new{T}(λ)
-    end
+function PoissonLikelihood(λ::Real=1.0)
+    return PoissonLikelihood(ScaledLink(λ))
 end
 
-function PoissonLikelihood(λ::T=1.0) where {T<:Real}
-    return PoissonLikelihood{T}(λ)
+struct ScaledLogistic{T} <: AbstractLink
+    λ::Vector{T}
 end
 
-implemented(::PoissonLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) = true
+(l::ScaledLogistic)(f::Real) = l.λ[1] * logistic(f)
 
-function init_likelihood(
-    likelihood::PoissonLikelihood{T}, ::AbstractInference{T}, ::Integer, nSamplesUsed::Int
-) where {T}
-    return PoissonLikelihood{T}(
-        likelihood.λ, zeros(T, nSamplesUsed), zeros(T, nSamplesUsed), zeros(T, nSamplesUsed)
-    )
-end
+implemented(::PoissonLikelihood{<:ScaledLogistic}, ::Union{<:AnalyticVI,<:GibbsSampling}) = true
 
 function (l::PoissonLikelihood)(y::Real, f::Real)
-    return pdf(Poisson(get_p(l, l.λ, f)), y)
+    return pdf(l(f), y)
 end
 
 function Distributions.loglikelihood(l::PoissonLikelihood, y::Real, f::Real)
-    return logpdf(Poisson(expec_count(l, f)), y)
-end
-
-function expec_count(l::PoissonLikelihood, f)
-    return get_p(l, l.λ, f)
+    return logpdf(l(f), y)
 end
 
 function get_p(::PoissonLikelihood, λ::Real, f)

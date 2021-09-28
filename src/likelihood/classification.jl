@@ -3,12 +3,17 @@ include("bayesiansvm.jl")
 
 const ClassificationLikelihood = BernoulliLikelihood
 
-function init_local_vars(state, ::BayesianSVM{T}, batchsize::Int) where {T}
-    return merge(state, (; local_vars=(; ω=rand(T, batchsize), θ=zeros(T, batchsize))))
+
+function (l::BernoulliLikelihood)(y::Real, f::Real)
+    pdf(l(f), y)
+end
+
+function init_local_vars(state, ::BernoulliLikelihood, batchsize::Int, T::DataType=Float64)
+    return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
 end
 
 function compute_proba(
-    l::BernoulliLikelihood{L,T}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
+    l::BernoulliLikelihood{L}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
 ) where {L,T<:Real}
     N = length(μ)
     pred = zeros(T, N)
@@ -16,7 +21,7 @@ function compute_proba(
     for i in 1:N
         x = pred_nodes .* sqrt(max(σ²[i], zero(T))) .+ μ[i]
         pred[i] = dot(pred_weights, l.link.(x))
-        σ²_pred[i] = max(dot(pred_weights, l.link.(x) .^ 2) - pred[i]^2, zero(T))
+        σ²_pred[i] = max(dot(pred_weights, abs2.(l.link.(x))) - pred[i]^2, zero(T))
     end
     return pred, σ²_pred
 end

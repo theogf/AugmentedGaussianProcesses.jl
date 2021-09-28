@@ -1,20 +1,18 @@
-mutable struct MultiClassLikelihood{L,T} <: AbstractLikelihood{T}
+mutable struct MultiClassLikelihood{L} <: AbstractLikelihood
     link::L
     n_class::Int # Number of classes
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
-    function MultiClassLikelihood{T}(link::L, n_class::Int) where {T, L}
-        return new{L,T}(link, n_class)
+    function MultiClassLikelihood(link::L, n_class::Int) where {L}
+        return new{L}(link, n_class)
     end
-    function MultiClassLikelihood{T}(link::L, n_class, class_mapping, ind_mapping) where {T, L}
-        return new{L,T}(link, n_class, class_mapping, ind_mapping)
+    function MultiClassLikelihood(link::L, n_class, class_mapping, ind_mapping) where {L}
+        return new{L}(link, n_class, class_mapping, ind_mapping)
     end
 end
 
-MultiClassLikelihood(link::AbstractLink, n_class::Int) = MultiClassLikelihood{Float64}(link, n_class)
-
 function MultiClassLikelihood(link::AbstractLink, ylabels::AbstractVector)
-    return MultiClassLikelihood{Float64}(
+    return MultiClassLikelihood(
         link, length(ylabels), ylabels, Dict(value => key for (key, value) in enumerate(ylabels))
     )
 end
@@ -37,8 +35,8 @@ end
 
 ## Return the labels in a vector of vectors for multiple outputs ##
 function treat_labels!(
-    y::AbstractArray{T,N}, likelihood::L
-) where {T,N,L<:MultiClassLikelihood}
+    y::AbstractArray{T,N}, likelihood::MultiClassLikelihood
+) where {T,N}
     N <= 1 || error("Target should be a vector of labels")
     init_multiclass_likelihood!(likelihood, y) # Initialize a mapping if not existing
     return create_one_hot(likelihood, y)
@@ -95,7 +93,7 @@ function create_one_hot(l::MultiClassLikelihood, y)
 end
 
 function compute_proba(
-    l::MultiClassLikelihood{T},
+    l::MultiClassLikelihood,
     μ::AbstractVector{<:AbstractVector{T}},
     σ²::AbstractVector{<:AbstractVector{T}},
     nSamples::Integer=200,

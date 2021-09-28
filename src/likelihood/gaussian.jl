@@ -44,7 +44,7 @@ function compute_proba(
     return μ, σ² .+ noise(l)
 end
 
-function init_local_vars(state, l::GaussianLikelihood{T}, batchsize::Int) where {T}
+function init_local_vars(state, l::GaussianLikelihood, batchsize::Int, T::DataType=Float64)
     local_vars = (; θ=fill(inv(l.σ²[1]), batchsize))
     if !isnothing(l.opt_noise)
         state_σ² = Optimisers.init(l.opt_noise, l.σ²)
@@ -72,14 +72,14 @@ function local_updates!(
 end
 
 @inline function ∇E_μ(
-    l::GaussianLikelihood{T}, ::AOptimizer, y::AbstractVector, state
-) where {T}
+    l::GaussianLikelihood, ::AOptimizer, y::AbstractVector, state
+)
     return (y ./ noise(l),)
 end
 
 @inline function ∇E_Σ(
-    ::GaussianLikelihood{T}, ::AOptimizer, ::AbstractVector, state
-) where {T}
+    ::GaussianLikelihood, ::AOptimizer, ::AbstractVector, state
+)
     return (0.5 * state.θ,)
 end
 
@@ -96,4 +96,4 @@ function expec_loglikelihood(
     )
 end
 
-AugmentedKL(::GaussianLikelihood{T}, state, ::Any) where {T} = zero(T)
+AugmentedKL(::GaussianLikelihood, state, ::Any) = 0

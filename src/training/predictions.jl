@@ -193,10 +193,10 @@ function predict_y(
     return predict_y(l, first(μs))
 end
 
-predict_y(l::EventLikelihood, μ::AbstractVector{<:Real}) = expec_count(l, μ)
+predict_y(l::EventLikelihood, μ::AbstractVector{<:Real}) = mean.(l.(μ))
 
 function predict_y(l::EventLikelihood, μ::AbstractVector{<:AbstractVector})
-    return expec_count(l, first(μ))
+    return predict_y(l, first(μ))
 end
 
 """

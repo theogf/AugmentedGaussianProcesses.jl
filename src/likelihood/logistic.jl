@@ -24,16 +24,16 @@ function implemented(
     return true
 end
 
-function Distributions.loglikelihood(::BernoulliLikelihood{<:LogisticLink,T}, y::Real, f::Real) where {T}
-    return -log(one(T) + exp(-y * f))
+function Distributions.loglikelihood(::BernoulliLikelihood{<:LogisticLink}, y::Real, f::Real)
+    return -log(one(f) + exp(-y * f))
 end
 
-function compute_proba(l::LogisticLikelihood{T}, f::Real) where {T<:Real}
+function compute_proba(l::BernoulliLikelihood, f::Real)
     return pdf(l(f), 1)
 end
 
 ### Local Updates Section ###
-function init_local_vars(state, ::BernoulliLikelihood{<:LogisticLink,T}, batchsize::Int) where {T}
+function init_local_vars(state, ::BernoulliLikelihood{<:LogisticLink}, batchsize::Int, T::DataType=Float64)
     return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
 end
 
@@ -78,8 +78,8 @@ end
 
 AugmentedKL(l::BernoulliLikelihood{<:LogisticLink}, state, ::Any) = PolyaGammaKL(l, state)
 
-function PolyaGammaKL(::BernoulliLikelihood{<:LogisticLink,T}, state) where {T}
-    return sum(broadcast(PolyaGammaKL, ones(T, length(state.c)), state.c, state.θ))
+function PolyaGammaKL(::BernoulliLikelihood{<:LogisticLink}, state)
+    return sum(broadcast(PolyaGammaKL, ones(eltype(state.c), length(state.c)), state.c, state.θ))
 end
 
 ### Gradient Section ###

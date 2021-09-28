@@ -41,21 +41,6 @@ function implemented(
     return true
 end
 
-function init_likelihood(
-    likelihood::Matern3_2Likelihood{T},
-    inference::AbstractInference{T},
-    ::Int,
-    nSamplesUsed::Int,
-) where {T}
-    if inference isa AnalyticVI || inference isa GibbsSampling
-        Matern3_2Likelihood{T}(
-            likelihood.ρ, abs2.(T.(rand(T, nSamplesUsed))), zeros(T, nSamplesUsed)
-        )
-    else
-        Matern3_2Likelihood{T}(likelihood.ρ)
-    end
-end
-
 function (l::Matern3_2Likelihood)(y::Real, f::Real)
     u = sqrt(3) * abs(y - f) / l.ρ
     return 4 * l.ρ / sqrt(3) * (one(T) + u) * exp(-u)
@@ -66,23 +51,23 @@ function Distributions.loglikelihood(l::Matern3_2Likelihood, y::Real, f::Real)
     return log(4 * l.ρ / sqrt(3)) + log(one(T) + u) - u
 end
 
-function Base.show(io::IO, l::Matern3_2Likelihood{T}) where {T}
+function Base.show(io::IO, l::Matern3_2Likelihood)
     return print(io, "Matern 3/2 likelihood (ρ = $(l.ρ))")
 end
 
 function compute_proba(
-    l::Matern3_2Likelihood{T}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
-) where {T<:Real}
-    return μ, max.(σ², zero(T)) .+ 4 * l.ρ^2 / 3
+    l::Matern3_2Likelihood, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
+)
+    return μ, max.(σ², zero(eltype(σ²))) .+ 4 * l.ρ^2 / 3
 end
 
 ## Local Updates ##
 function local_updates!(
     l::Matern3_2Likelihood,
     y::AbstractVector,
-    μ::AbstractVector{T},
-    diag_cov::AbstractVector{T},
-) where {T<:Real}
+    μ::AbstractVector,
+    diag_cov::AbstractVector,
+)
     l.c .= sqrt.(diag_cov + abs2.(μ - y))
     return l.θ .= 3.0 ./ (2.0 .* sqrt.(3) * l.c * l.ρ .+ 2 * l.ρ^2)
 end
@@ -110,7 +95,7 @@ function expecLogLikelihood(
     return throw(error("Not implemented yet"))
 end
 
-function InverseGammaKL(l::Matern3_2Likelihood{T}) where {T}
+function InverseGammaKL(l::Matern3_2Likelihood, state)
     α_p = l.ν / 2
     β_p = α_p * l.σ^2
     return model.inference.ρ * sum(broadcast(InverseGammaKL, l.α, l.β, α_p, β_p))
