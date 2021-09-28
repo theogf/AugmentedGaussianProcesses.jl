@@ -113,9 +113,9 @@ end
 
 # Compute the first and second derivative of the log-likelihood using the quadrature nodes
 function grad_quad(
-    l::AbstractLikelihood{T}, y::Real, μ::Real, σ²::Real, i::AbstractInference
+    l::AbstractLikelihood, y::Real, μ::Real, σ²::Real, i::AbstractInference
 ) where {T<:Real}
-    x = i.nodes * sqrt(max(σ², zero(T))) .+ μ
+    x = i.nodes * sqrt(max(σ², zero(σ²))) .+ μ
     Edloglike = dot(i.weights, ∇loglikehood.(l, y, x))
     Ed²loglike = dot(i.weights, hessloglikehood.(l, y, x))
     if i.clipping != 0

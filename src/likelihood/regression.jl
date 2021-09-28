@@ -1,4 +1,4 @@
-abstract type RegressionLikelihood{T<:Real} <: AbstractLikelihood{T} end
+abstract type RegressionLikelihood <: AbstractLikelihood end
 
 include("gaussian.jl")
 include("studentt.jl")

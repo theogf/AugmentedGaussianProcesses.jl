@@ -7,7 +7,7 @@ Gaussian noise :
 ```
 There is no augmentation needed for this likelihood which is already conjugate to a Gaussian prior.
 """
-struct GaussianLikelihood{T<:Real,O} <: RegressionLikelihood{T}
+struct GaussianLikelihood{T<:Real,O} <: RegressionLikelihood
     σ²::Vector{T}
     opt_noise::O
     function GaussianLikelihood{T}(σ²::T, opt_noise) where {T<:Real}
@@ -39,8 +39,8 @@ function Base.show(io::IO, l::GaussianLikelihood)
 end
 
 function compute_proba(
-    l::GaussianLikelihood{T}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
-) where {T<:Real}
+    l::GaussianLikelihood, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
+)
     return μ, σ² .+ noise(l)
 end
 

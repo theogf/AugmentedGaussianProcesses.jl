@@ -37,18 +37,18 @@ function get_p(::PoissonLikelihood, λ::Real, f)
     return λ * logistic.(f)
 end
 
-function Base.show(io::IO, l::PoissonLikelihood{T}) where {T}
-    return print(io, "Poisson Likelihood (λ = $(l.λ))")
+function Base.show(io::IO, l::PoissonLikelihood)
+    return print(io, "Poisson Likelihood (λ = $(l.invlink.λ[1]))")
 end
 
 function compute_proba(
-    l::PoissonLikelihood{T}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
-) where {T<:Real}
+    l::PoissonLikelihood, μ::AbstractVector{T}, σ²::AbstractVector{<:Real}
+) where {T}
     N = length(μ)
     pred = zeros(T, N)
     sig_pred = zeros(T, N)
     for i in 1:N
-        x = pred_nodes .* sqrt.(max(σ²[i], zero(T))) .+ μ[i]
+        x = pred_nodes .* sqrt.(max(σ²[i], zero(σ²[i]))) .+ μ[i]
         pred[i] = dot(pred_weights, get_p(l, l.λ, x))
         sig_pred[i] = dot(pred_weights, get_p(l, l.λ, x) .^ 2) - pred[i]^2
     end
@@ -56,7 +56,7 @@ function compute_proba(
 end
 
 ### Local Updates ###
-function init_local_vars(state, ::PoissonLikelihood{T}, batchsize::Int) where {T}
+function init_local_vars(state, ::PoissonLikelihood, batchsize::Int, T::DataType=Float64) 
     return merge(
         state,
         (;
@@ -67,11 +67,11 @@ end
 
 function local_updates!(
     local_vars,
-    l::PoissonLikelihood{T},
+    l::PoissonLikelihood,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
-) where {T}
+)
     @. local_vars.c = sqrt(abs2(μ) + diag_cov)
     @. local_vars.γ = 0.5 * l.λ * safe_expcosh(-0.5 * μ, 0.5 * local_vars.c)
     @. local_vars.θ = (y + local_vars.γ) / local_vars.c * tanh(0.5 * local_vars.c)
@@ -96,8 +96,8 @@ end
 
 ## ELBO Section ##
 function expec_loglikelihood(
-    l::PoissonLikelihood{T}, ::AnalyticVI, y, μ::AbstractVector, Σ::AbstractVector, state
-) where {T}
+    l::PoissonLikelihood, ::AnalyticVI, y, μ::AbstractVector, Σ::AbstractVector, state
+)
     tot = 0.5 * (dot(μ, (y - state.γ)) - dot(state.θ, abs2.(μ)) - dot(state.θ, Σ))
     tot += Zygote.@ignore(
         sum(y * log(l.λ)) - sum(logfactorial, y) - logtwo * sum((y + state.γ))

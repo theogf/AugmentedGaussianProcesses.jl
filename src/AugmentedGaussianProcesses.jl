@@ -74,7 +74,7 @@ using .ComplementaryDistributions
 abstract type AbstractInference{T<:Real} end
 abstract type VariationalInference{T} <: AbstractInference{T} end
 abstract type SamplingInference{T} <: AbstractInference{T} end
-abstract type AbstractLikelihood{T<:Real} end
+abstract type AbstractLikelihood end
 abstract type AbstractLatent{T<:Real,Tpr,Tpo} end
 
 include("mean/priormean.jl")

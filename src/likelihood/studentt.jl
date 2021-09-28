@@ -20,7 +20,7 @@ For the augmented analytical solution, it is augmented via:
 Where ``\omega \sim \mathcal{IG}(0.5\nu,0.5\nu)`` where ``\mathcal{IG}`` is the inverse-gamma distribution.
 See paper [Robust Gaussian Process Regression with a Student-t Likelihood](http://www.jmlr.org/papers/volume12/jylanki11a/jylanki11a.pdf)
 """
-struct StudentTLikelihood{T<:Real} <: RegressionLikelihood{T}
+struct StudentTLikelihood{T<:Real} <: RegressionLikelihood
     ν::T
     α::T
     σ::T
@@ -50,36 +50,36 @@ function Distributions.loglikelihood(l::StudentTLikelihood, y::Real, f::Real)
     # tdistlogpdf(l.ν, (y - f) / l.σ) uses R so not differentiable
 end
 
-function Base.show(io::IO, l::StudentTLikelihood{T}) where {T}
+function Base.show(io::IO, l::StudentTLikelihood)
     return print(io, "Student-t likelihood (ν=", l.ν, ", σ=", l.σ, ")")
 end
 
 function compute_proba(
-    l::StudentTLikelihood{T}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
-) where {T<:Real}
-    return μ, max.(σ², zero(σ²)) .+ 0.5 * l.ν * l.σ^2 / (0.5 * l.ν - 1)
+    l::StudentTLikelihood, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
+)
+    return μ, max.(σ², zero(eltype(σ²))) .+ 0.5 * l.ν * l.σ^2 / (0.5 * l.ν - 1)
 end
 
 ## Local Updates ##
-function init_local_vars(state, ::StudentTLikelihood{T}, batchsize::Int) where {T}
+function init_local_vars(state, ::StudentTLikelihood, batchsize::Int, T::DataType=Float64)
     return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
 end
 
 function local_updates!(
     local_vars,
-    l::StudentTLikelihood{T},
+    l::StudentTLikelihood,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
-) where {T}
+)
     @. local_vars.c = 0.5 * (diag_cov + abs2(μ - y) + l.σ^2 * l.ν)
     @. local_vars.θ = l.α / local_vars.c
     return local_vars
 end
 
 function sample_local!(
-    local_vars, l::StudentTLikelihood{T}, y::AbstractVector, f::AbstractVector
-) where {T}
+    local_vars, l::StudentTLikelihood, y::AbstractVector, f::AbstractVector
+)
     local_vars.c .= rand.(InverseGamma.(l.α, 0.5 * (abs2.(f - y) .+ l.σ^2 * l.ν)))
     local_vars.θ .= inv.(local_vars.c)
     return local_vars
@@ -95,13 +95,13 @@ end
 ## ELBO Section ##
 
 function expec_loglikelihood(
-    l::StudentTLikelihood{T},
+    l::StudentTLikelihood,
     ::AnalyticVI,
     y::AbstractVector,
     μ::AbstractVector,
     diag_cov::AbstractVector,
     state,
-) where {T}
+)
     tot = -0.5 * length(y) * (log(twoπ * l.σ^2))
     tot += -sum(log.(state.c) .- digamma(l.α))
     tot +=
@@ -114,7 +114,7 @@ end
 
 AugmentedKL(l::StudentTLikelihood, state, ::Any) = InverseGammaKL(l, state)
 
-function InverseGammaKL(l::StudentTLikelihood{T}, state) where {T}
+function InverseGammaKL(l::StudentTLikelihood, state)
     α_p = l.ν / 2
     β_p = α_p * l.σ^2
     return InverseGammaKL(l.α, state.c, α_p, β_p)
@@ -122,12 +122,12 @@ end
 
 ## PDF and Log PDF Gradients ## (verified gradients)
 
-function ∇loglikelihood(l::StudentTLikelihood{T}, y::Real, f::Real) where {T<:Real}
-    return (one(T) + l.ν) * (y - f) / ((f - y)^2 + l.σ^2 * l.ν)
+function ∇loglikelihood(l::StudentTLikelihood, y::Real, f::Real)
+    return (one(l.ν) + l.ν) * (y - f) / ((f - y)^2 + l.σ^2 * l.ν)
 end
 
-function hessloglikelihood(l::StudentTLikelihood{T}, y::Real, f::Real) where {T<:Real}
+function hessloglikelihood(l::StudentTLikelihood, y::Real, f::Real)
     v = l.ν * l.σ^2
     Δ² = (f - y)^2
-    return (one(T) + l.ν) * (-v + Δ²) / (v + Δ²)^2
+    return (one(l.ν) + l.ν) * (-v + Δ²) / (v + Δ²)^2
 end
