@@ -1,10 +1,28 @@
-abstract type ClassificationLikelihood{T<:Real} <: AbstractLikelihood{T} end
-
 include("logistic.jl")
 include("bayesiansvm.jl")
 
-""" Return the labels in a vector of vectors for multiple outputs"""
-function treat_labels!(y::AbstractVector{<:Real}, ::ClassificationLikelihood)
+const ClassificationLikelihood = BernoulliLikelihood
+
+function init_local_vars(state, ::BayesianSVM{T}, batchsize::Int) where {T}
+    return merge(state, (; local_vars=(; ω=rand(T, batchsize), θ=zeros(T, batchsize))))
+end
+
+function compute_proba(
+    l::BernoulliLikelihood{L,T}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
+) where {L,T<:Real}
+    N = length(μ)
+    pred = zeros(T, N)
+    σ²_pred = zeros(T, N)
+    for i in 1:N
+        x = pred_nodes .* sqrt(max(σ²[i], zero(T))) .+ μ[i]
+        pred[i] = dot(pred_weights, l.link.(x))
+        σ²_pred[i] = max(dot(pred_weights, l.link.(x) .^ 2) - pred[i]^2, zero(T))
+    end
+    return pred, σ²_pred
+end
+
+# Return the labels in a vector of vectors for multiple outputs
+function treat_labels!(y::AbstractVector{<:Real}, ::BernoulliLikelihood)
     labels = unique(y)
     y isa AbstractVector{<:Union{Int,Bool}} || error("y labels should be Int")
     if sort(Int64.(labels)) == [0; 1]
@@ -16,11 +34,11 @@ function treat_labels!(y::AbstractVector{<:Real}, ::ClassificationLikelihood)
     end
 end
 
-function treat_labels!(::AbstractVector, ::ClassificationLikelihood)
+function treat_labels!(::AbstractVector, ::BernoulliLikelihood)
     return error(
         "For classification target(s) should be real valued (Bool, Integer or Float)"
     )
 end
 
-predict_y(::ClassificationLikelihood, μ::AbstractVector{<:Real}) = μ .> 0
-predict_y(::ClassificationLikelihood, μ::AbstractVector{<:AbstractVector}) = first(μ) .> 0
+predict_y(::BernoulliLikelihood, μ::AbstractVector{<:Real}) = μ .> 0
+predict_y(::BernoulliLikelihood, μ::AbstractVector{<:AbstractVector}) = first(μ) .> 0

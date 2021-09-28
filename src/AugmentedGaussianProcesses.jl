@@ -9,7 +9,7 @@ const AGP = AugmentedGaussianProcesses
 export AGP
 export AbstractGPModel, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP, OnlineSVGP # All models
 export AbstractLikelihood,
-    RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood, EventLikelihood # All categories of likelihoods
+    RegressionLikelihood, BernoulliLikelihood, MultiClassLikelihood, EventLikelihood # All categories of likelihoods
 export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood # Regression Likelihoods
 export LogisticLikelihood, BayesianSVM # Classification Likelihoods
 export SoftMaxLikelihood, LogisticSoftMaxLikelihood # Multiclass Classification Likelihoods
@@ -55,6 +55,7 @@ using Distributions:
     Gamma
 using FastGaussQuadrature: gausshermite
 using ForwardDiff
+using GPLikelihoods: GPLikelihoods, Link, BernoulliLikelihood, LogisticLink, SoftMaxLink
 using KernelFunctions: ColVecs, RowVecs
 using LinearAlgebra
 using ProgressMeter

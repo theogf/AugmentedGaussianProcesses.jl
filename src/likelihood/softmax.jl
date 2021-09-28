@@ -1,5 +1,13 @@
 @doc raw"""
-    SoftMaxLikelihood()
+    SoftMaxLikelihood(num_class::Int) -> MultiClassLikelihood
+
+## Arguments
+- `num_class::Int` : Total number of classes
+
+    SoftMaxLikelihood(labels::AbstractVector) -> MultiClassLikelihood
+
+## Arguments
+- `labels::AbstractVector` : List of classes labels
 
 Multiclass likelihood with [Softmax transformation](https://en.wikipedia.org/wiki/Softmax_function):
 
@@ -9,55 +17,14 @@ p(y=i|\{f_k\}_{k=1}^K) = \frac{\exp(f_i)}{\sum_{k=1}^K\exp(f_k)}
 
 There is no possible augmentation for this likelihood
 """
-mutable struct SoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
-    n_class::Int
-    class_mapping::Vector{Any} # Classes labels mapping
-    ind_mapping::Dict{Any,Int} # Mapping from label to index
-    function SoftMaxLikelihood{T}(n_class::Int) where {T}
-        return new{T}(n_class)
-    end
-    function SoftMaxLikelihood{T}(n_class, class_mapping, ind_mapping) where {T}
-        return new{T}(n_class, class_mapping, ind_mapping)
-    end
-end
+SoftMaxLikelihood(x) = MultiClassLikelihood(SoftMaxLink(), x)
 
-SoftMaxLikelihood(n_class::Int) = SoftMaxLikelihood{Float64}(n_class)
-function SoftMaxLikelihood(ylabels::AbstractVector)
-    return SoftMaxLikelihood{Float64}(
-        length(ylabels), ylabels, Dict(value => key for (key, value) in enumerate(ylabels))
-    )
-end
+implemented(::MultiClassLikelihood{<:SoftMaxLink}, ::MCIntegrationVI) = true
 
-implemented(::SoftMaxLikelihood, ::MCIntegrationVI) = true
-
-function (::SoftMaxLikelihood)(f::AbstractVector)
-    return StatsFuns.softmax(f)
-end
-
-function (l::SoftMaxLikelihood)(y::Int, f::AbstractVector{<:Real})
-    return StatsFuns.softmax(f)[y]
-end
-
-function Base.show(io::IO, ::SoftMaxLikelihood{T}) where {T}
-    return print(io, "Softmax likelihood")
-end
-
-function sample_local!(
-    local_vars, model::VGP{T,<:SoftMaxLikelihood,<:GibbsSampling}
-) where {T}
-    model.likelihood.θ .= broadcast(
-        (y::BitVector, γ::AbstractVector{<:Real}, μ::AbstractVector{<:Real}, i::Int64) ->
-            rand.(PolyaGamma.(1.0, μ - logsumexp(μ))),
-        model.likelihood.Y,
-        model.likelihood.γ,
-        model.μ,
-        1:(model.nLatent),
-    )
-    return local_vars #TODO FINISH AT SOME POINT
-end
+Base.show(io::IO, ::SoftMaxLink) = print(io, "SoftMax Link")
 
 function grad_samples!(
-    model::AbstractGPModel{T,<:SoftMaxLikelihood},
+    model::AbstractGPModel{T,<:MultiClassLikelihood{<:SoftMaxLink}},
     samples::AbstractMatrix{T},
     opt_state,
     y,
@@ -81,7 +48,7 @@ function grad_samples!(
 end
 
 function log_like_samples(
-    ::AbstractGPModel{T,<:SoftMaxLikelihood}, samples::AbstractMatrix, y::BitVector
+    ::AbstractGPModel{T,<:MultiClassLikelihood{<:SoftMaxLink}}, samples::AbstractMatrix, y::BitVector
 ) where {T}
     num_sample = size(samples, 1)
     return mapslices(logsumexp, samples; dims=2) / num_sample

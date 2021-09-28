@@ -1,8 +1,39 @@
-abstract type MultiClassLikelihood{T<:Real} <: AbstractLikelihood{T} end
+mutable struct MultiClassLikelihood{L,T} <: AbstractLikelihood{T}
+    link::L
+    n_class::Int # Number of classes
+    class_mapping::Vector{Any} # Classes labels mapping
+    ind_mapping::Dict{Any,Int} # Mapping from label to index
+    function MultiClassLikelihood{T}(link::L, n_class::Int) where {T, L}
+        return new{L,T}(link, n_class)
+    end
+    function MultiClassLikelihood{T}(link::L, n_class, class_mapping, ind_mapping) where {T, L}
+        return new{L,T}(link, n_class, class_mapping, ind_mapping)
+    end
+end
+
+MultiClassLikelihood(link::AbstractLink, n_class::Int) = MultiClassLikelihood{Float64}(link, n_class)
+
+function MultiClassLikelihood(link::AbstractLink, ylabels::AbstractVector)
+    return MultiClassLikelihood{Float64}(
+        link, length(ylabels), ylabels, Dict(value => key for (key, value) in enumerate(ylabels))
+    )
+end
 
 n_latent(l::MultiClassLikelihood) = n_class(l)
 
 n_class(l::MultiClassLikelihood) = l.n_class
+
+function (l::MultiClassLikelihood)(f::AbstractVector)
+    return l.link(f)
+end
+
+function (l::MultiClassLikelihood)(f::AbstractVector, y::Integer)
+    return l.link(f)[y]
+end
+
+function Base.show(io::IO, l::MultiClassLikelihood)
+    return print(io, "Multiclass Likelihood (", n_class(l), " classes, $(l.link) )")
+end
 
 ## Return the labels in a vector of vectors for multiple outputs ##
 function treat_labels!(
