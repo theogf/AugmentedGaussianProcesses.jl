@@ -106,7 +106,6 @@ function MOVGP(
         return x / sqrt(sum(abs2, x))
     end
     A = [[normalize(randn(T, nLatent)) for i in 1:nf_per_task[j]] for j in 1:nTask]
-    @show data
 
     return MOVGP{T,eltype(likelihoods),typeof(inference),typeof(data),nTask,nLatent}(
         data,
@@ -133,5 +132,5 @@ end
 @traitimpl IsFull{MOVGP}
 
 n_output(::MOVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N,Q} = Q
-Zviews(m::MOVGP) = (input(m),)
+Zviews(m::MOVGP) = (input(m.data),)
 objective(m::MOVGP, state, y) = ELBO(m, state, y)

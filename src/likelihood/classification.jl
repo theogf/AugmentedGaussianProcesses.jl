@@ -12,15 +12,15 @@ function init_local_vars(::BernoulliLikelihood, batchsize::Int, T::DataType=Floa
 end
 
 function compute_proba(
-    l::BernoulliLikelihood{L}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
+    l::BernoulliLikelihood{L}, μ::AbstractVector{T}, σ²::AbstractVector{T}
 ) where {L,T<:Real}
     N = length(μ)
     pred = zeros(T, N)
     σ²_pred = zeros(T, N)
     for i in 1:N
         x = pred_nodes .* sqrt(max(σ²[i], zero(T))) .+ μ[i]
-        pred[i] = dot(pred_weights, l.link.(x))
-        σ²_pred[i] = max(dot(pred_weights, abs2.(l.link.(x))) - pred[i]^2, zero(T))
+        pred[i] = dot(pred_weights, l.invlink.(x))
+        σ²_pred[i] = max(dot(pred_weights, abs2.(l.invlink.(x))) - pred[i]^2, zero(T))
     end
     return pred, σ²_pred
 end
@@ -45,4 +45,4 @@ function treat_labels!(::AbstractVector, ::BernoulliLikelihood)
 end
 
 predict_y(::BernoulliLikelihood, μ::AbstractVector{<:Real}) = μ .> 0
-predict_y(::BernoulliLikelihood, μ::AbstractVector{<:AbstractVector}) = first(μ) .> 0
+predict_y(::BernoulliLikelihood, μ::Tuple{<:AbstractVector}) = first(μ) .> 0

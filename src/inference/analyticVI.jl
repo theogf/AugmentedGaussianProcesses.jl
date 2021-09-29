@@ -97,8 +97,8 @@ end
         ) # Compute the local updates given the expectations of f
     natural_gradient!.(
         m.f,
-        ∇E_μ(m, y, local_vars),
-        ∇E_Σ(m, y, local_vars),
+        ∇E_μ(m, y, state),
+        ∇E_Σ(m, y, state),
         ρ(inference(m)),
         opt(inference(m)),
         Zviews(m),
@@ -277,20 +277,20 @@ end
     model::TGP, state::NamedTuple, y
 ) where {T,L,TGP<:AbstractGPModel{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     tot = zero(T)
-    tot += sum(
-        ρ(inference(model)) .*
-        expec_loglikelihood.(
+    tot +=
+        ρ(inference(model)) * mapreduce(
+            expec_loglikelihood,
+            +,
             likelihood(model),
             inference(model),
             y,
             mean_f(model, state.kernel_matrices),
             var_f(model, state.kernel_matrices),
             state.local_vars,
-        ),
-    )
+        )
     tot -= GaussianKL(model, state)
     tot -= Zygote.@ignore(
-        sum(ρ(inference(model)) .* AugmentedKL.(likelihood(model), state.local_vars, y))
+        sum(ρ(inference(model)) * AugmentedKL.(likelihood(model), state.local_vars, y))
     )
     return tot
 end
