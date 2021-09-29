@@ -33,9 +33,9 @@ function ELBO(model::AbstractGPModel, X::AbstractVector, y::AbstractArray)
     y = treat_labels!(y, likelihood(model))
     state = compute_kernel_matrices(model, (;), X, true)
     if inference(model) isa AnalyticVI
-        state = init_local_vars(state, likelihood(model), length(X))
+        local_vars = init_local_vars(likelihood(model), length(X))
         local_vars = local_updates!(
-            state.local_vars,
+            local_vars,
             likelihood(model),
             y,
             mean_f(model, state.kernel_matrices),
@@ -56,9 +56,9 @@ function ELBO(model::OnlineSVGP, state::NamedTuple, X::AbstractVector, y::Abstra
     y = treat_labels!(y, likelihood(model))
     state = compute_kernel_matrices(model, state, X, true)
     if inference(model) isa AnalyticVI
-        state = init_local_vars(state, likelihood(model), length(X))
+        local_vars = init_local_vars(likelihood(model), length(X))
         local_vars = local_updates!(
-            state.local_vars,
+            local_vars,
             likelihood(model),
             y,
             mean_f(model, state.kernel_matrices),

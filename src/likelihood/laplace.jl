@@ -54,8 +54,8 @@ end
 ## Local Updates ##
 # b : Variational parameter b of GIG
 # θ : Expected value of ω
-function init_local_vars(state, ::LaplaceLikelihood, batchsize::Int, T::DataType=Float64)
-    return merge(state, (; local_vars=(; b=rand(T, batchsize), θ=zeros(T, batchsize))))
+function init_local_vars(::LaplaceLikelihood, batchsize::Int, T::DataType=Float64)
+    return (; b=rand(T, batchsize), θ=zeros(T, batchsize))
 end
 
 function local_updates!(
@@ -78,14 +78,10 @@ function sample_local!(
     return local_vars
 end
 
-@inline function ∇E_μ(
-    ::LaplaceLikelihood, ::AOptimizer, y::AbstractVector, state
-)
+@inline function ∇E_μ(::LaplaceLikelihood, ::AOptimizer, y::AbstractVector, state)
     return (state.θ .* y,)
 end
-@inline function ∇E_Σ(
-    ::LaplaceLikelihood, ::AOptimizer, ::AbstractVector, state
-)
+@inline function ∇E_Σ(::LaplaceLikelihood, ::AOptimizer, ::AbstractVector, state)
     return (0.5 * state.θ,)
 end
 
@@ -124,11 +120,7 @@ end
 ## PDF and Log PDF Gradients ##
 
 function grad_quad(
-    likelihood::LaplaceLikelihood,
-    y::Real,
-    μ::Real,
-    σ²::Real,
-    inference::AbstractInference,
+    likelihood::LaplaceLikelihood, y::Real, μ::Real, σ²::Real, inference::AbstractInference
 )
     nodes = inference.nodes * sqrt(σ²) .+ μ
     Edloglike = dot(inference.weights, ∇loglikehood.(likelihood, y, nodes))

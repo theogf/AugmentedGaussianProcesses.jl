@@ -13,7 +13,10 @@ end
 
 function MultiClassLikelihood(link::AbstractLink, ylabels::AbstractVector)
     return MultiClassLikelihood(
-        link, length(ylabels), ylabels, Dict(value => key for (key, value) in enumerate(ylabels))
+        link,
+        length(ylabels),
+        ylabels,
+        Dict(value => key for (key, value) in enumerate(ylabels)),
     )
 end
 
@@ -34,9 +37,7 @@ function Base.show(io::IO, l::MultiClassLikelihood)
 end
 
 ## Return the labels in a vector of vectors for multiple outputs ##
-function treat_labels!(
-    y::AbstractArray{T,N}, likelihood::MultiClassLikelihood
-) where {T,N}
+function treat_labels!(y::AbstractArray{T,N}, likelihood::MultiClassLikelihood) where {T,N}
     N <= 1 || error("Target should be a vector of labels")
     init_multiclass_likelihood!(likelihood, y) # Initialize a mapping if not existing
     return create_one_hot(likelihood, y)

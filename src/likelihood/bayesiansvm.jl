@@ -49,18 +49,27 @@ function local_updates!(
     return local_vars
 end
 
-@inline function ∇E_μ(::BernoulliLikelihood{<:SVMLink}, ::AOptimizer, y::AbstractVector, state)
+@inline function ∇E_μ(
+    ::BernoulliLikelihood{<:SVMLink}, ::AOptimizer, y::AbstractVector, state
+)
     return (y .* (state.θ .+ one(eltype(θ))),)
 end
 
-@inline function ∇E_Σ(::BernoulliLikelihood{<:SVMLink}, ::AOptimizer, ::AbstractVector, state)
+@inline function ∇E_Σ(
+    ::BernoulliLikelihood{<:SVMLink}, ::AOptimizer, ::AbstractVector, state
+)
     return (0.5 .* state.θ,)
 end
 
 ## ELBO
 
 function expec_loglikelihood(
-    ::BernoulliLikelihood{<:SVMLink}, ::AnalyticVI, y, μ::AbstractVector, diag_cov::AbstractVector, state
+    ::BernoulliLikelihood{<:SVMLink},
+    ::AnalyticVI,
+    y,
+    μ::AbstractVector,
+    diag_cov::AbstractVector,
+    state,
 )
     tot = -(0.5 * length(y) * logtwo)
     tot += dot(μ, y)
@@ -68,7 +77,9 @@ function expec_loglikelihood(
     return tot
 end
 
-AugmentedKL(l::BernoulliLikelihood{<:SVMLink}, state, ::Any) = Zygote.@ignore(GIGEntropy(l, state))
+function AugmentedKL(l::BernoulliLikelihood{<:SVMLink}, state, ::Any)
+    Zygote.@ignore(GIGEntropy(l, state))
+end
 
 function GIGEntropy(::BernoulliLikelihood{<:SVMLink}, state)
     return 0.5 * sum(log.(state.c)) + sum(log.(2.0 * besselk.(0.5, sqrt.(state.c)))) -

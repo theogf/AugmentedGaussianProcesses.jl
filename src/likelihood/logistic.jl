@@ -19,12 +19,15 @@ See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Au
 LogisticLikelihood() = BernoulliLikelihood(LogisticLink())
 
 function implemented(
-    ::BernoulliLikelihood{<:LogisticLink}, ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}
+    ::BernoulliLikelihood{<:LogisticLink},
+    ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling},
 )
     return true
 end
 
-function Distributions.loglikelihood(::BernoulliLikelihood{<:LogisticLink}, y::Real, f::Real)
+function Distributions.loglikelihood(
+    ::BernoulliLikelihood{<:LogisticLink}, y::Real, f::Real
+)
     return -log(one(f) + exp(-y * f))
 end
 
@@ -33,8 +36,10 @@ function compute_proba(l::BernoulliLikelihood, f::Real)
 end
 
 ### Local Updates Section ###
-function init_local_vars(state, ::BernoulliLikelihood{<:LogisticLink}, batchsize::Int, T::DataType=Float64)
-    return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
+function init_local_vars(
+    ::BernoulliLikelihood{<:LogisticLink}, batchsize::Int, T::DataType=Float64
+)
+    return (; c=rand(T, batchsize), θ=zeros(T, batchsize))
 end
 
 function local_updates!(
@@ -58,8 +63,12 @@ end
 
 ### Natural Gradient Section ###
 
-∇E_μ(::BernoulliLikelihood{<:LogisticLink}, ::AOptimizer, y::AbstractVector, state) = (0.5 * y,)
-∇E_Σ(::BernoulliLikelihood{<:LogisticLink}, ::AOptimizer, ::AbstractVector, state) = (0.5 * state.θ,)
+function ∇E_μ(::BernoulliLikelihood{<:LogisticLink}, ::AOptimizer, y::AbstractVector, state)
+    return (0.5 * y,)
+end
+function ∇E_Σ(::BernoulliLikelihood{<:LogisticLink}, ::AOptimizer, ::AbstractVector, state)
+    return (0.5 * state.θ,)
+end
 
 ### ELBO Section ###
 
@@ -79,7 +88,9 @@ end
 AugmentedKL(l::BernoulliLikelihood{<:LogisticLink}, state, ::Any) = PolyaGammaKL(l, state)
 
 function PolyaGammaKL(::BernoulliLikelihood{<:LogisticLink}, state)
-    return sum(broadcast(PolyaGammaKL, ones(eltype(state.c), length(state.c)), state.c, state.θ))
+    return sum(
+        broadcast(PolyaGammaKL, ones(eltype(state.c), length(state.c)), state.c, state.θ)
+    )
 end
 
 ### Gradient Section ###

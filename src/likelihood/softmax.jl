@@ -48,7 +48,9 @@ function grad_samples!(
 end
 
 function log_like_samples(
-    ::AbstractGPModel{T,<:MultiClassLikelihood{<:SoftMaxLink}}, samples::AbstractMatrix, y::BitVector
+    ::AbstractGPModel{T,<:MultiClassLikelihood{<:SoftMaxLink}},
+    samples::AbstractMatrix,
+    y::BitVector,
 ) where {T}
     num_sample = size(samples, 1)
     return mapslices(logsumexp, samples; dims=2) / num_sample

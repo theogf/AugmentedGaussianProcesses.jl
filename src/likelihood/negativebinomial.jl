@@ -55,8 +55,8 @@ function compute_proba(
 end
 
 ## Local Updates ##
-function init_local_vars(state, ::NegBinomialLikelihood, batchsize::Int, T::DataType=Float64)
-    return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
+function init_local_vars(::NegBinomialLikelihood, batchsize::Int, T::DataType=Float64)
+    return (; c=rand(T, batchsize), θ=zeros(T, batchsize))
 end
 
 function local_updates!(
@@ -80,14 +80,10 @@ end
 
 ## Global Updates ##
 
-@inline function ∇E_μ(
-    l::NegBinomialLikelihood, ::AOptimizer, y::AbstractVector, state
-)
+@inline function ∇E_μ(l::NegBinomialLikelihood, ::AOptimizer, y::AbstractVector, state)
     return (0.5 * (y .- l.r),)
 end
-@inline function ∇E_Σ(
-    ::NegBinomialLikelihood, ::AOptimizer, y::AbstractVector, state
-)
+@inline function ∇E_Σ(::NegBinomialLikelihood, ::AOptimizer, y::AbstractVector, state)
     return (0.5 .* state.θ,)
 end
 

@@ -63,10 +63,7 @@ end
 
 ## Local Updates ##
 function local_updates!(
-    l::Matern3_2Likelihood,
-    y::AbstractVector,
-    μ::AbstractVector,
-    diag_cov::AbstractVector,
+    l::Matern3_2Likelihood, y::AbstractVector, μ::AbstractVector, diag_cov::AbstractVector
 )
     l.c .= sqrt.(diag_cov + abs2.(μ - y))
     return l.θ .= 3.0 ./ (2.0 .* sqrt.(3) * l.c * l.ρ .+ 2 * l.ρ^2)

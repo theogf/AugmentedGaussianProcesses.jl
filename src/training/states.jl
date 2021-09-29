@@ -9,7 +9,19 @@ end
     state, model::TGP
 ) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
     if inference(model) isa Union{Analytic,AnalyticVI,GibbsSampling}
-        return state = init_local_vars(state, likelihood(model), batchsize(model))
+        local_vars = init_local_vars(likelihood(model), batchsize(model))
+        return merge(state, (; local_vars))
+    else
+        return state
+    end
+end
+
+@traitfn function init_local_vars(
+    state, model::TGP
+) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
+    if inference(model) isa Union{Analytic,AnalyticVI,GibbsSampling}
+        local_vars = init_local_vars.(likelihood(model), batchsize(model))
+        return merge(state, (; local_vars))
     else
         return state
     end

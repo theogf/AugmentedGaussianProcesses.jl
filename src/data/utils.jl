@@ -17,14 +17,12 @@ function check_data!(y::AbstractArray, likelihood::Union{Distribution,AbstractLi
     return treat_labels!(y, likelihood)
 end
 
-# Transform Z as an OptimIP if it's not the case already
-# function init_Z(Z::AbstractInducingPoints, Zoptimiser)
-#     if Zoptimiser isa Bool
-#         Zoptimiser = Zoptimiser ? ADAM(1e-3) : nothing
-#     end
-#     if Z isa OptimIP
-#         return Z
-#     else
-#         return OptimIP(Z, Zoptimiser)
-#     end
-# end
+function wrap_data(X, y, likelihood::AbstractLikelihood)
+    y = check_data!(y, likelihood)
+    return wrap_data(X, y)
+end
+
+function wrap_data(X, y, likelihoods::AbstractVector{<:AbstractLikelihood})
+    ys = map(check_data!, y, likelihoods)
+    return wrap_modata(X, ys)
+end

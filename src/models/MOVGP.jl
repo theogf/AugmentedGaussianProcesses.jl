@@ -4,7 +4,7 @@
 Multi-Output Variational Gaussian Process
 
 ## Arguments
-- `X::AbstractArray` : : Input features, if `X` is a matrix the choice of colwise/rowwise is given by the `obsdim` keyword
+- `X::AbstractVector` : : Input features, if `X` is a matrix the choice of colwise/rowwise is given by the `obsdim` keyword
 - `y::AbstractVector{<:AbstractVector}` : Output labels, each vector corresponds to one output dimension
 - `kernel::Union{Kernel,AbstractVector{<:Kernel}` : covariance function or vector of covariance functions, can be either a single kernel or a collection of kernels for multiclass and multi-outputs models
 - `likelihood::Union{AbstractLikelihood,Vector{<:Likelihood}` : Likelihood or vector of likelihoods of the model. For compatibilities, see [`Likelihood Types`](@ref likelihood_user)
@@ -13,7 +13,7 @@ Multi-Output Variational Gaussian Process
 
 ## Keyword arguments
 - `verbose::Int` : How much does the model print (0:nothing, 1:very basic, 2:medium, 3:everything)
-- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Flux.jl](https://github.com/FluxML/Flux.jl) library, see list here [Optimisers](https://fluxml.ai/Flux.jl/stable/training/optimisers/) and on [this list](https://github.com/theogf/AugmentedGaussianProcesses.jl/tree/master/src/inference/optimisers.jl). Default is `ADAM(0.001)`
+- `optimiser` : Optimiser used for the kernel parameters. Should be an Optimiser object from the [Optimisers.jl](https://github.com/FluxML/Optimisers.jl) library. Default is `ADAM(0.001)`
 - `Aoptimiser` : Optimiser used for the mixing parameters.
 - `atfrequency::Int=1` : Choose how many variational parameters iterations are between hyperparameters optimization
 - `mean=ZeroMean()` : PriorMean object, check the documentation on it [`MeanPrior`](@ref meanprior)
@@ -40,7 +40,7 @@ mutable struct MOVGP{
 end
 
 function MOVGP(
-    X::Union{AbstractVector,AbstractVector{<:AbstractArray}},
+    X::AbstractVector,
     y::AbstractVector{<:AbstractArray},
     kernel::Union{Kernel,AbstractVector{<:Kernel}},
     likelihood::Union{AbstractLikelihood,AbstractVector{<:AbstractLikelihood}},
@@ -53,7 +53,6 @@ function MOVGP(
     Aoptimiser=ADAM(0.01),
     obsdim::Int=1,
 )
-    @assert length(y) > 0 "y should not be an empty vector"
     nTask = length(y)
 
     X, T = wrap_X(X, obsdim)
@@ -65,20 +64,17 @@ function MOVGP(
         likelihood
     end
 
-    nf_per_task = zeros(Int64, nTask)
-    corrected_y = Vector(undef, nTask)
-    for i in 1:nTask
-        corrected_y[i], nf_per_task[i], likelihoods[i] = check_data!(y[i], likelihoods[i])
-    end
+    corrected_y = map(check_data!, y, likelihoods)
+    nf_per_task = n_latent.(likelihoods)
 
     inference isa AnalyticVI || error("The inference object should be of type `AnalyticVI`")
     all(implemented.(likelihood, Ref(inference))) || error(
         "One (or all) of the likelihoods:  $likelihoods are not compatible or implemented with $inference",
     )
 
-    data = wrap_data(X, corrected_y)
+    data = wrap_modata(X, corrected_y)
 
-    nFeatures = nSamples(data)
+    nFeatures = n_sample(data)
 
     if mean isa Real
         mean = ConstantMean(mean)
@@ -94,33 +90,25 @@ function MOVGP(
         Aoptimiser = Aoptimiser ? ADAM(0.01) : nothing
     end
 
-    kernel = if kernel isa Kernel
+    kernels = if kernel isa Kernel
         [kernel]
     elseif kernel isa AbstractVector{<:Kernel}
         length(kernel) == nLatent ||
             error("Number of kernels should be equal to the number of tasks")
         kernel
     end
-    nKernel = length(kernel)
+    n_kernel = length(kernels)
 
-    latent_f = ntuple(
-        i -> _VGP{T}(nFeatures, kernel[mod(i, nKernel) + 1], mean, optimiser), nLatent
-    )
+    latent_f = ntuple(nLatent) do i
+        return VarLatent(T, nFeatures, kernels[mod(i, n_kernel) + 1], mean, optimiser)
+    end
+    function normalize(x)
+        return x / sqrt(sum(abs2, x))
+    end
+    A = [[normalize(randn(T, nLatent)) for i in 1:nf_per_task[j]] for j in 1:nTask]
+    @show data
 
-    A = [
-        [x -> x / sqrt(sum(abs2, x))(randn(T, nLatent)) for i in 1:nf_per_task[j]] for
-        j in 1:nTask
-    ]
-
-    likelihoods .=
-        init_likelihood.(likelihoods, inference, nf_per_task, nFeatures, nFeatures)
-    xview = view_x(data, :)
-    yview = view_y(likelihood, data, 1:nSamples(data))
-    inference = tuple_inference(
-        inference, nLatent, nFeatures, nSamples(data), nSamples(data), xview, yview
-    )
-
-    return MOVGP{T,eltype(likelihoods),typeof(inference),nTask,nLatent}(
+    return MOVGP{T,eltype(likelihoods),typeof(inference),typeof(data),nTask,nLatent}(
         data,
         nf_per_task,
         latent_f,
@@ -132,10 +120,6 @@ function MOVGP(
         atfrequency,
         false,
     )
-    # if isa(inference.optimizer,ALRSVI)
-    # init!(model.inference,model)
-    # end
-    # return model
 end
 
 function Base.show(io::IO, model::MOVGP)
@@ -149,5 +133,5 @@ end
 @traitimpl IsFull{MOVGP}
 
 n_output(::MOVGP{<:Real,<:AbstractLikelihood,<:AbstractInference,N,Q}) where {N,Q} = Q
-Zviews(m::MOVGP) = [input(m)]
+Zviews(m::MOVGP) = (input(m),)
 objective(m::MOVGP, state, y) = ELBO(m, state, y)

@@ -28,7 +28,6 @@ end
 
 implemented(::AbstractLikelihood, ::AbstractInference) = false
 
-
 n_latent(::AbstractLikelihood) = 1
 
 # Allows to use likelihoods in broadcasts

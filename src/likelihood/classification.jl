@@ -3,13 +3,12 @@ include("bayesiansvm.jl")
 
 const ClassificationLikelihood = BernoulliLikelihood
 
-
 function (l::BernoulliLikelihood)(y::Real, f::Real)
-    pdf(l(f), y)
+    return pdf(l(f), y)
 end
 
-function init_local_vars(state, ::BernoulliLikelihood, batchsize::Int, T::DataType=Float64)
-    return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
+function init_local_vars(::BernoulliLikelihood, batchsize::Int, T::DataType=Float64)
+    return (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize)))
 end
 
 function compute_proba(
@@ -29,7 +28,7 @@ end
 # Return the labels in a vector of vectors for multiple outputs
 function treat_labels!(y::AbstractVector{<:Real}, ::BernoulliLikelihood)
     labels = unique(y)
-    y isa AbstractVector{<:Union{Int,Bool}} || error("y labels should be Int")
+    # y isa AbstractVector{<:Union{Int,Bool}} || error("y labels should be Int")
     if sort(Int64.(labels)) == [0; 1]
         return (y .- 0.5) * 2
     elseif sort(Int64.(labels)) == [-1; 1]

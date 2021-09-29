@@ -31,23 +31,25 @@ function (::LogisticSoftMaxLink)(f::AbstractVector{<:Real})
 end
 
 function implemented(
-    ::MultiClassLikelihood{<:LogisticSoftMaxLink}, ::Union{<:AnalyticVI,<:MCIntegrationVI,<:GibbsSampling}
+    ::MultiClassLikelihood{<:LogisticSoftMaxLink},
+    ::Union{<:AnalyticVI,<:MCIntegrationVI,<:GibbsSampling},
 )
     return true
 end
 
-
 Base.show(io::IO, ::LogisticSoftMaxLink) = print(io, "Logistic-SoftMax Link")
 
 ## Local Updates ##
-function init_local_vars(state, l::MultiClassLikelihood{<:LogisticSoftMaxLink}, batchsize::Int, T::DataType=Float64)
+function init_local_vars(
+    l::MultiClassLikelihood{<:LogisticSoftMaxLink}, batchsize::Int, T::DataType=Float64
+)
     num_class = n_class(l)
     c = [ones(T, batchsize) for _ in 1:num_class] # Second moment of fₖ
     α = num_class * ones(T, batchsize) # First variational parameter of Gamma distribution
     β = num_class * ones(T, batchsize) # Second variational parameter of Gamma distribution
     θ = [rand(T, batchsize) * 2 for _ in 1:num_class] # Variational parameter of Polya-Gamma distribution
     γ = [rand(T, batchsize) for _ in 1:num_class] # Variational parameter of Poisson distribution
-    return merge(state, (; local_vars=(; c, α, β, θ, γ)))
+    return (; c, α, β, θ, γ)
 end
 
 function local_updates!(
@@ -166,7 +168,9 @@ function grad_samples!(
 end
 
 function log_like_samples(
-    ::AbstractGPModel{T,<:MultiClassLikelihood{<:LogisticSoftMaxLink}}, samples::AbstractMatrix, y
+    ::AbstractGPModel{T,<:MultiClassLikelihood{<:LogisticSoftMaxLink}},
+    samples::AbstractMatrix,
+    y,
 ) where {T}
     num_sample = size(samples, 1)
     loglike = zero(T)

@@ -34,7 +34,14 @@ function tests(model1::OnlineSVGP, model2, X, f, y, problem)
     @test all(proba_y(model2, X)[2] .> 0)
 end
 
-function tests(model1::AbstractGPModel{T,<:BernoulliLikelihood{<:AGP.SVMLink}}, model2, X, f, y, problem) where {T}
+function tests(
+    model1::AbstractGPModel{T,<:BernoulliLikelihood{<:AGP.SVMLink}},
+    model2,
+    X,
+    f,
+    y,
+    problem,
+) where {T}
     model1, state1 = train!(model1, X, y, 1)
     @test_nowarn AGP.objective(model1, X, y)
     train!(model1, X, y, 5)

@@ -23,7 +23,11 @@ end
 
 (l::ScaledLogistic)(f::Real) = l.λ[1] * logistic(f)
 
-implemented(::PoissonLikelihood{<:ScaledLogistic}, ::Union{<:AnalyticVI,<:GibbsSampling}) = true
+function implemented(
+    ::PoissonLikelihood{<:ScaledLogistic}, ::Union{<:AnalyticVI,<:GibbsSampling}
+)
+    return true
+end
 
 function (l::PoissonLikelihood)(y::Real, f::Real)
     return pdf(l(f), y)
@@ -56,13 +60,8 @@ function compute_proba(
 end
 
 ### Local Updates ###
-function init_local_vars(state, ::PoissonLikelihood, batchsize::Int, T::DataType=Float64) 
-    return merge(
-        state,
-        (;
-            local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize), γ=rand(T, batchsize))
-        ),
-    )
+function init_local_vars(::PoissonLikelihood, batchsize::Int, T::DataType=Float64)
+    return (; c=rand(T, batchsize), θ=zeros(T, batchsize), γ=rand(T, batchsize))
 end
 
 function local_updates!(

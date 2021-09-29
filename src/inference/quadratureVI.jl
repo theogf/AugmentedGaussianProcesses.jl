@@ -112,9 +112,7 @@ function grad_expectations!(m::AbstractGPModel{T,L,<:QuadratureVI}, state, y) wh
 end
 
 # Compute the first and second derivative of the log-likelihood using the quadrature nodes
-function grad_quad(
-    l::AbstractLikelihood, y::Real, μ::Real, σ²::Real, i::AbstractInference
-)
+function grad_quad(l::AbstractLikelihood, y::Real, μ::Real, σ²::Real, i::AbstractInference)
     x = i.nodes * sqrt(max(σ², zero(σ²))) .+ μ
     Edloglike = dot(i.weights, ∇loglikehood.(l, y, x))
     Ed²loglike = dot(i.weights, hessloglikehood.(l, y, x))

@@ -61,8 +61,8 @@ function compute_proba(
 end
 
 ## Local Updates ##
-function init_local_vars(state, ::StudentTLikelihood, batchsize::Int, T::DataType=Float64)
-    return merge(state, (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize))))
+function init_local_vars(::StudentTLikelihood, batchsize::Int, T::DataType=Float64)
+    return (; c=rand(T, batchsize), θ=zeros(T, batchsize))
 end
 
 function local_updates!(

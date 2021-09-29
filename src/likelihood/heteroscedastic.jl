@@ -43,7 +43,10 @@ end
 n_latent(::HeteroscedasticGaussianLikelihood) = 2
 
 function init_local_vars(
-    state, ::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, batchsize::Int, T::DataType=Float64
+    state,
+    ::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},
+    batchsize::Int,
+    T::DataType=Float64,
 )
     local_vars = (;
         c=ones(T, batchsize),
@@ -82,7 +85,9 @@ function local_updates!(
 end
 
 function variational_updates!(
-    m::AbstractGPModel{T,<:HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},<:AnalyticVI}
+    m::AbstractGPModel{
+        T,<:HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},<:AnalyticVI
+    },
 ) where {T}
     local_vars = local_updates!(
         state.local_vars, likelihood(m), yview(m), mean_f(m), var_f(m)
@@ -121,7 +126,10 @@ function variational_updates!(
 end
 
 function heteroscedastic_expectations!(
-    local_vars, l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, μ::AbstractVector, Σ::AbstractVector
+    local_vars,
+    l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},
+    μ::AbstractVector,
+    Σ::AbstractVector,
 )
     @. local_vars.σg = expectation(logistic, μ, Σ)
     l.link.λ .= 0.5 * length(local_vars.ϕ) / dot(local_vars.ϕ, local_vars.σg)
@@ -133,17 +141,26 @@ function expectation(f::Function, μ::Real, σ²::Real)
     return dot(pred_weights, f.(x))
 end
 
-@inline function ∇E_μ(l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, ::AOptimizer, y::AbstractVector, state)
+@inline function ∇E_μ(
+    l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},
+    ::AOptimizer,
+    y::AbstractVector,
+    state,
+)
     return (0.5 * y .* l.link.λ[1] .* state.σg, 0.5 * (0.5 .- state.γ))
 end
 
-@inline function ∇E_Σ(l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, ::AOptimizer, ::AbstractVector, state)
+@inline function ∇E_Σ(
+    l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},
+    ::AOptimizer,
+    ::AbstractVector,
+    state,
+)
     return (0.5 * l.link.λ[1] .* state.σg, 0.5 * state.θ)
 end
 
 function proba_y(
-    model::AbstractGPModel{T,<:HeteroscedasticGaussianLikelihood},
-    X_test::AbstractMatrix,
+    model::AbstractGPModel{T,<:HeteroscedasticGaussianLikelihood}, X_test::AbstractMatrix
 ) where {T<:Real}
     (μf, σ²f), (μg, σ²g) = predict_f(model, X_test; cov=true)
     l = likelihood(model)
@@ -151,7 +168,12 @@ function proba_y(
 end
 
 function expec_loglikelihood(
-    l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, ::AnalyticVI, y::AbstractVector, μ, diag_cov, state
+    l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},
+    ::AnalyticVI,
+    y::AbstractVector,
+    μ,
+    diag_cov,
+    state,
 )
     tot = length(y) * (0.5 * log(l.link.λ[1]) - log(2 * sqrt(twoπ)))
     tot +=
@@ -163,7 +185,11 @@ function expec_loglikelihood(
     return tot
 end
 
-AugmentedKL(l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, state, ::Any) = PolyaGammaKL(l, state)
+function AugmentedKL(
+    l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, state, ::Any
+)
+    return PolyaGammaKL(l, state)
+end
 
 function PoissonKL(
     l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},
@@ -173,7 +199,9 @@ function PoissonKL(
     state,
 )
     return PoissonKL(
-        state.γ, 0.5 * l.link.λ[1] * (abs2.(y - μ) + Σ), log.(0.5 * l.link.λ[1] * (abs2.(μ - y) + Σ))
+        state.γ,
+        0.5 * l.link.λ[1] * (abs2.(y - μ) + Σ),
+        log.(0.5 * l.link.λ[1] * (abs2.(μ - y) + Σ)),
     )
 end
 

@@ -21,10 +21,8 @@ function train!(
     obsdim=1,
 ) where {T}
     iterations > 0 || error("Number of iterations should be positive")
-
     X, Tx = wrap_X(X, obsdim)
-    y = check_data!(y, likelihood(model))
-    data = wrap_data(X, y)
+    data = wrap_data(X, y, likelihood(model))
     if is_stochastic(model)
         0 < batchsize(inference(model)) <= n_sample(data) || error(
             "The size of mini-batch $(batchsize(inference(model))) is incorrect (negative or bigger than number of samples), please set `batchsize` correctly in the inference object",
