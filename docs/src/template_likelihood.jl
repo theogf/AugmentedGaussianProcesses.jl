@@ -28,8 +28,8 @@ function Base.show(io::IO, model::TemplateLikelihood)
 end
 
 function compute_proba(
-    l::TemplateLikelihood, μ::AbstractVector, σ²::AbstractVector
-)
+    l::TemplateLikelihood, μ::AbstractVector{T}, σ²::AbstractVector{T}
+) where {T}
     N = length(μ)
     pred = zeros(T, N)
     sig_pred = zeros(T, N)
