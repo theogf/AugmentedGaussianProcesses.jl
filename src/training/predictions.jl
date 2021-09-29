@@ -190,7 +190,9 @@ end
 @traitfn function predict_y(
     model::TGP, X_test::AbstractVector, state=nothing
 ) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
-    return predict_y.(likelihood(model), first.(_predict_f(model, X_test, state; cov=false)))
+    return predict_y.(
+        likelihood(model), first.(_predict_f(model, X_test, state; cov=false))
+    )
 end
 
 function predict_y(l::MultiClassLikelihood, μs::AbstractVector{<:AbstractVector{<:Real}})
@@ -246,9 +248,7 @@ function proba_multi_y(model::AbstractGPModel, X_test::AbstractVector, state)
 end
 
 function compute_proba(
-    l::AbstractLikelihood,
-    μ::Tuple{<:AbstractVector},
-    σ²::Tuple{<:AbstractVector},
+    l::AbstractLikelihood, μ::Tuple{<:AbstractVector}, σ²::Tuple{<:AbstractVector}
 )
     return compute_proba(l, first(μ), first(σ²))
 end
