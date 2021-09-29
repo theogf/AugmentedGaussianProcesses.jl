@@ -98,7 +98,7 @@ function compute_proba(
     σ²::AbstractVector{<:AbstractVector{T}},
     nSamples::Integer=200,
 ) where {T<:Real}
-    K = length(μ) # Number of classes
+    K = n_class(l) # Number of classes
     n = length(μ[1]) # Number of test points
     μ = hcat(μ...) # Concatenate means together
     μ = [μ[i, :] for i in 1:n] # Create one vector per sample

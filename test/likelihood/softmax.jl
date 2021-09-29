@@ -11,7 +11,7 @@
     floattypes = [Float64]
     tests_likelihood(
         SoftMaxLikelihood(K),
-        SoftMaxLikelihood,
+        MultiClassLikelihood,
         Dict(
             "VGP" => Dict("AVI" => false, "QVI" => false, "MCVI" => true),
             "SVGP" => Dict("AVI" => false, "QVI" => false, "MCVI" => true),

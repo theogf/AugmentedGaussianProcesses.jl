@@ -28,11 +28,10 @@ end
 
 implemented(::AbstractLikelihood, ::AbstractInference) = false
 
-isaugmentable(::AbstractLikelihood) = false
-
-Base.length(::AbstractLikelihood) = 1
 
 n_latent(::AbstractLikelihood) = 1
 
+# Allows to use likelihoods in broadcasts
+Base.length(::AbstractLikelihood) = 1
 Base.iterate(l::AbstractLikelihood) = (l, nothing)
 Base.iterate(::AbstractLikelihood, ::Any) = nothing

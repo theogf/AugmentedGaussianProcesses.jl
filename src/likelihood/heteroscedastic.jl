@@ -14,11 +14,13 @@ Where ``\sigma`` is the logistic function
 
 The augmentation is not trivial and will be described in a future paper
 """
-HeteroscedasticLikelihood(λ::T) = HeteroscedasticGaussianLikelihood(InvScaledLogistic(λ))
+HeteroscedasticLikelihood(λ::Real) = HeteroscedasticGaussianLikelihood(InvScaledLogistic(λ))
 
 struct InvScaledLogistic{T} <: AbstractLink
     λ::Vector{T}
 end
+
+InvScaledLogistic(λ::Real) = InvScaledLogistic([λ])
 
 (l::InvScaledLogistic)(f::Real) = inv(l.λ[1] * logistic(f))
 
@@ -39,14 +41,6 @@ function Base.show(io::IO, ::HeteroscedasticGaussianLikelihood)
 end
 
 n_latent(::HeteroscedasticGaussianLikelihood) = 2
-
-function treat_labels!(y::AbstractVector{<:Real}, ::HeteroscedasticGaussianLikelihood)
-    return y
-end
-
-function treat_labels!(::AbstractVector, ::HeteroscedasticGaussianLikelihood)
-    return error("For regression, target(s) should be real valued")
-end
 
 function init_local_vars(
     state, ::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, batchsize::Int, T::DataType=Float64
@@ -148,8 +142,8 @@ end
 end
 
 function proba_y(
-    model::AbstractGPModel{T,HeteroscedasticGaussianLikelihood},
-    X_test::AbstractMatrix{T},
+    model::AbstractGPModel{T,<:HeteroscedasticGaussianLikelihood},
+    X_test::AbstractMatrix,
 ) where {T<:Real}
     (μf, σ²f), (μg, σ²g) = predict_f(model, X_test; cov=true)
     l = likelihood(model)

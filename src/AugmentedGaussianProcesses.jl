@@ -55,7 +55,9 @@ using Distributions:
     Gamma
 using FastGaussQuadrature: gausshermite
 using ForwardDiff
-using GPLikelihoods: GPLikelihoods, Link, BernoulliLikelihood, LogisticLink, SoftMaxLink, PoissonLikelihood
+using GPLikelihoods: GPLikelihoods, AbstractLink
+using GPLikelihoods: BernoulliLikelihood, PoissonLikelihood, HeteroscedasticGaussianLikelihood
+using GPLikelihoods: LogisticLink, SoftMaxLink
 using KernelFunctions: ColVecs, RowVecs
 using LinearAlgebra
 using ProgressMeter
