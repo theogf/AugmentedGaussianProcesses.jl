@@ -31,8 +31,6 @@ function check_likelihoodtype(ltype)
     return ltype == :Regression || ltype == :Classification || ltype == :Event
 end
 
-const AGP = AugmentedGaussianProcesses
-
 macro augmodel(name::Symbol, likelihoodtype::Symbol, likelihood::Expr, params)
     latent = :x
     @assert occursin(r"p\(y\s*|\s*\w\)", string(likelihood)) "Likelihood should be of the form p(y|x) = C*exp(g(y)*x)*φ(α(y)-β(y)*x+γ(y)*x^2), replacing all functions by 0 if necessary"

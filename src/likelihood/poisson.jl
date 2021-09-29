@@ -1,5 +1,5 @@
 @doc raw"""
-    Poisson Likelihood(λ=1.0)
+    PoissonLikelihood(λ::Real)->PoissonLikelihood
 
 ## Arguments
 - `λ::Real` : Maximal Poisson rate
@@ -13,7 +13,7 @@
 Where ``\sigma`` is the logistic function.
 Augmentation details will be released at some point (open an issue if you want to see them)
 """
-function PoissonLikelihood(λ::Real=1.0)
+function PoissonLikelihood(λ::Real)
     return PoissonLikelihood(ScaledLink(λ))
 end
 

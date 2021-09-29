@@ -1,4 +1,4 @@
-abstract type MaternLikelihood{T<:Real} <: RegressionLikelihood{T} end
+abstract type MaternLikelihood <: RegressionLikelihood end
 
 """
     Matern3_2Likelihood(ρ::Real=1.0)
@@ -19,7 +19,7 @@ p(y|f,\\omega) = \\mathcal{N}(y|f,\\sigma^2\\omega)
 Where ``\\omega \\sim \\mathcal{IG}(\\frac{\\nu}{2},\\frac{\\nu}{2})`` where ``\\mathcal{IG}`` is the inverse gamma distribution
 See paper [Robust Gaussian Process Regression with a Student-t Likelihood](http://www.jmlr.org/papers/volume12/jylanki11a/jylanki11a.pdf)
 """
-struct Matern3_2Likelihood{T<:Real,A<:AbstractVector{T}} <: MaternLikelihood{T}
+struct Matern3_2Likelihood{T<:Real,A<:AbstractVector{T}} <: MaternLikelihood
     ρ::T
     c::A
     θ::A
