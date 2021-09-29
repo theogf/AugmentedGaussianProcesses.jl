@@ -11,41 +11,50 @@ There are 3 main actions needed to train and use the different models:
 ### Possible models
 
 There are currently 8 possible Gaussian Process models:
-- [`GP`](@ref) corresponds to the original GP regression model, it is necessarily with a Gaussian likelihood.
+#### [`GP`](@ref)
+GP corresponds to the original GP regression model, it is necessarily with a Gaussian likelihood.
 ```julia
     GP(X_train, y_train, kernel; kwargs...)
 ```
-- [`VGP`](@ref) is a variational GP model: a multivariate Gaussian is approximating the true posterior. There is no inducing points augmentation involved. Therefore it is well suited for small datasets (~10^3 samples).
+#### [`VGP`](@ref)
+VGP is a variational GP model: a multivariate Gaussian is approximating the true posterior. There is no inducing points augmentation involved. Therefore it is well suited for small datasets (~10^3 samples).
 ```julia
     VGP(X_train, y_train, kernel, likelihood, inference; kwargs...)
 ```
-- [`SVGP`](@ref) is a variational GP model augmented with inducing points. The optimization is done on those points, allowing for stochastic updates and large scalability. The counterpart can be a slightly lower accuracy and the need to select the number and the location of the inducing points (however this is a problem currently worked on).
+#### [`SVGP`](@ref)
+SVGP is a variational GP model augmented with inducing points. The optimization is done on those points, allowing for stochastic updates and large scalability. The counterpart can be a slightly lower accuracy and the need to select the number and the location of the inducing points (however this is a problem currently worked on).
 ```julia
     SVGP(kernel, likelihood, inference, Z; kwargs...)
 ```
-where `Z` is the position of the inducing points.
+Where `Z` is the position of the inducing points.
 
-- [`MCGP`](@ref) is a GP model where the posterior is represented via a collection of samplers.
+#### [`MCGP`](@ref)
+MCGP is a GP model where the posterior is represented via a collection of samples.
 ```julia
    MCGP(X_train, y_train, kernel, likelihood, inference; kwargs...)
 ```
 
-- [`OnlineSVGP`](@ref) is an online variational GP model. It is based on the streaming method of Bui 17', it supports all likelihoods, even with multiple latents.
+#### [`OnlineSVGP`](@ref)
+OnlineSVGP is an online variational GP model. It is based on the streaming method of Bui 17', it supports all likelihoods, even with multiple latent GPs.
 ```julia
     OnlineSVGP(kernel, likelihood, inference, ind_point_algorithm; kwargs...)
 ```
 
-- [`MOVGP`](@ref) is a multi output variational GP model based on the principle `f_output[i] = sum(A[i, j] * f_latent[j] for j in 1:n_latent)`. The number of latent GP is free.
+#### [`MOVGP`](@ref)
+MOVGP is a multi output variational GP model based on the principle `f_output[i] = sum(A[i, j] * f_latent[j] for j in 1:n_latent)`. The number of latent GP is free.
 ```julia
     MOVGP(X_train, ys_train, kernel, likelihood/s, inference, n_latent; kwargs...)
 ```
 
-- [`MOSVGP`](@ref) is the same thing as `MOVGP` but with inducing pointsa multi output sparse variational GP model, based on Moreno-Muñoz 18'.
+#### [`MOSVGP`](@ref)
+MOSVGP is the same thing as `MOVGP` but with inducing points: a multi output sparse variational GP model, based on Moreno-Muñoz 18'.
 ```julia
     MOVGP(kernel, likelihood/s, inference, n_latent, n_inducing_points; kwargs...)
 ```
 
-- [`VStP`](@ref) is a variational Student-T model where the prior is a multivariate Student-T distribution with scale `K`, mean `μ₀` and degrees of freedom `ν`. The inference is done automatically by augmenting the prior as a scale mixture of inverse gamma.
+#### [`VStP`](@ref)
+VStP is a variational Student-T model where the prior is a multivariate Student-T distribution with scale `K`, mean `μ₀` and degrees of freedom `ν`.
+The inference is done automatically by augmenting the prior as a scale mixture of inverse gamma.
 ```julia
     VStP(X_train, y_train, kernel, likelihood, inference, ν; kwargs...)
 ```

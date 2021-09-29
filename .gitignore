@@ -5,6 +5,8 @@
 *.info
 Manifest.toml
 
+.vscode
+
 #Do not save checkpoints and testpoints
 examples/.ipynb_checkpoints/*
 test/main_testing.jl
