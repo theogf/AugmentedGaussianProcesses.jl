@@ -46,8 +46,8 @@ function tests(model1::AbstractGPModel{T,<:BernoulliLikelihood{<:AGP.SVMLink}}, 
 end
 
 function tests_likelihood(
-    l::AbstractLikelihood,
-    ltype,
+    l, # likelihood
+    ltype, # likelihood types
     dict::Dict,
     floattypes,
     problem,
