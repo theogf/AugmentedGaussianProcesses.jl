@@ -1,7 +1,7 @@
-abstract type EventLikelihood <: AbstractLikelihood end
-
 include("poisson.jl")
 include("negativebinomial.jl")
+
+const EventLikelihood = Union{PoissonLikelihood,NegBinomialLikelihood}
 
 """ Return the labels in a vector of vectors for multiple outputs"""
 function treat_labels!(y::AbstractVector{<:Int}, ::EventLikelihood)

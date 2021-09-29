@@ -9,7 +9,7 @@ const AGP = AugmentedGaussianProcesses
 export AGP
 export AbstractGPModel, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP, OnlineSVGP # All models
 export AbstractLikelihood,
-    RegressionLikelihood, BernoulliLikelihood, MultiClassLikelihood, EventLikelihood # All categories of likelihoods
+    RegressionLikelihood, BernoulliLikelihood, MultiClassLikelihood # All categories of likelihoods
 export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood # Regression Likelihoods
 export LogisticLikelihood, BayesianSVM # Classification Likelihoods
 export SoftMaxLikelihood, LogisticSoftMaxLikelihood # Multiclass Classification Likelihoods

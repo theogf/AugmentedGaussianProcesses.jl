@@ -17,7 +17,7 @@ if ``r\in \mathbb{N}`` or
 if ``r\in\mathbb{R}``.
 Where ``\sigma`` is the logistic function
 """
-struct NegBinomialLikelihood{L,Tr} <: EventLikelihood
+struct NegBinomialLikelihood{L,Tr}
     invlink::L
     r::Tr
 end
