@@ -14,7 +14,7 @@ Where ``\sigma`` is the logistic function.
 Augmentation details will be released at some point (open an issue if you want to see them)
 """
 function PoissonLikelihood(λ::Real)
-    return PoissonLikelihood(ScaledLink(λ))
+    return PoissonLikelihood(ScaledLogistic(λ))
 end
 
 struct ScaledLogistic{T} <: AbstractLink

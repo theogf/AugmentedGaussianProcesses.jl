@@ -47,7 +47,7 @@ end
 
 function tests_likelihood(
     l::AbstractLikelihood,
-    ltype::Type{<:AbstractLikelihood},
+    ltype,
     dict::Dict,
     floattypes,
     problem,
