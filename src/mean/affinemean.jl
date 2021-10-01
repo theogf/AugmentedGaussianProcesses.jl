@@ -33,15 +33,15 @@ function Base.show(io::IO, ::MIME"text/plain", μ₀::AffineMean)
     )
 end
 
-function (μ₀::AffineMean{T})(x::AbstractMatrix) where {T<:Real}
-    μ₀.nDim == size(x, 2) || error(
-        "Number of dimensions of prior weight W (",
-        size(μ₀.w),
-        ") and X (",
-        size(x),
-        ") do not match",
-    )
-    return x * μ₀.w .+ first(μ₀.b)
+function (μ₀::AffineMean{T})(x::AbstractVector) where {T<:Real}
+    # μ₀.nDim == size(x, 1) || error(
+        # "Number of dimensions of prior weight W (",
+        # size(μ₀.w),
+        # ") and X (",
+        # size(x),
+        # ") do not match",
+    # )
+    return dot.(x, Ref(μ₀.w)) .+ first(μ₀.b)
 end
 
 function init_priormean_state(hyperopt_state, μ₀::AffineMean)

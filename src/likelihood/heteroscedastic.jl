@@ -43,19 +43,17 @@ end
 n_latent(::HeteroscedasticGaussianLikelihood) = 2
 
 function init_local_vars(
-    state,
     ::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},
     batchsize::Int,
     T::DataType=Float64,
 )
-    local_vars = (;
+    return (;
         c=ones(T, batchsize),
         ϕ=ones(T, batchsize),
         γ=ones(T, batchsize),
         θ=ones(T, batchsize),
         σg=ones(T, batchsize),
     )
-    return merge(state, (; local_vars))
 end
 
 function compute_proba(
@@ -63,7 +61,7 @@ function compute_proba(
     μ::AbstractVector{<:AbstractVector},
     Σ::AbstractVector{<:AbstractVector},
 )
-    return μ[1], Σ[1] .+ l.link(μ[2])
+    return μ[1], Σ[1] .+ l.invlink.(μ[2])
 end
 
 function local_updates!(
@@ -77,10 +75,10 @@ function local_updates!(
     @. local_vars.ϕ = 0.5 * (abs2(μ[1] - y) + diagΣ[1])
     @. local_vars.c = sqrt(abs2(μ[2]) + diagΣ[2])
     @. local_vars.γ =
-        0.5 * l.λ[1] * local_vars.ϕ * safe_expcosh(-0.5 * μ[2], 0.5 * local_vars.c)
+        0.5 * l.invlink.λ[1] * local_vars.ϕ * safe_expcosh(-0.5 * μ[2], 0.5 * local_vars.c)
     @. local_vars.θ = 0.5 * (0.5 + local_vars.γ) / local_vars.c * tanh(0.5 * local_vars.c)
     @. local_vars.σg = expectation(logistic, μ[2], diagΣ[2])
-    l.λ .= 0.5 * length(local_vars.ϕ) / dot(local_vars.ϕ, local_vars.σg)
+    l.invlink.λ .= max(0.5 * length(local_vars.ϕ) / dot(local_vars.ϕ, local_vars.σg), l.invlink.λ[1])
     return local_vars
 end
 
@@ -132,7 +130,7 @@ function heteroscedastic_expectations!(
     Σ::AbstractVector,
 )
     @. local_vars.σg = expectation(logistic, μ, Σ)
-    l.link.λ .= 0.5 * length(local_vars.ϕ) / dot(local_vars.ϕ, local_vars.σg)
+    l.invlink.λ .= max(0.5 * length(local_vars.ϕ) / dot(local_vars.ϕ, local_vars.σg), l.invlink.λ[1])
     return local_vars
 end
 
@@ -147,7 +145,7 @@ end
     y::AbstractVector,
     state,
 )
-    return (0.5 * y .* l.link.λ[1] .* state.σg, 0.5 * (0.5 .- state.γ))
+    return (0.5 * y .* l.invlink.λ[1] .* state.σg, 0.5 * (0.5 .- state.γ))
 end
 
 @inline function ∇E_Σ(
@@ -156,7 +154,7 @@ end
     ::AbstractVector,
     state,
 )
-    return (0.5 * l.link.λ[1] .* state.σg, 0.5 * state.θ)
+    return (0.5 * l.invlink.λ[1] .* state.σg, 0.5 * state.θ)
 end
 
 function proba_y(
@@ -164,7 +162,7 @@ function proba_y(
 ) where {T<:Real}
     (μf, σ²f), (μg, σ²g) = predict_f(model, X_test; cov=true)
     l = likelihood(model)
-    return μf, σ²f + expectation.(l.link, μg, σ²g)
+    return μf, σ²f + expectation.(l.invlink, μg, σ²g)
 end
 
 function expec_loglikelihood(
@@ -175,7 +173,7 @@ function expec_loglikelihood(
     diag_cov,
     state,
 )
-    tot = length(y) * (0.5 * log(l.link.λ[1]) - log(2 * sqrt(twoπ)))
+    tot = length(y) * (0.5 * log(l.invlink.λ[1]) - log(2 * sqrt(twoπ)))
     tot +=
         0.5 * (
             dot(μ[2], (0.5 .- state.γ)) - dot(abs2.(μ[2]), state.θ) -
@@ -200,8 +198,8 @@ function PoissonKL(
 )
     return PoissonKL(
         state.γ,
-        0.5 * l.link.λ[1] * (abs2.(y - μ) + Σ),
-        log.(0.5 * l.link.λ[1] * (abs2.(μ - y) + Σ)),
+        0.5 * l.invlink.λ[1] * (abs2.(y - μ) + Σ),
+        log.(0.5 * l.invlink.λ[1] * (abs2.(μ - y) + Σ)),
     )
 end
 

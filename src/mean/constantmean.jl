@@ -21,7 +21,7 @@ function Base.show(io::IO, ::MIME"text/plain", μ₀::ConstantMean)
 end
 
 (μ::ConstantMean{T})(::Real) where {T<:Real} = first(μ.C)
-(μ::ConstantMean{T})(x::AbstractMatrix) where {T<:Real} = fill(first(μ.C), size(x, 1))
+(μ::ConstantMean{T})(x::AbstractVector) where {T<:Real} = fill(first(μ.C), length(x))
 
 function init_priormean_state(hyperopt_state, μ₀::ConstantMean)
     μ₀_state = (; C=Optimisers.state(μ₀.opt, μ₀.C))
