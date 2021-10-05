@@ -36,12 +36,6 @@ function compute_proba(l::BernoulliLikelihood, f::Real)
 end
 
 ### Local Updates Section ###
-function init_local_vars(
-    ::BernoulliLikelihood{<:LogisticLink}, batchsize::Int, T::DataType=Float64
-)
-    return (; c=rand(T, batchsize), θ=zeros(T, batchsize))
-end
-
 function local_updates!(
     local_vars,
     ::BernoulliLikelihood{<:LogisticLink},

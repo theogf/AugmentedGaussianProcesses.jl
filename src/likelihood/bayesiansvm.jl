@@ -52,7 +52,7 @@ end
 @inline function ∇E_μ(
     ::BernoulliLikelihood{<:SVMLink}, ::AOptimizer, y::AbstractVector, state
 )
-    return (y .* (state.θ .+ one(eltype(θ))),)
+    return (y .* (state.θ .+ one(eltype(state.θ))),)
 end
 
 @inline function ∇E_Σ(

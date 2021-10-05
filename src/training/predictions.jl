@@ -195,19 +195,19 @@ end
     )
 end
 
-function predict_y(l::MultiClassLikelihood, μs::AbstractVector{<:AbstractVector{<:Real}})
+function predict_y(l::MultiClassLikelihood, μs::Tuple{Vararg{<:AbstractVector{<:Real}}})
     return [l.class_mapping[argmax([μ[i] for μ in μs])] for i in 1:length(μs[1])]
 end
 
 function predict_y(
-    l::MultiClassLikelihood, μs::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}}
+    l::MultiClassLikelihood, μs::Tuple{<:Tuple{Vararg{<:AbstractVector{<:AbstractVector{<:Real}}}}}
 )
     return predict_y(l, first(μs))
 end
 
 predict_y(l::EventLikelihood, μ::AbstractVector{<:Real}) = mean.(l.(μ))
 
-function predict_y(l::EventLikelihood, μ::AbstractVector{<:AbstractVector})
+function predict_y(l::EventLikelihood, μ::Tuple{<:AbstractVector})
     return predict_y(l, first(μ))
 end
 
@@ -281,7 +281,7 @@ function compute_proba_f(l::AbstractLikelihood, f::AbstractVector{<:Real})
 end
 
 function compute_proba(
-    l::AbstractLikelihood, ::AbstractVector, ::AbstractVector
+    l::AbstractLikelihood, ::Any, ::Any
 ) where {T<:Real}
     return error("Non implemented for the likelihood $l")
 end

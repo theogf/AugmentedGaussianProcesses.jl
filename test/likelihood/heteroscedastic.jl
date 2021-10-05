@@ -11,7 +11,7 @@
     floattypes = [Float64]
     tests_likelihood(
         HeteroscedasticLikelihood(λ),
-        HeteroscedasticGaussianLikelihood,
+        AGP.GPLikelihoods.HeteroscedasticGaussianLikelihood,
         Dict(
             "VGP" => Dict("AVI" => true, "QVI" => false, "MCVI" => false),
             "SVGP" => Dict("AVI" => true, "QVI" => false, "MCVI" => false),

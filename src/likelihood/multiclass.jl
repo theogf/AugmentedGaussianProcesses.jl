@@ -1,19 +1,19 @@
 mutable struct MultiClassLikelihood{L} <: AbstractLikelihood
-    link::L
+    invlink::L
     n_class::Int # Number of classes
     class_mapping::Vector{Any} # Classes labels mapping
     ind_mapping::Dict{Any,Int} # Mapping from label to index
-    function MultiClassLikelihood(link::L, n_class::Int) where {L}
-        return new{L}(link, n_class)
+    function MultiClassLikelihood(invlink::L, n_class::Int) where {L}
+        return new{L}(invlink, n_class)
     end
-    function MultiClassLikelihood(link::L, n_class, class_mapping, ind_mapping) where {L}
-        return new{L}(link, n_class, class_mapping, ind_mapping)
+    function MultiClassLikelihood(invlink::L, n_class, class_mapping, ind_mapping) where {L}
+        return new{L}(invlink, n_class, class_mapping, ind_mapping)
     end
 end
 
-function MultiClassLikelihood(link::AbstractLink, ylabels::AbstractVector)
+function MultiClassLikelihood(invlink::AbstractLink, ylabels::AbstractVector)
     return MultiClassLikelihood(
-        link,
+        invlink,
         length(ylabels),
         ylabels,
         Dict(value => key for (key, value) in enumerate(ylabels)),
@@ -25,15 +25,15 @@ n_latent(l::MultiClassLikelihood) = n_class(l)
 n_class(l::MultiClassLikelihood) = l.n_class
 
 function (l::MultiClassLikelihood)(f::AbstractVector)
-    return l.link(f)
+    return l.invlink(f)
 end
 
-function (l::MultiClassLikelihood)(f::AbstractVector, y::Integer)
-    return l.link(f)[y]
+function (l::MultiClassLikelihood)(y::Integer, f::AbstractVector)
+    return l.invlink(f)[y]
 end
 
 function Base.show(io::IO, l::MultiClassLikelihood)
-    return print(io, "Multiclass Likelihood (", n_class(l), " classes, $(l.link) )")
+    return print(io, "Multiclass Likelihood (", n_class(l), " classes, $(l.invlink) )")
 end
 
 ## Return the labels in a vector of vectors for multiple outputs ##
@@ -95,8 +95,8 @@ end
 
 function compute_proba(
     l::MultiClassLikelihood,
-    μ::AbstractVector{<:AbstractVector{T}},
-    σ²::AbstractVector{<:AbstractVector{T}},
+    μ::Tuple{Vararg{<:AbstractVector{T}}},
+    σ²::Tuple{Vararg{<:AbstractVector{T}}},
     nSamples::Integer=200,
 ) where {T<:Real}
     K = n_class(l) # Number of classes

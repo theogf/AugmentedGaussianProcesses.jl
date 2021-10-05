@@ -149,13 +149,14 @@ function grad_samples!(
     y,
     index,
 ) where {T}
+    l = likelihood(model)
     grad_μ = zeros(T, n_latent(model))
     grad_Σ = zeros(T, n_latent(model))
     g_μ = similar(grad_μ)
     num_sample = size(samples, 1)
     @views @inbounds for i in 1:num_sample
         σ = logistic.(samples[i, :])
-        samples[i, :] .= logisticsoftmax(samples[i, :])
+        samples[i, :] .= l(samples[i, :])
         s = samples[i, y][1]
         g_μ .= grad_logisticsoftmax(samples[i, :], σ, y) / s
         grad_μ += g_μ

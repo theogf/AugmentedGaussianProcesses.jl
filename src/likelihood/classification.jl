@@ -8,7 +8,7 @@ function (l::BernoulliLikelihood)(y::Real, f::Real)
 end
 
 function init_local_vars(::BernoulliLikelihood, batchsize::Int, T::DataType=Float64)
-    return (; local_vars=(; c=rand(T, batchsize), θ=zeros(T, batchsize)))
+    return (; c=rand(T, batchsize), θ=zeros(T, batchsize))
 end
 
 function compute_proba(
