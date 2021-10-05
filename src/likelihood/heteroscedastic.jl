@@ -78,7 +78,9 @@ function local_updates!(
         0.5 * l.invlink.λ[1] * local_vars.ϕ * safe_expcosh(-0.5 * μ[2], 0.5 * local_vars.c)
     @. local_vars.θ = 0.5 * (0.5 + local_vars.γ) / local_vars.c * tanh(0.5 * local_vars.c)
     @. local_vars.σg = expectation(logistic, μ[2], diagΣ[2])
-    l.invlink.λ .= max(0.5 * length(local_vars.ϕ) / dot(local_vars.ϕ, local_vars.σg), l.invlink.λ[1])
+    l.invlink.λ .= max(
+        0.5 * length(local_vars.ϕ) / dot(local_vars.ϕ, local_vars.σg), l.invlink.λ[1]
+    )
     return local_vars
 end
 
@@ -130,7 +132,9 @@ function heteroscedastic_expectations!(
     Σ::AbstractVector,
 )
     @. local_vars.σg = expectation(logistic, μ, Σ)
-    l.invlink.λ .= max(0.5 * length(local_vars.ϕ) / dot(local_vars.ϕ, local_vars.σg), l.invlink.λ[1])
+    l.invlink.λ .= max(
+        0.5 * length(local_vars.ϕ) / dot(local_vars.ϕ, local_vars.σg), l.invlink.λ[1]
+    )
     return local_vars
 end
 
@@ -153,11 +157,16 @@ end
 end
 
 function compute_proba(
-    l::HeteroscedasticGaussianLikelihood, μs::Tuple{<:AbstractVector,<:AbstractVector}, σs::Tuple{<:AbstractVector,<:AbstractVector}) where {T<:Real}
+    l::HeteroscedasticGaussianLikelihood,
+    μs::Tuple{<:AbstractVector,<:AbstractVector},
+    σs::Tuple{<:AbstractVector,<:AbstractVector},
+) where {T<:Real}
     return μs[1], σs[1] + expectation.(Ref(l.invlink), μs[2], σs[2])
 end
 
-function predict_y(::HeteroscedasticGaussianLikelihood, μs::Tuple{<:AbstractVector,<:AbstractVector})
+function predict_y(
+    ::HeteroscedasticGaussianLikelihood, μs::Tuple{<:AbstractVector,<:AbstractVector}
+)
     return first(μs) # For predict_y the variance is ignored
 end
 

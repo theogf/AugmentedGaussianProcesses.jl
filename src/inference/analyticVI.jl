@@ -95,7 +95,7 @@ end
             mean_f(m, state.kernel_matrices),
             var_f(m, state.kernel_matrices),
         ) # Compute the local updates given the expectations of f
-    state = merge(state, (;local_vars))
+    state = merge(state, (; local_vars))
     natural_gradient!.(
         m.f,
         ∇E_μ(m, y, state),

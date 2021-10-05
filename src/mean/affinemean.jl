@@ -35,11 +35,11 @@ end
 
 function (μ₀::AffineMean{T})(x::AbstractVector) where {T<:Real}
     # μ₀.nDim == size(x, 1) || error(
-        # "Number of dimensions of prior weight W (",
-        # size(μ₀.w),
-        # ") and X (",
-        # size(x),
-        # ") do not match",
+    # "Number of dimensions of prior weight W (",
+    # size(μ₀.w),
+    # ") and X (",
+    # size(x),
+    # ") do not match",
     # )
     return dot.(x, Ref(μ₀.w)) .+ first(μ₀.b)
 end
