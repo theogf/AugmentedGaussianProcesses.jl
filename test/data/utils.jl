@@ -17,5 +17,5 @@
     l = GaussianLikelihood()
     data = AGP.wrap_modata(wX, ys)
     @test AGP.view_y(l, data, indices) == view.(ys, Ref(indices))
-    @test AGP.view_y([l], data, indices) == view.(ys, Ref(indices))
+    @test AGP.view_y((l,), data, indices) == view.(ys, Ref(indices))
 end
