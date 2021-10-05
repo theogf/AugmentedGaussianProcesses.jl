@@ -41,7 +41,7 @@ function ELBO(model::AbstractGPModel, X::AbstractVector, y::AbstractArray)
             mean_f(model, state.kernel_matrices),
             var_f(model, state.kernel_matrices),
         )
-        merge(state, (; local_vars))
+        state = merge(state, (; local_vars))
     end
     return ELBO(model, state, y)
 end
@@ -64,7 +64,7 @@ function ELBO(model::OnlineSVGP, state::NamedTuple, X::AbstractVector, y::Abstra
             mean_f(model, state.kernel_matrices),
             var_f(model, state.kernel_matrices),
         )
-        merge(state, (; local_vars))
+        state = merge(state, (; local_vars))
     end
     return ELBO(model, state, y)
 end

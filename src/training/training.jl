@@ -33,7 +33,7 @@ function train!(
     end
 
     if verbose(model) > 0
-        @info "Starting training $model with $(n_sample(data)) samples, $(n_dim(data)) features and $(n_latent) latent GP" *
+        @info "Starting training $model with $(n_sample(data)) samples, $(n_dim(data)) features and $(n_latent(likelihood(model))) latent GP" *
               (n_latent(model) > 1 ? "s" : "")
     end
     # model.evol_conv = [] # Array to check on the evolution of convergence

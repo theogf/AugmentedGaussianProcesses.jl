@@ -95,6 +95,7 @@ end
             mean_f(m, state.kernel_matrices),
             var_f(m, state.kernel_matrices),
         ) # Compute the local updates given the expectations of f
+    state = merge(state, (;local_vars))
     natural_gradient!.(
         m.f,
         ∇E_μ(m, y, state),
@@ -106,7 +107,7 @@ end
         state.opt_state,
     ) # Compute the natural gradients of u given the weighted sum of the gradient of f
     state = global_update!(m, state) # Update η₁ and η₂
-    return merge(state, (; local_vars))
+    return state
 end
 
 # Wrappers for tuple of 1 element,

@@ -30,7 +30,7 @@ end
     else
         getproperty.(state.kernel_matrices, :K)
     end
-    k_star = kernelmatrix.(kernels(m), [X_test], Zviews(m))
+    k_star = kernelmatrix.(kernels(m), (X_test,), Zviews(m))
     μf = k_star .* (Ks .\ means(m))
     if !cov
         return (μf,)
@@ -41,11 +41,11 @@ end
             kernelmatrix_diag.(kernels(m), Ref(X_test)) .+
             Ref(T(jitt) * ones(T, size(X_test, 1)))
         σ²f = k_starstar .- diag_ABt.(k_star .* A, k_star)
-        return μf, σ²f
+        return (μf, σ²f)
     else
         k_starstar = kernelmatrix.(kernels(m), Ref(X_test)) .+ T(jitt) * [I]
         Σf = Symmetric.(k_starstar .- k_star .* A .* transpose.(k_star))
-        return μf, Σf
+        return (μf, Σf)
     end
 end
 
@@ -57,7 +57,7 @@ end
     else
         getproperty.(state.kernel_matrices, :K)
     end
-    k_star = kernelmatrix.(kernels(m), [X_test], Zviews(m))
+    k_star = kernelmatrix.(kernels(m), (X_test,), Zviews(m))
     μf = k_star .* (Ks .\ means(m))
 
     μf = ntuple(n_output(m)) do i
@@ -233,7 +233,7 @@ end
     model::TGP, X_test::AbstractVector, state=nothing
 ) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
     μ_f, Σ_f = _predict_f(model, X_test, state; cov=true)
-    return pred = compute_proba(model.likelihood, μ_f, Σ_f)
+    return compute_proba(model.likelihood, μ_f, Σ_f)
 end
 
 @traitfn function proba_y(
