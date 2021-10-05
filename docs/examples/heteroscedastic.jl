@@ -4,6 +4,7 @@
 using AugmentedGaussianProcesses
 using Distributions
 using LinearAlgebra
+using Plots
 # using CairoMakie
 
 # ## Model generated data
