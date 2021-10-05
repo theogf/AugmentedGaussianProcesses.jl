@@ -2,7 +2,7 @@
     N = 20
     D = 3
     x = rand()
-    X = rand(N, D)
+    X = rand(N)
 
     μ₀ = ZeroMean()
     @test ZeroMean() isa ZeroMean{Float64}

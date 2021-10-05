@@ -30,7 +30,7 @@ end
     else
         getproperty.(state.kernel_matrices, :K)
     end
-    k_star = kernelmatrix.(kernels(m), [X_test], Zviews(m))
+    k_star = kernelmatrix.(kernels(m), (X_test,), Zviews(m))
     μf = k_star .* (Ks .\ means(m))
     if !cov
         return (μf,)
@@ -41,11 +41,11 @@ end
             kernelmatrix_diag.(kernels(m), Ref(X_test)) .+
             Ref(T(jitt) * ones(T, size(X_test, 1)))
         σ²f = k_starstar .- diag_ABt.(k_star .* A, k_star)
-        return μf, σ²f
+        return (μf, σ²f)
     else
         k_starstar = kernelmatrix.(kernels(m), Ref(X_test)) .+ T(jitt) * [I]
         Σf = Symmetric.(k_starstar .- k_star .* A .* transpose.(k_star))
-        return μf, Σf
+        return (μf, Σf)
     end
 end
 
@@ -53,14 +53,18 @@ end
     m::TGP, X_test::AbstractVector, state=nothing; cov::Bool=true, diag::Bool=true
 ) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     Ks = if isnothing(state)
-        compute_K.(m.f, Zviews(model), T(jitt))
+        compute_K.(m.f, Zviews(m), T(jitt))
     else
         getproperty.(state.kernel_matrices, :K)
     end
-    k_star = kernelmatrix(kernels(m), [X_test], Zviews(m))
+    k_star = kernelmatrix.(kernels(m), (X_test,), Zviews(m))
     μf = k_star .* (Ks .\ means(m))
 
-    μf = [[sum(m.A[i][j] .* μf) for j in 1:m.nf_per_task[i]] for i in 1:nOutput(m)]
+    μf = ntuple(n_output(m)) do i
+        ntuple(m.nf_per_task[i]) do j
+            sum(m.A[i][j] .* μf)
+        end
+    end
     if !cov
         return (μf,)
     end
@@ -69,14 +73,20 @@ end
         k_starstar =
             kernelmatrix_diag.(kernels(m), [X_test]) .+ [T(jitt) * ones(T, length(X_test))]
         σ²f = k_starstar .- diag_ABt.(k_star .* A, k_star)
-        σ²f = [
-            [sum(m.A[i][j] .^ 2 .* σ²f) for j in 1:m.nf_per_task[i]] for i in 1:nOutput(m)
-        ]
+        σ²f = ntuple(n_output(m)) do i
+            ntuple(m.nf_per_task[i]) do j
+                sum(m.A[i][j] .^ 2 .* σ²f)
+            end
+        end
         return μf, σ²f
     else
         k_starstar = (kernelmatrix.(kernels(m), [X_test]) .+ T(jitt) * [I])
         Σf = k_starstar .- k_star .* A .* transpose.(k_star)
-        Σf = [[sum(m.A[i][j] .^ 2 .* Σf) for j in 1:m.nf_per_task[i]] for i in 1:nOutput(m)]
+        Σf = ntuple(n_output(m)) do i
+            ntuple(m.nf_per_task[i]) do j
+                sum(m.A[i][j] .^ 2 .* Σf)
+            end
+        end
         return μf, Σf
     end
 end
@@ -180,23 +190,25 @@ end
 @traitfn function predict_y(
     model::TGP, X_test::AbstractVector, state=nothing
 ) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
-    return predict_y.(likelihood(model), _predict_f(model, X_test, state; cov=false))
+    return predict_y.(
+        likelihood(model), first.(_predict_f(model, X_test, state; cov=false))
+    )
 end
 
-function predict_y(l::MultiClassLikelihood, μs::AbstractVector{<:AbstractVector{<:Real}})
+function predict_y(l::MultiClassLikelihood, μs::Tuple{Vararg{<:AbstractVector{<:Real}}})
     return [l.class_mapping[argmax([μ[i] for μ in μs])] for i in 1:length(μs[1])]
 end
 
 function predict_y(
-    l::MultiClassLikelihood, μs::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}}
+    l::MultiClassLikelihood, μs::Tuple{<:Tuple{Vararg{<:AbstractVector{<:AbstractVector{<:Real}}}}}
 )
     return predict_y(l, first(μs))
 end
 
-predict_y(l::EventLikelihood, μ::AbstractVector{<:Real}) = expec_count(l, μ)
+predict_y(l::EventLikelihood, μ::AbstractVector{<:Real}) = mean.(l.(μ))
 
-function predict_y(l::EventLikelihood, μ::AbstractVector{<:AbstractVector})
-    return expec_count(l, first(μ))
+function predict_y(l::EventLikelihood, μ::Tuple{<:AbstractVector})
+    return predict_y(l, first(μ))
 end
 
 """
@@ -221,7 +233,7 @@ end
     model::TGP, X_test::AbstractVector, state=nothing
 ) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
     μ_f, Σ_f = _predict_f(model, X_test, state; cov=true)
-    return pred = compute_proba(model.likelihood, μ_f, Σ_f)
+    return compute_proba(model.likelihood, μ_f, Σ_f)
 end
 
 @traitfn function proba_y(
@@ -236,9 +248,7 @@ function proba_multi_y(model::AbstractGPModel, X_test::AbstractVector, state)
 end
 
 function compute_proba(
-    l::AbstractLikelihood,
-    μ::AbstractVector{<:AbstractVector},
-    σ²::AbstractVector{<:AbstractVector},
+    l::AbstractLikelihood, μ::Tuple{<:AbstractVector}, σ²::Tuple{<:AbstractVector}
 )
     return compute_proba(l, first(μ), first(σ²))
 end
@@ -271,7 +281,7 @@ function compute_proba_f(l::AbstractLikelihood, f::AbstractVector{<:Real})
 end
 
 function compute_proba(
-    l::AbstractLikelihood, ::AbstractVector, ::AbstractVector
+    l::AbstractLikelihood, ::Any, ::Any
 ) where {T<:Real}
     return error("Non implemented for the likelihood $l")
 end

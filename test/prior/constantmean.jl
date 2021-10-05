@@ -1,8 +1,7 @@
 @testset "ConstantMean" begin
     N = 20
-    D = 3
     x = rand()
-    X = rand(N, D)
+    X = rand(N)
     c = rand()
     μ₀ = ConstantMean(c; opt=Descent(1.0))
     st = AGP.init_priormean_state((;), μ₀)

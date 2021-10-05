@@ -11,12 +11,8 @@ See all functions you need to implement
 
 
 """
-struct TemplateLikelihood{T<:Real} <: AbstractLikelihood{T}
+struct TemplateLikelihood <: AbstractLikelihood
     ## Additional parameters can be added
-end
-
-function TemplateLikelihood()
-    return TemplateLikelihood{Float64}()
 end
 
 function implemented(
@@ -32,8 +28,8 @@ function Base.show(io::IO, model::TemplateLikelihood)
 end
 
 function compute_proba(
-    l::TemplateLikelihood{T}, μ::AbstractVector, σ²::AbstractVector
-) where {T<:Real}
+    l::TemplateLikelihood, μ::AbstractVector{T}, σ²::AbstractVector{T}
+) where {T}
     N = length(μ)
     pred = zeros(T, N)
     sig_pred = zeros(T, N)
@@ -44,7 +40,7 @@ end
 
 function local_updates!(
     local_vars,
-    l::TemplateLikelihood{T},
+    l::TemplateLikelihood,
     y::AbstractVector,
     μ::AbstractVector,
     diagΣ::AbstractVector,
@@ -54,8 +50,8 @@ function local_updates!(
 end
 
 function sample_local!(
-    local_vars, l::TemplateLikelihood{T}, y::AbstractVector, f::AbstractVector
-) where {T}
+    local_vars, l::TemplateLikelihood, y::AbstractVector, f::AbstractVector
+)
     # Sample the local variables here (in place if you want)
     return local_vars
 end

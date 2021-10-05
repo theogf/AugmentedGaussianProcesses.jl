@@ -21,10 +21,8 @@ function train!(
     obsdim=1,
 ) where {T}
     iterations > 0 || error("Number of iterations should be positive")
-
     X, Tx = wrap_X(X, obsdim)
-    y = check_data!(y, likelihood(model))
-    data = wrap_data(X, y)
+    data = wrap_data(X, y, likelihood(model))
     if is_stochastic(model)
         0 < batchsize(inference(model)) <= n_sample(data) || error(
             "The size of mini-batch $(batchsize(inference(model))) is incorrect (negative or bigger than number of samples), please set `batchsize` correctly in the inference object",
@@ -35,7 +33,7 @@ function train!(
     end
 
     if verbose(model) > 0
-        @info "Starting training $model with $(n_sample(data)) samples, $(n_dim(data)) features and $(n_latent) latent GP" *
+        @info "Starting training $model with $(n_sample(data)) samples, $(n_dim(data)) features and $(n_latent(likelihood(model))) latent GP" *
               (n_latent(model) > 1 ? "s" : "")
     end
     # model.evol_conv = [] # Array to check on the evolution of convergence
@@ -106,7 +104,7 @@ function train!(
     if verbose(model) > 0
         @info "Training ended after $(local_iter - 1) iterations. Total number of iterations $(n_iter(model))"
     end
-    state = merge(state, compute_Ks(model, state.kernel_matrices)) # Compute final version of the matrices for predictions
+    state = merge(state, compute_Ks(model)) # Compute final version of the matrices for predictions
     post_step!(model, state)
     set_trained!(model, true)
     return model, state
@@ -209,13 +207,13 @@ end
     return merge(state, (; kernel_matrices)) # update the kernel_matrices state
 end
 
-function compute_Ks(m::AbstractGPModel{T}, kernel_matrices) where {T}
-    return (; kernel_matrices=broadcast(m.f, Zviews(m), kernel_matrices) do gp, x, k_mat
+function compute_Ks(m::AbstractGPModel{T}) where {T}
+    return (; kernel_matrices=broadcast(m.f, Zviews(m)) do gp, x
         K = compute_K(gp, x, T(jitt))
-        merge(k_mat, (; K))
+        return (; K)
     end)
 end
 
-function compute_Ks(m::GP{T}, ::Any) where {T}
+function compute_Ks(m::GP{T}) where {T}
     return (; kernel_matrices=(; K=compute_K(m.f, input(m.data), T(jitt))))
 end

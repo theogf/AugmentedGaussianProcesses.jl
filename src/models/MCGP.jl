@@ -19,7 +19,7 @@ Monte-Carlo Gaussian Process
 """
 mutable struct MCGP{
     T<:Real,
-    TLikelihood<:AbstractLikelihood{T},
+    TLikelihood<:AbstractLikelihood,
     TInference<:AbstractInference{T},
     TData<:AbstractDataContainer,
     N,

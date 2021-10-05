@@ -31,10 +31,8 @@ function AbstractMCMC.step(
     rng::AbstractRNG, model::GPModel, sampler::GPSampler{<:GibbsSampling}; kwargs...
 )
     state = compute_kernel_matrices(model.gp, (;), model.x, true)
-    state = init_local_vars(state, likelihood(model.gp), length(model.x))
-    local_vars = sample_local!(
-        state.local_vars, likelihood(model.gp), model.y, means(model.gp)
-    )
+    local_vars = init_local_vars(likelihood(model.gp), length(model.x))
+    local_vars = sample_local!(local_vars, likelihood(model.gp), model.y, means(model.gp))
     state = merge(state, (; local_vars))
     f =
         sample_global!.(

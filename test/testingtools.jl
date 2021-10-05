@@ -9,7 +9,6 @@ const VIcodes = ["AVI", "QVI", "MCVI"]
 function tests(model1, model2, X, f, y, problem)
     model1, state1 = train!(model1, X, y, 1)
     L = AGP.objective(model1, X, y)
-    @test L < 0
     train!(model1, X, y, 5)
     @test testconv(model1, problem, X, f, y)
     @test all(proba_y(model1, X)[2] .> 0)
@@ -34,7 +33,14 @@ function tests(model1::OnlineSVGP, model2, X, f, y, problem)
     @test all(proba_y(model2, X)[2] .> 0)
 end
 
-function tests(model1::AbstractGPModel{T,<:BayesianSVM}, model2, X, f, y, problem) where {T}
+function tests(
+    model1::AbstractGPModel{T,<:BernoulliLikelihood{<:AGP.SVMLink}},
+    model2,
+    X,
+    f,
+    y,
+    problem,
+) where {T}
     model1, state1 = train!(model1, X, y, 1)
     @test_nowarn AGP.objective(model1, X, y)
     train!(model1, X, y, 5)
@@ -46,8 +52,8 @@ function tests(model1::AbstractGPModel{T,<:BayesianSVM}, model2, X, f, y, proble
 end
 
 function tests_likelihood(
-    l::AbstractLikelihood,
-    ltype::Type{<:AbstractLikelihood},
+    l, # likelihood
+    ltype, # likelihood types
     dict::Dict,
     floattypes,
     problem,

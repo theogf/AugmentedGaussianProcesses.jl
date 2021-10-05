@@ -8,8 +8,7 @@ module AugmentedGaussianProcesses
 const AGP = AugmentedGaussianProcesses
 export AGP
 export AbstractGPModel, GP, VGP, SVGP, VStP, MCGP, MOVGP, MOSVGP, MOARGP, OnlineSVGP # All models
-export AbstractLikelihood,
-    RegressionLikelihood, ClassificationLikelihood, MultiClassLikelihood, EventLikelihood # All categories of likelihoods
+export AbstractLikelihood, RegressionLikelihood, BernoulliLikelihood, MultiClassLikelihood # All categories of likelihoods
 export GaussianLikelihood, StudentTLikelihood, LaplaceLikelihood, HeteroscedasticLikelihood # Regression Likelihoods
 export LogisticLikelihood, BayesianSVM # Classification Likelihoods
 export SoftMaxLikelihood, LogisticSoftMaxLikelihood # Multiclass Classification Likelihoods
@@ -55,6 +54,10 @@ using Distributions:
     Gamma
 using FastGaussQuadrature: gausshermite
 using ForwardDiff
+using GPLikelihoods: GPLikelihoods, AbstractLink, AbstractLikelihood
+using GPLikelihoods:
+    BernoulliLikelihood, PoissonLikelihood, HeteroscedasticGaussianLikelihood
+using GPLikelihoods: LogisticLink, SoftMaxLink
 using KernelFunctions: ColVecs, RowVecs
 using LinearAlgebra
 using ProgressMeter
@@ -73,7 +76,6 @@ using .ComplementaryDistributions
 abstract type AbstractInference{T<:Real} end
 abstract type VariationalInference{T} <: AbstractInference{T} end
 abstract type SamplingInference{T} <: AbstractInference{T} end
-abstract type AbstractLikelihood{T<:Real} end
 abstract type AbstractLatent{T<:Real,Tpr,Tpo} end
 
 include("mean/priormean.jl")

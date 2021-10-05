@@ -95,10 +95,11 @@ end
             mean_f(m, state.kernel_matrices),
             var_f(m, state.kernel_matrices),
         ) # Compute the local updates given the expectations of f
+    state = merge(state, (;local_vars))
     natural_gradient!.(
         m.f,
-        ∇E_μ(m, y, local_vars),
-        ∇E_Σ(m, y, local_vars),
+        ∇E_μ(m, y, state),
+        ∇E_Σ(m, y, state),
         ρ(inference(m)),
         opt(inference(m)),
         Zviews(m),
@@ -106,7 +107,7 @@ end
         state.opt_state,
     ) # Compute the natural gradients of u given the weighted sum of the gradient of f
     state = global_update!(m, state) # Update η₁ and η₂
-    return merge(state, (; local_vars))
+    return state
 end
 
 # Wrappers for tuple of 1 element,
@@ -277,20 +278,20 @@ end
     model::TGP, state::NamedTuple, y
 ) where {T,L,TGP<:AbstractGPModel{T,L,<:AnalyticVI};IsMultiOutput{TGP}}
     tot = zero(T)
-    tot += sum(
-        ρ(inference(model)) .*
-        expec_loglikelihood.(
+    tot +=
+        ρ(inference(model)) * mapreduce(
+            expec_loglikelihood,
+            +,
             likelihood(model),
             inference(model),
             y,
             mean_f(model, state.kernel_matrices),
             var_f(model, state.kernel_matrices),
             state.local_vars,
-        ),
-    )
+        )
     tot -= GaussianKL(model, state)
     tot -= Zygote.@ignore(
-        sum(ρ(inference(model)) .* AugmentedKL.(likelihood(model), state.local_vars, y))
+        sum(ρ(inference(model)) * AugmentedKL.(likelihood(model), state.local_vars, y))
     )
     return tot
 end

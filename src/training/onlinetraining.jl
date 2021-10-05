@@ -60,7 +60,7 @@ function train!(
         init_online_model(m, X)
     else
         state = save_old_parameters!(m, state)
-        updateZ!(m, X)
+        updateZs!(m, X)
     end
     state = isnothing(state) ? init_state(m) : state
 
@@ -152,7 +152,7 @@ function update_parameters!(model::OnlineSVGP, state, X, y)
     return state
 end
 
-function InducingPoints.updateZ!(m::OnlineSVGP, x)
+function updateZs!(m::OnlineSVGP, x)
     for gp in m.f
         gp.Z = InducingPoints.updateZ(gp.Z, gp.Zalg, x; kernel=kernel(gp))
         gp.post.dim = length(Zview(gp))

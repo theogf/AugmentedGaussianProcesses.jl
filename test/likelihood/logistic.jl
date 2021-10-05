@@ -6,7 +6,7 @@
     floattypes = [Float64]
     tests_likelihood(
         LogisticLikelihood(),
-        LogisticLikelihood,
+        BernoulliLikelihood,
         Dict(
             "VGP" => Dict("AVI" => true, "QVI" => true, "MCVI" => false),
             "SVGP" => Dict("AVI" => true, "QVI" => true, "MCVI" => false),

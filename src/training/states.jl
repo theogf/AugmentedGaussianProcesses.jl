@@ -2,6 +2,9 @@ function init_state(model::AbstractGPModel)
     state = init_local_vars((;), model)
     state = init_opt_state(state, model)
     state = init_hyperopt_state(state, model)
+    if n_output(model) > 1
+        state = init_state_A(state, model)
+    end
     return state
 end
 
@@ -9,7 +12,19 @@ end
     state, model::TGP
 ) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
     if inference(model) isa Union{Analytic,AnalyticVI,GibbsSampling}
-        return state = init_local_vars(state, likelihood(model), batchsize(model))
+        local_vars = init_local_vars(likelihood(model), batchsize(model))
+        return merge(state, (; local_vars))
+    else
+        return state
+    end
+end
+
+@traitfn function init_local_vars(
+    state, model::TGP
+) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
+    if inference(model) isa Union{Analytic,AnalyticVI,GibbsSampling}
+        local_vars = init_local_vars.(likelihood(model), batchsize(model))
+        return merge(state, (; local_vars))
     else
         return state
     end
@@ -80,6 +95,14 @@ function init_opt_state(gp::OnlineVarLatent{T}, vi::VariationalInference) where 
     invDₐ = Symmetric(Matrix{T}(I(k)))
     prevη₁ = zeros(T, k)
     return merge(state, (; previous_gp=(; prev𝓛ₐ, invDₐ, prevη₁)))
+end
+
+function init_state_A(state, model::AbstractGPModel)
+    A_state = [
+        [Optimisers.init(model.A_opt, model.A[i][j]) for j in 1:model.nf_per_task[i]] for
+        i in 1:n_output(model)
+    ]
+    return merge(state, (; A_state))
 end
 
 function init_hyperopt_state(state, model::GP)

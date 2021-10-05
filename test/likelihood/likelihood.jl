@@ -1,5 +1,4 @@
 @testset "likelihood" begin
-    struct NewLikelihood{T} <: AGP.AbstractLikelihood{T} end
-    @test_throws ErrorException NewLikelihood{Float64}()(rand(), rand())
-    @test length(NewLikelihood{Float64}()) == 1
+    struct NewLikelihood <: AGP.AbstractLikelihood end
+    @test length(NewLikelihood()) == 1
 end

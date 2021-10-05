@@ -1,13 +1,43 @@
-abstract type MultiClassLikelihood{T<:Real} <: AbstractLikelihood{T} end
+mutable struct MultiClassLikelihood{L} <: AbstractLikelihood
+    invlink::L
+    n_class::Int # Number of classes
+    class_mapping::Vector{Any} # Classes labels mapping
+    ind_mapping::Dict{Any,Int} # Mapping from label to index
+    function MultiClassLikelihood(invlink::L, n_class::Int) where {L}
+        return new{L}(invlink, n_class)
+    end
+    function MultiClassLikelihood(invlink::L, n_class, class_mapping, ind_mapping) where {L}
+        return new{L}(invlink, n_class, class_mapping, ind_mapping)
+    end
+end
+
+function MultiClassLikelihood(invlink::AbstractLink, ylabels::AbstractVector)
+    return MultiClassLikelihood(
+        invlink,
+        length(ylabels),
+        ylabels,
+        Dict(value => key for (key, value) in enumerate(ylabels)),
+    )
+end
 
 n_latent(l::MultiClassLikelihood) = n_class(l)
 
 n_class(l::MultiClassLikelihood) = l.n_class
 
+function (l::MultiClassLikelihood)(f::AbstractVector)
+    return l.invlink(f)
+end
+
+function (l::MultiClassLikelihood)(y::Integer, f::AbstractVector)
+    return l.invlink(f)[y]
+end
+
+function Base.show(io::IO, l::MultiClassLikelihood)
+    return print(io, "Multiclass Likelihood (", n_class(l), " classes, $(l.invlink) )")
+end
+
 ## Return the labels in a vector of vectors for multiple outputs ##
-function treat_labels!(
-    y::AbstractArray{T,N}, likelihood::L
-) where {T,N,L<:MultiClassLikelihood}
+function treat_labels!(y::AbstractArray{T,N}, likelihood::MultiClassLikelihood) where {T,N}
     N <= 1 || error("Target should be a vector of labels")
     init_multiclass_likelihood!(likelihood, y) # Initialize a mapping if not existing
     return create_one_hot(likelihood, y)
@@ -64,12 +94,12 @@ function create_one_hot(l::MultiClassLikelihood, y)
 end
 
 function compute_proba(
-    l::MultiClassLikelihood{T},
-    μ::AbstractVector{<:AbstractVector{T}},
-    σ²::AbstractVector{<:AbstractVector{T}},
+    l::MultiClassLikelihood,
+    μ::Tuple{Vararg{<:AbstractVector{T}}},
+    σ²::Tuple{Vararg{<:AbstractVector{T}}},
     nSamples::Integer=200,
 ) where {T<:Real}
-    K = length(μ) # Number of classes
+    K = n_class(l) # Number of classes
     n = length(μ[1]) # Number of test points
     μ = hcat(μ...) # Concatenate means together
     μ = [μ[i, :] for i in 1:n] # Create one vector per sample

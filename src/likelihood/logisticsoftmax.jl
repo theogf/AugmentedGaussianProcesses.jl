@@ -1,8 +1,13 @@
 @doc raw"""
-    LogisticSoftMaxLikelihood(num_class::Int)
+    LogisticSoftMaxLikelihood(num_class::Int) -> MultiClassLikelihood
 
 ## Arguments
 - `num_class::Int` : Total number of classes
+
+    LogisticSoftMaxLikelihood(labels::AbstractVector) -> MultiClassLikelihood
+
+## Arguments
+- `labels::AbstractVector` : List of classes labels
 
 ---
 
@@ -17,65 +22,39 @@ This likelihood has the same properties as [softmax](https://en.wikipedia.org/wi
 For the analytical version, the likelihood is augmented multiple times.
 More details can be found in the paper [Multi-Class Gaussian Process Classification Made Conjugate: Efficient Inference via Data Augmentation](https://arxiv.org/abs/1905.09670).
 """
-mutable struct LogisticSoftMaxLikelihood{T<:Real} <: MultiClassLikelihood{T}
-    n_class::Int
-    class_mapping::Vector{Any} # Classes labels mapping
-    ind_mapping::Dict{Any,Int} # Mapping from label to index
-    function LogisticSoftMaxLikelihood{T}(n_class::Int) where {T}
-        return new{T}(n_class)
-    end
-    function LogisticSoftMaxLikelihood{T}(n_class, class_mapping, ind_mapping) where {T}
-        return new{T}(n_class, class_mapping, ind_mapping)
-    end
-end
+LogisticSoftMaxLikelihood(x) = MultiClassLikelihood(LogisticSoftMaxLink(), x)
 
-LogisticSoftMaxLikelihood(n_class::Int) = LogisticSoftMaxLikelihood{Float64}(n_class)
-function LogisticSoftMaxLikelihood(ylabels::AbstractVector)
-    return LogisticSoftMaxLikelihood{Float64}(
-        length(ylabels), ylabels, Dict(value => key for (key, value) in enumerate(ylabels))
-    )
+struct LogisticSoftMaxLink <: AbstractLink end
+
+function (::LogisticSoftMaxLink)(f::AbstractVector{<:Real})
+    return normalize(logistic.(f), 1)
 end
 
 function implemented(
-    ::LogisticSoftMaxLikelihood, ::Union{<:AnalyticVI,<:MCIntegrationVI,<:GibbsSampling}
+    ::MultiClassLikelihood{<:LogisticSoftMaxLink},
+    ::Union{<:AnalyticVI,<:MCIntegrationVI,<:GibbsSampling},
 )
     return true
 end
 
-function logisticsoftmax(f::AbstractVector{<:Real})
-    return normalize(logistic.(f), 1)
-end
-
-function logisticsoftmax(f::AbstractVector{<:Real}, i::Integer)
-    return logisticsoftmax(f)[i]
-end
-
-function (::LogisticSoftMaxLikelihood)(f::AbstractVector)
-    return logisticsoftmax(f)
-end
-
-function (::LogisticSoftMaxLikelihood)(y::Integer, f::AbstractVector)
-    return logisticsoftmax(f)[y]
-end
-
-function Base.show(io::IO, l::LogisticSoftMaxLikelihood{T}) where {T}
-    return print(io, "Logistic-Softmax Likelihood (", n_class(l), " classes)")
-end
+Base.show(io::IO, ::LogisticSoftMaxLink) = print(io, "Logistic-SoftMax Link")
 
 ## Local Updates ##
-function init_local_vars(state, l::LogisticSoftMaxLikelihood{T}, batchsize::Int) where {T}
+function init_local_vars(
+    l::MultiClassLikelihood{<:LogisticSoftMaxLink}, batchsize::Int, T::DataType=Float64
+)
     num_class = n_class(l)
     c = [ones(T, batchsize) for _ in 1:num_class] # Second moment of fₖ
     α = num_class * ones(T, batchsize) # First variational parameter of Gamma distribution
     β = num_class * ones(T, batchsize) # Second variational parameter of Gamma distribution
     θ = [rand(T, batchsize) * 2 for _ in 1:num_class] # Variational parameter of Polya-Gamma distribution
     γ = [rand(T, batchsize) for _ in 1:num_class] # Variational parameter of Poisson distribution
-    return merge(state, (; local_vars=(; c, α, β, θ, γ)))
+    return (; c, α, β, θ, γ)
 end
 
 function local_updates!(
     local_vars,
-    ::LogisticSoftMaxLikelihood,
+    ::MultiClassLikelihood{<:LogisticSoftMaxLink},
     y,
     μ::NTuple{N,<:AbstractVector},
     Σ::NTuple{N,<:AbstractVector},
@@ -102,13 +81,13 @@ function local_updates!(
     return local_vars
 end
 
-function sample_local!(local_vars, l::LogisticSoftMaxLikelihood{T}, y, f) where {T}
+function sample_local!(local_vars, ::MultiClassLikelihood{<:LogisticSoftMaxLink}, y, f)
     broadcast!(
         f -> rand.(Poisson.(0.5 * local_vars.α .* safe_expcosh.(-0.5 * f, 0.5 * f))),
         local_vars.γ,
         f,
     )
-    local_vars.α .= rand.(Gamma.(one(T) .+ (local_vars.γ...), 1.0 ./ local_vars.β))
+    local_vars.α .= rand.(Gamma.(1 .+ (local_vars.γ...), inv.(local_vars.β)))
     local_vars.θ .= broadcast(
         (y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), eachcol(y), local_vars.γ, f
     )
@@ -117,17 +96,17 @@ end
 
 ## Global Gradient Section ##
 
-@inline function ∇E_μ(::LogisticSoftMaxLikelihood, ::AOptimizer, y, state)
+@inline function ∇E_μ(::MultiClassLikelihood{<:LogisticSoftMaxLink}, ::AOptimizer, y, state)
     return 0.5 .* (eachcol(y) .- state.γ)
 end
-@inline function ∇E_Σ(::LogisticSoftMaxLikelihood, ::AOptimizer, y, state)
+@inline function ∇E_Σ(::MultiClassLikelihood{<:LogisticSoftMaxLink}, ::AOptimizer, y, state)
     return 0.5 .* state.θ
 end
 
 ## ELBO Section ##
 function expec_loglikelihood(
-    ::LogisticSoftMaxLikelihood{T}, ::AnalyticVI, y, μ, Σ, state
-) where {T}
+    ::MultiClassLikelihood{<:LogisticSoftMaxLink}, ::AnalyticVI, y, μ, Σ, state
+)
     tot = -length(y) * logtwo
     tot += -sum(sum(state.γ .+ eachcol(y))) * logtwo
     tot += 0.5 * sum(zip(state.θ, state.γ, eachcol(y), μ, Σ)) do (θ, γ, y, μ, Σ)
@@ -136,15 +115,15 @@ function expec_loglikelihood(
     return tot
 end
 
-function AugmentedKL(l::LogisticSoftMaxLikelihood, state, y)
+function AugmentedKL(l::MultiClassLikelihood{<:LogisticSoftMaxLink}, state, y)
     return PolyaGammaKL(l, state, y) + PoissonKL(l, state) + GammaEntropy(l, state)
 end
 
-function PolyaGammaKL(::LogisticSoftMaxLikelihood, state, y)
+function PolyaGammaKL(::MultiClassLikelihood, state, y)
     return sum(broadcast(PolyaGammaKL, eachcol(y) .+ state.γ, state.c, state.θ))
 end
 
-function PoissonKL(::LogisticSoftMaxLikelihood, state)
+function PoissonKL(::MultiClassLikelihood, state)
     return sum(
         broadcast(
             PoissonKL,
@@ -156,7 +135,7 @@ function PoissonKL(::LogisticSoftMaxLikelihood, state)
 end
 
 ##  Compute the equivalent of KL divergence between an improper prior p(λ) (``1_{[0,\\infty]}``) and a variational Gamma distribution ##
-function GammaEntropy(::LogisticSoftMaxLikelihood, state)
+function GammaEntropy(::MultiClassLikelihood, state)
     return -sum(state.α) + sum(log, first(state.β)) - sum(first ∘ logabsgamma, state.α) -
            dot(1 .- state.α, digamma.(state.α))
 end
@@ -164,19 +143,20 @@ end
 ## Numerical Gradient Section ##
 
 function grad_samples!(
-    model::AbstractGPModel{T,<:LogisticSoftMaxLikelihood,<:NumericalVI},
+    model::AbstractGPModel{T,<:MultiClassLikelihood{<:LogisticSoftMaxLink},<:NumericalVI},
     samples::AbstractMatrix{T},
     opt_state,
     y,
     index,
 ) where {T}
+    l = likelihood(model)
     grad_μ = zeros(T, n_latent(model))
     grad_Σ = zeros(T, n_latent(model))
     g_μ = similar(grad_μ)
     num_sample = size(samples, 1)
     @views @inbounds for i in 1:num_sample
         σ = logistic.(samples[i, :])
-        samples[i, :] .= logisticsoftmax(samples[i, :])
+        samples[i, :] .= l(samples[i, :])
         s = samples[i, y][1]
         g_μ .= grad_logisticsoftmax(samples[i, :], σ, y) / s
         grad_μ += g_μ
@@ -189,7 +169,9 @@ function grad_samples!(
 end
 
 function log_like_samples(
-    ::AbstractGPModel{T,<:LogisticSoftMaxLikelihood}, samples::AbstractMatrix, y
+    ::AbstractGPModel{T,<:MultiClassLikelihood{<:LogisticSoftMaxLink}},
+    samples::AbstractMatrix,
+    y,
 ) where {T}
     num_sample = size(samples, 1)
     loglike = zero(T)
@@ -201,13 +183,13 @@ function log_like_samples(
 end
 
 function grad_logisticsoftmax(s::AbstractVector{T}, σ::AbstractVector{T}, y) where {T<:Real}
-    return s[y][1] * (y .- s) .* (1.0 .- σ)
+    return s[y][1] * (y .- s) .* (one(T) .- σ)
 end
 
 function diaghessian_logisticsoftmax(
     s::AbstractVector{T}, σ::AbstractVector{T}, y
 ) where {T<:Real}
-    return s[y][1] * (1 .- σ) .*
+    return s[y][1] * (one(T) .- σ) .*
            (abs2.(y - s) .* (1 .- σ) - s .* (1 .- s) .* (1 .- σ) - σ .* (y - s))
 end
 
@@ -220,11 +202,11 @@ function hessian_logisticsoftmax(
     @inbounds for j in 1:m
         for k in 1:m
             hessian[j, k] =
-                (1 - σ[j]) *
+                (one(T) - σ[j]) *
                 s[i] *
                 (
-                    (δ(T, i, k) - s[k]) * (1.0 - σ[k]) * (δ(T, i, j) - s[j]) -
-                    s[j] * (δ(T, j, k) - s[k]) * (1.0 - σ[k]) -
+                    (δ(T, i, k) - s[k]) * (one(T) - σ[k]) * (δ(T, i, j) - s[j]) -
+                    s[j] * (δ(T, j, k) - s[k]) * (one(T) - σ[k]) -
                     δ(T, k, j) * σ[j] * (δ(T, i, j) - s[j])
                 )
         end

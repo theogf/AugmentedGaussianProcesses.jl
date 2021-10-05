@@ -7,7 +7,7 @@
     floattypes = [Float64]
     tests_likelihood(
         BayesianSVM(),
-        BayesianSVM,
+        BernoulliLikelihood,
         Dict(
             "VGP" => Dict("AVI" => true, "QVI" => false, "MCVI" => false),
             "SVGP" => Dict("AVI" => true, "QVI" => false, "MCVI" => false),

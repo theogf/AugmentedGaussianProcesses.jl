@@ -10,7 +10,7 @@ Make prediction for the next `t` times. Assumes that `y_past` is already ordered
     Xtest = reshape(y_past[(end - p + 1):end], 1, :)
     y_new = zeros(T, n)
     for i in 1:n
-        y_new[i] = first(first(first(_predict_f(m, Xtest; covf=false))))
+        y_new[i] = first(first(first(_predict_f(m, Xtest; cov=false))))
         Xtest = hcat(Xtest[:, 2:end], y_new[i])
     end
     return y_new
@@ -28,7 +28,7 @@ ks = []
     Xtest = [reshape(y[(end - p + 1):end], 1, :) for y in y_past]
     y_new = [zeros(T, n) for _ in 1:(m.nTask)]
     for i in 1:n
-        setindex!.(y_new, first.(first.(first(_predict_f(m, Xtest; covf=false)))), i)
+        setindex!.(y_new, first.(first.(first(_predict_f(m, Xtest; cov=false)))), i)
         Xtest = [hcat(Xtest[j][:, 2:end], y_new[j][i]) for j in 1:(m.nTask)]
     end
     return y_new
@@ -42,7 +42,7 @@ end
     Xtest = reshape(y_past[(end - p):end], 1, :)
     y_new = zeros(T, n)
     for i in 1:n
-        μ, σ² = _predict_f(m, Xtest; covf=true)
+        μ, σ² = _predict_f(m, Xtest; cov=true)
         y_new[i] = rand(Normal(first(μ), sqrt(first(σ²))))
         Xtest = hcat(Xtest[:, 2:end], y_new[i])
     end
@@ -58,7 +58,7 @@ end
     Xtest = [reshape(y[(end - p + 1):end], 1, :) for y in y_past]
     y_new = [zeros(T, n) for _ in 1:(m.nTask)]
     for i in 1:n
-        μ, σ² = _predict_f(m, Xtest; covf=true)
+        μ, σ² = _predict_f(m, Xtest; cov=true)
         μ = first.(first.(μ))
         σ² = first.(first.(σ²))
         setindex!.(y_new, rand.(Normal.(μ, sqrt.(σ²))), i)

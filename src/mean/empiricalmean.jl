@@ -20,8 +20,8 @@ function Base.show(io::IO, ::MIME"text/plain", μ₀::EmpiricalMean)
     return print(io, "Empirical Mean Prior (length(c) = ", length(μ₀.C), ")")
 end
 
-function (μ₀::EmpiricalMean{T})(x::AbstractMatrix) where {T<:Real}
-    size(x, 1) == length(μ₀.C) || error("Wrong dimension between x and μ₀")
+function (μ₀::EmpiricalMean{T})(x::AbstractVector) where {T<:Real}
+    length(x) == length(μ₀.C) || error("Wrong dimension between x and μ₀")
     return μ₀.C
 end
 

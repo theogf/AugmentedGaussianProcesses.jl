@@ -1,3 +1,15 @@
+@traitfn function mean_f(
+    model::TGP, kernel_matrices
+) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
+    return mean_f.(model.f, kernel_matrices)
+end
+
+@traitfn function var_f(
+    model::TGP, kernel_matrices
+) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
+    return var_f.(model.f, kernel_matrices)
+end
+
 ## return the expectation gradient given μ ##
 @traitfn function ∇E_μ(m::TGP, y, state) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
     return ∇E_μ(likelihood(m), opt(inference(m)), y, state)
@@ -10,47 +22,37 @@ end
 
 ##
 @traitfn function mean_f(
-    model::TGP, state
+    model::TGP, kernel_matrices
 ) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
-    μ_q = mean_f.(model.f, state.kernel_matrices)
-    μ_f = []
-    for i in 1:(model.nTask)
-        x = ntuple(model.nf_per_task[i]) do _
-            zeros(T, batchsize(inference(model)))
+    μ_q = mean_f.(model.f, kernel_matrices)
+    return ntuple(n_output(model)) do i
+        ntuple(model.nf_per_task[i]) do j
+            sum(model.A[i][j] .* μ_q)
         end
-        for j in 1:model.nf_per_task[i]
-            x[j] .= sum(model.A[i][j] .* μ_q)
-        end
-        push!(μ_f, x)
     end
-    return μ_f
 end
 
 ##
 @traitfn function var_f(
-    model::TGP, state
+    model::TGP, kernel_matrices
 ) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
-    Σ_q = var_f.(model.f, state.kernel_matrices)
-    Σ_f = []
-    for i in 1:(model.nTask)
-        x = ntuple(model.nf_per_task[i]) do _
-            zeros(T, batchsize(inference(model)))
+    Σ_q = var_f.(model.f, kernel_matrices)
+    return ntuple(n_output(model)) do i
+        ntuple(model.nf_per_task[i]) do j
+            sum(model.A[i][j] .^ 2 .* Σ_q)
         end
-        for j in 1:model.nf_per_task[i]
-            x[j] .= sum(model.A[i][j] .^ 2 .* Σ_q)
-        end
-        push!(Σ_f, x)
     end
-    return Σ_f
 end
 
 ## return the linear sum of the expectation gradient given μ ##
-@traitfn function ∇E_μ(m::TGP, y, state) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
+@traitfn function ∇E_μ(
+    m::TGP, y, state
+) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     ∇ = [zeros(T, batchsize(inference(m))) for i in 1:n_latent(m)]
     ∇Eμs = ∇E_μ.(likelihood(m), Ref(opt(inference(m))), y, state.local_vars)
     ∇EΣs = ∇E_Σ.(likelihood(m), Ref(opt(inference(m))), y, state.local_vars)
     μ_f = mean_f.(m.f, state.kernel_matrices)
-    for t in 1:(m.nTask)
+    for t in 1:n_output(m)
         for j in 1:m.nf_per_task[t]
             for q in 1:n_latent(m)
                 ∇[q] .+=
@@ -66,10 +68,12 @@ end
 end
 
 ## return the linear sum of the expectation gradient given diag(Σ) ##
-@traitfn function ∇E_Σ(m::TGP, y, state) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
+@traitfn function ∇E_Σ(
+    m::TGP, y, state
+) where {T,TGP<:AbstractGPModel{T};IsMultiOutput{TGP}}
     ∇ = [zeros(T, batchsize(inference(m))) for _ in 1:n_latent(m)]
     ∇Es = ∇E_Σ.(likelihood(m), Ref(opt(inference(m))), y, state.local_vars)
-    for t in 1:(m.nTask)
+    for t in 1:n_output(m)
         for j in 1:m.nf_per_task[t]
             for q in 1:n_latent(m)
                 ∇[q] .+= m.A[t][j][q]^2 * ∇Es[t][j]
@@ -87,9 +91,7 @@ function update_A!(m::TGP, state, ys) where {TGP<:AbstractGPModel}
         Σ_f = var_f.(m.f, state.kernel_matrices) # Diag(K̃ + κΣκ) || Diag(Σ)
         ∇Eμ = ∇E_μ.(likelihood(m), Ref(opt(inference(m))), ys, local_vars)
         ∇EΣ = ∇E_Σ.(likelihood(m), Ref(opt(inference(m))), ys, local_vars)
-        opt_state = state.opt_state
-        # new_A = zero(model.A)
-        for t in 1:(m.nTask)
+        for t in 1:n_output(m)
             for j in 1:m.nf_per_task[t]
                 ∇A = zero(m.A[t][j])
                 for q in 1:n_latent(m)
@@ -104,9 +106,13 @@ function update_A!(m::TGP, state, ys) where {TGP<:AbstractGPModel}
                     # new_A[t,j,q] = x1/(2*x2)
                     ∇A[q] = x1 - 2 * m.A[t][j][q] * x2
                 end
-                m.A[t][j] .+= Optimiserse.apply(m.A_opt, m.A[t][j], ∇A)
+                state_A = state.A_state[t][j]
+                state_A, ΔA = Optimisers.apply(m.A_opt, state_A, m.A[t][j], ∇A)
+                m.A[t][j] .+= ΔA
                 m.A[t][j] /= sqrt(sum(abs2, m.A[t][j])) # Projection on the unit circle
+                state.A_state[t][j] = state_A
             end
         end
     end
+    return state
 end

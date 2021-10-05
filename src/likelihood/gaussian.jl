@@ -7,7 +7,7 @@ Gaussian noise :
 ```
 There is no augmentation needed for this likelihood which is already conjugate to a Gaussian prior.
 """
-struct GaussianLikelihood{T<:Real,O} <: RegressionLikelihood{T}
+struct GaussianLikelihood{T<:Real,O} <: RegressionLikelihood
     σ²::Vector{T}
     opt_noise::O
     function GaussianLikelihood{T}(σ²::T, opt_noise) where {T<:Real}
@@ -39,18 +39,18 @@ function Base.show(io::IO, l::GaussianLikelihood)
 end
 
 function compute_proba(
-    l::GaussianLikelihood{T}, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
-) where {T<:Real}
+    l::GaussianLikelihood, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
+)
     return μ, σ² .+ noise(l)
 end
 
-function init_local_vars(state, l::GaussianLikelihood{T}, batchsize::Int) where {T}
+function init_local_vars(l::GaussianLikelihood, batchsize::Int, T::DataType=Float64)
     local_vars = (; θ=fill(inv(l.σ²[1]), batchsize))
     if !isnothing(l.opt_noise)
         state_σ² = Optimisers.init(l.opt_noise, l.σ²)
         local_vars = merge(local_vars, (; state_σ²))
     end
-    return merge(state, (; local_vars))
+    return local_vars
 end
 
 function local_updates!(
@@ -71,15 +71,11 @@ function local_updates!(
     return local_vars
 end
 
-@inline function ∇E_μ(
-    l::GaussianLikelihood{T}, ::AOptimizer, y::AbstractVector, state
-) where {T}
+@inline function ∇E_μ(l::GaussianLikelihood, ::AOptimizer, y::AbstractVector, state)
     return (y ./ noise(l),)
 end
 
-@inline function ∇E_Σ(
-    ::GaussianLikelihood{T}, ::AOptimizer, ::AbstractVector, state
-) where {T}
+@inline function ∇E_Σ(::GaussianLikelihood, ::AOptimizer, ::AbstractVector, state)
     return (0.5 * state.θ,)
 end
 
@@ -96,4 +92,4 @@ function expec_loglikelihood(
     )
 end
 
-AugmentedKL(::GaussianLikelihood{T}, state, ::Any) where {T} = zero(T)
+AugmentedKL(::GaussianLikelihood, state, ::Any) = 0
