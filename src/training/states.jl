@@ -143,3 +143,7 @@ end
     hyperopt_state = init_priormean_state(hyperopt_state, pr_mean(gp))
     return hyperopt_state
 end
+
+function Optimisers.state(opt, Z::Union{ColVecs,RowVecs})
+    return Optimisers.state(opt, Z.X)
+end

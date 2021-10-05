@@ -72,6 +72,10 @@ function MOSVGP(
         optimiser = optimiser ? ADAM(0.01) : nothing
     end
 
+    if isa(Zoptimiser, Bool)
+        Zoptimiser = Zoptimiser ? ADAM(0.001) : nothing
+    end
+
     if isa(Aoptimiser, Bool)
         Aoptimiser = Aoptimiser ? ADAM(0.01) : nothing
     end

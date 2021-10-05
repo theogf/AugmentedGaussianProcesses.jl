@@ -67,14 +67,16 @@ function update_kernel!(opt, x::AbstractArray, g::AbstractArray, state)
 end
 
 ## Updating inducing points
-# function update_Z!(opt, Z::Union{ColVecs,RowVecs}, Z_grads::NamedTuple, state)
-# return Z.X .+= Optimise.apply!(opt, Z.X, Z_grads.X)
-# end
-
 function update_Z!(opt, Z::AbstractVector, Z_grads::AbstractVector, state)
     return map(Z, Z_grads, state) do z, zgrad, st
         st, ΔZ = Optimisers.apply(opt, st, z, zgrad)
         z .+= ΔZ
         return st
     end
+end
+
+function update_Z!(opt, Z::Union{ColVecs,RowVecs}, Z_grads::NamedTuple, state)
+    st, Δ = Optimisers.apply(opt, state, Z.X, Z_grads.X)
+    Z.X .+= Δ
+    return st
 end
