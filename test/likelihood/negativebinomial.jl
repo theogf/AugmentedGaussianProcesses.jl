@@ -21,6 +21,6 @@
         y,
         k,
     )
-    tests_likelihood(NegBinomialLikelihood(r), NegBinomialLikelihood{Float64}, args...)
-    tests_likelihood(NegBinomialLikelihood(rfloat), NegBinomialLikelihood{Float64}, args...)
+    tests_likelihood(NegBinomialLikelihood(r), NegBinomialLikelihood, args...)
+    tests_likelihood(NegBinomialLikelihood(rfloat), NegBinomialLikelihood, args...)
 end

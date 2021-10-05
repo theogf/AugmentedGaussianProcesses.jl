@@ -134,11 +134,6 @@ function heteroscedastic_expectations!(
     return local_vars
 end
 
-function expectation(f::Function, μ::Real, σ²::Real)
-    x = pred_nodes * sqrt(max(σ², zero(σ²))) .+ μ
-    return dot(pred_weights, f.(x))
-end
-
 @inline function ∇E_μ(
     l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},
     ::AOptimizer,
@@ -157,12 +152,13 @@ end
     return (0.5 * l.invlink.λ[1] .* state.σg, 0.5 * state.θ)
 end
 
-function proba_y(
-    model::AbstractGPModel{T,<:HeteroscedasticGaussianLikelihood}, X_test::AbstractMatrix
-) where {T<:Real}
-    (μf, σ²f), (μg, σ²g) = predict_f(model, X_test; cov=true)
-    l = likelihood(model)
-    return μf, σ²f + expectation.(l.invlink, μg, σ²g)
+function compute_proba(
+    l::HeteroscedasticGaussianLikelihood, μs::Tuple{<:AbstractVector,<:AbstractVector}, σs::Tuple{<:AbstractVector,<:AbstractVector}) where {T<:Real}
+    return μs[1], σs[1] + expectation.(Ref(l.invlink), μs[2], σs[2])
+end
+
+function predict_y(::HeteroscedasticGaussianLikelihood, μs::Tuple{<:AbstractVector,<:AbstractVector})
+    return first(μs) # For predict_y the variance is ignored
 end
 
 function expec_loglikelihood(

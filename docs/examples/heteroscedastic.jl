@@ -3,7 +3,7 @@
 # ### Loading necessary packages
 using AugmentedGaussianProcesses
 using Distributions
-using CairoMakie
+# using CairoMakie
 
 # ## Model generated data
 # The heteroscedastic noise mean that the variance of the likelihood
@@ -12,9 +12,9 @@ using CairoMakie
 # ``y \sim f + \epsilon``
 # where ``\epsilon \sim \mathcal{N}(0, (\lambda \sigma(g))^{-1})``
 # We create a toy dataset with X ∈ [-20, 20] and sample `f`, `g` and `y` given this same generative model
-N = 100
+N = 200
 x = (sort(rand(N)) .- 0.5) * 40.0
-kernel = 5.0 * SqExponentialKernel() ∘ ScaleTransform(5.0) # Kernel function
+kernel = 5.0 * SqExponentialKernel() ∘ ScaleTransform(1.0) # Kernel function
 K = kernelmatrix(kernel, x) + 1e-5I # The kernel matrix
 f = rand(MvNormal(K)) # We draw a random sample from the GP prior
 
@@ -22,7 +22,7 @@ f = rand(MvNormal(K)) # We draw a random sample from the GP prior
 μ₀ = -3.0
 g = rand(MvNormal(μ₀ * ones(N), K))
 λ = 3.0 # The maximum possible precision
-σ = inv.(sqrt.(λ * AGP.logistic.(g)))
+σ = inv.(sqrt.(λ * AGP.logistic.(g))) # We use the following transform to obtain the std. deviation
 y = f + σ .* randn(N) # We finally sample the ouput
 # We can visualize the data:
 n_sig = 2 # Number of std. dev. around the mean
@@ -58,5 +58,5 @@ plot!(x, y_m, ribbon = n_sig * sqrt.(y_σ), lab="p(y|f,g) pred")
 scatter!(x, y; lab="y", msw=0.0, alpha=0.2)
 # Or to explore the heteroscedasticity itself, we can look at the residuals
 scatter(x, (f - y).^2; yaxis=:log, lab="residuals", msw=0.0, alpha=0.2)
-plot!(x, σ.^2; lab="true σ²(x)", lw=3.0)
+plot!(x, σ .^ 2; lab="true σ²(x)", lw=3.0)
 plot!(x, y_σ; lab="predicted σ²(x)", lw=3.0)

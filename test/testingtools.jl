@@ -9,7 +9,6 @@ const VIcodes = ["AVI", "QVI", "MCVI"]
 function tests(model1, model2, X, f, y, problem)
     model1, state1 = train!(model1, X, y, 1)
     L = AGP.objective(model1, X, y)
-    @test L < 0
     train!(model1, X, y, 5)
     @test testconv(model1, problem, X, f, y)
     @test all(proba_y(model1, X)[2] .> 0)

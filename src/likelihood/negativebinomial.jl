@@ -44,6 +44,7 @@ function compute_proba(
     l::NegBinomialLikelihood, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
 )
     N = length(μ)
+    T = eltype(μ)
     pred = zeros(T, N)
     sig_pred = zeros(T, N)
     for i in 1:N
