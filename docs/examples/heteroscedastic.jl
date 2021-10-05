@@ -3,6 +3,7 @@
 # ### Loading necessary packages
 using AugmentedGaussianProcesses
 using Distributions
+using Plots
 # using CairoMakie
 
 # ## Model generated data
