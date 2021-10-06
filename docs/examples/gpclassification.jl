@@ -8,6 +8,7 @@ using Plots
 using HTTP, CSV
 using DataFrames: DataFrame
 using AugmentedGaussianProcesses
+using MLDataUtils
 
 # ### Loading the banana dataset from OpenML
 data = HTTP.get("https://www.openml.org/data/get_csv/1586217/phpwRjVjk")
@@ -16,7 +17,7 @@ data.Class[data.Class .== 2] .= -1
 data = Matrix(data)
 X = data[:, 1:2]
 Y = Int.(data[:, end]);
-
+(X_train, y_train), (X_test, y_test) = splitobs((X, Y), 0.5, ObsDim.First())
 # ### We create a function to visualize the data
 
 function plot_data(X, Y; size=(300, 500))
@@ -32,7 +33,7 @@ models = Vector{AbstractGPModel}(undef, length(Ms) + 1)
 kernel = SqExponentialKernel() ∘ ScaleTransform(1.0)
 for (i, num_inducing) in enumerate(Ms)
     @info "Training with $(num_inducing) points"
-    global m = SVGP(
+    m = SVGP(
         kernel,
         LogisticLikelihood(),
         AnalyticVI(),
@@ -40,12 +41,12 @@ for (i, num_inducing) in enumerate(Ms)
         optimiser=false,
         Zoptimiser=false,
     )
-    @time train!(m, X, Y, 20)
+    @time train!(m, X_train, y_train, 20)
     models[i] = m
 end
 # ### Running the full model
 @info "Running full model"
-mfull = VGP(X, Y, kernel, LogisticLikelihood(), AnalyticVI(); optimiser=false)
+mfull = VGP(X_train, y_train, kernel, LogisticLikelihood(), AnalyticVI(); optimiser=false)
 @time train!(mfull, 5)
 models[end] = mfull
 
@@ -97,12 +98,12 @@ Plots.plot(
 # ## Bayesian SVM vs Logistic
 # ### We now create a model with the Bayesian SVM likelihood
 
-mbsvm = VGP(X, Y, kernel, BayesianSVM(), AnalyticVI(); optimiser=false)
+mbsvm = VGP(X_train, y_train, kernel, BayesianSVM(), AnalyticVI(); optimiser=false)
 @time train!(mbsvm, 5)
 # ### And compare it with the Logistic likelihood
 Plots.plot(
     plot_model.(
-        [models[end], mbsvm], Ref(X), Ref(Y), ["Logistic", "BSVM"]; size=(500, 500)
+        [models[end], mbsvm], Ref(X), Ref(Y), ["Logistic", "BSVM"]; size=(500, 250)
     )...;
     layout=(1, 2),
 )
