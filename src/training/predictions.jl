@@ -151,16 +151,14 @@ function predict_f(
     )
 end
 
-@traitfn function predict_f(
-    model::TGP, X_test::AbstractVector, state=nothing; cov::Bool=false, diag::Bool=true
-) where {TGP; !IsMultiOutput{TGP}}
-    return first.(_predict_f(model, X_test, state; cov=cov, diag=diag))
-end
-
-@traitfn function predict_f(
-    model::TGP, X_test::AbstractVector, state=nothing; cov::Bool=false, diag::Bool=true
-) where {TGP; IsMultiOutput{TGP}}
-    return _predict_f(model, X_test, state; cov=cov, diag=diag)
+function predict_f(
+    model::AbstractGPModel, X_test::AbstractVector, state=nothing; cov::Bool=false, diag::Bool=true
+)
+    if n_latent(model) > 1
+        return _predict_f(model, X_test, state; cov=cov, diag=diag)
+    else
+        return first.(_predict_f(model, X_test, state; cov=cov, diag=diag))
+    end
 end
 
 """
