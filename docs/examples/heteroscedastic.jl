@@ -20,14 +20,14 @@ x = (sort(rand(N)) .- 0.5) * 20.0
 x_test = range(-10, 10; length=500)
 kernel = 5.0 * SqExponentialKernel() ∘ ScaleTransform(1.0) # Kernel function
 K = kernelmatrix(kernel, x) + 1e-5I # The kernel matrix
-f = rand(MvNormal(K)) # We draw a random sample from the GP prior
+f = rand(MvNormal(K)); # We draw a random sample from the GP prior
 
 # We add a prior mean on `g` so that the variance does not become too big
 μ₀ = -3.0
 g = rand(MvNormal(μ₀ * ones(N), K))
 λ = 3.0 # The maximum possible precision
 σ = inv.(sqrt.(λ * AGP.logistic.(g))) # We use the following transform to obtain the std. deviation
-y = f + σ .* randn(N) # We finally sample the ouput
+y = f + σ .* randn(N); # We finally sample the ouput
 # We can visualize the data:
 n_sig = 2 # Number of std. dev. around the mean
 plot(x, f, ribbon = n_sig * σ, lab= "p(y|f,g)") # Mean and std. dev. of y
@@ -52,7 +52,7 @@ train!(model, 100);
 # ## Predictions 
 # We can now look at the predictions and compare them with out original model
 (f_m, g_m), (f_σ, g_σ) = predict_f(model, x_test; cov=true)
-y_m, y_σ = proba_y(model, x_test)
+y_m, y_σ = proba_y(model, x_test);
 # Let's first look at the differece between the latent `f` and `g`
 plot(x, [f, g]; label=["f" "g"])
 plot!(x_test, [f_m, g_m]; ribbon=[n_sig * f_σ n_sig * g_σ], lab=["f_pred" "g_pred"], legend=true)
