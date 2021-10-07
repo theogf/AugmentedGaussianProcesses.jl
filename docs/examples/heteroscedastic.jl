@@ -41,9 +41,9 @@ model = VGP(
     deepcopy(kernel),
     HeteroscedasticLikelihood(λ),
     AnalyticVI();
-    optimiser = true, # We optimise both the mean parameters and kernel hyperparameters
-    mean = μ₀,
-    verbose = 1
+    optimiser=true, # We optimise both the mean parameters and kernel hyperparameters
+    mean=μ₀,
+    verbose=1,
 )
 
 # Model training, we train for around 100 iterations to wait for the convergence of the hyperparameters

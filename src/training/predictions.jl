@@ -198,7 +198,8 @@ function predict_y(l::MultiClassLikelihood, μs::Tuple{Vararg{<:AbstractVector{<
 end
 
 function predict_y(
-    l::MultiClassLikelihood, μs::Tuple{<:Tuple{Vararg{<:AbstractVector{<:AbstractVector{<:Real}}}}}
+    l::MultiClassLikelihood,
+    μs::Tuple{<:Tuple{Vararg{<:AbstractVector{<:AbstractVector{<:Real}}}}},
 )
     return predict_y(l, first(μs))
 end
@@ -278,8 +279,6 @@ function compute_proba_f(l::AbstractLikelihood, f::AbstractVector{<:Real})
     return compute_proba.(l, f)
 end
 
-function compute_proba(
-    l::AbstractLikelihood, ::Any, ::Any
-) where {T<:Real}
+function compute_proba(l::AbstractLikelihood, ::Any, ::Any) where {T<:Real}
     return error("Non implemented for the likelihood $l")
 end

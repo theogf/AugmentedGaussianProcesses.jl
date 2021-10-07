@@ -86,14 +86,25 @@ end
 
 ### Global Updates ###
 
-@inline function ∇E_μ(::PoissonLikelihood{<:ScaledLogistic}, ::AOptimizer, y::AbstractVector, state)
+@inline function ∇E_μ(
+    ::PoissonLikelihood{<:ScaledLogistic}, ::AOptimizer, y::AbstractVector, state
+)
     return (0.5 * (y - state.γ),)
 end
-@inline ∇E_Σ(::PoissonLikelihood{<:ScaledLogistic}, ::AOptimizer, y::AbstractVector, state) = (0.5 * state.θ,)
+@inline function ∇E_Σ(
+    ::PoissonLikelihood{<:ScaledLogistic}, ::AOptimizer, y::AbstractVector, state
+)
+    return (0.5 * state.θ,)
+end
 
 ## ELBO Section ##
 function expec_loglikelihood(
-    l::PoissonLikelihood{<:ScaledLogistic}, ::AnalyticVI, y, μ::AbstractVector, Σ::AbstractVector, state
+    l::PoissonLikelihood{<:ScaledLogistic},
+    ::AnalyticVI,
+    y,
+    μ::AbstractVector,
+    Σ::AbstractVector,
+    state,
 )
     tot = 0.5 * (dot(μ, (y - state.γ)) - dot(state.θ, abs2.(μ)) - dot(state.θ, Σ))
     tot += Zygote.@ignore(
@@ -106,7 +117,9 @@ function AugmentedKL(l::PoissonLikelihood{<:ScaledLogistic}, state, y)
     return PoissonKL(l, state) + PolyaGammaKL(l, state, y)
 end
 
-PoissonKL(l::PoissonLikelihood{<:ScaledLogistic}, state) = PoissonKL(state.γ, l.invlink.λ[1])
+function PoissonKL(l::PoissonLikelihood{<:ScaledLogistic}, state)
+    return PoissonKL(state.γ, l.invlink.λ[1])
+end
 
 function PolyaGammaKL(::PoissonLikelihood{<:ScaledLogistic}, state, y)
     return PolyaGammaKL(y + state.γ, state.c, state.θ)

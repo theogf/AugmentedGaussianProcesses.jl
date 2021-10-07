@@ -7,7 +7,7 @@ function view_y(l::AbstractLikelihood, d::MODataContainer, i::AbstractVector)
     return view_y.(l, output(d), Ref(i))
 end
 function view_y(
-    l::AbstractVector{<:AbstractLikelihood}, d::MODataContainer, i::AbstractVector
+    l::Tuple{Vararg{<:AbstractLikelihood}}, d::MODataContainer, i::AbstractVector
 )
     return view_y.(l, output(d), Ref(i))
 end
@@ -22,7 +22,7 @@ function wrap_data(X, y, likelihood::AbstractLikelihood)
     return wrap_data(X, y)
 end
 
-function wrap_data(X, y, likelihoods::AbstractVector{<:AbstractLikelihood})
+function wrap_data(X, y, likelihoods::Tuple{Vararg{<:AbstractLikelihood}})
     ys = map(check_data!, y, likelihoods)
     return wrap_modata(X, ys)
 end
