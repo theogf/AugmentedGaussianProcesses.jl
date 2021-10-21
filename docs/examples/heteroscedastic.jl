@@ -61,6 +61,14 @@ plot(x, f; ribbon = n_sig * σ, lab="p(y|f,g)")
 plot!(x_test, y_m, ribbon = n_sig * sqrt.(y_σ), lab="p(y|f,g) pred")
 scatter!(x, y; lab="y", alpha=0.2)
 # Or to explore the heteroscedasticity itself, we can look at the residuals
-scatter(x, (f - y).^2; yaxis=:log, lab="residuals",alpha=0.2)
+scatter(x, (f - y).^2; yaxis=:log, lab="residuals",alpha=0.4)
 plot!(x, σ .^ 2; lab="true σ²(x)")
 plot!(x_test, y_σ; lab="predicted σ²(x)")
+
+# ## Comparison with a Normal GP
+gp_model = GP(x, y, kernel;noise=1e-1, opt_noise=false)
+train!(gp_model, 100)
+
+gp_f_m, gp_f_σ = proba_y(gp_model, x_test)
+plot(x, f; label="true f")
+plot!(x_test, [f_m, gp_f_m]; label=["Hetero GP f" "GP f"])

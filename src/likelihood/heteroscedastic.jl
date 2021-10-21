@@ -144,7 +144,7 @@ end
     y::AbstractVector,
     state,
 )
-    return (0.5 * y .* l.invlink.λ[1] .* state.σg, 0.5 * (0.5 .- state.γ))
+    return (y .* l.invlink.λ[1] .* state.σg, 0.5 * (0.5 .- state.γ))
 end
 
 @inline function ∇E_Σ(
