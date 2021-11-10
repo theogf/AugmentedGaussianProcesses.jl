@@ -80,7 +80,7 @@ Zviews(model::GP) = [input(model)]
 function post_step!(m::GP, state)
     f = m.f
     l = likelihood(m)
-    f.post.Σ = state.kernel_matrices.K + first(l.σ²) * I
+    f.post.Σ = state.kernel_matrices.K + only(l.σ²) * I
     return f.post.α .= cov(f) \ (output(m.data) - pr_mean(f, input(m.data)))
 end
 

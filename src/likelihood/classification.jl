@@ -45,4 +45,4 @@ function treat_labels!(::AbstractVector, ::BernoulliLikelihood)
 end
 
 predict_y(::BernoulliLikelihood, μ::AbstractVector{<:Real}) = μ .> 0
-predict_y(::BernoulliLikelihood, μ::Tuple{<:AbstractVector}) = first(μ) .> 0
+predict_y(::BernoulliLikelihood, μ::Tuple{<:AbstractVector}) = only(μ) .> 0

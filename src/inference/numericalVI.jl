@@ -187,7 +187,7 @@ function expec_loglikelihood(
     μ::Tuple{<:AbstractVector{T}},
     Σ::Tuple{<:AbstractVector{T}},
 ) where {T}
-    return expec_loglikelihood(l, i, y, first(μ), first(Σ))
+    return expec_loglikelihood(l, i, y, only(μ), only(Σ))
 end
 
 function ELBO(m::AbstractGPModel{T,L,<:NumericalVI}, state, y) where {T,L}

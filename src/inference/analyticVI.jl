@@ -119,7 +119,7 @@ function local_updates!(
     μ::Tuple{<:AbstractVector{T}},
     diagΣ::Tuple{<:AbstractVector{T}},
 ) where {T}
-    return local_updates!(local_vars, l, y, first(μ), first(diagΣ))
+    return local_updates!(local_vars, l, y, only(μ), only(diagΣ))
 end
 
 # Coordinate ascent updates on the natural parameters ##
@@ -304,5 +304,5 @@ function expec_loglikelihood(
     diagΣ::Tuple{<:AbstractVector{T}},
     state,
 ) where {T}
-    return expec_loglikelihood(l, i, y, first(μ), first(diagΣ), state)
+    return expec_loglikelihood(l, i, y, only(μ), only(diagΣ), state)
 end

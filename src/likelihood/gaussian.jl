@@ -32,7 +32,7 @@ function Distributions.loglikelihood(l::GaussianLikelihood, y::Real, f::Real)
     return logpdf(Normal(y, sqrt(noise(l))), f)
 end
 
-noise(l::GaussianLikelihood) = first(l.σ²)
+noise(l::GaussianLikelihood) = only(l.σ²)
 
 function Base.show(io::IO, l::GaussianLikelihood)
     return print(io, "Gaussian likelihood (σ² = $(noise(l)))")

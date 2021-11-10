@@ -17,11 +17,11 @@ function ConstantMean(c::T=1.0; opt=ADAM(0.01)) where {T<:Real}
 end
 
 function Base.show(io::IO, ::MIME"text/plain", μ₀::ConstantMean)
-    return print(io, "Constant Mean Prior (c = ", first(μ₀.C), ")")
+    return print(io, "Constant Mean Prior (c = ", only(μ₀.C), ")")
 end
 
-(μ::ConstantMean{T})(::Real) where {T<:Real} = first(μ.C)
-(μ::ConstantMean{T})(x::AbstractVector) where {T<:Real} = fill(first(μ.C), length(x))
+(μ::ConstantMean{T})(::Real) where {T<:Real} = only(μ.C)
+(μ::ConstantMean{T})(x::AbstractVector) where {T<:Real} = fill(only(μ.C), length(x))
 
 function init_priormean_state(hyperopt_state, μ₀::ConstantMean)
     μ₀_state = (; C=Optimisers.state(μ₀.opt, μ₀.C))
