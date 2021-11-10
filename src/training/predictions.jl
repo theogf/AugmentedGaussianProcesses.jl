@@ -157,7 +157,7 @@ function predict_f(
     if n_latent(model) > 1
         return _predict_f(model, X_test, state; cov=cov, diag=diag)
     else
-        return first.(_predict_f(model, X_test, state; cov=cov, diag=diag))
+        return only.(_predict_f(model, X_test, state; cov=cov, diag=diag))
     end
 end
 
@@ -182,14 +182,14 @@ end
 @traitfn function predict_y(
     model::TGP, X_test::AbstractVector, state=nothing
 ) where {TGP <: AbstractGPModel; !IsMultiOutput{TGP}}
-    return predict_y(likelihood(model), first(_predict_f(model, X_test, state; cov=false)))
+    return predict_y(likelihood(model), only(_predict_f(model, X_test, state; cov=false)))
 end
 
 @traitfn function predict_y(
     model::TGP, X_test::AbstractVector, state=nothing
 ) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
     return predict_y.(
-        likelihood(model), first.(_predict_f(model, X_test, state; cov=false))
+        likelihood(model), only.(_predict_f(model, X_test, state; cov=false))
     )
 end
 
@@ -201,13 +201,13 @@ function predict_y(
     l::MultiClassLikelihood,
     μs::Tuple{<:Tuple{Vararg{<:AbstractVector{<:AbstractVector{<:Real}}}}},
 )
-    return predict_y(l, first(μs))
+    return predict_y(l, only(μs))
 end
 
 predict_y(l::EventLikelihood, μ::AbstractVector{<:Real}) = mean.(l.(μ))
 
 function predict_y(l::EventLikelihood, μ::Tuple{<:AbstractVector})
-    return predict_y(l, first(μ))
+    return predict_y(l, only(μ))
 end
 
 """
@@ -249,7 +249,7 @@ end
 function compute_proba(
     l::AbstractLikelihood, μ::Tuple{<:AbstractVector}, σ²::Tuple{<:AbstractVector}
 )
-    return compute_proba(l, first(μ), first(σ²))
+    return compute_proba(l, only(μ), only(σ²))
 end
 
 function StatsBase.mean_and_var(lik::AbstractLikelihood, fs::AbstractMatrix)
@@ -271,7 +271,7 @@ function proba_y(
     else
         getproperty.(state.kernel_matrices, :K)
     end
-    f = first(_sample_f(model, X_test, Ks))
+    f = only(_sample_f(model, X_test, Ks))
     return mean_and_var(compute_proba_f.(likelihood(model), f))
 end
 

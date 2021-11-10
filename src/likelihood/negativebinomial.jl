@@ -68,7 +68,7 @@ function local_updates!(
     Σ::AbstractVector,
 )
     @. local_vars.c = sqrt(abs2(μ) + Σ)
-    @. local_vars.θ = (l.r + y) / local_vars.c * tanh(0.5 * local_vars.c)
+    @. local_vars.θ = (l.r + y) / local_vars.c * tanh(local_vars.c / 2)
     return local_vars
 end
 
@@ -82,10 +82,10 @@ end
 ## Global Updates ##
 
 @inline function ∇E_μ(l::NegBinomialLikelihood, ::AOptimizer, y::AbstractVector, state)
-    return (0.5 * (y .- l.r),)
+    return ((y .- l.r) / 2,)
 end
 @inline function ∇E_Σ(::NegBinomialLikelihood, ::AOptimizer, y::AbstractVector, state)
-    return (0.5 .* state.θ,)
+    return (state.θ / 2,)
 end
 
 ## ELBO Section ##
@@ -113,7 +113,7 @@ function expec_loglikelihood(
     state,
 )
     tot = Zygote.@ignore(sum(negbin_logconst(y, l.r))) - log(2.0) * sum(y .+ l.r)
-    tot += 0.5 * dot(μ, (y .- l.r)) - 0.5 * dot(state.θ, μ) - 0.5 * dot(state.θ, diag_cov)
+    tot += dot(μ, (y .- l.r)) / 2 - dot(state.θ, μ) / 2 - dot(state.θ, diag_cov) / 2
     return tot
 end
 

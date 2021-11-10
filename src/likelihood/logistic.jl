@@ -11,7 +11,7 @@ Bernoulli likelihood with a logistic link for the Bernoulli likelihood
 
 For the analytic version the likelihood, it is augmented via:
 ```math
-    p(y|f,ω) = \exp\left(0.5(yf - (yf)^2 \omega)\right)
+    p(y|f,ω) = \exp\left(\frac{1}{2}(yf - (yf)^2 \omega)\right)
 ```
 where ``ω \sim \mathcal{PG}(\omega | 1, 0)``, and ``\mathcal{PG}`` is the Polya-Gamma distribution.
 See paper : [Efficient Gaussian Process Classification Using Polya-Gamma Data Augmentation](https://arxiv.org/abs/1802.06383).
@@ -44,7 +44,7 @@ function local_updates!(
     diagΣ::AbstractVector,
 )
     @. local_vars.c = sqrt(diagΣ + abs2(μ))
-    @. local_vars.θ = 0.5 * tanh(0.5 * local_vars.c) / local_vars.c
+    @. local_vars.θ = tanh(local_vars.c / 2) / local_vars.c / 2
     return local_vars
 end
 
@@ -58,10 +58,10 @@ end
 ### Natural Gradient Section ###
 
 function ∇E_μ(::BernoulliLikelihood{<:LogisticLink}, ::AOptimizer, y::AbstractVector, state)
-    return (0.5 * y,)
+    return (y / 2,)
 end
 function ∇E_Σ(::BernoulliLikelihood{<:LogisticLink}, ::AOptimizer, ::AbstractVector, state)
-    return (0.5 * state.θ,)
+    return (state.θ / 2,)
 end
 
 ### ELBO Section ###
@@ -74,8 +74,8 @@ function expec_loglikelihood(
     diag_cov::AbstractVector,
     state,
 )
-    tot = -(0.5 * length(y) * logtwo)
-    tot += 0.5 .* (dot(μ, y) - dot(state.θ, diag_cov) - dot(state.θ, μ))
+    tot = - length(y) * logtwo / 2
+    tot += (dot(μ, y) - dot(state.θ, diag_cov) - dot(state.θ, μ)) / 2
     return tot
 end
 

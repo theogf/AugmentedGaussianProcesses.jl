@@ -40,7 +40,7 @@ function analytic_updates(m::GP{T}, state, y) where {T}
     f.post.Σ = K + first(l.σ²) * I
     f.post.α .= cov(f) \ (y - pr_mean(f, input(m.data)))
     if !isnothing(l.opt_noise)
-        g = 0.5 * (norm(mean(f), 2) - tr(inv(cov(f))))
+        g = (norm(mean(f), 2) - tr(inv(cov(f)))) / 2
         state_σ², Δlogσ² = Optimisers.apply(
             l.opt_noise, state.local_vars.state_σ², l.σ², g .* l.σ²
         )

@@ -135,7 +135,7 @@ function natural_gradient!(
 ) where {T}
     K = kernel_matrices.K
     gp.post.η₁ .= ∇E_μ .+ K \ pr_mean(gp, X)
-    gp.post.η₂ .= -Symmetric(Diagonal(∇E_Σ) + 0.5 * inv(K))
+    gp.post.η₂ .= -Symmetric(Diagonal(∇E_Σ) + inv(K) / 2)
     return gp
 end
 
@@ -168,7 +168,7 @@ function ∇η₁(
     return transpose(κ) * (ρ * ∇μ) + (K \ μ₀) - η₁
 end
 
-# Gradient of on the second natural parameter η₂ = -0.5Σ⁻¹
+# Gradient of on the second natural parameter η₂ = -1/2Σ⁻¹
 function ∇η₂(
     θ::AbstractVector{T},
     ρ::Real,
@@ -176,7 +176,7 @@ function ∇η₂(
     K::Cholesky{T,Matrix{T}},
     η₂::Symmetric{T,Matrix{T}},
 ) where {T<:Real}
-    return -(ρκdiagθκ(ρ, κ, θ) + 0.5 * inv(K)) - η₂
+    return -(ρκdiagθκ(ρ, κ, θ) + inv(K) / 2) - η₂
 end
 
 # Natural gradient for the ONLINE model (OSVGP) #
@@ -198,7 +198,7 @@ function natural_gradient!(
     invDₐ = previous_gp.invDₐ
     gp.post.η₁ = K \ pr_mean(gp, Z) + transpose(κ) * ∇E_μ + transpose(κₐ) * prevη₁
     gp.post.η₂ =
-        -Symmetric(ρκdiagθκ(1.0, κ, ∇E_Σ) + 0.5 * transpose(κₐ) * invDₐ * κₐ + 0.5 * inv(K))
+        -Symmetric(ρκdiagθκ(1.0, κ, ∇E_Σ) + transpose(κₐ) * invDₐ * κₐ / 2 + inv(K) / 2)
     return gp
 end
 

@@ -252,11 +252,11 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
                     pω.(
                         l,
                         sqrt.(
-                            0.5 * (
+                            (
                                 l,
                                 _gen_α.(l, y) - _gen_β.(l, y) .* f +
                                 _gen_γ.(l, y) .* (abs2.(f)),
-                            ),
+                            ) / 2,
                         ),
                     )
             end

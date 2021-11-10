@@ -34,7 +34,7 @@ struct PolyaGamma{Tc,A} <: Distributions.ContinuousUnivariateDistribution
     end
 end
 
-Statistics.mean(d::PolyaGamma) = d.b / (2 * d.c) * tanh(0.5 * d.c)
+Statistics.mean(d::PolyaGamma) = d.b / (2 * d.c) * tanh(d.c / 2)
 
 function PolyaGamma(b::Int, c::T; nmax::Int=10, trunc::Int=200) where {T<:Real}
     return PolyaGamma{T}(b, c, trunc, nmax)
@@ -59,9 +59,9 @@ end
 function a(n::Int, x::Real)
     k = (n + 0.5) * π
     if x > __TRUNC
-        return k * exp(-0.5 * k^2 * x)
+        return k * exp(-k^2 * x / 2)
     elseif x > 0
-        expnt = -1.5 * (log(0.5 * π) + log(x)) + log(k) - 2.0 * (n + 0.5)^2 / x
+        expnt = -1.5 * (log(π / 2) + log(x)) + log(k) - 2 * (n + 0.5)^2 / x
         return exp(expnt)
     end
 end
@@ -69,7 +69,7 @@ end
 function mass_texpon(z::Real)
     t = __TRUNC
 
-    fz = 0.125 * π^2 + 0.5 * z^2
+    fz = 0.125 * π^2 + z^2 / 2
     b = sqrt(1.0 / t) * (t * z - 1)
     a = sqrt(1.0 / t) * (t * z + 1) * -1.0
 
@@ -99,13 +99,13 @@ function rtigauss(rng::AbstractRNG, z::Real)
             end
             x = 1 + e1 * t
             x = t / x^2
-            alpha = exp(-0.5 * z^2 * x)
+            alpha = exp(-z^2 * x / 2)
         end
     else
         mu = 1.0 / z
         while (x > t)
             y = randn(rng)^2
-            half_mu = 0.5 * mu
+            half_mu = mu / 2
             mu_Y = mu * y
             x = mu + half_mu * mu_Y - half_mu * sqrt(4 * mu_Y + mu_Y^2)
             if rand(rng) > mu / (mu + x)
@@ -122,10 +122,10 @@ end
 
 function draw_like_devroye(rng::AbstractRNG, c::Real)
     # Change the parameter.
-    c = 0.5 * abs(c)
+    c = abs(c) / 2
 
     # Now sample 0.25 * J^*(1, Z := Z/2).
-    fz = 0.125 * π^2 + 0.5 * c^2
+    fz = 0.125 * π^2 + c^2 / 2
     # ... Problems with large Z?  Try using q_over_p.
     # double p  = 0.5 * __PI * exp(-1.0 * fz * __TRUNC) / fz;
     # double q  = 2 * exp(-1.0 * Z) * pigauss(__TRUNC, Z);

@@ -62,7 +62,7 @@ function local_updates!(
     @. local_vars.c = broadcast((Σ, μ) -> sqrt.(Σ + abs2.(μ)), Σ, μ)
     for _ in 1:2
         broadcast!(
-            (β, c, μ, ψα) -> 0.5 / β * exp.(ψα) .* safe_expcosh.(-0.5 * μ, 0.5 * c),
+            (β, c, μ, ψα) -> exp.(ψα) .* safe_expcosh.(-μ / 2, c / 2) / 2β,
             local_vars.γ,
             Ref(local_vars.β),
             local_vars.c,
@@ -72,7 +72,7 @@ function local_updates!(
         local_vars.α .= 1 .+ (local_vars.γ...)
     end
     broadcast!(
-        (y, γ, c) -> 0.5 * (y + γ) ./ c .* tanh.(0.5 .* c),
+        (y, γ, c) -> (y + γ) .* tanh.(c / 2) ./ 2c ,
         local_vars.θ, # target
         eachcol(y), # argument 1
         local_vars.γ, # argument 2
@@ -83,7 +83,7 @@ end
 
 function sample_local!(local_vars, ::MultiClassLikelihood{<:LogisticSoftMaxLink}, y, f)
     broadcast!(
-        f -> rand.(Poisson.(0.5 * local_vars.α .* safe_expcosh.(-0.5 * f, 0.5 * f))),
+        f -> rand.(Poisson.(local_vars.α .* safe_expcosh.(-f / 2, f / 2) / 2)),
         local_vars.γ,
         f,
     )
@@ -97,10 +97,10 @@ end
 ## Global Gradient Section ##
 
 @inline function ∇E_μ(::MultiClassLikelihood{<:LogisticSoftMaxLink}, ::AOptimizer, y, state)
-    return 0.5 .* (eachcol(y) .- state.γ)
+    return (eachcol(y) .- state.γ) / 2
 end
 @inline function ∇E_Σ(::MultiClassLikelihood{<:LogisticSoftMaxLink}, ::AOptimizer, y, state)
-    return 0.5 .* state.θ
+    return state.θ / 2
 end
 
 ## ELBO Section ##
@@ -109,9 +109,9 @@ function expec_loglikelihood(
 )
     tot = -length(y) * logtwo
     tot += -sum(sum(state.γ .+ eachcol(y))) * logtwo
-    tot += 0.5 * sum(zip(state.θ, state.γ, eachcol(y), μ, Σ)) do (θ, γ, y, μ, Σ)
+    tot += sum(zip(state.θ, state.γ, eachcol(y), μ, Σ)) do (θ, γ, y, μ, Σ)
         dot(μ, (y - γ)) - dot(θ, abs2.(μ)) - dot(θ, Σ)
-    end
+    end / 2
     return tot
 end
 

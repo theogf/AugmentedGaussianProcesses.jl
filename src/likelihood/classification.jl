@@ -30,7 +30,7 @@ function treat_labels!(y::AbstractVector{<:Real}, ::BernoulliLikelihood)
     labels = unique(y)
     # y isa AbstractVector{<:Union{Int,Bool}} || error("y labels should be Int")
     if sort(Int64.(labels)) == [0; 1]
-        return (y .- 0.5) * 2
+        return sign.(y .- 0.5)
     elseif sort(Int64.(labels)) == [-1; 1]
         return y
     else

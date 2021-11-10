@@ -173,7 +173,7 @@ function laptrans(
             k += 1
             t = t - (apply_F(dist, t) - u[i]) / apply_f(dist, t)
             if t < x_L || t > x_U
-                t = 0.5 * (x_L + x_U)
+                t = (x_L + x_U) / 2
             end
             if apply_F(dist, t) <= u[i]
                 x_L = t

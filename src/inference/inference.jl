@@ -22,13 +22,13 @@ conv_crit(i::AbstractInference) = i.ϵ
 
 ## Conversion from natural to standard distribution parameters ##
 function global_update!(gp::AbstractLatent)
-    gp.post.Σ .= -0.5 * inv(nat2(gp))
+    gp.post.Σ .= -inv(nat2(gp)) / 2
     return gp.post.μ .= cov(gp) * nat1(gp)
 end
 
 ## For the online case, the size may vary and inplace updates are note valid
 function global_update!(gp::OnlineVarLatent)
-    gp.post.Σ = -0.5 * inv(nat2(gp))
+    gp.post.Σ = -inv(nat2(gp)) / 2
     return gp.post.μ = cov(gp) * nat1(gp)
 end
 
