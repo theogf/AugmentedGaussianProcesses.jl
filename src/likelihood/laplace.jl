@@ -73,7 +73,7 @@ end
 function sample_local!(
     local_vars, l::LaplaceLikelihood, y::AbstractVector, f::AbstractVector
 )
-    @. local_vars.b = rand(GeneralizedInverseGaussian(1 / l.β^2, abs2(f - y), 0.5))
+    rand!(local_vars.b, GeneralizedInverseGaussian.(inv(l.β^2), abs2.(f - y), 0.5))
     @. local_vars.θ = inv(local_vars.b)
     return local_vars
 end

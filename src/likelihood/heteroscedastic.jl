@@ -24,7 +24,7 @@ InvScaledLogistic(λ::Real) = InvScaledLogistic([λ])
 
 (l::InvScaledLogistic)(f::Real) = inv(l.λ[1] * logistic(f))
 
-implemented(::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, ::AnalyticVI) = true
+implemented(::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, ::Union{<:AnalyticVI,<:GibbsSampling}) = true
 
 function (l::HeteroscedasticGaussianLikelihood)(f, y::Real)
     return pdf(l(f), y)
@@ -48,11 +48,11 @@ function init_local_vars(
     T::DataType=Float64,
 )
     return (;
-        c=ones(T, batchsize),
-        ϕ=ones(T, batchsize),
-        γ=ones(T, batchsize),
-        θ=ones(T, batchsize),
-        σg=ones(T, batchsize),
+        c=ones(T, batchsize), # Sqrt of expectation of g^2
+        ϕ=ones(T, batchsize), # Expectation of (y - f)^2 / 2
+        γ=ones(T, batchsize), # Expectation of q(n)
+        θ=ones(T, batchsize), # Expectation of q(ω|n)
+        σg=ones(T, batchsize), # Expectation of σ(g)
     )
 end
 
@@ -81,6 +81,15 @@ function local_updates!(
     l.invlink.λ .= max(
         length(local_vars.ϕ) / (2 * dot(local_vars.ϕ, local_vars.σg), l.invlink.λ[1])
     )
+    return local_vars
+end
+
+function sample_local!(
+    local_vars, l::HeteroscedasticGaussianLikelihood, y, f::NTuple{2,<:AbstractVector}
+)
+    λ = only(l.invlink.λ)
+    rand!(local_vars.γ, Poisson.(λ * logistic.(f[2]) * (f[1] - y) .^ 2 / 2)) # Update of n
+    rand!(local_vars.θ, PolyaGamma.(local_vars.γ .+ 1//2, abs.(f[2]))) # update of ω
     return local_vars
 end
 
@@ -133,7 +142,7 @@ function heteroscedastic_expectations!(
 )
     @. local_vars.σg = expectation(logistic, μ, Σ)
     l.invlink.λ .= max(
-        length(local_vars.ϕ) / (2 * dot(local_vars.ϕ, local_vars.σg), l.invlink.λ[1])
+        length(local_vars.ϕ) / (2 * dot(local_vars.ϕ, local_vars.σg), only(l.invlink.λ))
     )
     return local_vars
 end
@@ -144,7 +153,7 @@ end
     y::AbstractVector,
     state,
 )
-    return (y .* l.invlink.λ[1] .* state.σg / 2, (0.5 .- state.γ) / 2)
+    return (y .* only(l.invlink.λ) .* state.σg / 2, (0.5 .- state.γ) / 2)
 end
 
 @inline function ∇E_Σ(
@@ -153,7 +162,7 @@ end
     ::AbstractVector,
     state,
 )
-    return (l.invlink.λ[1] .* state.σg / 2, state.θ / 2)
+    return (only(l.invlink.λ) .* state.σg / 2, state.θ / 2)
 end
 
 function compute_proba(
