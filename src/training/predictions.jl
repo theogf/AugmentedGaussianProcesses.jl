@@ -146,9 +146,7 @@ function predict_f(
     diag::Bool=true,
     obsdim::Int=1,
 )
-    return predict_f(
-        model, KernelFunctions.vec_of_vecs(X_test; obsdim), state; cov, diag
-    )
+    return predict_f(model, KernelFunctions.vec_of_vecs(X_test; obsdim), state; cov, diag)
 end
 
 function predict_f(
