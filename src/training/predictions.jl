@@ -190,7 +190,7 @@ end
 @traitfn function predict_y(
     model::TGP, X_test::AbstractVector, state=nothing
 ) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
-    return predict_y.(likelihood(model), only.(_predict_f(model, X_test, state; cov=false)))
+    return predict_y.(likelihood(model), only(_predict_f(model, X_test, state; cov=false)))
 end
 
 function predict_y(l::MultiClassLikelihood, μs::Tuple{Vararg{<:AbstractVector{<:Real}}})
