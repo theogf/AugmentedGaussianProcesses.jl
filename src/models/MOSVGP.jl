@@ -101,7 +101,6 @@ function MOSVGP(
     end
     A = [[normalize(randn(T, num_latent)) for i in 1:nf_per_task[j]] for j in 1:n_task]
 
-
     return MOSVGP{T,typeof(likelihoods),typeof(inference),n_task,num_latent}(
         nf_per_task,
         latent_f,

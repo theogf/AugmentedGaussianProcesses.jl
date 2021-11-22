@@ -152,7 +152,11 @@ function predict_f(
 end
 
 function predict_f(
-    model::AbstractGPModel, X_test::AbstractVector, state=nothing; cov::Bool=false, diag::Bool=true
+    model::AbstractGPModel,
+    X_test::AbstractVector,
+    state=nothing;
+    cov::Bool=false,
+    diag::Bool=true,
 )
     if n_latent(model) > 1
         return _predict_f(model, X_test, state; cov=cov, diag=diag)
@@ -188,9 +192,7 @@ end
 @traitfn function predict_y(
     model::TGP, X_test::AbstractVector, state=nothing
 ) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
-    return predict_y.(
-        likelihood(model), only.(_predict_f(model, X_test, state; cov=false))
-    )
+    return predict_y.(likelihood(model), only.(_predict_f(model, X_test, state; cov=false)))
 end
 
 function predict_y(l::MultiClassLikelihood, μs::Tuple{Vararg{<:AbstractVector{<:Real}}})

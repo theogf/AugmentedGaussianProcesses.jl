@@ -74,7 +74,7 @@ function expec_loglikelihood(
     diag_cov::AbstractVector,
     state,
 )
-    tot = - length(y) * logtwo / 2
+    tot = -length(y) * logtwo / 2
     tot += (dot(μ, y) - dot(state.θ, diag_cov) - dot(state.θ, μ)) / 2
     return tot
 end

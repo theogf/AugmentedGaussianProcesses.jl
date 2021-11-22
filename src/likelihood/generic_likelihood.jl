@@ -284,11 +284,10 @@ function generate_likelihood(lname, ltype, C, g, α, β, γ, φ, ∇φ)
             ) where {T}
                 tot = length(y) * log(_gen_C(l))
                 tot += dot(_gen_g.(l, y), μ)
-                tot +=
-                    -(
-                        dot(l.θ, _gen_α.(l, y)) - dot(l.θ, _gen_β.(l, y) .* μ) +
-                        dot(l.θ, _gen_γ.(l, y) .* (abs2.(μ) + diag_cov))
-                    )
+                tot += -(
+                    dot(l.θ, _gen_α.(l, y)) - dot(l.θ, _gen_β.(l, y) .* μ) +
+                    dot(l.θ, _gen_γ.(l, y) .* (abs2.(μ) + diag_cov))
+                )
                 return tot
             end
 

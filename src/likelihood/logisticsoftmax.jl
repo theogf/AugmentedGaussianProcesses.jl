@@ -59,38 +59,31 @@ function local_updates!(
     μ::NTuple{N,<:AbstractVector},
     Σ::NTuple{N,<:AbstractVector},
 ) where {N}
-    @. local_vars.c = broadcast((Σ, μ) -> sqrt.(Σ + abs2.(μ)), Σ, μ)
+    broadcast!(local_vars.c, Σ, μ) do Σ, μ
+        sqrt.(Σ + abs2.(μ))
+    end
     for _ in 1:2
         broadcast!(
-            (β, c, μ, ψα) -> exp.(ψα) .* safe_expcosh.(-μ / 2, c / 2) / 2β,
-            local_vars.γ,
-            Ref(local_vars.β),
-            local_vars.c,
-            μ,
-            Ref(digamma.(local_vars.α)),
-        ) # Update γ
+            local_vars.γ, Ref(local_vars.β), local_vars.c, μ, Ref(digamma.(local_vars.α))
+        ) do β, c, μ, ψα # Update γ
+            exp.(ψα) .* safe_expcosh.(-μ / 2, c / 2) ./ 2β
+        end
         local_vars.α .= 1 .+ (local_vars.γ...)
     end
-    broadcast!(
-        (y, γ, c) -> (y + γ) .* tanh.(c / 2) ./ 2c ,
-        local_vars.θ, # target
-        eachcol(y), # argument 1
-        local_vars.γ, # argument 2
-        local_vars.c, # argument 3
-    ) # update θ
+    broadcast!(local_vars.θ, eachcol(y), local_vars.γ, local_vars.c) do y, γ, c # update θ
+        (y + γ) .* tanh.(c / 2) ./ 2c
+    end
     return local_vars
 end
 
 function sample_local!(local_vars, ::MultiClassLikelihood{<:LogisticSoftMaxLink}, y, f)
-    broadcast!(
-        f -> rand.(Poisson.(local_vars.α .* safe_expcosh.(-f / 2, f / 2) / 2)),
-        local_vars.γ,
-        f,
-    )
-    local_vars.α .= rand.(Gamma.(1 .+ (local_vars.γ...), inv.(local_vars.β)))
-    local_vars.θ .= broadcast(
-        (y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), eachcol(y), local_vars.γ, f
-    )
+    broadcast!(local_vars.γ, f) do f
+        rand.(Poisson.(local_vars.α .* safe_expcosh.(-f / 2, f / 2) / 2))
+    end
+    rand!.(local_vars.α, Gamma.(1 .+ (local_vars.γ...), inv.(local_vars.β)))
+    broadcast!(local_vars.θ, eachcol(y), local_vars.γ, f) do y, γ, f
+        rand.(PolyaGamma.(y .+ Int.(γ), abs.(f)))
+    end
     return local_vars
 end
 
