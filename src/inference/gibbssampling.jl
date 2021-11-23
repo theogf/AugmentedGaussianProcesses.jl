@@ -44,7 +44,7 @@ end
 function sample_local!(
     local_vars, l::AbstractLikelihood, y, f::Tuple{<:AbstractVector{T}}
 ) where {T}
-    return sample_local!(local_vars, l, y, first(f))
+    return sample_local!(local_vars, l, y, only(f))
 end
 
 function sample_global!(

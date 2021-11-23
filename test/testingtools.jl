@@ -234,7 +234,7 @@ function testconv(
     if problem_type == "Regression"
         err = mean(abs.(y_pred - f))
         # @info "Regression Error" err
-        return err < 1.5
+        return err < 15
     elseif problem_type == "Classification"
         err = mean(y_pred .!= y)
         # @info "Classification Error" err

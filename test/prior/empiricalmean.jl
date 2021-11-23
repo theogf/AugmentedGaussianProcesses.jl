@@ -13,6 +13,6 @@
     g = Zygote.gradient(μ₀) do m
         return sum(abs2, m(X))
     end
-    AGP.update!(μ₀, st, first(g))
-    @test μ₀.C == v .+ first(g).C
+    AGP.update!(μ₀, st, only(g))
+    @test μ₀.C == v .+ only(g).C
 end

@@ -14,7 +14,7 @@ function GaussianKL(
     Σ::Symmetric{T,Matrix{T}},
     K::Cholesky{T,Matrix{T}},
 ) where {T<:Real}
-    return 0.5 * (logdet(K) - logdet(Σ) + tr(K \ Σ) + invquad(K, μ - μ₀) - length(μ))
+    return (logdet(K) - logdet(Σ) + tr(K \ Σ) + invquad(K, μ - μ₀) - length(μ)) / 2
 end
 
 function GaussianKL(
@@ -24,7 +24,7 @@ function GaussianKL(
     K::AbstractMatrix{T},
 ) where {T<:Real}
     K
-    return 0.5 * (logdet(K) - logdet(Σ) + tr(K \ Σ) + dot(μ - μ₀, K \ (μ - μ₀)) - length(μ))
+    return (logdet(K) - logdet(Σ) + tr(K \ Σ) + dot(μ - μ₀, K \ (μ - μ₀)) - length(μ)) / 2
 end
 
 extraKL(::AbstractGPModel{T}, ::Any) where {T} = zero(T)
@@ -42,13 +42,13 @@ function extraKL(model::OnlineSVGP{T}, state) where {T}
         κₐμ = kernel_mat.κₐ * mean(gp)
         KLₐ = prev_gp.prev𝓛ₐ
         KLₐ +=
-            -0.5 * sum(
+            -sum(
                 trace_ABt.(
                     Ref(prev_gp.invDₐ),
                     [kernel_mat.K̃ₐ, kernel_mat.κₐ * cov(gp) * transpose(kernel_mat.κₐ)],
                 ),
-            )
-        KLₐ += dot(prev_gp.prevη₁, κₐμ) - 0.5 * dot(κₐμ, prev_gp.invDₐ * κₐμ)
+            ) / 2
+        KLₐ += dot(prev_gp.prevη₁, κₐμ) - dot(κₐμ, prev_gp.invDₐ * κₐμ) / 2
         return KLₐ
     end
 end
@@ -94,7 +94,7 @@ end
 KL(q(ω)||p(ω)), where q(ω) = PG(b,c) and p(ω) = PG(b,0). θ = 𝑬[ω]
 """
 function PolyaGammaKL(b, c, θ)
-    return dot(b, logcosh.(0.5 * c)) - 0.5 * dot(abs2.(c), θ)
+    return dot(b, logcosh.(c / 2)) - dot(abs2.(c), θ) / 2
 end
 
 """
@@ -104,10 +104,10 @@ Entropy of GIG variables with parameters a,b and p and omitting the derivative d
 """
 function GIGEntropy(a, b, p)
     sqrt_ab = sqrt.(a .* b)
-    return 0.5 * (sum(log, a) - sum(log, b)) +
+    return (sum(log, a) - sum(log, b)) / 2 +
            mapreduce((p, s) -> log(2 * besselk(p, s)), +, p, sqrt_ab) +
            sum(
-               0.5 * sqrt_ab ./ besselk.(p, sqrt_ab) .*
+               sqrt_ab ./ besselk.(p, sqrt_ab) .*
                (besselk.(p + 1, sqrt_ab) + besselk.(p - 1, sqrt_ab)),
-           )
+           ) / 2
 end

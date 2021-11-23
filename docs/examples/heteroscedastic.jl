@@ -5,7 +5,7 @@ using AugmentedGaussianProcesses
 using Distributions
 using LinearAlgebra
 using Plots
-default(lw=3.0, msw=0.0)
+default(; lw=3.0, msw=0.0)
 # using CairoMakie
 
 # ## Model generated data
@@ -30,8 +30,8 @@ g = rand(MvNormal(μ₀ * ones(N), K))
 y = f + σ .* randn(N); # We finally sample the ouput
 # We can visualize the data:
 n_sig = 2 # Number of std. dev. around the mean
-plot(x, f, ribbon = n_sig * σ, lab= "p(y|f,g)") # Mean and std. dev. of y
-scatter!(x, y, alpha=0.5, msw=0.0, lab="y") # Observation samples
+plot(x, f; ribbon=n_sig * σ, lab="p(y|f,g)") # Mean and std. dev. of y
+scatter!(x, y; alpha=0.5, msw=0.0, lab="y") # Observation samples
 
 # ## Model creation and training
 # We will now use the augmented model to infer both `f` and `g`
@@ -55,12 +55,18 @@ train!(model, 100);
 y_m, y_σ = proba_y(model, x_test);
 # Let's first look at the differece between the latent `f` and `g`
 plot(x, [f, g]; label=["f" "g"])
-plot!(x_test, [f_m, g_m]; ribbon=[n_sig * f_σ n_sig * g_σ], lab=["f_pred" "g_pred"], legend=true)
+plot!(
+    x_test,
+    [f_m, g_m];
+    ribbon=[n_sig * f_σ n_sig * g_σ],
+    lab=["f_pred" "g_pred"],
+    legend=true,
+)
 # But it's more interesting to compare the predictive probability of `y` directly:
-plot(x, f; ribbon = n_sig * σ, lab="p(y|f,g)")
-plot!(x_test, y_m, ribbon = n_sig * sqrt.(y_σ), lab="p(y|f,g) pred")
+plot(x, f; ribbon=n_sig * σ, lab="p(y|f,g)")
+plot!(x_test, y_m; ribbon=n_sig * sqrt.(y_σ), lab="p(y|f,g) pred")
 scatter!(x, y; lab="y", alpha=0.2)
 # Or to explore the heteroscedasticity itself, we can look at the residuals
-scatter(x, (f - y).^2; yaxis=:log, lab="residuals",alpha=0.2)
+scatter(x, (f - y) .^ 2; yaxis=:log, lab="residuals", alpha=0.2)
 plot!(x, σ .^ 2; lab="true σ²(x)")
 plot!(x_test, y_σ; lab="predicted σ²(x)")

@@ -226,7 +226,7 @@ end
 
 ## Return the derivative of the KL divergence between the posterior and the GP prior ##
 function hyperparameter_KL_gradient(J::AbstractMatrix, A::AbstractMatrix)
-    return 0.5 * trace_ABt(J, A)
+    return trace_ABt(J, A) / 2
 end
 
 function hyperparameter_gradient_function(gp::LatentGP{T}, ::AbstractVector) where {T}
@@ -376,7 +376,7 @@ function hyperparameter_online_gradient(
 )
     ιₐ = (Jab - gp.κₐ * Jmm) / pr_cov(gp)
     trace_term =
-        -0.5 * sum(
+        -sum(
             trace_ABt.(
                 [gp.invDₐ],
                 [
@@ -386,7 +386,7 @@ function hyperparameter_online_gradient(
                     -gp.κₐ * transpose(Jab),
                 ],
             ),
-        )
+        ) / 2
     term_1 = dot(gp.prevη₁, ιₐ * mean(gp))
     term_2 = -dot(ιₐ * mean(gp), gp.invDₐ * gp.κₐ * mean(gp))
     return trace_term + term_1 + term_2

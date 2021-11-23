@@ -64,7 +64,7 @@ function create_mapping!(l::MultiClassLikelihood, y::AbstractVector)
     if !isdefined(l, :class_mapping)
         l.class_mapping = unique(y)
         if length(l.class_mapping) <= num_latent &&
-           issubset(l.class_mapping, collect(1:num_latent))
+            issubset(l.class_mapping, collect(1:num_latent))
             l.class_mapping = collect(1:num_latent)
         elseif length(l.class_mapping) > num_latent
             throw(

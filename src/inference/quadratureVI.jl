@@ -90,10 +90,12 @@ end
 function expec_loglikelihood(
     l::AbstractLikelihood, i::QuadratureVI, y, μ::AbstractVector, diagΣ::AbstractVector
 )
-    return mapreduce(apply_quad, :+, y, μ, diagΣ, i, l)
+    return mapreduce(+, y, μ, diagΣ) do y, μ, σ²
+        apply_quad(i, y, μ, σ², l)
+    end
 end
 
-function apply_quad(y::Real, μ::Real, σ²::Real, i::QuadratureVI, l::AbstractLikelihood)
+function apply_quad(i::QuadratureVI, y::Real, μ::Real, σ²::Real, l::AbstractLikelihood)
     xs = i.nodes * sqrt(σ²) .+ μ
     return dot(i.weights, loglikelihood.(Ref(l), y, xs))
     # return mapreduce((w, x) -> w * Distributions.loglikelihood(l, y, x), +, i.weights, xs)# loglikelihood.(l, y, x))
