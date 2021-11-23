@@ -27,10 +27,10 @@ l_reverse = []
 σ_reverse = []
 function cb_reverse(model, iter)
     if iter > 3
-        push!(grads_reverse, AGP.grads[first(Flux.params(model.f[1].kernel))])
+        push!(grads_reverse, AGP.grads[only(Flux.params(model.f[1].kernel))])
     end
     push!(ELBO_reverse, ELBO(model))
-    return push!(l_reverse, first(model.f[1].kernel.transform.s))
+    return push!(l_reverse, only(model.f[1].kernel.transform.s))
 end
 model = if fullgp
     VGP(X, sign.(y), deepcopy(kernel), LogisticLikelihood(), AnalyticVI())

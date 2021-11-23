@@ -72,14 +72,14 @@ function local_updates!(
     diagΣ::NTuple{2,<:AbstractVector},
 )
     # gp[1] is f and gp[2] is g (for approximating the noise)
-    @. local_vars.ϕ = 0.5 * (abs2(μ[1] - y) + diagΣ[1])
+    @. local_vars.ϕ = (abs2(μ[1] - y) + diagΣ[1]) / 2
     @. local_vars.c = sqrt(abs2(μ[2]) + diagΣ[2])
     @. local_vars.γ =
-        0.5 * l.invlink.λ[1] * local_vars.ϕ * safe_expcosh(-0.5 * μ[2], 0.5 * local_vars.c)
-    @. local_vars.θ = 0.5 * (0.5 + local_vars.γ) / local_vars.c * tanh(0.5 * local_vars.c)
+        l.invlink.λ[1] * local_vars.ϕ * safe_expcosh(μ[2] / 2, local_vars.c / 2) / 2
+    @. local_vars.θ = (1//2 + local_vars.γ) / (2 * local_vars.c * tanh(local_vars.c / 2))
     @. local_vars.σg = expectation(logistic, μ[2], diagΣ[2])
     l.invlink.λ .= max(
-        0.5 * length(local_vars.ϕ) / dot(local_vars.ϕ, local_vars.σg), l.invlink.λ[1]
+        length(local_vars.ϕ) / (2 * dot(local_vars.ϕ, local_vars.σg)), only(l.invlink.λ)
     )
     return local_vars
 end
@@ -133,7 +133,7 @@ function heteroscedastic_expectations!(
 )
     @. local_vars.σg = expectation(logistic, μ, Σ)
     l.invlink.λ .= max(
-        0.5 * length(local_vars.ϕ) / dot(local_vars.ϕ, local_vars.σg), l.invlink.λ[1]
+        length(local_vars.ϕ) / (2 * dot(local_vars.ϕ, local_vars.σg), l.invlink.λ[1])
     )
     return local_vars
 end
@@ -144,7 +144,7 @@ end
     y::AbstractVector,
     state,
 )
-    return (y .* l.invlink.λ[1] .* state.σg, 0.5 * (0.5 .- state.γ))
+    return (y .* only(l.invlink.λ) .* state.σg / 2, (1 // 2 .- state.γ) / 2)
 end
 
 @inline function ∇E_Σ(
@@ -153,7 +153,7 @@ end
     ::AbstractVector,
     state,
 )
-    return (0.5 * l.invlink.λ[1] .* state.σg, 0.5 * state.θ)
+    return (l.invlink.λ[1] .* state.σg / 2, state.θ / 2)
 end
 
 function compute_proba(
@@ -178,12 +178,12 @@ function expec_loglikelihood(
     diag_cov,
     state,
 )
-    tot = length(y) * (0.5 * log(l.invlink.λ[1]) - log(2 * sqrt(twoπ)))
+    tot = length(y) * (log(l.invlink.λ[1]) / 2 - log(2 * sqrt(twoπ)))
     tot +=
-        0.5 * (
+        (
             dot(μ[2], (0.5 .- state.γ)) - dot(abs2.(μ[2]), state.θ) -
             dot(diag_cov[2], state.θ)
-        )
+        ) / 2
     tot -= PoissonKL(l, y, μ[1], diag_cov[1], state)
     return tot
 end
@@ -203,8 +203,8 @@ function PoissonKL(
 )
     return PoissonKL(
         state.γ,
-        0.5 * l.invlink.λ[1] * (abs2.(y - μ) + Σ),
-        log.(0.5 * l.invlink.λ[1] * (abs2.(μ - y) + Σ)),
+        l.invlink.λ[1] * (abs2.(y - μ) + Σ) / 2,
+        log.(l.invlink.λ[1] * (abs2.(μ - y) + Σ) / 2),
     )
 end
 

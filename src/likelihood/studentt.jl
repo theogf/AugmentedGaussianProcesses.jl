@@ -7,7 +7,7 @@
 
 [Student-t likelihood](https://en.wikipedia.org/wiki/Student%27s_t-distribution) for regression:
 ```math
-    p(y|f,ν,σ) = \frac{Γ(0.5(ν+1))}{\sqrt(νπ) σ Γ(0.5ν)} (1+\frac{(y-f)^2}{σ^2ν})^{(-0.5(ν+1))},
+    p(y|f,ν,σ) = \frac{Γ(\frac{ν+1}{2})}{\sqrt(νπ) σ Γ(\frac{ν}{2})} (1+\frac{(y-f)^2}{σ^2ν})^{(-\frac{ν+1}{2})},
 ```
 where `ν` is the number of degrees of freedom and `σ` is the standard deviation for local scale of the data.
 
@@ -17,7 +17,7 @@ For the augmented analytical solution, it is augmented via:
 ```math
     p(y|f,\omega) = N(y|f,\sigma^2 \omega)
 ```
-Where ``\omega \sim \mathcal{IG}(0.5\nu,0.5\nu)`` where ``\mathcal{IG}`` is the inverse-gamma distribution.
+Where ``\omega \sim \mathcal{IG}(\frac{\nu}{2},\frac{\nu}{2})`` where ``\mathcal{IG}`` is the inverse-gamma distribution.
 See paper [Robust Gaussian Process Regression with a Student-t Likelihood](http://www.jmlr.org/papers/volume12/jylanki11a/jylanki11a.pdf)
 """
 struct StudentTLikelihood{T<:Real} <: RegressionLikelihood
@@ -57,7 +57,7 @@ end
 function compute_proba(
     l::StudentTLikelihood, μ::AbstractVector{<:Real}, σ²::AbstractVector{<:Real}
 )
-    return μ, max.(σ², zero(eltype(σ²))) .+ 0.5 * l.ν * l.σ^2 / (0.5 * l.ν - 1)
+    return μ, max.(σ², zero(eltype(σ²))) .+ l.ν * l.σ^2 / 2(l.ν / 2 - 1)
 end
 
 ## Local Updates ##
@@ -72,7 +72,7 @@ function local_updates!(
     μ::AbstractVector,
     diag_cov::AbstractVector,
 )
-    @. local_vars.c = 0.5 * (diag_cov + abs2(μ - y) + l.σ^2 * l.ν)
+    @. local_vars.c = (diag_cov + abs2(μ - y) + l.σ^2 * l.ν) / 2
     @. local_vars.θ = l.α / local_vars.c
     return local_vars
 end
@@ -80,7 +80,7 @@ end
 function sample_local!(
     local_vars, l::StudentTLikelihood, y::AbstractVector, f::AbstractVector
 )
-    local_vars.c .= rand.(InverseGamma.(l.α, 0.5 * (abs2.(f - y) .+ l.σ^2 * l.ν)))
+    local_vars.c .= rand.(InverseGamma.(l.α, (abs2.(f - y) .+ l.σ^2 * l.ν) / 2))
     local_vars.θ .= inv.(local_vars.c)
     return local_vars
 end
@@ -89,7 +89,7 @@ end
 
 @inline ∇E_μ(::StudentTLikelihood, ::AOptimizer, y::AbstractVector, state) = (state.θ .* y,)
 @inline function ∇E_Σ(::StudentTLikelihood, ::AOptimizer, ::AbstractVector, state)
-    return (0.5 .* state.θ,)
+    return (state.θ / 2,)
 end
 
 ## ELBO Section ##
@@ -102,13 +102,13 @@ function expec_loglikelihood(
     diag_cov::AbstractVector,
     state,
 )
-    tot = -0.5 * length(y) * (log(twoπ * l.σ^2))
+    tot = -length(y) * (log(twoπ * l.σ^2)) / 2
     tot += -sum(log.(state.c) .- digamma(l.α))
     tot +=
-        -0.5 * (
+        -(
             dot(state.θ, diag_cov) + dot(state.θ, abs2.(μ)) - 2.0 * dot(state.θ, μ .* y) +
             dot(state.θ, abs2.(y))
-        )
+        ) / 2
     return tot
 end
 

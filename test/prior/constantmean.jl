@@ -12,6 +12,6 @@
     g = Zygote.gradient(μ₀) do m
         sum(m(X))
     end
-    AGP.update!(μ₀, st, Vector(first(g)[].C))
-    @test μ₀.C[1] == (c + first(g)[].C[1])
+    AGP.update!(μ₀, st, only(g).C)
+    @test μ₀.C[1] == (c + only(g).C[1])
 end

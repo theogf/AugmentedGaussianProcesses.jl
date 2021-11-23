@@ -34,7 +34,7 @@ function train!(
 
     if verbose(model) > 0
         @info "Starting training $model with $(n_sample(data)) samples, $(n_dim(data)) features and $(n_latent(likelihood(model))) latent GP" *
-              (n_latent(model) > 1 ? "s" : "")
+            (n_latent(model) > 1 ? "s" : "")
     end
     # model.evol_conv = [] # Array to check on the evolution of convergence
     local_iter = 1
@@ -63,8 +63,8 @@ function train!(
                 callback(model, state, n_iter(model)) #Use a callback method if set by user
             end
             if (n_iter(model) % model.atfrequency == 0) &&
-               (n_iter(model) >= 3) &&
-               (local_iter != iterations)
+                (n_iter(model) >= 3) &&
+                (local_iter != iterations)
                 state = update_hyperparameters!(model, state, x, y) #Update the hyperparameters
             end
             # Print out informations about the convergence

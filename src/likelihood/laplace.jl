@@ -82,7 +82,7 @@ end
     return (state.θ .* y,)
 end
 @inline function ∇E_Σ(::LaplaceLikelihood, ::AOptimizer, ::AbstractVector, state)
-    return (0.5 * state.θ,)
+    return (state.θ / 2,)
 end
 
 ## ELBO ##
@@ -94,13 +94,13 @@ function expec_loglikelihood(
     diag_cov::AbstractVector,
     state,
 )
-    tot = -0.5 * length(y) * log(twoπ)
-    tot += 0.5 * Zygote.@ignore(sum(log, state.θ))
+    tot = -length(y) * log(twoπ) / 2
+    tot += Zygote.@ignore(sum(log, state.θ)) / 2
     tot +=
-        -0.5 * (
+        -(
             dot(state.θ, diag_cov) + dot(state.θ, abs2.(μ)) - 2.0 * dot(state.θ, μ .* y) +
             dot(state.θ, abs2.(y))
-        )
+        ) / 2
     return tot
 end
 
@@ -113,7 +113,7 @@ GIGEntropy(l::LaplaceLikelihood, state) = GIGEntropy(l.a, state.b, l.p)
 function expecExponentialGIG(l::LaplaceLikelihood, state)
     return sum(
         -log(2 * l.β^2) .-
-        0.5 * (l.a .* sqrt.(state.b) + state.b .* sqrt(l.a)) ./ (l.a .* state.b * l.β^2),
+        (l.a .* sqrt.(state.b) + state.b .* sqrt(l.a)) ./ (l.a .* state.b * l.β^2) / 2,
     )
 end
 

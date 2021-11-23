@@ -32,7 +32,7 @@ function Distributions.loglikelihood(l::GaussianLikelihood, y::Real, f::Real)
     return logpdf(Normal(y, sqrt(noise(l))), f)
 end
 
-noise(l::GaussianLikelihood) = first(l.σ²)
+noise(l::GaussianLikelihood) = only(l.σ²)
 
 function Base.show(io::IO, l::GaussianLikelihood)
     return print(io, "Gaussian likelihood (σ² = $(noise(l)))")
@@ -61,7 +61,7 @@ function local_updates!(
     var_f::AbstractVector,
 )
     if !isnothing(l.opt_noise)
-        grad = 0.5 * ((sum(abs2, y - μ) + sum(var_f)) / noise(l) - length(y))
+        grad = ((sum(abs2, y - μ) + sum(var_f)) / noise(l) - length(y)) / 2
         gradlog, local_vars.state_σ² = Optimisers.apply!(
             l.opt_noise, local_vars.state_σ², l.σ², [grad]
         )
@@ -76,7 +76,7 @@ end
 end
 
 @inline function ∇E_Σ(::GaussianLikelihood, ::AOptimizer, ::AbstractVector, state)
-    return (0.5 * state.θ,)
+    return (state.θ / 2,)
 end
 
 function expec_loglikelihood(
@@ -87,9 +87,9 @@ function expec_loglikelihood(
     diagΣ::AbstractVector,
     state,
 )
-    return -0.5 * (
+    return -(
         length(y) * (log(twoπ) + log(noise(l))) + (sum(abs2, y - μ) + sum(diagΣ)) / noise(l)
-    )
+    ) / 2
 end
 
 AugmentedKL(::GaussianLikelihood, state, ::Any) = 0

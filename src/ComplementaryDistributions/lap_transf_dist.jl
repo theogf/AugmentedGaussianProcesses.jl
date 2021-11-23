@@ -25,12 +25,12 @@ end
 function _check_f(f)
     return true # TODO Add tests for complete monotonicity / PDR
 end
-_gradf(d::LaplaceTransformDistribution, x::Real) = first(ForwardDiff.gradient(d.f, [x]))
+_gradf(d::LaplaceTransformDistribution, x::Real) = only(ForwardDiff.gradient(d.f, [x]))
 function _gradlogf(d::LaplaceTransformDistribution, x::Real)
-    return first(ForwardDiff.gradient(log ∘ d.f, [x]))
+    return only(ForwardDiff.gradient(log ∘ d.f, [x]))
 end
 function _hessianlogf(d::LaplaceTransformDistribution, x::Real)
-    return first(ForwardDiff.hessian(log ∘ d.f, [x]))
+    return only(ForwardDiff.hessian(log ∘ d.f, [x]))
 end
 
 Distributions.pdf(dist::LaplaceTransformDistribution, x::Real) = apply_f(dist, x)
@@ -42,7 +42,7 @@ function Distributions.var(dist::LaplaceTransformDistribution)
 end
 
 function Random.rand(dist::LaplaceTransformDistribution)
-    return first(rand(dist, 1))
+    return only(rand(dist, 1))
 end
 
 # Sampling from Ridout (09)
@@ -173,7 +173,7 @@ function laptrans(
             k += 1
             t = t - (apply_F(dist, t) - u[i]) / apply_f(dist, t)
             if t < x_L || t > x_U
-                t = 0.5 * (x_L + x_U)
+                t = (x_L + x_U) / 2
             end
             if apply_F(dist, t) <= u[i]
                 x_L = t
