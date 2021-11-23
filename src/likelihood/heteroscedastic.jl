@@ -75,8 +75,8 @@ function local_updates!(
     @. local_vars.ϕ = (abs2(μ[1] - y) + diagΣ[1]) / 2
     @. local_vars.c = sqrt(abs2(μ[2]) + diagΣ[2])
     @. local_vars.γ =
-        l.invlink.λ[1] * local_vars.ϕ * safe_expcosh(μ[2] / 2, local_vars.c / 2) / 2
-    @. local_vars.θ = (1//2 + local_vars.γ) / (2 * local_vars.c * tanh(local_vars.c / 2))
+        only(l.invlink.λ) * local_vars.ϕ * safe_expcosh(μ[2] / 2, local_vars.c / 2) / 2
+    @. local_vars.θ = (1//2 + local_vars.γ) / (2 * local_vars.c) * tanh(local_vars.c / 2)
     @. local_vars.σg = expectation(logistic, μ[2], diagΣ[2])
     l.invlink.λ .= max(
         length(local_vars.ϕ) / (2 * dot(local_vars.ϕ, local_vars.σg)), only(l.invlink.λ)
