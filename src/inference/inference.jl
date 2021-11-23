@@ -11,6 +11,7 @@ post_process!(::AbstractGPModel) = nothing
 
 # Utils to iterate over inference objects
 Base.length(::AbstractInference) = 1
+Base.size(::AbstractInference) = (1,)
 
 Base.iterate(i::AbstractInference) = (i, nothing)
 Base.iterate(::AbstractInference, ::Any) = nothing

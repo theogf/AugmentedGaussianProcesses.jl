@@ -80,7 +80,7 @@ function sample_local!(local_vars, ::MultiClassLikelihood{<:LogisticSoftMaxLink}
     broadcast!(local_vars.γ, f) do f
         rand.(Poisson.(local_vars.α .* safe_expcosh.(-f / 2, f / 2) / 2))
     end
-    rand!(local_vars.α, Gamma.(1 .+ (local_vars.γ...), inv.(local_vars.β)))
+    local_vars.α .= rand.(Gamma.(1 .+ (local_vars.γ...), inv.(local_vars.β)))
     broadcast!(local_vars.θ, eachcol(y), local_vars.γ, f) do y, γ, f
         rand.(PolyaGamma.(y .+ Int.(γ), abs.(f)))
     end

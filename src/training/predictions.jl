@@ -9,16 +9,16 @@ function _predict_f(
     k_star = kernelmatrix(kernel(m.f), X_test, input(m.data))
     μf = k_star * mean(m.f) # k * α
     if !cov
-        return (μf,)
+        return ((μf,),)
     end
     if diag
         k_starstar = kernelmatrix_diag(kernel(m.f), X_test) .+ T(jitt)
         varf = k_starstar - diag_ABt(k_star / AGP.cov(m.f), k_star)
-        return μf, varf
+        return ((μf,), (varf,))
     else
         k_starstar = kernelmatrix(kernel(m.f), X_test) + T(jitt) * I
         covf = Symmetric(k_starstar - k_star' * (AGP.cov(m.f) \ k_star)) # k** - k* Σ⁻¹ k*
-        return μf, covf
+        return ((μf,), (covf,))
     end
 end
 
@@ -146,9 +146,7 @@ function predict_f(
     diag::Bool=true,
     obsdim::Int=1,
 )
-    return predict_f(
-        model, KernelFunctions.vec_of_vecs(X_test; obsdim=obsdim), state; cov=cov, diag=diag
-    )
+    return predict_f(model, KernelFunctions.vec_of_vecs(X_test; obsdim), state; cov, diag)
 end
 
 function predict_f(
@@ -159,9 +157,9 @@ function predict_f(
     diag::Bool=true,
 )
     if n_latent(model) > 1
-        return _predict_f(model, X_test, state; cov=cov, diag=diag)
+        return _predict_f(model, X_test, state; cov, diag)
     else
-        return only.(_predict_f(model, X_test, state; cov=cov, diag=diag))
+        return only.(_predict_f(model, X_test, state; cov, diag))
     end
 end
 
@@ -180,7 +178,7 @@ predict_y
 function predict_y(
     model::AbstractGPModel, X_test::AbstractMatrix, state=nothing; obsdim::Int=1
 )
-    return predict_y(model, KernelFunctions.vec_of_vecs(X_test; obsdim=obsdim), state)
+    return predict_y(model, KernelFunctions.vec_of_vecs(X_test; obsdim), state)
 end
 
 @traitfn function predict_y(
@@ -192,7 +190,7 @@ end
 @traitfn function predict_y(
     model::TGP, X_test::AbstractVector, state=nothing
 ) where {TGP <: AbstractGPModel; IsMultiOutput{TGP}}
-    return predict_y.(likelihood(model), only.(_predict_f(model, X_test, state; cov=false)))
+    return predict_y.(likelihood(model), only(_predict_f(model, X_test, state; cov=false)))
 end
 
 function predict_y(l::MultiClassLikelihood, μs::Tuple{Vararg{<:AbstractVector{<:Real}}})
@@ -218,16 +216,16 @@ end
 
 Return the probability distribution p(y_test|model,X_test) :
 
-    - Tuple of vectors of mean and variance for regression
-    - Vector of probabilities of y_test = 1 for binary classification
-    - Dataframe with columns and probability per class for multi-class classification
+    - `Tuple{Vector,Vector}` of mean and variance for regression
+    - `Vector{<:Real}` of probabilities of y_test = 1 for binary classification
+    - `NTuple{K,<:AbstractVector}`, with element being a vector of probability for one class for multi-class classification
 """
 proba_y
 
 function proba_y(
     model::AbstractGPModel, X_test::AbstractMatrix, state=nothing; obsdim::Int=1
 )
-    return proba_y(model, KernelFunctions.vec_of_vecs(X_test; obsdim=obsdim))
+    return proba_y(model, KernelFunctions.vec_of_vecs(X_test; obsdim))
 end
 
 @traitfn function proba_y(
