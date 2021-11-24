@@ -23,10 +23,6 @@ struct Matern3_2Likelihood{T<:Real} <: MaternLikelihood
     ρ::T
 end
 
-function Matern3_2Likelihood(ρ::T=1.0) where {T<:Real}
-    return Matern3_2Likelihood{T}(ρ)
-end
-
 function implemented(
     ::Matern3_2Likelihood, ::Union{<:AnalyticVI,<:QuadratureVI,<:GibbsSampling}
 )
@@ -63,9 +59,7 @@ function local_updates!(
     local_vars,
     l::Matern3_2Likelihood, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
 )
-    map!(local_vars.c, μ, diagΣ, y) do μ, σ², y
-        sqrt(abs2(μ - y) + σ²)
-    end # √E[(y-f)^2]
+    map!(local_vars.c, sqrt_expec_square, μ, diagΣ, y) # √E[(y-f)^2]
     map!(local_vars.θ, local_vars.c) do c
         3 / (2 * sqrt(3) * c * l.ρ + 2 * l.ρ^2)
     end
