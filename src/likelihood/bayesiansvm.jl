@@ -47,7 +47,7 @@ function local_updates!(
     map!(local_vars.c, μ, diagΣ, y) do μ, σ², y
         abs2(one(T) - y * μ) + σ²
     end
-    map!(local_vars.θ, inv ∘ sqrt, local_vars.c)
+    map!(inv ∘ sqrt, local_vars.θ, local_vars.c)
     return local_vars
 end
 

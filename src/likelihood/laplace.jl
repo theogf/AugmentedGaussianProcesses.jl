@@ -65,7 +65,7 @@ function local_updates!(
     μ::AbstractVector,
     diagΣ::AbstractVector,
 )
-    map!(local_vars.b, sqrt_expec_square, μ, diagΣ, y) # √E[(f-y)^2]
+    map!(sqrt_expec_square, local_vars.b, μ, diagΣ, y) # √E[(f-y)^2]
     map!(local_vars.θ, local_vars.b) do b
         sqrt(l.a) / b
     end
@@ -112,7 +112,7 @@ function AugmentedKL(l::LaplaceLikelihood, state, ::Any)
     return GIGEntropy(l, state) - expecExponentialGIG(l, state)
 end
 
-GIGEntropy(l::LaplaceLikelihood, state) = GIGEntropy(l.a, state.b, l.p)
+GIGEntropy(l::LaplaceLikelihood, state) = GIGEntropy(l.a, state.b.^2, l.p)
 
 function expecExponentialGIG(l::LaplaceLikelihood, state)
     return sum(

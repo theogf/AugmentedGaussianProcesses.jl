@@ -70,7 +70,7 @@ function local_updates!(
     diagΣ::AbstractVector,
 )
     λ = only(l.invlink.λ)
-    map!(local_vars.c, sqrt_expec_square, μ, diagΣ)
+    map!(sqrt_expec_square, local_vars.c, μ, diagΣ)
     map!(local_vars.γ, μ, local_vars.c) do μ, c
         λ * safe_expcosh(-μ / 2, c / 2) / 2
     end
@@ -84,7 +84,7 @@ end
 function sample_local!(
     local_vars, l::PoissonLikelihood{<:ScaledLogistic}, y::AbstractVector, f::AbstractVector
 )
-    map!(local_vars.γ, rand ∘ l, f) # sample n
+    map!(rand ∘ l, local_vars.γ, f) # sample n
     map!(local_vars.θ, y, local_vars.γ, f) do y, γ, f
         rand(PolyaGamma(y + Int(γ), abs(f))) # Sample ω
     end

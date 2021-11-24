@@ -81,7 +81,7 @@ function local_updates!(
     map!(local_vars.ϕ, μ[1], diagΣ[1], y) do μ, σ², y
         (abs2(μ - y) + σ²) / 2 # E[(f-y)^2/2]
     end
-    map!(local_vars.c, sqrt_expec_square, μ[2], diagΣ[2]) # √E[g^2]
+    map!(sqrt_expec_square, local_vars.c, μ[2], diagΣ[2]) # √E[g^2]
     map!(local_vars.σg, μ[2], local_vars.c) do μ, c
         safe_expcosh(-μ / 2, c / 2) / 2 # ≈ E[σ(-g)]
     end

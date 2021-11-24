@@ -43,7 +43,7 @@ function local_updates!(
     μ::AbstractVector,
     diagΣ::AbstractVector,
 )
-    map!(local_vars.c, sqrt_expec_square, μ, diagΣ) # √E[f^2]
+    map!(sqrt_expec_square, local_vars.c, μ, diagΣ) # √E[f^2]
     map!(local_vars.θ, local_vars.c) do c
         tanh(c / 2) / (2c)
     end # E[ω]
