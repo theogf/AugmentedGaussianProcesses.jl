@@ -57,9 +57,9 @@ function local_updates!(
     ::MultiClassLikelihood{<:LogisticSoftMaxLink},
     y,
     μ::NTuple{N,<:AbstractVector},
-    Σ::NTuple{N,<:AbstractVector},
+    diagΣ::NTuple{N,<:AbstractVector},
 ) where {N}
-    map!(local_vars.c, Σ, μ) do Σ, μ
+    broadcast!(local_vars.c, Σ, μ) do Σ, μ
         sqrt.(Σ + abs2.(μ))
     end
     for _ in 1:2
@@ -70,7 +70,7 @@ function local_updates!(
         end # E[n]
         local_vars.α .= 1 .+ (local_vars.γ...)
     end
-    map!(local_vars.θ, eachcol(y), local_vars.γ, local_vars.c) do y, γ, c
+    broadcast!(local_vars.θ, eachcol(y), local_vars.γ, local_vars.c) do y, γ, c
         (y + γ) .* tanh.(c / 2) ./ 2c
     end # E[ω]
     return local_vars

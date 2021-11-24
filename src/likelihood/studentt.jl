@@ -85,7 +85,7 @@ function sample_local!(
     local_vars, l::StudentTLikelihood, y::AbstractVector, f::AbstractVector
 )
     map!(local_vars.c, f, y) do f, y
-        rand(InverseGamma(l.α, (abs2(f - y) + l.σ² * l.ν) / 2))
+        rand(InverseGamma(l.α, (abs2(f - y) + l.σ^2 * l.ν) / 2))
     end # sample ω
     map!(inv, local_vars.θ, local_vars.c)
     return local_vars
