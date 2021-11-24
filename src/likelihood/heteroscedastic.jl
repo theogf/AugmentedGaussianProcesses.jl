@@ -78,21 +78,19 @@ function local_updates!(
 )
     # gp[1] is f and gp[2] is g (for approximating the noise)
     λ = only(l.invlink.λ)
-    map!(local_vars.ϕ, μ[1], diagΣ[1] y) do μ, σ², y
+    map!(local_vars.ϕ, μ[1], diagΣ[1], y) do μ, σ², y
         (abs2(μ - y) + σ²) / 2 # E[(f-y)^2/2]
     end
-    map!(local_vars.c, μ[2], diagΣ[2]) do μ, σ²
-        sqrt(abs2(μ) + σ²) # √E[g^2]
-    end
+    map!(local_vars.c, sqrt_expec_square, μ[2], diagΣ[2]) do μ, σ² # √E[g^2]
     map!(local_vars.σg, μ[2], local_vars.c) do μ, c
         safe_expcosh(-μ / 2, c / 2) / 2 # ≈ E[σ(-g)]
     end
     map!(local_vars.γ, local_vars.ϕ, local_vars.σg) do ϕ, σg
         λ * ϕ * σg
-    end
+    end # E[n]
     map!(local_vars.θ, local_vars.γ, local_vars.c) do γ, c
         (1//2 + γ) * tanh(c / 2) / (2c)
-    end
+    end # E[ω]
     l.invlink.λ .= max(length(y) / (2 * dot(local_vars.ϕ, 1 .- local_vars.σg)), λ)
     return local_vars
 end

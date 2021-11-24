@@ -65,11 +65,9 @@ function local_updates!(
     μ::AbstractVector,
     diagΣ::AbstractVector,
 )
-    map!(local_vars.b, μ, diagΣ, y) do μ, σ², y
-        abs2(μ - y) + σ²
-    end
+    map!(local_vars.b, sqrt_expec_square, μ, diagΣ, y) # √E[(f-y)^2]
     map!(local_vars.θ, local_vars.b) do b
-        sqrt(l.a) / sqrt(b)
+        sqrt(l.a) / b
     end
     return local_vars
 end
@@ -119,7 +117,7 @@ GIGEntropy(l::LaplaceLikelihood, state) = GIGEntropy(l.a, state.b, l.p)
 function expecExponentialGIG(l::LaplaceLikelihood, state)
     return sum(
         -log(2 * l.β^2) .-
-        (l.a .* sqrt.(state.b) + state.b .* sqrt(l.a)) ./ (l.a .* state.b * l.β^2) / 2,
+        (l.a .* state.b + state.b.^2 .* sqrt(l.a)) ./ (l.a .* state.b.^2 * l.β^2) / 2,
     )
 end
 
