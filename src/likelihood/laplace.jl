@@ -65,16 +65,22 @@ function local_updates!(
     μ::AbstractVector,
     diagΣ::AbstractVector,
 )
-    @. local_vars.b = diagΣ + abs2(μ - y)
-    @. local_vars.θ = sqrt(l.a) / sqrt.(local_vars.b)
+    map!(local_vars.b, μ, diagΣ, y) do μ, σ², y
+        abs2(μ - y) + σ²
+    end
+    map!(local_vars.θ, local_vars.b) do b
+        sqrt(l.a) / sqrt(b)
+    end
     return local_vars
 end
 
 function sample_local!(
     local_vars, l::LaplaceLikelihood, y::AbstractVector, f::AbstractVector
 )
-    rand!(local_vars.b, GeneralizedInverseGaussian.(inv(l.β^2), abs2.(f - y), 0.5))
-    @. local_vars.θ = inv(local_vars.b)
+    map!(local_vars.b, f, y) do f, y
+        rand(GeneralizedInverseGaussian(inv(l.β^2), abs2(f - y), 0.5))
+    end
+    map!(inv, local_vars.θ, local_vars.b)
     return local_vars
 end
 

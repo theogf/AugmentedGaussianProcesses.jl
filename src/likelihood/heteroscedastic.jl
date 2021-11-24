@@ -24,7 +24,12 @@ InvScaledLogistic(λ::Real) = InvScaledLogistic([λ])
 
 (l::InvScaledLogistic)(f::Real) = inv(l.λ[1] * logistic(f))
 
-implemented(::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, ::Union{<:AnalyticVI,<:GibbsSampling}) = true
+function implemented(
+    ::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},
+    ::Union{<:AnalyticVI,<:GibbsSampling},
+)
+    return true
+end
 
 function (l::HeteroscedasticGaussianLikelihood)(f, y::Real)
     return pdf(l(f), y)
@@ -52,7 +57,7 @@ function init_local_vars(
         ϕ=ones(T, batchsize), # Expectation of (y - f)^2 / 2
         γ=ones(T, batchsize), # Expectation of q(n)
         θ=ones(T, batchsize), # Expectation of q(ω|n)
-        σg=ones(T, batchsize), # Expectation of σ(g)
+        σg=ones(T, batchsize), # Approximation of the expectation of σ(-g)
     )
 end
 
@@ -72,15 +77,23 @@ function local_updates!(
     diagΣ::NTuple{2,<:AbstractVector},
 )
     # gp[1] is f and gp[2] is g (for approximating the noise)
-    @. local_vars.ϕ = (abs2(μ[1] - y) + diagΣ[1]) / 2
-    @. local_vars.c = sqrt(abs2(μ[2]) + diagΣ[2])
-    @. local_vars.γ =
-        only(l.invlink.λ) * local_vars.ϕ * safe_expcosh(μ[2] / 2, local_vars.c / 2) / 2
-    @. local_vars.θ = (1//2 + local_vars.γ) / (2 * local_vars.c) * tanh(local_vars.c / 2)
-    @. local_vars.σg = expectation(logistic, μ[2], diagΣ[2])
-    l.invlink.λ .= max(
-        length(local_vars.ϕ) / (2 * dot(local_vars.ϕ, local_vars.σg)), only(l.invlink.λ)
-    )
+    λ = only(l.invlink.λ)
+    map!(local_vars.ϕ, μ[1], diagΣ[1] y) do μ, σ², y
+        (abs2(μ - y) + σ²) / 2 # E[(f-y)^2/2]
+    end
+    map!(local_vars.c, μ[2], diagΣ[2]) do μ, σ²
+        sqrt(abs2(μ) + σ²) # √E[g^2]
+    end
+    map!(local_vars.σg, μ[2], local_vars.c) do μ, c
+        safe_expcosh(-μ / 2, c / 2) / 2 # ≈ E[σ(-g)]
+    end
+    map!(local_vars.γ, local_vars.ϕ, local_vars.σg) do ϕ, σg
+        λ * ϕ * σg
+    end
+    map!(local_vars.θ, local_vars.γ, local_vars.c) do γ, c
+        (1//2 + γ) * tanh(c / 2) / (2c)
+    end
+    l.invlink.λ .= max(length(y) / (2 * dot(local_vars.ϕ, 1 .- local_vars.σg)), λ)
     return local_vars
 end
 
@@ -88,62 +101,12 @@ function sample_local!(
     local_vars, l::HeteroscedasticGaussianLikelihood, y, f::NTuple{2,<:AbstractVector}
 )
     λ = only(l.invlink.λ)
-    rand!(local_vars.γ, Poisson.(λ * logistic.(f[2]) * (f[1] - y) .^ 2 / 2)) # Update of n
-    rand!(local_vars.θ, PolyaGamma.(local_vars.γ .+ 1//2, abs.(f[2]))) # update of ω
-    return local_vars
-end
-
-function variational_updates!(
-    m::AbstractGPModel{
-        T,<:HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},<:AnalyticVI
-    },
-) where {T}
-    local_vars = local_updates!(
-        state.local_vars, likelihood(m), yview(m), mean_f(m), var_f(m)
-    )
-    natural_gradient!(
-        m.f[2],
-        ∇E_μ(likelihood(m), opt(inference(m)), yview(m), local_vars)[2],
-        ∇E_Σ(likelihood(m), opt(inference(m)), yview(m), local_vars)[2],
-        ρ(m),
-        opt(inference(m)),
-        last(Zviews(m)),
-        state.kernel_matrices[2],
-        state.opt_state[2],
-    )
-    vi_opt_state_2 = global_update!(
-        m.f[2], opt(inference(m)), inference(m), state.opt_state[2]
-    )
-    local_vars = heteroscedastic_expectations!(
-        local_vars, likelihood(m), mean_f(m.f[2]), var_f(m.f[2])
-    )
-    natural_gradient!(
-        m.f[1],
-        ∇E_μ(likelihood(m), opt(inference(m)), yview(m), local_vars)[1],
-        ∇E_Σ(likelihood(m), opt(inference(m)), yview(m), local_vars)[1],
-        ρ(m),
-        opt(inference(m)),
-        first(Zviews(m)),
-        state.kernel_matrices[1],
-        state.opt_state[1],
-    )
-    vi_opt_state_1 = global_update!(
-        m.f[1], opt(inference(m)), inference(m), state.opt_state[1]
-    )
-    opt_state = (vi_opt_state_1, vi_opt_state_2)
-    return merge(state, (; opt_state))
-end
-
-function heteroscedastic_expectations!(
-    local_vars,
-    l::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic},
-    μ::AbstractVector,
-    Σ::AbstractVector,
-)
-    @. local_vars.σg = expectation(logistic, μ, Σ)
-    l.invlink.λ .= max(
-        length(local_vars.ϕ) / (2 * dot(local_vars.ϕ, local_vars.σg), only(l.invlink.λ))
-    )
+    map!(local_vars.γ, f[1], f[2], y) do f, g, y
+        rand(Poisson(λ * logistic(g) * abs2(f - y) / 2))
+    end # Update of n
+    map!(local_vars.θ, local_vars.γ, f[2]) do n, g
+        rand(PolyaGamma(n + 1//2, abs(g)))
+    end # update of ω
     return local_vars
 end
 
@@ -153,7 +116,7 @@ end
     y::AbstractVector,
     state,
 )
-    return (y .* only(l.invlink.λ) .* state.σg / 2, (0.5 .- state.γ) / 2)
+    return (y .* only(l.invlink.λ) .* state.σg / 2, (1//2 .- state.γ) / 2)
 end
 
 @inline function ∇E_Σ(
@@ -162,7 +125,7 @@ end
     ::AbstractVector,
     state,
 )
-    return (only(l.invlink.λ) .* state.σg / 2, state.θ / 2)
+    return (only(l.invlink.λ) * state.σg / 2, state.θ / 2)
 end
 
 function compute_proba(
@@ -170,7 +133,7 @@ function compute_proba(
     μs::Tuple{<:AbstractVector,<:AbstractVector},
     σs::Tuple{<:AbstractVector,<:AbstractVector},
 ) where {T<:Real}
-    return μs[1], σs[1] + expectation.(Ref(l.invlink), μs[2], σs[2])
+    return μs[1], σs[1] + l.invlink.(μs[2])
 end
 
 function predict_y(
@@ -190,7 +153,7 @@ function expec_loglikelihood(
     tot = length(y) * (log(l.invlink.λ[1]) / 2 - log(2 * sqrt(twoπ)))
     tot +=
         (
-            dot(μ[2], (0.5 .- state.γ)) - dot(abs2.(μ[2]), state.θ) -
+            dot(μ[2], (1//2 .- state.γ)) - dot(abs2.(μ[2]), state.θ) -
             dot(diag_cov[2], state.θ)
         ) / 2
     tot -= PoissonKL(l, y, μ[1], diag_cov[1], state)
@@ -210,13 +173,14 @@ function PoissonKL(
     Σ::AbstractVector,
     state,
 )
+    λ = only(l.invlink.λ)
     return PoissonKL(
         state.γ,
-        l.invlink.λ[1] * (abs2.(y - μ) + Σ) / 2,
-        log.(l.invlink.λ[1] * (abs2.(μ - y) + Σ) / 2),
+        λ * (abs2.(y - μ) + Σ) / 2,
+        log.(λ * (abs2.(μ - y) + Σ) / 2),
     )
 end
 
 function PolyaGammaKL(::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, state)
-    return PolyaGammaKL(0.5 .+ state.γ, state.c, state.θ)
+    return PolyaGammaKL(1//2 .+ state.γ, state.c, state.θ)
 end

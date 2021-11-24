@@ -61,7 +61,7 @@ function a(n::Int, x::Real)
     if x > __TRUNC
         return k * exp(-k^2 * x / 2)
     elseif x > 0
-        expnt = -1.5 * (log(π / 2) + log(x)) + log(k) - 2 * (n + 0.5)^2 / x
+        expnt = -1.5 * (log(halfπ) + log(x)) + log(k) - 2 * (n + 1//2)^2 / x
         return exp(expnt)
     end
 end
