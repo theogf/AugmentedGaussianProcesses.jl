@@ -18,6 +18,16 @@ function expectation(f, μ::Real, σ²::Real)
     return dot(pred_weights, f.(x))
 end
 
+# Return √E[f^2]
+function sqrt_expec_square(μ, σ²)
+    sqrt(abs2(μ) + σ²)
+end
+
+# Return √E[(f-y)^2]
+function sqrt_expec_square(μ, σ², y)
+    sqrt(abs2(μ - y) + σ²)
+end
+
 ## delta function `(i,j)`, equal `1` if `i == j`, `0` else ##
 @inline function δ(T, i::Integer, j::Integer)
     return ifelse(i == j, one(T), zero(T))

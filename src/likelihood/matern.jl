@@ -19,16 +19,8 @@ p(y|f,\\omega) = \\mathcal{N}(y|f,\\sigma^2\\omega)
 Where ``\\omega \\sim \\mathcal{IG}(\\frac{\\nu}{2},\\frac{\\nu}{2})`` where ``\\mathcal{IG}`` is the inverse gamma distribution
 See paper [Robust Gaussian Process Regression with a Student-t Likelihood](http://www.jmlr.org/papers/volume12/jylanki11a/jylanki11a.pdf)
 """
-struct Matern3_2Likelihood{T<:Real,A<:AbstractVector{T}} <: MaternLikelihood
+struct Matern3_2Likelihood{T<:Real} <: MaternLikelihood
     ρ::T
-    c::A
-    θ::A
-    function Matern3_2Likelihood{T}(ρ::T) where {T<:Real}
-        return new{T,Vector{T}}(ρ)
-    end
-    function Matern3_2Likelihood{T}(ρ::T, c²::A, θ::A) where {T<:Real,A<:AbstractVector{T}}
-        return new{T,A}(ρ, c², θ)
-    end
 end
 
 function Matern3_2Likelihood(ρ::T=1.0) where {T<:Real}
@@ -62,22 +54,33 @@ function compute_proba(
 end
 
 ## Local Updates ##
+
+function init_local_vars(::Matern3_2Likelihood, batchsize::Int, T::DataType=Float64)
+    return (; c=rand(T, batchsize), θ=zeros(T, batchsize))
+end
+
 function local_updates!(
-    l::Matern3_2Likelihood, y::AbstractVector, μ::AbstractVector, diag_cov::AbstractVector
+    local_vars,
+    l::Matern3_2Likelihood, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
 )
-    l.c .= sqrt.(diag_cov + abs2.(μ - y))
-    return l.θ .= 3.0 ./ (2.0 .* sqrt.(3) * l.c * l.ρ .+ 2 * l.ρ^2)
+    map!(local_vars.c, μ, diagΣ, y) do μ, σ², y
+        sqrt(abs2(μ - y) + σ²)
+    end # √E[(y-f)^2]
+    map!(local_vars.θ, local_vars.c) do c
+        3 / (2 * sqrt(3) * c * l.ρ + 2 * l.ρ^2)
+    end
 end
 
 function sample_local!(
     local_vars, l::Matern3_2Likelihood, y::AbstractVector, f::AbstractVector
 )
-    local_vars.θ .=
-        rand.(GeneralizedInverseGaussian.(3 / (2 * l.ρ^2), 2.0 .* abs2.(f - y), 1.5))
+    map!(local_vars.θ, f, y) do f, y
+        rand(GeneralizedInverseGaussian(3 / (2 * l.ρ^2), 2 * abs2(f - y), 1.5))
+    end
     return local_vars
 end
 
-@inline ∇E_μ(l::Matern3_2Likelihood, ::AOptimizer, y::AbstractVector) = (2.0 * l.θ .* y,)
+@inline ∇E_μ(l::Matern3_2Likelihood, ::AOptimizer, y::AbstractVector) = (2 * l.θ .* y,)
 @inline ∇E_Σ(l::Matern3_2Likelihood, ::AOptimizer, ::AbstractVector) = (l.θ,)
 
 ## ELBO  ##
@@ -101,9 +104,9 @@ end
 ## PDF and Log PDF Gradients ## (verified gradients)
 
 @inline function ∇loglikehood(l::Matern3_2Likelihood, y::Real, f::Real)
-    return 3.0 * (y - f) / (l.ρ * (abs(f - y) * sqrt(3) + l.ρ))
+    return 3 * (y - f) / (l.ρ * (abs(f - y) * sqrt(3) + l.ρ))
 end
 
 @inline function hessloglikelihood(l::Matern3_2Likelihood, y::Real, f::Real)
-    return 3.0 / (l.ρ + sqrt(3) * abs(f - y))^2
+    return 3 / (l.ρ + sqrt(3) * abs(f - y))^2
 end

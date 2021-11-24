@@ -43,15 +43,21 @@ function local_updates!(
     μ::AbstractVector,
     diagΣ::AbstractVector,
 )
-    @. local_vars.c = sqrt(diagΣ + abs2(μ))
-    @. local_vars.θ = tanh(local_vars.c / 2) / local_vars.c / 2
+    map!(local_vars.c, μ, diagΣ) do μ, σ²
+        sqrt(abs2(μ) + σ²)
+    end # √E[f^2]
+    map!(local_vars.θ, local_vars.c) do c
+        tanh(c / 2) / (2c)
+    end # E[ω]
     return local_vars
 end
 
 function sample_local!(
     local_vars, ::BernoulliLikelihood{<:LogisticLink}, ::AbstractVector, f::AbstractVector
 )
-    local_vars.θ .= rand.(PolyaGamma.(1, abs.(f)))
+    map!(local_vars.θ, f) do f
+        rand(PolyaGamma(1, abs(f)))
+    end
     return local_vars
 end
 

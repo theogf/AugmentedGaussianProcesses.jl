@@ -44,8 +44,10 @@ function local_updates!(
     μ::AbstractVector{T},
     diagΣ::AbstractVector,
 ) where {T}
-    @. local_vars.c = abs2(one(T) - y * μ) + diagΣ
-    @. local_vars.θ = inv(sqrt(local_vars.c))
+    map!(local_vars.c, μ, diagΣ, y) do μ, σ², y
+        abs2(one(T) - y * μ) + σ²
+    end
+    map!(local_vars.θ, inv ∘ sqrt, local_vars.c)
     return local_vars
 end
 
