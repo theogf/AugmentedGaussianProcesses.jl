@@ -172,11 +172,7 @@ function PoissonKL(
     state,
 )
     λ = only(l.invlink.λ)
-    return PoissonKL(
-        state.γ,
-        λ * (abs2.(y - μ) + Σ) / 2,
-        log.(λ * (abs2.(μ - y) + Σ) / 2),
-    )
+    return PoissonKL(state.γ, λ * (abs2.(y - μ) + Σ) / 2, log.(λ * (abs2.(μ - y) + Σ) / 2))
 end
 
 function PolyaGammaKL(::HeteroscedasticGaussianLikelihood{<:InvScaledLogistic}, state)

@@ -112,12 +112,12 @@ function AugmentedKL(l::LaplaceLikelihood, state, ::Any)
     return GIGEntropy(l, state) - expecExponentialGIG(l, state)
 end
 
-GIGEntropy(l::LaplaceLikelihood, state) = GIGEntropy(l.a, state.b.^2, l.p)
+GIGEntropy(l::LaplaceLikelihood, state) = GIGEntropy(l.a, state.b .^ 2, l.p)
 
 function expecExponentialGIG(l::LaplaceLikelihood, state)
     return sum(
         -log(2 * l.β^2) .-
-        (l.a .* state.b + state.b.^2 .* sqrt(l.a)) ./ (l.a .* state.b.^2 * l.β^2) / 2,
+        (l.a .* state.b + state.b .^ 2 .* sqrt(l.a)) ./ (l.a .* state.b .^ 2 * l.β^2) / 2,
     )
 end
 

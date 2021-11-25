@@ -59,31 +59,37 @@ function local_updates!(
     μ::NTuple{N,<:AbstractVector},
     diagΣ::NTuple{N,<:AbstractVector},
 ) where {N}
-    broadcast!(local_vars.c, Σ, μ) do Σ, μ
-        sqrt.(Σ + abs2.(μ))
+    broadcast(local_vars.c, μ, diagΣ) do c, μ, diagΣ
+        map!(sqrt_expec_square, c, μ, diagΣ)
     end
     for _ in 1:2
-        broadcast!(
-            local_vars.γ, Ref(local_vars.β), local_vars.c, μ, Ref(digamma.(local_vars.α))
-        ) do β, c, μ, ψα # Update γ
-            exp.(ψα) .* safe_expcosh.(-μ / 2, c / 2) ./ 2β
+        broadcast(local_vars.γ, local_vars.c, μ) do γ, c, μ # Update γ
+            map!(γ, local_vars.β, c, μ, digamma.(local_vars.α)) do β, c, μ, ψα
+                exp(ψα) * safe_expcosh(-μ / 2, c / 2) / 2β
+            end
         end # E[n]
         local_vars.α .= 1 .+ (local_vars.γ...)
     end
-    broadcast!(local_vars.θ, eachcol(y), local_vars.γ, local_vars.c) do y, γ, c
-        (y + γ) .* tanh.(c / 2) ./ 2c
+    broadcast(local_vars.θ, eachcol(y), local_vars.γ, local_vars.c) do θ, y, γ, c
+        map!(θ, y, γ, c) do y, γ, c
+            (y + γ) * tanh(c / 2) / 2c
+        end
     end # E[ω]
     return local_vars
 end
 
 function sample_local!(local_vars, ::MultiClassLikelihood{<:LogisticSoftMaxLink}, y, f)
-    map!(local_vars.γ, f) do f
-        rand.(Poisson.(local_vars.α .* safe_expcosh.(-f / 2, f / 2) / 2))
-    end
-    local_vars.α .= rand.(Gamma.(1 .+ (local_vars.γ...), inv.(local_vars.β)))
-    broadcast!(local_vars.θ, eachcol(y), local_vars.γ, f) do y, γ, f
-        rand.(PolyaGamma.(y .+ Int.(γ), abs.(f)))
-    end
+    broadcast(local_vars.γ, f) do γ, f
+        map!(γ, local_vars.α, f) do α, f
+            rand(Poisson(α * safe_expcosh(-f / 2, f / 2) / 2))
+        end
+    end # Sample λ
+    local_vars.α .= rand.(Gamma.(1 .+ (local_vars.γ...), inv.(local_vars.β))) # Sample n
+    broadcast(local_vars.θ, eachcol(y), local_vars.γ, f) do θ, y, γ, f
+        map!(θ, y, γ, f) do y, γ, f
+            rand(PolyaGamma(y + Int(γ), abs(f)))
+        end
+    end # Sample ω
     return local_vars
 end
 

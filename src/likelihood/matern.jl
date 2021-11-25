@@ -57,7 +57,10 @@ end
 
 function local_updates!(
     local_vars,
-    l::Matern3_2Likelihood, y::AbstractVector, μ::AbstractVector, diagΣ::AbstractVector
+    l::Matern3_2Likelihood,
+    y::AbstractVector,
+    μ::AbstractVector,
+    diagΣ::AbstractVector,
 )
     map!(sqrt_expec_square, local_vars.c, μ, diagΣ, y) # √E[(y-f)^2]
     map!(local_vars.θ, local_vars.c) do c

@@ -20,12 +20,12 @@ end
 
 # Return √E[f^2]
 function sqrt_expec_square(μ, σ²)
-    sqrt(abs2(μ) + σ²)
+    return sqrt(abs2(μ) + σ²)
 end
 
 # Return √E[(f-y)^2]
 function sqrt_expec_square(μ, σ², y)
-    sqrt(abs2(μ - y) + σ²)
+    return sqrt(abs2(μ - y) + σ²)
 end
 
 ## delta function `(i,j)`, equal `1` if `i == j`, `0` else ##

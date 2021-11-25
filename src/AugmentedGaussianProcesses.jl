@@ -58,7 +58,6 @@ using GPLikelihoods: GPLikelihoods, AbstractLink, AbstractLikelihood
 using GPLikelihoods:
     BernoulliLikelihood, PoissonLikelihood, HeteroscedasticGaussianLikelihood
 using GPLikelihoods: LogisticLink, SoftMaxLink
-using IrrationalConstants: halfπ
 using KernelFunctions: ColVecs, RowVecs
 using LinearAlgebra
 using ProgressMeter
