@@ -5,6 +5,7 @@ using AugmentedGaussianProcesses
 using Distributions
 using LinearAlgebra
 using Plots
+using Random
 default(; lw=3.0, msw=0.0)
 # using CairoMakie
 
@@ -15,16 +16,17 @@ default(; lw=3.0, msw=0.0)
 # ``y \sim f + \epsilon``
 # where ``\epsilon \sim \mathcal{N}(0, (\lambda \sigma(g))^{-1})``
 # We create a toy dataset with X ∈ [-10, 10] and sample `f`, `g` and `y` given this same generative model
+rng = MersenneTwister(42)
 N = 200
-x = (sort(rand(N)) .- 0.5) * 20.0
+x = (sort(rand(rng, N)) .- 0.5) * 20.0
 x_test = range(-10, 10; length=500)
 kernel = 5.0 * SqExponentialKernel() ∘ ScaleTransform(1.0) # Kernel function
 K = kernelmatrix(kernel, x) + 1e-5I # The kernel matrix
-f = rand(MvNormal(K)); # We draw a random sample from the GP prior
+f = rand(rng, MvNormal(K)); # We draw a random sample from the GP prior
 
 # We add a prior mean on `g` so that the variance does not become too big
 μ₀ = -3.0
-g = rand(MvNormal(μ₀ * ones(N), K))
+g = rand(rng, MvNormal(μ₀ * ones(N), K))
 λ = 3.0 # The maximum possible precision
 σ = inv.(sqrt.(λ * AGP.logistic.(g))) # We use the following transform to obtain the std. deviation
 y = f + σ .* randn(N); # We finally sample the ouput
@@ -38,7 +40,7 @@ scatter!(x, y; alpha=0.5, msw=0.0, lab="y") # Observation samples
 model = VGP(
     x,
     y,
-    deepcopy(kernel),
+    kernel,
     HeteroscedasticLikelihood(λ),
     AnalyticVI();
     optimiser=true, # We optimise both the mean parameters and kernel hyperparameters

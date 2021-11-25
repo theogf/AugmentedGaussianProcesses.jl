@@ -65,16 +65,20 @@ function local_updates!(
     μ::AbstractVector,
     diagΣ::AbstractVector,
 )
-    @. local_vars.b = diagΣ + abs2(μ - y)
-    @. local_vars.θ = sqrt(l.a) / sqrt.(local_vars.b)
+    map!(sqrt_expec_square, local_vars.b, μ, diagΣ, y) # √E[(f-y)^2]
+    map!(local_vars.θ, local_vars.b) do b
+        sqrt(l.a) / b
+    end
     return local_vars
 end
 
 function sample_local!(
     local_vars, l::LaplaceLikelihood, y::AbstractVector, f::AbstractVector
 )
-    @. local_vars.b = rand(GeneralizedInverseGaussian(1 / l.β^2, abs2(f - y), 0.5))
-    @. local_vars.θ = inv(local_vars.b)
+    map!(local_vars.b, f, y) do f, y
+        rand(GeneralizedInverseGaussian(inv(l.β^2), abs2(f - y), 0.5))
+    end
+    map!(inv, local_vars.θ, local_vars.b)
     return local_vars
 end
 
@@ -108,12 +112,12 @@ function AugmentedKL(l::LaplaceLikelihood, state, ::Any)
     return GIGEntropy(l, state) - expecExponentialGIG(l, state)
 end
 
-GIGEntropy(l::LaplaceLikelihood, state) = GIGEntropy(l.a, state.b, l.p)
+GIGEntropy(l::LaplaceLikelihood, state) = GIGEntropy(l.a, state.b .^ 2, l.p)
 
 function expecExponentialGIG(l::LaplaceLikelihood, state)
     return sum(
         -log(2 * l.β^2) .-
-        (l.a .* sqrt.(state.b) + state.b .* sqrt(l.a)) ./ (l.a .* state.b * l.β^2) / 2,
+        (l.a .* state.b + state.b .^ 2 .* sqrt(l.a)) ./ (l.a .* state.b .^ 2 * l.β^2) / 2,
     )
 end
 

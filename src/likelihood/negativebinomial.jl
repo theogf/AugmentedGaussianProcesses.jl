@@ -65,17 +65,21 @@ function local_updates!(
     l::NegBinomialLikelihood,
     y::AbstractVector,
     μ::AbstractVector,
-    Σ::AbstractVector,
+    diagΣ::AbstractVector,
 )
-    @. local_vars.c = sqrt(abs2(μ) + Σ)
-    @. local_vars.θ = (l.r + y) / local_vars.c * tanh(local_vars.c / 2)
+    map!(sqrt_expec_square, local_vars.c, μ, diagΣ) # √E[f^2]
+    map!(local_vars.θ, local_vars.c, y) do c, y
+        (l.r + y) * tanh(c / 2) / c
+    end # E[ω]
     return local_vars
 end
 
 function sample_local!(
     local_vars, l::NegBinomialLikelihood, y::AbstractVector, f::AbstractVector
 )
-    local_vars.θ .= rand.(PolyaGamma.(y .+ Int(l.r), abs.(f)))
+    map!(local_vars.θ, f, y) do f, y
+        rand(PolyaGamma(y + Int(l.r), abs(f)))
+    end
     return local_vars
 end
 

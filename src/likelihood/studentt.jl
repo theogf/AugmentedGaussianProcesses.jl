@@ -70,18 +70,24 @@ function local_updates!(
     l::StudentTLikelihood,
     y::AbstractVector,
     μ::AbstractVector,
-    diag_cov::AbstractVector,
+    diagΣ::AbstractVector,
 )
-    @. local_vars.c = (diag_cov + abs2(μ - y) + l.σ^2 * l.ν) / 2
-    @. local_vars.θ = l.α / local_vars.c
+    map!(local_vars.c, μ, diagΣ, y) do μ, σ², y
+        (abs2(μ - y) + σ² + l.σ^2 * l.ν) / 2
+    end
+    map!(local_vars.θ, local_vars.c) do c
+        l.α / c
+    end
     return local_vars
 end
 
 function sample_local!(
     local_vars, l::StudentTLikelihood, y::AbstractVector, f::AbstractVector
 )
-    local_vars.c .= rand.(InverseGamma.(l.α, (abs2.(f - y) .+ l.σ^2 * l.ν) / 2))
-    local_vars.θ .= inv.(local_vars.c)
+    map!(local_vars.c, f, y) do f, y
+        rand(InverseGamma(l.α, (abs2(f - y) + l.σ^2 * l.ν) / 2))
+    end # sample ω
+    map!(inv, local_vars.θ, local_vars.c)
     return local_vars
 end
 

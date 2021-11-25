@@ -114,7 +114,7 @@ Not all inference are implemented/valid for all likelihoods, here is the compati
 | GaussianLikelihood   | ✔ (Analytic)  | ✖  | ✖ | ✖  |
 | StudentTLikelihood   | ✔  | ✔ | ✔ | ✖  |
 | LaplaceLikelihood   | ✔ | ✔ | ✔ | ✖ |
-| HeteroscedasticLikelihood   | ✔ | (dev)  | (dev)  | ✖ |
+| HeteroscedasticLikelihood   | ✔ | ✔  | (dev)  | ✖ |
 | LogisticLikelihood   | ✔  | ✔  | ✔ | ✖  |
 | BayesianSVM   | ✔  | (dev) | ✖ | ✖  |
 | LogisticSoftMaxLikelihood   | ✔  | ✔  | ✖ | (dev)  |
