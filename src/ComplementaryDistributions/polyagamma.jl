@@ -61,6 +61,9 @@ function draw_sum(rng::AbstractRNG, d::PolyaGamma{<:Int})
 end
 
 function draw_sum(rng::AbstractRNG, d::PolyaGamma{<:Real})
+    if d.b < 1
+        return rand_gamma_sum(rng, d, d.b)
+    end
     trunc_b = floor(Int, d.b)
     res_b = d.b - trunc_b
     trunc_term = sum(Base.Fix1(sample_pg1, rng), d.c * ones(trunc_b))
