@@ -3,7 +3,7 @@ module ComplementaryDistributions
 using Distributions
 using Random
 using SpecialFunctions
-using StatsFuns: twoπ, halfπ, inv2π
+using StatsFuns: twoπ, halfπ, inv2π, fourinvπ
 
 export GeneralizedInverseGaussian, PolyaGamma, LaplaceTransformDistribution
 include("generalizedinversegaussian.jl")
