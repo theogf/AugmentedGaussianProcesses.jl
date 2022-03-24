@@ -187,7 +187,7 @@ function init_online_model(m::OnlineSVGP{T}, x) where {T<:Real}
 end
 
 function init_online_gp!(gp::OnlineVarLatent{T}, x, jitt::T=T(jitt)) where {T}
-    Z = InducingPoints.initZ(gp.Zalg, x; kernel=kernel(gp))
+    Z = InducingPoints.inducingpoints(gp.Zalg, x; kernel=kernel(gp))
     k = length(Z)
     post = OnlineVarPosterior{T}(k)
     prior = GPPrior(kernel(gp), pr_mean(gp))
