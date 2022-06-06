@@ -5,7 +5,7 @@ struct GeneralizedInverseGaussian{T<:Real} <: Distributions.ContinuousUnivariate
     b::T
     p::T
     function GeneralizedInverseGaussian{T}(a::T, b::T, p::T) where {T}
-        Distributions.@check_args(GeneralizedInverseGaussian, a > zero(a) && b > zero(b))
+        a > zero(a) && b > zero(b) || throw(ArgumentError("a : $a and b : $b have to be positive"))
         return new{T}(a, b, p)
     end
 end
