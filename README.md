@@ -1,5 +1,7 @@
 ![AugmentedGaussianProcesses.jl](docs/src/assets/banner.png)
 
+> ## This package is being deprecated in favor of the [JuliaGaussianProcesses ecosystem](https://github.com/JuliaGaussianProcesses). In particular most of the features of augmentations is being moved to a new package called [AugmentedGPLikelihoods.jl](https://github.com/JuliaGaussianProcesses/AugmentedGPLikelihoods.jl). It is still a work in progress though. 
+
 
 [![Docs Latest](https://img.shields.io/badge/docs-dev-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/dev)
 [![Docs Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://theogf.github.io/AugmentedGaussianProcesses.jl/stable)
