@@ -67,20 +67,27 @@ function local_updates!(
     l::PoissonLikelihood{<:ScaledLogistic},
     y::AbstractVector,
     μ::AbstractVector,
-    diag_cov::AbstractVector,
+    diagΣ::AbstractVector,
 )
-    @. local_vars.c = sqrt(abs2(μ) + diag_cov)
-    @. local_vars.γ = 0.5 * l.invlink.λ[1] * safe_expcosh(-0.5 * μ, 0.5 * local_vars.c)
-    @. local_vars.θ = (y + local_vars.γ) / local_vars.c * tanh(0.5 * local_vars.c)
-    l.invlink.λ[1] = sum(y) / sum(expectation.(logistic, μ, diag_cov))
+    λ = only(l.invlink.λ)
+    map!(sqrt_expec_square, local_vars.c, μ, diagΣ)
+    map!(local_vars.γ, μ, local_vars.c) do μ, c
+        λ * safe_expcosh(-μ / 2, c / 2) / 2
+    end
+    map!(local_vars.θ, y, local_vars.γ, local_vars.c) do y, γ, c
+        (y + γ) / c * tanh(c / 2)
+    end
+    l.invlink.λ .= sum(y) / sum(expectation.(logistic, μ, diagΣ))
     return local_vars
 end
 
 function sample_local!(
     local_vars, l::PoissonLikelihood{<:ScaledLogistic}, y::AbstractVector, f::AbstractVector
 )
-    @. local_vars.γ = rand(l(f)) # Sample n
-    @. local_vars.θ = rand(PolyaGamma(y + Int(local_vars.γ), abs(f))) # Sample ω
+    map!(rand ∘ l, local_vars.γ, f) # sample n
+    map!(local_vars.θ, y, local_vars.γ, f) do y, γ, f
+        rand(PolyaGamma(y + Int(γ), abs(f))) # Sample ω
+    end
     return local_vars
 end
 
@@ -89,12 +96,12 @@ end
 @inline function ∇E_μ(
     ::PoissonLikelihood{<:ScaledLogistic}, ::AOptimizer, y::AbstractVector, state
 )
-    return (0.5 * (y - state.γ),)
+    return ((y - state.γ) / 2,)
 end
 @inline function ∇E_Σ(
     ::PoissonLikelihood{<:ScaledLogistic}, ::AOptimizer, y::AbstractVector, state
 )
-    return (0.5 * state.θ,)
+    return (state.θ / 2,)
 end
 
 ## ELBO Section ##
@@ -106,7 +113,7 @@ function expec_loglikelihood(
     Σ::AbstractVector,
     state,
 )
-    tot = 0.5 * (dot(μ, (y - state.γ)) - dot(state.θ, abs2.(μ)) - dot(state.θ, Σ))
+    tot = (dot(μ, (y - state.γ)) - dot(state.θ, abs2.(μ)) - dot(state.θ, Σ)) / 2
     tot += Zygote.@ignore(
         sum(y * log(l.invlink.λ[1])) - sum(logfactorial, y) - logtwo * sum((y + state.γ))
     )
@@ -118,7 +125,7 @@ function AugmentedKL(l::PoissonLikelihood{<:ScaledLogistic}, state, y)
 end
 
 function PoissonKL(l::PoissonLikelihood{<:ScaledLogistic}, state)
-    return PoissonKL(state.γ, l.invlink.λ[1])
+    return PoissonKL(state.γ, only(l.invlink.λ))
 end
 
 function PolyaGammaKL(::PoissonLikelihood{<:ScaledLogistic}, state, y)

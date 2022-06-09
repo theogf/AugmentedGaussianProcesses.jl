@@ -44,8 +44,10 @@ function local_updates!(
     μ::AbstractVector{T},
     diagΣ::AbstractVector,
 ) where {T}
-    @. local_vars.c = abs2(one(T) - y * μ) + diagΣ
-    @. local_vars.θ = inv(sqrt(local_vars.c))
+    map!(local_vars.c, μ, diagΣ, y) do μ, σ², y
+        abs2(one(T) - y * μ) + σ²
+    end
+    map!(inv ∘ sqrt, local_vars.θ, local_vars.c)
     return local_vars
 end
 
@@ -58,7 +60,7 @@ end
 @inline function ∇E_Σ(
     ::BernoulliLikelihood{<:SVMLink}, ::AOptimizer, ::AbstractVector, state
 )
-    return (0.5 .* state.θ,)
+    return (state.θ / 2,)
 end
 
 ## ELBO
@@ -71,9 +73,9 @@ function expec_loglikelihood(
     diag_cov::AbstractVector,
     state,
 )
-    tot = -(0.5 * length(y) * logtwo)
+    tot = -length(y) * logtwo / 2
     tot += dot(μ, y)
-    tot += -0.5 * dot(state.θ, diag_cov) + dot(state.θ, abs2.(one(eltype(μ)) .- y .* μ))
+    tot += -dot(state.θ, diag_cov) / 2 + dot(state.θ, abs2.(one(eltype(μ)) .- y .* μ))
     return tot
 end
 
@@ -82,6 +84,6 @@ function AugmentedKL(l::BernoulliLikelihood{<:SVMLink}, state, ::Any)
 end
 
 function GIGEntropy(::BernoulliLikelihood{<:SVMLink}, state)
-    return 0.5 * sum(log.(state.c)) + sum(log.(2.0 * besselk.(0.5, sqrt.(state.c)))) -
-           0.5 * sum(sqrt.(state.c))
+    return sum(log.(state.c)) / 2 + sum(log.(2.0 * besselk.(0.5, sqrt.(state.c)))) -
+           sum(sqrt.(state.c)) / 2
 end

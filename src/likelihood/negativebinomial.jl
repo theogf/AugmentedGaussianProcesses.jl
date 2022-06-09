@@ -71,27 +71,31 @@ function local_updates!(
     l::NegBinomialLikelihood,
     y::AbstractVector,
     μ::AbstractVector,
-    Σ::AbstractVector,
+    diagΣ::AbstractVector,
 )
-    @. local_vars.c = sqrt(abs2(μ) + Σ)
-    @. local_vars.θ = (l.r + y) / local_vars.c * tanh(0.5 * local_vars.c)
+    map!(sqrt_expec_square, local_vars.c, μ, diagΣ) # √E[f^2]
+    map!(local_vars.θ, local_vars.c, y) do c, y
+        (l.r + y) * tanh(c / 2) / c
+    end # E[ω]
     return local_vars
 end
 
 function sample_local!(
     local_vars, l::NegBinomialLikelihood, y::AbstractVector, f::AbstractVector
 )
-    local_vars.θ .= rand.(PolyaGamma.(y .+ Int(l.r), abs.(f)))
+    map!(local_vars.θ, f, y) do f, y
+        rand(PolyaGamma(y + Int(l.r), abs(f)))
+    end
     return local_vars
 end
 
 ## Global Updates ##
 
 @inline function ∇E_μ(l::NegBinomialLikelihood, ::AOptimizer, y::AbstractVector, state)
-    return (0.5 * (y .- l.r),)
+    return ((y .- l.r) / 2,)
 end
 @inline function ∇E_Σ(::NegBinomialLikelihood, ::AOptimizer, y::AbstractVector, state)
-    return (0.5 .* state.θ,)
+    return (state.θ / 2,)
 end
 
 ## ELBO Section ##
@@ -119,7 +123,7 @@ function expec_loglikelihood(
     state,
 )
     tot = Zygote.@ignore(sum(negbin_logconst(y, l.r))) - log(2.0) * sum(y .+ l.r)
-    tot += 0.5 * dot(μ, (y .- l.r)) - 0.5 * dot(μ.^2, state.θ) - 0.5 * dot(diag_cov, state.θ)
+    tot += dot(μ, (y .- l.r)) / 2 - dot(state.θ, μ) / 2 - dot(state.θ, diag_cov) / 2
     return tot
 end
 

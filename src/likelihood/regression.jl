@@ -15,4 +15,4 @@ function treat_labels!(
 end
 
 predict_y(::RegressionLikelihood, μ::AbstractVector{<:Real}) = μ
-predict_y(::RegressionLikelihood, μ::Tuple{<:AbstractVector}) = first(μ)
+predict_y(::RegressionLikelihood, μ::Tuple{<:AbstractVector}) = only(μ)

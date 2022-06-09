@@ -29,7 +29,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", μ₀::AffineMean)
     return print(
-        io, "Affine Mean Prior (size(w) = ", length(μ₀.w), ", b = ", first(μ₀.b), ")"
+        io, "Affine Mean Prior (size(w) = ", length(μ₀.w), ", b = ", only(μ₀.b), ")"
     )
 end
 
@@ -41,7 +41,7 @@ function (μ₀::AffineMean{T})(x::AbstractVector) where {T<:Real}
     # size(x),
     # ") do not match",
     # )
-    return dot.(x, Ref(μ₀.w)) .+ first(μ₀.b)
+    return dot.(x, Ref(μ₀.w)) .+ only(μ₀.b)
 end
 
 function init_priormean_state(hyperopt_state, μ₀::AffineMean)

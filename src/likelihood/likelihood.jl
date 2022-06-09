@@ -11,7 +11,7 @@ Distributions.loglikelihood(l::AbstractLikelihood, y::Real, f) = log(l(y, f))
 
 ## Default function for getting gradient ##
 function ∇loglikehood(l::AbstractLikelihood, y::Real, f::Real)
-    return first(ForwardDiff.gradient(x -> loglikelihood(l, y, x[1]), [f]))
+    return only(ForwardDiff.gradient(x -> loglikelihood(l, y, x[1]), [f]))
 end
 
 function ∇loglikehood(l::AbstractLikelihood, y::Real, f::AbstractVector)
@@ -19,7 +19,7 @@ function ∇loglikehood(l::AbstractLikelihood, y::Real, f::AbstractVector)
 end
 
 function hessloglikehood(l::AbstractLikelihood, y::Real, f::Real)
-    return first(ForwardDiff.hessian(x -> loglikelihood(l, y, x[1]), [f]))
+    return only(ForwardDiff.hessian(x -> loglikelihood(l, y, x[1]), [f]))
 end
 
 function hessloglikelihood(l::AbstractLikelihood, y::Real, f::AbstractVector)

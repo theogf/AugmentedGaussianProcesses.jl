@@ -27,7 +27,7 @@
             @test AGP.getf(model) isa AGP.LatentGP
             @test AGP.n_latent(model) == 1
             L = AGP.objective(model, X, y)
-            @test_nowarn train!(model, 10)
+            train!(model, 10)
             @test L < AGP.objective(model, X, y)
             @test testconv(model, "Regression", X, f, y)
             @test all(proba_y(model, X)[2] .> 0)

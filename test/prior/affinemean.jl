@@ -15,7 +15,7 @@
     g = Zygote.gradient(μ₀) do m
         sum(m(X))
     end
-    AGP.update!(μ₀, st, first(g))
-    @test all(μ₀.w .== (w + first(g).w))
-    @test first(μ₀.b) == b + first(g).b[1]
+    AGP.update!(μ₀, st, only(g))
+    @test all(μ₀.w .== (w + only(g).w))
+    @test first(μ₀.b) == b + only(g).b[1]
 end

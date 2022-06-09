@@ -57,50 +57,49 @@ function local_updates!(
     ::MultiClassLikelihood{<:LogisticSoftMaxLink},
     y,
     μ::NTuple{N,<:AbstractVector},
-    Σ::NTuple{N,<:AbstractVector},
+    diagΣ::NTuple{N,<:AbstractVector},
 ) where {N}
-    @. local_vars.c = broadcast((Σ, μ) -> sqrt.(Σ + abs2.(μ)), Σ, μ)
+    broadcast(local_vars.c, μ, diagΣ) do c, μ, diagΣ
+        map!(sqrt_expec_square, c, μ, diagΣ)
+    end
     for _ in 1:2
-        broadcast!(
-            (β, c, μ, ψα) -> 0.5 / β * exp.(ψα) .* safe_expcosh.(-0.5 * μ, 0.5 * c),
-            local_vars.γ,
-            Ref(local_vars.β),
-            local_vars.c,
-            μ,
-            Ref(digamma.(local_vars.α)),
-        ) # Update γ
+        broadcast(local_vars.γ, local_vars.c, μ) do γ, c, μ # Update γ
+            map!(γ, local_vars.β, c, μ, digamma.(local_vars.α)) do β, c, μ, ψα
+                exp(ψα) * safe_expcosh(-μ / 2, c / 2) / 2β
+            end
+        end # E[n]
         local_vars.α .= 1 .+ (local_vars.γ...)
     end
-    broadcast!(
-        (y, γ, c) -> 0.5 * (y + γ) ./ c .* tanh.(0.5 .* c),
-        local_vars.θ, # target
-        eachcol(y), # argument 1
-        local_vars.γ, # argument 2
-        local_vars.c, # argument 3
-    ) # update θ
+    broadcast(local_vars.θ, eachcol(y), local_vars.γ, local_vars.c) do θ, y, γ, c
+        map!(θ, y, γ, c) do y, γ, c
+            (y + γ) * tanh(c / 2) / 2c
+        end
+    end # E[ω]
     return local_vars
 end
 
 function sample_local!(local_vars, ::MultiClassLikelihood{<:LogisticSoftMaxLink}, y, f)
-    broadcast!(
-        f -> rand.(Poisson.(0.5 * local_vars.α .* safe_expcosh.(-0.5 * f, 0.5 * f))),
-        local_vars.γ,
-        f,
-    )
-    local_vars.α .= rand.(Gamma.(1 .+ (local_vars.γ...), inv.(local_vars.β)))
-    local_vars.θ .= broadcast(
-        (y, γ, f) -> rand.(PolyaGamma.(y .+ Int.(γ), abs.(f))), eachcol(y), local_vars.γ, f
-    )
+    broadcast(local_vars.γ, f) do γ, f
+        map!(γ, local_vars.α, f) do α, f
+            rand(Poisson(α * safe_expcosh(-f / 2, f / 2) / 2))
+        end
+    end # Sample λ
+    local_vars.α .= rand.(Gamma.(1 .+ (local_vars.γ...), inv.(local_vars.β))) # Sample n
+    broadcast(local_vars.θ, eachcol(y), local_vars.γ, f) do θ, y, γ, f
+        map!(θ, y, γ, f) do y, γ, f
+            rand(PolyaGamma(y + Int(γ), abs(f)))
+        end
+    end # Sample ω
     return local_vars
 end
 
 ## Global Gradient Section ##
 
 @inline function ∇E_μ(::MultiClassLikelihood{<:LogisticSoftMaxLink}, ::AOptimizer, y, state)
-    return 0.5 .* (eachcol(y) .- state.γ)
+    return (eachcol(y) .- state.γ) / 2
 end
 @inline function ∇E_Σ(::MultiClassLikelihood{<:LogisticSoftMaxLink}, ::AOptimizer, y, state)
-    return 0.5 .* state.θ
+    return state.θ / 2
 end
 
 ## ELBO Section ##
@@ -109,9 +108,9 @@ function expec_loglikelihood(
 )
     tot = -length(y) * logtwo
     tot += -sum(sum(state.γ .+ eachcol(y))) * logtwo
-    tot += 0.5 * sum(zip(state.θ, state.γ, eachcol(y), μ, Σ)) do (θ, γ, y, μ, Σ)
+    tot += sum(zip(state.θ, state.γ, eachcol(y), μ, Σ)) do (θ, γ, y, μ, Σ)
         dot(μ, (y - γ)) - dot(θ, abs2.(μ)) - dot(θ, Σ)
-    end
+    end / 2
     return tot
 end
 

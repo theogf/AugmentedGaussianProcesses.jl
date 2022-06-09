@@ -41,7 +41,7 @@ function ∇logprior(gp::AbstractLatent, f)
 end
 
 function logprior(gp::AbstractLatent, f)
-    return -0.5 * logdet(pr_cov(gp)) - 0.5 * invquad(pr_cov(gp), f) # Remove μ₀ temp
+    return -logdet(pr_cov(gp)) / 2 - invquad(pr_cov(gp), f) / 2 # Remove μ₀ temp
 end
 
 function store_variables!(i::SamplingInference{T}, fs) where {T}
