@@ -266,9 +266,9 @@ end
             state.local_vars,
         )
     tot -= GaussianKL(model, state)
-    tot -= Zygote.@ignore(
+    tot -= ChainRulesCore.ignore_derivatives() do
         ρ(inference(model)) * AugmentedKL(likelihood(model), state.local_vars, y)
-    )
+    end
     tot -= extraKL(model, state)
     return tot
 end
@@ -290,9 +290,9 @@ end
             state.local_vars,
         )
     tot -= GaussianKL(model, state)
-    tot -= Zygote.@ignore(
+    tot -= ChainRulesCore.ignore_derivatives() do 
         sum(ρ(inference(model)) * AugmentedKL.(likelihood(model), state.local_vars, y))
-    )
+    end
     return tot
 end
 
