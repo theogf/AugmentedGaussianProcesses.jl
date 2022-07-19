@@ -17,7 +17,7 @@ x = range(-10, 10; length=50)
 x_test = range(-10, 10; length=500)
 K = kernelmatrix(kernel, vcat(x, x_test))
 f_all = rand(MvNormal(K + 1e-8I)) # Sample a random GP
-f = f[1:N_train]
+f = f_all[1:N_train]
 y = rand.(Bernoulli.(AGP.logistic.(f)))
 y_sign = Int.(sign.(y .- 0.5));
 
