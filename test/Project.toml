@@ -7,3 +7,10 @@ PDMats = "90014a1f-27ba-587c-ab20-58faa44d9150"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
+[compat]
+Distances = "0.10"
+Distributions = "0.25"
+MLDataUtils = "0.5"
+PDMats = "0.11"
+Zygote = "0.6"
