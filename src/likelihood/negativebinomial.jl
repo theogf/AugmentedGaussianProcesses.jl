@@ -16,6 +16,8 @@ if ``r\in \mathbb{N}`` or
 ```
 if ``r\in\mathbb{R}``.
 Where ``\sigma`` is the logistic function
+
+Note that this likelihood follows the Wikipedia definition and not the Distributions.jl one.
 """
 struct NegBinomialLikelihood{L,Tr} <: AbstractLikelihood
     invlink::L
@@ -24,7 +26,7 @@ end
 
 NegBinomialLikelihood(r) = NegBinomialLikelihood(LogisticLink(), r)
 
-(l::NegBinomialLikelihood)(f::Real) = NegativeBinomial(l.r, l.invlink(f))
+(l::NegBinomialLikelihood)(f::Real) = NegativeBinomial(l.r, l.invlink(-f))
 
 implemented(::NegBinomialLikelihood, ::Union{<:AnalyticVI,<:GibbsSampling}) = true
 
@@ -47,10 +49,14 @@ function compute_proba(
     T = eltype(μ)
     pred = zeros(T, N)
     sig_pred = zeros(T, N)
+    function negbin_mean(x)
+        p = l.invlink(x)
+        return p * l.r / (1 - p)
+    end
     for i in 1:N
         x = pred_nodes .* sqrt(max(σ²[i], zero(T))) .+ μ[i]
-        pred[i] = dot(pred_weights, l.invlink.(x))
-        sig_pred[i] = dot(pred_weights, l.invlink.(x) .^ 2) - pred[i]^2
+        pred[i] = dot(pred_weights, negbin_mean.(x))
+        sig_pred[i] = dot(pred_weights, negbin_mean.(x) .^ 2) - pred[i]^2
     end
     return pred, sig_pred
 end
