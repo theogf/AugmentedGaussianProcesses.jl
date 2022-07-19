@@ -99,7 +99,7 @@ function expec_loglikelihood(
     state,
 )
     tot = -length(y) * log(twoπ) / 2
-    tot += Zygote.@ignore(sum(log, state.θ)) / 2
+    tot += ChainRulesCore.@ignore_derivatives sum(log, state.θ) / 2
     tot +=
         -(
             dot(state.θ, diag_cov) + dot(state.θ, abs2.(μ)) - 2.0 * dot(state.θ, μ .* y) +

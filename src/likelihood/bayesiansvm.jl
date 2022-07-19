@@ -80,7 +80,7 @@ function expec_loglikelihood(
 end
 
 function AugmentedKL(l::BernoulliLikelihood{<:SVMLink}, state, ::Any)
-    Zygote.@ignore(GIGEntropy(l, state))
+    ChainRulesCore.@ignore_derivatives GIGEntropy(l, state)
 end
 
 function GIGEntropy(::BernoulliLikelihood{<:SVMLink}, state)
