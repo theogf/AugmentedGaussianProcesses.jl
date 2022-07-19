@@ -122,7 +122,7 @@ function expec_loglikelihood(
     diag_cov::AbstractVector,
     state,
 )
-    tot = Zygote.@ignore(sum(negbin_logconst(y, l.r))) - log(2.0) * sum(y .+ l.r)
+    tot = ChainRulesCore.@ignore_derivatives(sum(negbin_logconst(y, l.r))) - log(2.0) * sum(y .+ l.r)
     tot += dot(μ, (y .- l.r)) / 2 - dot(state.θ, μ) / 2 - dot(state.θ, diag_cov) / 2
     return tot
 end
