@@ -1,10 +1,10 @@
-using AugmentedGaussianProcesses
-using Test
-using LinearAlgebra, Distributions
-using Zygote
+using Test, AugmentedGaussianProcesses
+using Distributions
+using LinearAlgebra
 using PDMats
 using MLDataUtils
 using Random: seed!
+using Zygote
 seed!(42)
 
 include("testingtools.jl")

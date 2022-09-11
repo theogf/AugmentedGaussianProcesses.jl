@@ -9,9 +9,9 @@ function RobbinsMonro(κ::Real=0.51, τ::Real=1)
     return RobbinsMonro{promote_type(typeof(κ), typeof(τ))}(κ, τ)
 end
 
-Optimisers.init(::RobbinsMonro, ::Any) = 1
+Optimisers.setup(::RobbinsMonro, ::Any) = 1
 
-function Optimisers.apply(o::RobbinsMonro, st, x, Δ)
+function Optimisers.apply!(o::RobbinsMonro, st, x, Δ)
     κ = o.κ
     τ = o.τ
     n = st
@@ -36,7 +36,7 @@ function Optimisers.init(opt::ALRSVI{T}, x::AbstractArray) where {T}
     return (; i, g, h, ρ=opt.ρ, τ)
 end
 
-function apply(opt::ALRSVI, state, x::AbstractArray, Δx::AbstractArray)
+function apply(opt::ALRSVI, state, ::AbstractArray, Δx::AbstractArray)
     if state.i <= opt.n_mc
         g = state.g + Δx
         h = state.h + norm(Δx)

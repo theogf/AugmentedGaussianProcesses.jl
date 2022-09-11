@@ -51,8 +51,8 @@ end
 
 function update!(μ₀::AffineMean{T}, hyperopt_state, grad) where {T<:Real}
     μ₀_state = hyperopt_state.μ₀_state
-    w, Δw = Optimisers.apply(μ₀.opt, μ₀_state.w, μ₀.w, grad.w)
-    b, Δb = Optimisers.apply(μ₀.opt, μ₀_state.b, μ₀.b, grad.b)
+    w, Δw = Optimisers.apply!(μ₀.opt, μ₀_state.w, μ₀.w, grad.w)
+    b, Δb = Optimisers.apply!(μ₀.opt, μ₀_state.b, μ₀.b, grad.b)
     μ₀.w .+= Δw
     μ₀.b .+= Δb
     return merge(hyperopt_state, (; μ₀_state=(; w, b)))

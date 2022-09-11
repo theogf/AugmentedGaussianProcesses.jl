@@ -107,7 +107,7 @@ function update_A!(m::TGP, state, ys) where {TGP<:AbstractGPModel}
                     ∇A[q] = x1 - 2 * m.A[t][j][q] * x2
                 end
                 state_A = state.A_state[t][j]
-                state_A, ΔA = Optimisers.apply(m.A_opt, state_A, m.A[t][j], ∇A)
+                state_A, ΔA = Optimisers.apply!(m.A_opt, state_A, m.A[t][j], ∇A)
                 m.A[t][j] .+= ΔA
                 m.A[t][j] /= sqrt(sum(abs2, m.A[t][j])) # Projection on the unit circle
                 state.A_state[t][j] = state_A
