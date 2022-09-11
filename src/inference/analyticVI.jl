@@ -228,10 +228,10 @@ end
 
 function global_update!(gp::SparseVarLatent, opt::AVIOptimizer, i::AnalyticVI, opt_state)
     if is_stochastic(i)
-        state_η₁, Δ₁ = Optimisers.apply(
+        state_η₁, Δ₁ = Optimisers.apply!(
             opt.optimiser, opt_state.state_η₁, nat1(gp), opt_state.∇η₁
         )
-        state_η₂, Δ₂ = Optimisers.apply(
+        state_η₂, Δ₂ = Optimisers.apply!(
             opt.optimiser, opt_state.state_η₂, nat2(gp).data, opt_state.∇η₂
         )
         gp.post.η₁ .+= Δ₁

@@ -32,7 +32,7 @@ end
 
 function update!(μ₀::EmpiricalMean{T}, hyperopt_state, grad) where {T<:Real}
     μ₀_state = hyperopt_state.μ₀_state
-    C, ΔC = Optimisers.apply(μ₀.opt, μ₀_state.C, μ₀.C, grad.C)
+    C, ΔC = Optimisers.apply!(μ₀.opt, μ₀_state.C, μ₀.C, grad.C)
     μ₀.C .+= ΔC
     return merge(hyperopt_state, (; μ₀_state=(; C)))
 end

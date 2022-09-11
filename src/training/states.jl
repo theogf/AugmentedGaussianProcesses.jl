@@ -51,8 +51,8 @@ function init_opt_state(gp::Union{VarLatent{T},TVarLatent{T}}, vi::NumericalVI) 
     return (;
         ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
         λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm
-        state_μ=Optimisers.state(opt(vi).optimiser, mean(gp)),
-        state_Σ=Optimisers.state(opt(vi), cov(gp).data),
+        state_μ=Optimisers.setup(opt(vi).optimiser, mean(gp)),
+        state_Σ=Optimisers.setup(opt(vi), cov(gp).data),
         ∇η₁=zero(mean(gp)),
         ∇η₂=zero(cov(gp).data),
     )
@@ -64,8 +64,8 @@ function init_opt_state(gp::SparseVarLatent{T}, vi::VariationalInference) where 
         state = merge(
             state,
             (;
-                state_η₁=Optimisers.state(opt(vi).optimiser, nat1(gp)),
-                state_η₂=Optimisers.state(opt(vi), nat2(gp).data),
+                state_η₁=Optimisers.setup(opt(vi).optimiser, nat1(gp)),
+                state_η₂=Optimisers.setup(opt(vi), nat2(gp).data),
             ),
         )
     end
@@ -75,8 +75,8 @@ function init_opt_state(gp::SparseVarLatent{T}, vi::VariationalInference) where 
             (;
                 ν=zeros(T, batchsize(vi)), # Derivative -<dv/dx>_qn
                 λ=zeros(T, batchsize(vi)), # Derivative  <d²V/dx²>_qm
-                state_μ=Optimisers.state(opt(vi).optimiser, mean(gp)),
-                state_Σ=Optimisers.state(opt(vi), cov(gp).data),
+                state_μ=Optimisers.setup(opt(vi).optimiser, mean(gp)),
+                state_Σ=Optimisers.setup(opt(vi), cov(gp).data),
             ),
         )
     end
@@ -121,7 +121,7 @@ end
     hyperopt_state = (;)
     if !isnothing(opt(gp))
         k = kernel(gp)
-        state_k = Optimisers.state(opt(gp), k)
+        state_k = Optimisers.setup(opt(gp), k)
         hyperopt_state = merge(hyperopt_state, (; state_k))
     end
     hyperopt_state = init_priormean_state(hyperopt_state, pr_mean(gp))
@@ -132,18 +132,18 @@ end
     hyperopt_state = (;)
     if !isnothing(opt(gp))
         k = kernel(gp)
-        state_k = Optimisers.state(opt(gp), k)
+        state_k = Optimisers.setup(opt(gp), k)
         hyperopt_state = merge(hyperopt_state, (; state_k))
     end
     if !isnothing(Zopt(gp))
         Z = Zview(gp)
-        state_Z = Optimisers.state(opt(gp), Z)
+        state_Z = Optimisers.setup(opt(gp), Z)
         hyperopt_state = merge(hyperopt_state, (; state_Z))
     end
     hyperopt_state = init_priormean_state(hyperopt_state, pr_mean(gp))
     return hyperopt_state
 end
 
-function Optimisers.state(opt, Z::Union{ColVecs,RowVecs})
-    return Optimisers.state(opt, Z.X)
+function Optimisers.setup(opt, Z::Union{ColVecs,RowVecs})
+    return Optimisers.setup(opt, Z.X)
 end

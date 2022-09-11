@@ -61,7 +61,7 @@ function update_kernel!(opt, k::Union{Kernel,Transform}, g::NamedTuple, state::N
 end
 
 function update_kernel!(opt, x::AbstractArray, g::AbstractArray, state)
-    state, Δ = Optimisers.apply(opt, state, x, x .* g)
+    state, Δ = Optimisers.apply!(opt, state, x, x .* g)
     @. x = exp(log(x) + Δ) # Always assume that parameters need to be positive
     return state
 end
@@ -69,14 +69,14 @@ end
 ## Updating inducing points
 function update_Z!(opt, Z::AbstractVector, Z_grads::AbstractVector, state)
     return map(Z, Z_grads, state) do z, zgrad, st
-        st, ΔZ = Optimisers.apply(opt, st, z, zgrad)
+        st, ΔZ = Optimisers.apply!(opt, st, z, zgrad)
         z .+= ΔZ
         return st
     end
 end
 
 function update_Z!(opt, Z::Union{ColVecs,RowVecs}, Z_grads::NamedTuple, state)
-    st, Δ = Optimisers.apply(opt, state, Z.X, Z_grads.X)
+    st, Δ = Optimisers.apply!(opt, state, Z.X, Z_grads.X)
     Z.X .+= Δ
     return st
 end
