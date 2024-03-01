@@ -1,7 +1,7 @@
 name = "AugmentedGaussianProcesses"
 uuid = "38eea1fd-7d7d-5162-9d08-f89d0f2e271e"
 authors = ["Theo Galy-Fajou <theo.galyfajou@gmail.com>"]
-version = "0.11.5"
+version = "0.11.6"
 
 [deps]
 AbstractMCMC = "80f14c24-f653-4e6a-9b94-39d6b0f70001"
@@ -34,7 +34,7 @@ ForwardDiff = "0.10"
 GPLikelihoods = "0.2, 0.3, 0.4"
 InducingPoints = "0.2, 0.3"
 KernelFunctions = "0.8, 0.9, 0.10"
-Optimisers = "0.1"
+Optimisers = "0.1, 0.3"
 ProgressMeter = "1"
 RecipesBase = "1.0, 1.1"
 Reexport = "0.2, 1"
