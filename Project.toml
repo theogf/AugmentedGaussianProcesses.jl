@@ -1,7 +1,7 @@
 name = "AugmentedGaussianProcesses"
 uuid = "38eea1fd-7d7d-5162-9d08-f89d0f2e271e"
 authors = ["Theo Galy-Fajou <theo.galyfajou@gmail.com>"]
-version = "0.11.5"
+version = "0.11.6"
 
 [deps]
 AbstractMCMC = "80f14c24-f653-4e6a-9b94-39d6b0f70001"
@@ -40,6 +40,7 @@ RecipesBase = "1.0, 1.1"
 Reexport = "0.2, 1"
 SimpleTraits = "0.9"
 SpecialFunctions = "1, 2"
+Statistics = "1"
 StatsBase = "0.32, 0.33"
 StatsFuns = "0.9, 1"
 Zygote = "0.6.7"
